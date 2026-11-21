@@ -17,7 +17,7 @@
       }
     },
     "e2e-test": {
-      "match": "e2e/**",
+      "match": ["e2e/**", "do.test.ts"],
       "dependsOn": [],
       "rules": {
         "function-cohesion": false

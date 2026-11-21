@@ -1,0 +1,80 @@
+#!/bin/sh
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+. "$root/scripts/_test-helpers"
+
+secrets_repo="$work/secrets-repo"
+mkdir -p "$secrets_repo/node_modules/.bin"
+cp "$root/do" "$secrets_repo/do"
+cp -R "$root/scripts" "$secrets_repo/scripts"
+cp "$root/.secretlintrc.json" "$secrets_repo/"
+ln -s "$root/node_modules/.bin/secretlint" "$secrets_repo/node_modules/.bin/secretlint"
+printf '#!/bin/sh\nexit 0\n' >"$secrets_repo/node_modules/.bin/vp"
+chmod +x "$secrets_repo/node_modules/.bin/vp"
+(
+  cd "$secrets_repo" || exit 1
+  git init -q -b main .
+  git config user.email t@example.com
+  git config user.name t
+)
+run_secrets() {
+  status=0
+  (cd "$secrets_repo" && "$secrets_repo/do" "$@") >"$work/out" 2>"$work/err" || status=$?
+}
+
+token="ghp_$(printf '%s' 16C7e42F292c6912E708e4CdE8D9e5F0A1b2)"
+printf 'GH_TOKEN=%s\n' "$token" >"$secrets_repo/leaked.txt"
+
+run_secrets secrets
+expect_status 1 "the secrets task refuses a credential"
+expect_out 'leaked.txt' "the secrets task names the file"
+expect_out 'GITHUB_TOKEN' "the secrets task names the rule"
+
+git -C "$secrets_repo" add leaked.txt
+run_secrets precommit
+expect_status 1 "a staged credential is refused"
+expect_out 'leaked.txt' "the refused commit names the file"
+
+git -C "$secrets_repo" rm -q --cached leaked.txt
+rm "$secrets_repo/leaked.txt"
+printf 'nothing to hide\n' >"$secrets_repo/plain.txt"
+git -C "$secrets_repo" add plain.txt
+run_secrets precommit
+expect_status 0 "a staged file with no credential passes"
+run_secrets secrets
+expect_status 0 "the secrets task passes with no credential"
+
+printf 'GH_TOKEN=%s\n' "$token" >"$secrets_repo/partial.txt"
+git -C "$secrets_repo" add partial.txt
+printf 'nothing here\n' >"$secrets_repo/partial.txt"
+run_secrets precommit
+expect_status 1 "a credential left in the index is refused"
+expect_out 'partial.txt' "the partly staged file is named"
+
+for i in $(seq 1 20); do printf 'line %s of a file long enough to stay a rename\n' "$i" >>"$secrets_repo/plain.txt"; done
+git -C "$secrets_repo" add -A
+git -C "$secrets_repo" commit -qm base
+git -C "$secrets_repo" mv plain.txt moved.txt
+printf 'GH_TOKEN=%s\n' "$token" >>"$secrets_repo/moved.txt"
+git -C "$secrets_repo" add -A
+run_secrets precommit
+expect_status 1 "a rename that carries a credential is refused"
+expect_out 'moved.txt' "the renamed file is named"
+
+printf 'GH_TOKEN=%s\n' "$token" >"$secrets_repo/one.txt"
+printf 'GH_TOKEN=%s\n' "$token" >"$secrets_repo/two.txt"
+git -C "$secrets_repo" add -A
+run_secrets precommit
+expect_status 1 "a commit holding two credentials is refused"
+expect_out 'one.txt' "the first credential is named"
+expect_out 'two.txt' "the second credential is named"
+
+git -C "$secrets_repo" reset -q
+printf 'gone\n' >"$secrets_repo/gone.txt"
+git -C "$secrets_repo" add gone.txt
+git -C "$secrets_repo" commit -qm gone
+git -C "$secrets_repo" rm -q gone.txt
+run_secrets precommit
+expect_status 0 "a commit that only deletes files is not refused"
+
+finish
