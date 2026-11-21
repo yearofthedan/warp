@@ -4,7 +4,8 @@ import { configDefaults, defineConfig } from 'vite-plus';
 // unit runs in memory, integration reads fixtures/, e2e spawns the CLI.
 const unit = ['src/**/*.test.ts', 'integrations/**/*.test.ts'];
 const integration = ['src/**/*.integration.test.ts'];
-const e2e = ['e2e/**/*.test.ts'];
+// do.test.ts runs each ./do script's shell suite against a stubbed copy of the repo.
+const e2e = ['e2e/**/*.test.ts', 'do.test.ts'];
 
 export default defineConfig({
   fmt: {
