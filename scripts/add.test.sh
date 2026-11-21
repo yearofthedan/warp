@@ -27,16 +27,22 @@ unchanged() {
 }
 install_line() { grep -n 'pnpm install --frozen-lockfile' "$VP_LOG" | head -n 1 | cut -d: -f 1; }
 
+mkdir -p "$work/unwritable"
+cat >"$work/unwritable/cp" <<STUB
+#!/bin/sh
+for target; do :; done
+[ "\$target" = "$copy/pnpm-workspace.yaml" ] && exit 1
+exec $(command -v cp) "\$@"
+STUB
+chmod +x "$work/unwritable/cp"
+
 before
-# Root writes through a read-only mode, so this case holds only for an ordinary user, as on a laptop or in CI.
-chmod 444 "$copy/pnpm-workspace.yaml"
-run_add PNPM_ADD_CLEAN=1
+run_add PNPM_ADD_CLEAN=1 PATH="$work/unwritable:$PATH"
 expect_status 1 "a copy-back that fails partway is refused"
 expect_err 'could not be written' "the refusal says the audited files could not be written"
 expect_err 'may not hold what was there' "the file that would not go back says so"
 expect_err 'what was there is kept in' "the refusal says where the originals are kept"
 unchanged "a copy-back that fails partway leaves the files as they were"
-chmod 644 "$copy/pnpm-workspace.yaml"
 
 before
 run_add
