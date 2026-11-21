@@ -12,8 +12,8 @@ coverage/
 reports/
 .stryker-tmp/
 
-# Agent scratch
-.omp/agent-notes/
+# Harness config is per user
+.omp/
 
 # Editors and OS
 .DS_Store
