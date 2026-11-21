@@ -23,8 +23,17 @@ export const typescriptAnalyzer: Analyzer = {
         const file = toRelative(root, fileName);
         if (file && !file.includes('node_modules/')) files.set(fileName, file);
       }
-      const byPath = new Map([...files].flatMap(([fileName, file]) => [[fileName, file], [fileName.toLowerCase(), file]]));
-      const resolver: Resolver = { program, checker, relative: (path) => byPath.get(path) ?? byPath.get(path.toLowerCase()) };
+      const byPath = new Map(
+        [...files].flatMap(([fileName, file]) => [
+          [fileName, file],
+          [fileName.toLowerCase(), file],
+        ]),
+      );
+      const resolver: Resolver = {
+        program,
+        checker,
+        relative: (path) => byPath.get(path) ?? byPath.get(path.toLowerCase()),
+      };
 
       const modules: ModuleFacts[] = [];
       for (const [fileName, file] of files) {

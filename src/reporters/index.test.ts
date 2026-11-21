@@ -4,7 +4,15 @@ import { reporters } from '../reporters/index.ts';
 import type { Report } from '../reporters/reporter.ts';
 import type { Finding } from '../model/rule.ts';
 
-const finding: Finding = { rule: 'cognitive-complexity', key: 'cognitive-complexity:src/a.ts:f', file: 'src/a.ts', line: 3, value: 20, limit: 15, message: 'Too complex.' };
+const finding: Finding = {
+  rule: 'cognitive-complexity',
+  key: 'cognitive-complexity:src/a.ts:f',
+  file: 'src/a.ts',
+  line: 3,
+  value: 20,
+  limit: 15,
+  message: 'Too complex.',
+};
 const documented: Finding = { ...finding, docs: 'https://example.test/cognitive-complexity.md' };
 const context = { toolVersion: '1.2.3', projectPath: 'app' };
 const render = (id: string, report: Report) => reporters.get(id)?.render(report, context) ?? '';
@@ -12,14 +20,19 @@ const diff = (added: Finding[]): Report => ({ mode: 'diff', delta: { added, wors
 
 describe('reporters', () => {
   it('text prints each finding and a count', () => {
-    assert.equal(render('text', { mode: 'check', findings: [finding] }), 'src/a.ts:3 [cognitive-complexity] Too complex.\n\n1 finding');
+    assert.equal(
+      render('text', { mode: 'check', findings: [finding] }),
+      'src/a.ts:3 [cognitive-complexity] Too complex.\n\n1 finding',
+    );
     assert.equal(render('text', diff([])), '0 new findings, 0 worsened, 0 resolved.');
   });
 
   it('sarif locates results from the repository root and fingerprints them by key', () => {
     const sarif = JSON.parse(render('sarif', diff([finding])));
     assert.equal(sarif.version, '2.1.0');
-    assert.deepEqual(sarif.runs[0].tool.driver.rules, [{ id: 'cognitive-complexity', shortDescription: { text: 'cognitive-complexity' } }]);
+    assert.deepEqual(sarif.runs[0].tool.driver.rules, [
+      { id: 'cognitive-complexity', shortDescription: { text: 'cognitive-complexity' } },
+    ]);
     assert.deepEqual(sarif.runs[0].results, [
       {
         ruleId: 'cognitive-complexity',

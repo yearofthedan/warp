@@ -1,5 +1,12 @@
 import { SyntaxKind } from 'typescript/ast';
-import type { ExportDeclaration, Identifier, ImportDeclaration, SourceFile, Statement, StringLiteralLikeNode } from 'typescript/ast';
+import type {
+  ExportDeclaration,
+  Identifier,
+  ImportDeclaration,
+  SourceFile,
+  Statement,
+  StringLiteralLikeNode,
+} from 'typescript/ast';
 import {
   isExportAssignment,
   isExportDeclaration,
@@ -36,10 +43,18 @@ export const importEdges = (source: Source, resolver: Resolver): ImportEdge[] =>
   return source.sourceFile.statements.flatMap((statement) => statementEdges(statement, exported, source, resolver));
 };
 
-const statementEdges = (statement: Statement, exported: Set<string>, source: Source, resolver: Resolver): ImportEdge[] => {
+const statementEdges = (
+  statement: Statement,
+  exported: Set<string>,
+  source: Source,
+  resolver: Resolver,
+): ImportEdge[] => {
   const declaration = moduleDeclaration(statement, exported);
   if (!declaration) return [];
-  const resolved = resolver.program.getResolvedModuleFromModuleSpecifier(declaration.specifier, source.sourceFile.fileName);
+  const resolved = resolver.program.getResolvedModuleFromModuleSpecifier(
+    declaration.specifier,
+    source.sourceFile.fileName,
+  );
   const via = resolved?.resolvedFileName ? resolver.relative(resolved.resolvedFileName) : undefined;
   if (!via) return [];
 
@@ -86,7 +101,12 @@ const moduleDeclaration = (statement: Statement, exported: Set<string>): ModuleS
 const locallyExportedNames = (sourceFile: SourceFile): Set<string> => {
   const names = new Set<string>();
   for (const statement of sourceFile.statements) {
-    if (isExportDeclaration(statement) && !statement.moduleSpecifier && statement.exportClause && isNamedExports(statement.exportClause)) {
+    if (
+      isExportDeclaration(statement) &&
+      !statement.moduleSpecifier &&
+      statement.exportClause &&
+      isNamedExports(statement.exportClause)
+    ) {
       for (const element of statement.exportClause.elements) {
         const local = element.propertyName ?? element.name;
         if (isIdentifier(local)) names.add(local.text);
@@ -102,13 +122,24 @@ const importStatement = (statement: ImportDeclaration, exported: Set<string>): M
   if (!isStringLiteralLikeNode(statement.moduleSpecifier)) return undefined;
   const clause = statement.importClause;
   const named = clause?.namedBindings;
-  const binding = (identifier: Identifier, typeOnly: boolean): Binding => ({ identifier, typeOnly, reExport: exported.has(identifier.text) });
+  const binding = (identifier: Identifier, typeOnly: boolean): Binding => ({
+    identifier,
+    typeOnly,
+    reExport: exported.has(identifier.text),
+  });
   const bindings: Binding[] = [
     ...(clause?.name ? [binding(clause.name, false)] : []),
     ...(named && isNamespaceImport(named) ? [binding(named.name, false)] : []),
-    ...(named && isNamedImports(named) ? named.elements.map((element) => binding(element.name, element.isTypeOnly)) : []),
+    ...(named && isNamedImports(named)
+      ? named.elements.map((element) => binding(element.name, element.isTypeOnly))
+      : []),
   ];
-  return { specifier: statement.moduleSpecifier, typeOnly: clause?.phaseModifier === SyntaxKind.TypeKeyword, reExport: false, bindings };
+  return {
+    specifier: statement.moduleSpecifier,
+    typeOnly: clause?.phaseModifier === SyntaxKind.TypeKeyword,
+    reExport: false,
+    bindings,
+  };
 };
 
 const reExportStatement = (statement: ExportDeclaration): ModuleStatement | undefined => {
@@ -122,12 +153,18 @@ const reExportStatement = (statement: ExportDeclaration): ModuleStatement | unde
 };
 
 /** Follows an imported name through every alias to the project module that declares it. */
-const resolveBinding = (binding: Binding, source: Source, resolver: Resolver): { file: string; typeOnly: boolean } | undefined => {
+const resolveBinding = (
+  binding: Binding,
+  source: Source,
+  resolver: Resolver,
+): { file: string; typeOnly: boolean } | undefined => {
   const symbol = source.symbolOf(binding.identifier);
   if (!symbol || !(symbol.flags & SymbolFlags.Alias)) return undefined;
   const target = resolver.checker.getAliasedSymbol(symbol);
   if (resolver.checker.isUnknownSymbol(target)) return undefined;
-  const file = target.declarations.map((declaration) => resolver.relative(declaration.path)).find((path) => path !== undefined);
+  const file = target.declarations
+    .map((declaration) => resolver.relative(declaration.path))
+    .find((path) => path !== undefined);
   if (!file) return undefined;
   return { file, typeOnly: (target.flags & SymbolFlags.Value) === 0 };
 };

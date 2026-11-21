@@ -30,7 +30,10 @@ describe('omp extension', () => {
   it('runs a command with arguments, such as pnpm exec', async () => {
     const { calls, fire } = extension('', 0, { WARP_COMMAND: 'pnpm exec warp' });
     await fire('write');
-    assert.deepEqual(calls.map((call) => [call.command, call.args]), [['pnpm', ['exec', 'warp', 'diff', 'HEAD', '--reporter', 'omp']]]);
+    assert.deepEqual(
+      calls.map((call) => [call.command, call.args]),
+      [['pnpm', ['exec', 'warp', 'diff', 'HEAD', '--reporter', 'omp']]],
+    );
   });
 
   it('passes a ruleset', async () => {

@@ -17,7 +17,9 @@ export const readSource = (checker: Checker, sourceFile: SourceFile, file: strin
     if (isIdentifier(node)) identifiers.push(node);
   });
   const symbols = identifiers.length > 0 ? checker.getSymbolAtLocation(identifiers) : [];
-  const byNode = new Map<Node, Symbol | undefined>(identifiers.map((identifier, index) => [identifier, symbols[index]]));
+  const byNode = new Map<Node, Symbol | undefined>(
+    identifiers.map((identifier, index) => [identifier, symbols[index]]),
+  );
   return {
     file,
     sourceFile,

@@ -28,7 +28,10 @@ import { type Source, symbolKey } from './source.ts';
 export const cognitiveComplexity = (fn: Node, self: string | undefined, source: Source): Complexity => {
   const walker: Walker = { fn, self, source, increments: [] };
   visit(walker, fn, 0);
-  return { total: walker.increments.reduce((sum, increment) => sum + increment.amount, 0), increments: walker.increments };
+  return {
+    total: walker.increments.reduce((sum, increment) => sum + increment.amount, 0),
+    increments: walker.increments,
+  };
 };
 
 interface Walker {
@@ -83,9 +86,15 @@ const addFlat = (walker: Walker, node: Node) => {
   }
   if (isBinaryExpression(node) && isLogical(node) && !(isBinaryExpression(node.parent) && isLogical(node.parent))) {
     const operators = logicalSequence(node);
-    add(walker, node, 1 + operators.filter((op, index) => index > 0 && op !== operators[index - 1]).length, 'logical operators');
+    add(
+      walker,
+      node,
+      1 + operators.filter((op, index) => index > 0 && op !== operators[index - 1]).length,
+      'logical operators',
+    );
   }
-  if (isCallExpression(node) && walker.self && calleeKey(walker, node.expression) === walker.self) add(walker, node, 1, 'recursion');
+  if (isCallExpression(node) && walker.self && calleeKey(walker, node.expression) === walker.self)
+    add(walker, node, 1, 'recursion');
 };
 
 const nestingStructure = (node: Node): string | undefined => {
@@ -97,7 +106,11 @@ const nestingStructure = (node: Node): string | undefined => {
   return undefined;
 };
 
-const logicalKinds = new Set([SyntaxKind.AmpersandAmpersandToken, SyntaxKind.BarBarToken, SyntaxKind.QuestionQuestionToken]);
+const logicalKinds = new Set([
+  SyntaxKind.AmpersandAmpersandToken,
+  SyntaxKind.BarBarToken,
+  SyntaxKind.QuestionQuestionToken,
+]);
 
 const isLogical = (node: BinaryExpression): boolean => logicalKinds.has(node.operatorToken.kind);
 

@@ -14,7 +14,9 @@ export const check = (config: Config, project: Project): Finding[] => {
     const kind = kindOf(module.file);
     if (!kind) return [unclassified(module, config.unclassifiedDocs)];
     return kind.rules.flatMap(({ rule, options }) =>
-      rule.check({ module, kind, options, kindOf }).map((finding) => (rule.docs ? { ...finding, docs: rule.docs } : finding)),
+      rule
+        .check({ module, kind, options, kindOf })
+        .map((finding) => (rule.docs ? { ...finding, docs: rule.docs } : finding)),
     );
   });
 };

@@ -7,7 +7,13 @@ import { ConfigError } from '../model/rule.ts';
 import { mergeRuleset } from '../model/ruleset.ts';
 
 /** Looked for in this order when no config is named. */
-export const configNames = ['warp.config.ts', 'warp.config.mts', 'warp.config.js', 'warp.config.mjs', 'warp.config.json'];
+export const configNames = [
+  'warp.config.ts',
+  'warp.config.mts',
+  'warp.config.js',
+  'warp.config.mjs',
+  'warp.config.json',
+];
 
 export const findConfig = (dir: string): string => {
   const found = configNames.map((name) => join(dir, name)).find((file) => existsSync(file));
@@ -34,7 +40,9 @@ const selectConfig = (module: Record<string, unknown>, file: string, ruleset?: s
   // Rulesets are the named exports that are arrays, so a config may export other values beside them.
   const names = Object.keys(module).filter((name) => name !== 'default' && Array.isArray(module[name]));
   if (!names.includes(ruleset)) {
-    throw new ConfigError(`${file}: no ruleset called ${ruleset}. ${names.length > 0 ? `Rulesets: ${names.join(', ')}` : 'It exports none'}`);
+    throw new ConfigError(
+      `${file}: no ruleset called ${ruleset}. ${names.length > 0 ? `Rulesets: ${names.join(', ')}` : 'It exports none'}`,
+    );
   }
   return mergeRuleset(module[ruleset], `ruleset ${ruleset}`);
 };
@@ -50,7 +58,8 @@ const ownFiles = new URL('../../', import.meta.url).href;
 export const loadConfig = async (file: string, ruleset?: string): Promise<LoadedConfig> => {
   const digest = createHash('sha256');
   if (file.endsWith('.json')) {
-    if (ruleset !== undefined) throw new ConfigError(`${file}: a JSON config has no rulesets. Use a warp.config.ts for --ruleset ${ruleset}`);
+    if (ruleset !== undefined)
+      throw new ConfigError(`${file}: a JSON config has no rulesets. Use a warp.config.ts for --ruleset ${ruleset}`);
     const text = readFileSync(file, 'utf8');
     return { raw: JSON.parse(text), digest: digest.update(text).digest('hex') };
   }

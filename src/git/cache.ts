@@ -36,7 +36,8 @@ export const gitDirCache = (projectRoot: string, now: () => number = Date.now): 
       for (const name of readdirSync(dir)) {
         if (!name.endsWith('.json')) continue;
         const path = join(dir, name);
-        if (!keep(name.slice(0, -'.json'.length)) || now() - statSync(path).mtimeMs > maxAgeMs) rmSync(path, { force: true });
+        if (!keep(name.slice(0, -'.json'.length)) || now() - statSync(path).mtimeMs > maxAgeMs)
+          rmSync(path, { force: true });
       }
     },
   };

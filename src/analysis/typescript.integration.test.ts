@@ -36,7 +36,10 @@ describe('import graph', () => {
     const edges = modules.get('src/complexity.ts')?.imports ?? [];
     assert.deepEqual(
       edges.filter((edge) => edge.line < 3).map((edge) => [edge.to, edge.names]),
-      [['src/lib/index.ts', []], ['src/lib/index.ts', ['lib']]],
+      [
+        ['src/lib/index.ts', []],
+        ['src/lib/index.ts', ['lib']],
+      ],
     );
   });
 
@@ -44,7 +47,10 @@ describe('import graph', () => {
     const edges = modules.get('src/lib/index.ts')?.imports ?? [];
     assert.deepEqual(
       edges.map((edge) => [edge.to, edge.names, edge.reExport]),
-      [['src/lib/shapes.ts', ['Circle', 'Square'], true], ['src/lib/shapes.ts', [], true]],
+      [
+        ['src/lib/shapes.ts', ['Circle', 'Square'], true],
+        ['src/lib/shapes.ts', [], true],
+      ],
     );
   });
 
@@ -62,9 +68,20 @@ describe('import graph', () => {
 
   it('marks an import type-only when every name declares only a type', () => {
     const hexagonalApp = join(import.meta.dirname, '../../fixtures/hexagonal-app');
-    const config = parseConfig(JSON.parse(readFileSync(join(hexagonalApp, 'warp.config.json'), 'utf8')), builtinRegistry);
-    const order = typescriptAnalyzer.analyze(hexagonalApp, config).modules.find((module) => module.file === 'src/domain/order.ts');
-    assert.deepEqual(order?.imports.map((edge) => [edge.names, edge.typeOnly]), [[['saveOrder'], false], [['OrderRow'], true]]);
+    const config = parseConfig(
+      JSON.parse(readFileSync(join(hexagonalApp, 'warp.config.json'), 'utf8')),
+      builtinRegistry,
+    );
+    const order = typescriptAnalyzer
+      .analyze(hexagonalApp, config)
+      .modules.find((module) => module.file === 'src/domain/order.ts');
+    assert.deepEqual(
+      order?.imports.map((edge) => [edge.names, edge.typeOnly]),
+      [
+        [['saveOrder'], false],
+        [['OrderRow'], true],
+      ],
+    );
   });
 });
 
@@ -72,15 +89,19 @@ describe('cognitive complexity', () => {
   it('counts a ternary and direct recursion', () => assert.equal(fn('sum')?.complexity?.total, 2));
   it('counts each parenthesised run of logical operators once', () => assert.equal(fn('mixed')?.complexity?.total, 2));
   it('deepens nesting inside a nested function and counts a labelled jump', () => {
-    assert.deepEqual(fn('outer')?.complexity?.increments.map((i) => [i.reason, i.amount]), [
-      ['for', 1],
-      ['if', 3],
-      ['if', 2],
-      ['labelled continue', 1],
-    ]);
+    assert.deepEqual(
+      fn('outer')?.complexity?.increments.map((i) => [i.reason, i.amount]),
+      [
+        ['for', 1],
+        ['if', 3],
+        ['if', 2],
+        ['labelled continue', 1],
+      ],
+    );
   });
   it('counts recursion through this', () => assert.equal(fn('Tree.walk')?.complexity?.total, 1));
-  it('ignores a call to a local that shadows the function name', () => assert.equal(fn('shadowed')?.complexity?.total, 0));
+  it('ignores a call to a local that shadows the function name', () =>
+    assert.equal(fn('shadowed')?.complexity?.total, 0));
   it('folds nested functions into the outermost one', () => assert.equal(fn('check')?.complexity, undefined));
 });
 
@@ -88,7 +109,13 @@ describe('function names', () => {
   it('name a callback by its call and a string first argument', () => {
     const names = [...modules.values()].flatMap((m) => m.functions.map((f) => f.name));
     assert.ok(names.includes('<callback to [1, 2].map>'));
-    assert.deepEqual(modules.get('src/callbacks.ts')?.functions.map((f) => f.name).slice(1), ['<callback to it("first")>', '<callback to it("second")>']);
+    assert.deepEqual(
+      modules
+        .get('src/callbacks.ts')
+        ?.functions.map((f) => f.name)
+        .slice(1),
+      ['<callback to it("first")>', '<callback to it("second")>'],
+    );
   });
 });
 

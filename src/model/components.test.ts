@@ -7,8 +7,17 @@ describe('components', () => {
 
   it('joins functions through a shared type and drops groups without a counted unit', () => {
     const graph = {
-      units: [unit('a', 'function'), unit('T', 'type'), unit('b', 'function'), unit('c', 'function'), unit('Unused', 'type')],
-      links: [[0, 1], [2, 1]] as [number, number][],
+      units: [
+        unit('a', 'function'),
+        unit('T', 'type'),
+        unit('b', 'function'),
+        unit('c', 'function'),
+        unit('Unused', 'type'),
+      ],
+      links: [
+        [0, 1],
+        [2, 1],
+      ] as [number, number][],
     };
     assert.deepEqual(
       components(graph, ['function']).map((group) => group.map((u) => u.name)),

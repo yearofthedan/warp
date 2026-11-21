@@ -25,13 +25,18 @@ export const actionable = (report: Report): Finding[] =>
  * What an agent reads after an edit: the delta for diff, every finding for check, then a link to each rule's docs
  * once, so the agent can read why a rule exists and what a fix looks like.
  */
-export const agentContext = (report: Report, render: { delta: (delta: Delta) => string; finding: (finding: Finding) => string }): string => {
+export const agentContext = (
+  report: Report,
+  render: { delta: (delta: Delta) => string; finding: (finding: Finding) => string },
+): string => {
   const body =
     report.mode === 'diff'
       ? `Architecture fitness changes since the base commit. Address them if this edit caused them:\n${render.delta(report.delta)}`
       : `Architecture fitness findings:\n${report.findings.map(render.finding).join('\n')}`;
   const docs = ruleDocs(actionable(report));
-  return docs.length === 0 ? body : `${body}\n\nRule docs:\n${docs.map(([rule, url]) => `- ${rule}: ${url}`).join('\n')}`;
+  return docs.length === 0
+    ? body
+    : `${body}\n\nRule docs:\n${docs.map(([rule, url]) => `- ${rule}: ${url}`).join('\n')}`;
 };
 
 /** Each rule's docs link, once per rule, in the order the rules first appear. */

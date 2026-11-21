@@ -8,6 +8,12 @@
     "type": "git",
     "url": "https://github.com/yearofthedan/warp.git"
   },
+  "bin": {
+    "warp": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "exports": {
     ".": {
@@ -15,14 +21,9 @@
       "default": "./dist/index.js"
     }
   },
-  "bin": {
-    "warp": "./dist/cli.js"
-  },
-  "files": [
-    "dist"
-  ],
-  "engines": {
-    "node": ">=26"
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "prepare": "vp config --no-agent",
@@ -38,9 +39,8 @@
     "secretlint": "14.0.1",
     "vite-plus": "catalog:"
   },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
+  "engines": {
+    "node": ">=26"
   },
   "packageManager": "pnpm@12.20.0"
 }
