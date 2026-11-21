@@ -1,7 +1,7 @@
 # Design: archetypes
 
-Status: in delivery. The config builders, their load-time checks and finding units (`warp model`) are in
-`src/model/archetype/`.
+Status: in delivery. The config builders, their load-time checks, finding units (`warp model`) and edge verdicts
+(`dependency-direction`) are in `src/model/archetype/`.
 
 ## Summary
 

@@ -1,0 +1,17 @@
+dependency-direction:src/test-helpers/box.ts->src/ui/project/graph/card/card.test-page.ts
+dependency-direction:src/test-helpers/box.ts->src/ui/project/graph/graph.test-page.ts
+dependency-direction:src/test-helpers/driver.ts->src/ui/project/graph/card/card.ts
+dependency-direction:src/test-helpers/graph-page.ts->src/ui/project/graph/card/card.test-page.ts
+dependency-direction:src/test-helpers/graph-page.ts->src/ui/project/graph/card/card.ts
+dependency-direction:src/test-helpers/graph-page.ts->src/ui/project/graph/graph.test-page.ts
+dependency-direction:src/test-helpers/playwright.driver.ts->src/ui/project/graph/card/card.ts
+dependency-direction:src/ui/project/graph/graph.test-page.ts->src/ui/project/graph/card/card.ts
+dependency-direction:src/ui/project/graph/graph.test.ts->src/ui/project/graph/card/card.ts
+dependency-direction:src/ui/project/graph/graph.ts->src/ui/project/graph/card/card.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/app.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/ui/project/graph/card/card.test-page.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/ui/your-projects/your-projects.test-page.ts
+dependency-direction:src/ui/project/project.dom.ts->src/ui/header/header.dom.ts
+dependency-direction:src/ui/project/project.dsl.ts->src/ui/your-projects/your-projects.dsl.ts
+dependency-direction:src/ui/project/project.harness.ts->src/ui/header/header.dom.ts
+dependency-direction:src/ui/project/project.harness.ts->src/ui/your-projects/your-projects.test-page.ts

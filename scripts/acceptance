@@ -1,5 +1,5 @@
 #!/bin/sh
-# help: Check working title, at the commit in acceptance/working-title/source, and compare its findings and the part each file resolves to with the approved ones; --approve writes them.
+# help: Check working title, at the commit in acceptance/working-title/source, and compare its findings, the part each file resolves to and the archetype config's findings with the approved ones; --approve writes them.
 
 set -eu
 
@@ -21,7 +21,13 @@ node -e '
   console.log([...new Set(findings.map((finding) => finding.key))].sort().join("\n"));
 ' "$work/report.json" >"$work/findings.txt"
 
-# The archetype config from docs/design/archetypes.md: each file, its unit, and its part (- when loose).
+# The archetype config from docs/design/archetypes.md: its findings, then each file, its unit, and its part (- when loose).
+(cd "$work" && node "$root/src/cli.ts" check --config warp.config.ts --reporter json) >"$work/archetype-report.json"
+node -e '
+  const { findings } = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+  console.log(findings.map((finding) => finding.key).sort().join("\n"));
+' "$work/archetype-report.json" >"$work/archetype-findings.txt"
+
 (cd "$work" && node "$root/src/cli.ts" model --config warp.config.ts --json) >"$work/model.json"
 node -e '
   const { units } = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
@@ -35,7 +41,8 @@ node -e '
 if [ "${1:-}" = '--approve' ]; then
   cp "$work/findings.txt" "$here/findings.txt"
   cp "$work/model.txt" "$here/model.txt"
-  echo "Approved $(wc -l <"$here/findings.txt" | tr -d ' ') findings and $(wc -l <"$here/model.txt" | tr -d ' ') files' parts at $sha."
+  cp "$work/archetype-findings.txt" "$here/archetype-findings.txt"
+  echo "Approved $(wc -l <"$here/findings.txt" | tr -d ' ') findings, $(wc -l <"$here/model.txt" | tr -d ' ') files' parts and $(wc -l <"$here/archetype-findings.txt" | tr -d ' ') archetype findings at $sha."
   exit 0
 fi
 
@@ -50,6 +57,12 @@ if diff -u "$here/model.txt" "$work/model.txt"; then
   echo "Working title at $sha resolves its $(wc -l <"$here/model.txt" | tr -d ' ') files to the approved parts."
 else
   echo "error: working title's files resolve differently from acceptance/working-title/model.txt (- approved, + now). If the change is intended, run ./do acceptance --approve." >&2
+  status=1
+fi
+if diff -u "$here/archetype-findings.txt" "$work/archetype-findings.txt"; then
+  echo "Working title at $sha has the approved $(wc -l <"$here/archetype-findings.txt" | tr -d ' ') archetype findings."
+else
+  echo "error: working title's archetype findings differ from acceptance/working-title/archetype-findings.txt (- approved, + now). If the change is intended, run ./do acceptance --approve." >&2
   status=1
 fi
 exit "$status"

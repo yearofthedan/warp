@@ -324,34 +324,48 @@ describe('a warp.config.ts with archetypes', () => {
       [
         '.  root: app  main: 1',
         '  loose (deny): src/stray.ts',
-        '  src/domain  domain: layer  src: 1, test: 1',
+        '  src/domain  domain: layer  src: 1, index: 1, test: 1',
         '  src/ui  ui: ui  no files',
         '    src/ui/card  ui.components: component {name=card}  logic: 1, dom: 1',
         '    src/ui/strings  ui.strings: plain folder  1 files',
         '',
-        '5 units, 7 files, 1 loose.',
+        '5 units, 8 files, 1 loose.',
         '',
       ].join('\n'),
     );
     const { units } = JSON.parse(run('model', '--json').stdout);
-    assert.deepEqual(units[1].parts, { src: ['src/domain/order.ts'], test: ['src/domain/order.test.ts'] });
+    assert.deepEqual(units[1].parts, {
+      src: ['src/domain/order.ts'],
+      index: ['src/domain/index.ts'],
+      test: ['src/domain/order.test.ts'],
+    });
   });
 
-  it('reports a file no part of the root claims as unclassified', () => {
+  it('reports loose files and imports outside their reach, passing a barrel on a surface', () => {
     const checked = run('check', '--reporter', 'json', '--fail');
     assert.equal(checked.status, 1, checked.stderr);
+    const { findings } = JSON.parse(checked.stdout);
     assert.deepEqual(
-      JSON.parse(checked.stdout).findings.map((finding: { key: string }) => finding.key),
-      ['unclassified:src/stray.ts'],
+      findings.map((finding: { key: string }) => finding.key),
+      ['unclassified:src/stray.ts', 'dependency-direction:src/ui/card/card.ts->src/domain/order.ts'],
     );
+    assert.equal(
+      findings[1].message,
+      'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes, or expose src/domain/order.ts from layer if other units should reach it.',
+    );
+    assert.match(findings[1].docs, /src\/model\/rules\/dependency-direction\/README\.md$/);
   });
 
-  it('reports only the files a change leaves unclassified', () => {
+  it('reports only the loose files and imports a change adds', () => {
     writeFileSync(join(dir, 'src/loose.ts'), 'export const loose = 1;\n');
+    writeFileSync(
+      join(dir, 'src/domain/order.test.ts'),
+      "import { order } from './order.ts';\nimport { main } from '../main.ts';\n\nexport const checksTotal = (): boolean => order(1).total === 1 && main() !== '';\n",
+    );
     const delta = JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout);
     assert.deepEqual(
       delta.added.map((finding: { key: string }) => finding.key),
-      ['unclassified:src/loose.ts'],
+      ['unclassified:src/loose.ts', 'dependency-direction:src/domain/order.test.ts->src/main.ts'],
     );
   });
 

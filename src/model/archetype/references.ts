@@ -35,7 +35,8 @@ interface Scope {
 const packagesInUsing = 'pkg() belongs in using';
 const ruleKinds: readonly RefKind[] = ['part', 'required'];
 
-const show = (ref: RefData): string =>
+/** A reference as load errors name it: `part.surface`, `required.name`, `pkg('name')`. */
+export const show = (ref: RefData): string =>
   ref.kind === 'package'
     ? `pkg('${ref.pattern}')`
     : `${ref.kind === 'required' ? `required.${ref.name}` : ref.part}${ref.surface === undefined ? '' : `.${ref.surface}`}`;
