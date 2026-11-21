@@ -1,4 +1,4 @@
-# fitness
+# warp
 
 Architectural fitness checks for TypeScript codebases. It builds a model of the codebase (the import graph, which
 kind each module is, and the rules between kinds) and reports findings against it, as text for people, JSON or SARIF
@@ -9,34 +9,34 @@ distance, orchestration weight, export surface and fan-in come later.
 
 ## Run it
 
-Needs Node 22.18 or later.
+Needs Node 26 or later.
 
 ```sh
-cd fitness
+cd warp
 pnpm install
 pnpm build
-pnpm link --global   # puts `fitness` on your PATH
+pnpm link --global   # puts `warp` on your PATH
 ```
 
-Or add it to one project as a dev dependency, and run it there with `pnpm exec fitness`:
+Or add it to one project as a dev dependency, and run it there with `pnpm exec warp`:
 
 ```sh
-pnpm add -D link:~/src/snippets/fitness
+pnpm add -D link:~/src/warp
 ```
 
-In the project to check, add a `fitness.config.json`, or a `fitness.config.ts` for [custom rules](#custom-rules), next to its `tsconfig.json`, then:
+In the project to check, add a `warp.config.json`, or a `warp.config.ts` for [custom rules](#custom-rules), next to its `tsconfig.json`, then:
 
 ```sh
-fitness check                 # every finding in the working tree
-fitness diff HEAD             # new or worse findings in the working tree since HEAD
-fitness diff main..feature    # new or worse findings between two refs
-fitness diff main...          # new or worse findings since the working tree's branch left main
+warp check                 # every finding in the working tree
+warp diff HEAD             # new or worse findings in the working tree since HEAD
+warp diff main..feature    # new or worse findings between two refs
+warp diff main...          # new or worse findings since the working tree's branch left main
 ```
 
 | Flag | Effect |
 | --- | --- |
-| `--config <file>` | Config path. The project root is its directory. Default: the first of `fitness.config.ts`, `.mts`, `.js`, `.mjs` and `.json` in the current directory. |
-| `--ruleset <name>` | Check with a [ruleset](#rulesets), a named export of a `fitness.config.ts`. Default: the default export. |
+| `--config <file>` | Config path. The project root is its directory. Default: the first of `warp.config.ts`, `.mts`, `.js`, `.mjs` and `.json` in the current directory. |
+| `--ruleset <name>` | Check with a [ruleset](#rulesets), a named export of a `warp.config.ts`. Default: the default export. |
 | `--print-config` | Print the config as resolved, with each kind's rules and options, and exit. Takes `--config` and `--ruleset`. |
 | `--reporter <name>` | Output format, default `text`. See [Reporters](#reporters). |
 | `--fail` | Exit 1 when there are findings (`check`) or new or worse ones (`diff`). Without it, both exit 0. |
@@ -46,15 +46,15 @@ fitness diff main...          # new or worse findings since the working tree's b
 1. **Install the CLI** from a clone of this repo. If pnpm has no global bin directory yet, run `pnpm setup` first.
 
    ```sh
-   cd ~/src/snippets/fitness   # wherever the clone is
+   cd ~/src/warp   # wherever the clone is
    git pull && pnpm install && pnpm build
    pnpm link --global
-   fitness --help
+   warp --help
    ```
 
    Run `pnpm build` again after each pull: the linked command runs the built `dist/`.
 
-2. **Add `fitness.config.json`** in the directory you run omp from, next to the project's `tsconfig.json`. A starter
+2. **Add `warp.config.json`** in the directory you run omp from, next to the project's `tsconfig.json`. A starter
    for a hexagonal layout, to adjust to the project's folders:
 
    ```json
@@ -70,7 +70,7 @@ fitness diff main...          # new or worse findings since the working tree's b
    }
    ```
 
-   Then run `fitness check` and add globs until no `unclassified` findings are left. The other findings it reports are
+   Then run `warp check` and add globs until no `unclassified` findings are left. The other findings it reports are
    the existing baseline. The omp extension only reports what an edit makes new or worse, so they need no fixing
    first. Raise or lower the [rule options](#config) where the defaults don't fit, and commit the config.
 
@@ -78,18 +78,18 @@ fitness diff main...          # new or worse findings since the working tree's b
 
    ```sh
    mkdir -p .omp/extensions
-   ln -s ~/src/snippets/fitness/integrations/omp/fitness.ts .omp/extensions/fitness.ts
+   ln -s ~/src/warp/integrations/omp/warp.ts .omp/extensions/warp.ts
    ```
 
    The link points into your clone, so keep it out of git, for example with
-   `echo .omp/extensions/fitness.ts >> .git/info/exclude`. Linking it into `~/.omp/agent/extensions/` instead loads
+   `echo .omp/extensions/warp.ts >> .git/info/exclude`. Linking it into `~/.omp/agent/extensions/` instead loads
    it everywhere; in a project without a config the run fails and the extension stays silent. Environment
    variables change what it runs, set where you start omp:
-   - `FITNESS_BASE=main...` reports against where the branch left main, instead of the last commit.
-   - `FITNESS_RULESET=edit` checks with a [ruleset](#rulesets) from a `fitness.config.ts`.
-   - `FITNESS_COMMAND="pnpm exec fitness"` runs a project dev dependency instead of the linked command.
+   - `WARP_BASE=main...` reports against where the branch left main, instead of the last commit.
+   - `WARP_RULESET=edit` checks with a [ruleset](#rulesets) from a `warp.config.ts`.
+   - `WARP_COMMAND="pnpm exec warp"` runs a project dev dependency instead of the linked command.
 
-4. **Confirm it works.** With a clean tree, `fitness diff HEAD --reporter omp` prints nothing. Add an import that
+4. **Confirm it works.** With a clean tree, `warp diff HEAD --reporter omp` prints nothing. Add an import that
    breaks a `dependsOn` rule, such as a domain module importing an adapter, and run it again: it prints
    `{"additionalContext": ...}` naming the import. Revert it, start a new omp session (extensions load at session
    start), and ask omp to make the same edit. Its next reply should take the finding into account.
@@ -128,12 +128,12 @@ fitness diff main...          # new or worse findings since the working tree's b
 - The files checked are the ones the tsconfig includes. A solution-style tsconfig with only `references` is not
   followed: point `tsconfig` at a project config.
 
-See [`fitness.config.json`](./fitness.config.json) for the config this tool checks itself with.
+See [`warp.config.json`](./warp.config.json) for the config this tool checks itself with.
 
-A `fitness.config.ts` (or `.mts`, `.js`, `.mjs`) takes the same shape as its default export. `defineConfig` types it:
+A `warp.config.ts` (or `.mts`, `.js`, `.mjs`) takes the same shape as its default export. `defineConfig` types it:
 
 ```ts
-import { defineConfig } from 'fitness';
+import { defineConfig } from 'warp';
 
 export default defineConfig({
   exclude: ['**/*.test.ts'],
@@ -144,22 +144,22 @@ export default defineConfig({
 });
 ```
 
-Node strips the types itself, so there is no build step. `fitness` in an import always means the running fitness,
+Node strips the types itself, so there is no build step. `warp` in an import always means the running warp,
 installed in the project or not. The config and its rules load as ES modules: in a project whose `package.json` lacks
 `"type": "module"`, name them `.mts` (Node only warns when `type` is missing, but fails on `"type": "commonjs"`).
 
 ## Custom rules
 
-A project adds its own rules in a `fitness.config.ts`, as plugins: objects with a `rules` list, imported, never named
+A project adds its own rules in a `warp.config.ts`, as plugins: objects with a `rules` list, imported, never named
 by path. Each plugin gets a namespace, and its rules are `namespace/id` in `rules` and in each kind's `rules`. They
 go through the same option checks as the built-in rules, and two rules with the same id are refused.
 
 Working title's application layer re-exports its ports so adapters can implement them, which lets the UI reach a port
-through `application` without breaking `dependency-direction`. A rule for that, in `fitness/rules.ts`:
+through `application` without breaking `dependency-direction`. A rule for that, in `warp/rules.ts`:
 
 ```ts
 import { matchesGlob } from 'node:path';
-import { ConfigError, type Plugin, type Rule } from 'fitness';
+import { ConfigError, type Plugin, type Rule } from 'warp';
 
 const noPortsThroughApplication: Rule<{ ports: string[] }> = {
   id: 'no-ports-through-application',
@@ -188,9 +188,9 @@ export default { rules: [noPortsThroughApplication] } satisfies Plugin;
 ```
 
 ```ts
-// fitness.config.ts
-import { defineConfig } from 'fitness';
-import wt from './fitness/rules.ts';
+// warp.config.ts
+import { defineConfig } from 'warp';
+import wt from './warp/rules.ts';
 
 export default defineConfig({
   plugins: { wt },
@@ -211,19 +211,19 @@ export default defineConfig({
   `ConfigError` are exported for writing `parseOptions`.
 - Relative imports need their `.ts` extension, and an import of types alone must be `import type`: Node strips types
   without resolving them, so `import { type Rule }` would still load the module.
-- For types in the editor, the project needs `fitness` in its `node_modules`: `pnpm link fitness` after
+- For types in the editor, the project needs `warp` in its `node_modules`: `pnpm link warp` after
   `pnpm link --global`, or the dev dependency. Running needs neither.
-- `diff`'s cache key includes the config and every file it imports outside fitness, so editing a rule redoes the base.
+- `diff`'s cache key includes the config and every file it imports outside warp, so editing a rule redoes the base.
 
 ## Rulesets
 
 A ruleset checks the same architecture with different rules, such as a stricter limit after each edit, while the
-agent still has the code in context, than at the PR gate. It is a named export of `fitness.config.ts`: a list of the
-base config and overlays, which fitness merges in order.
+agent still has the code in context, than at the PR gate. It is a named export of `warp.config.ts`: a list of the
+base config and overlays, which warp merges in order.
 
 ```ts
-// fitness.config.ts
-import { defineConfig, type Ruleset } from 'fitness';
+// warp.config.ts
+import { defineConfig, type Ruleset } from 'warp';
 
 const base = defineConfig({
   rules: { 'cognitive-complexity': { max: 15 } },
@@ -245,8 +245,8 @@ export const edit = [
 ```
 
 ```sh
-fitness diff HEAD --ruleset edit
-fitness --print-config --ruleset edit   # the merged result, per kind
+warp diff HEAD --ruleset edit
+warp --print-config --ruleset edit   # the merged result, per kind
 ```
 
 - An overlay sets `rules` only: at the top level, merged by rule id, and under `kinds`, merged by kind name and then
@@ -295,9 +295,9 @@ rule changes. With three dots, `<base>...<head>`, the base is where `<head>` (or
 `<base>`, as in git. A base commit where the project's tsconfig does not exist yet counts as having no findings.
 
 A ref is checked out into a temporary git worktree that links the project's `node_modules`, and its
-findings are cached under `.git/fitness-cache/` by commit, config (with the custom rules it imports) and a digest of
-fitness's own code and TypeScript version, so repeated runs against the same base only analyse the head, and a linked
-checkout that edits a built-in rule redoes the base. Each new entry prunes those from other builds of fitness and those
+findings are cached under `.git/warp-cache/` by commit, config (with the custom rules it imports) and a digest of
+warp's own code and TypeScript version, so repeated runs against the same base only analyse the head, and a linked
+checkout that edits a built-in rule redoes the base. Each new entry prunes those from other builds of warp and those
 unread for 30 days. Without a head, the head is the working tree.
 
 A finding is new when its key is absent at the base, and worse when its value rose. Findings in a renamed file or
@@ -336,7 +336,7 @@ To have Claude Code see the delta after each edit without being blocked, add a `
       {
         "matcher": "Edit|MultiEdit|Write",
         "hooks": [
-          { "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && fitness diff HEAD --ruleset edit --reporter claude-hook", "timeout": 60 }
+          { "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && warp diff HEAD --ruleset edit --reporter claude-hook", "timeout": 60 }
         ]
       }
     ]
@@ -345,14 +345,14 @@ To have Claude Code see the delta after each edit without being blocked, add a `
 ```
 
 Leave out `--ruleset edit` to check with the default config, or keep it with an `edit` [ruleset](#rulesets) in the
-config. Where `fitness` is a dev dependency, use `pnpm exec fitness` in the command. A non-empty delta prints a
+config. Where `warp` is a dev dependency, use `pnpm exec warp` in the command. A non-empty delta prints a
 `hookSpecificOutput.additionalContext` response, which Claude reads as context for its next
 step.
 
 ### omp
 
-[`integrations/omp/fitness.ts`](./integrations/omp/fitness.ts) is an omp extension. After each successful `edit`,
-`write`, `ast_edit` or `apply_patch`, it runs `fitness diff HEAD --reporter omp` in the session's directory and returns
+[`integrations/omp/warp.ts`](./integrations/omp/warp.ts) is an omp extension. After each successful `edit`,
+`write`, `ast_edit` or `apply_patch`, it runs `warp diff HEAD --reporter omp` in the session's directory and returns
 the result from its `tool_result` handler. omp sends a handler's `additionalContext` with the next request to the
 model, outside the tool result, and the edit itself is never blocked. A failed run is left out of the context.
 
@@ -360,10 +360,10 @@ Install it for one project, or for every project under `~/.omp/agent/extensions/
 
 ```sh
 mkdir -p .omp/extensions
-ln -s ~/src/snippets/fitness/integrations/omp/fitness.ts .omp/extensions/fitness.ts
+ln -s ~/src/warp/integrations/omp/warp.ts .omp/extensions/warp.ts
 ```
 
-Set `FITNESS_BASE=main...` to diff the whole branch, `FITNESS_RULESET=edit` to check with a [ruleset](#rulesets), and `FITNESS_COMMAND="pnpm exec fitness"` when `fitness` is a
+Set `WARP_BASE=main...` to diff the whole branch, `WARP_RULESET=edit` to check with a [ruleset](#rulesets), and `WARP_COMMAND="pnpm exec warp"` when `warp` is a
 dev dependency rather than on the PATH. omp
 loads extensions at session start. The event and result shapes are from `@oh-my-pi/pi-coding-agent` 18.22
 (`dist/types/extensibility/extensions/types.d.ts`).
@@ -377,10 +377,10 @@ steps:
   - uses: actions/checkout@v4
     with:
       fetch-depth: 0
-  - run: fitness diff origin/${{ github.base_ref }}... --reporter sarif > fitness.sarif
+  - run: warp diff origin/${{ github.base_ref }}... --reporter sarif > warp.sarif
   - uses: github/codeql-action/upload-sarif@v3
     with:
-      sarif_file: fitness.sarif
+      sarif_file: warp.sarif
 ```
 
 Each result's `partialFingerprints` holds the finding's key, so code scanning tracks a finding across commits the

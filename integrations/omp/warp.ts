@@ -1,11 +1,11 @@
 /**
- * An omp extension that runs `fitness diff` after each file edit and hands any new or worse findings to the model as
+ * An omp extension that runs `warp diff` after each file edit and hands any new or worse findings to the model as
  * additional context for its next request, without blocking the edit. Copy or link it into the project's
  * `.omp/extensions/` (or `~/.omp/agent/extensions/` for every project).
  *
- * FITNESS_BASE sets the ref to diff against (default HEAD). FITNESS_RULESET picks a ruleset from the config, such as
- * `edit` (default: the config's default export). FITNESS_COMMAND sets the command (default `fitness`), such as
- * `pnpm exec fitness` for a project's own dev dependency.
+ * WARP_BASE sets the ref to diff against (default HEAD). WARP_RULESET picks a ruleset from the config, such as
+ * `edit` (default: the config's default export). WARP_COMMAND sets the command (default `warp`), such as
+ * `pnpm exec warp` for a project's own dev dependency.
  */
 
 type ToolResultEvent = { toolName: string; isError: boolean };
@@ -21,11 +21,11 @@ export type Extension = {
 /** omp's built-in tools that change files. */
 export const editTools = new Set(['edit', 'write', 'ast_edit', 'apply_patch']);
 
-export default function fitness(pi: Extension, env: Record<string, string | undefined> = process.env): void {
-  // Split on spaces, so `pnpm exec fitness` runs a project's own dev dependency.
-  const [command, ...prefix] = (env.FITNESS_COMMAND ?? 'fitness').trim().split(/\s+/);
-  const base = env.FITNESS_BASE ?? 'HEAD';
-  const ruleset = env.FITNESS_RULESET ? ['--ruleset', env.FITNESS_RULESET] : [];
+export default function warp(pi: Extension, env: Record<string, string | undefined> = process.env): void {
+  // Split on spaces, so `pnpm exec warp` runs a project's own dev dependency.
+  const [command, ...prefix] = (env.WARP_COMMAND ?? 'warp').trim().split(/\s+/);
+  const base = env.WARP_BASE ?? 'HEAD';
+  const ruleset = env.WARP_RULESET ? ['--ruleset', env.WARP_RULESET] : [];
   pi.on('tool_result', async (event, context) => {
     if (event.isError || !editTools.has(event.toolName)) return undefined;
     const run = await pi.exec(command, [...prefix, 'diff', base, ...ruleset, '--reporter', 'omp'], { cwd: context.cwd, timeout: 60_000 });

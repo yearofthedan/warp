@@ -7,7 +7,7 @@ import { ConfigError } from '../model/rule.ts';
 import { mergeRuleset } from '../model/ruleset.ts';
 
 /** Looked for in this order when no config is named. */
-export const configNames = ['fitness.config.ts', 'fitness.config.mts', 'fitness.config.js', 'fitness.config.mjs', 'fitness.config.json'];
+export const configNames = ['warp.config.ts', 'warp.config.mts', 'warp.config.js', 'warp.config.mjs', 'warp.config.json'];
 
 export const findConfig = (dir: string): string => {
   const found = configNames.map((name) => join(dir, name)).find((file) => existsSync(file));
@@ -19,7 +19,7 @@ export interface LoadedConfig {
   /** The config as written, for parseConfig to validate. */
   raw: unknown;
   /**
-   * A digest of the config and every file it imported outside fitness, so a cached diff base is redone when a
+   * A digest of the config and every file it imported outside warp, so a cached diff base is redone when a
    * project's own rule changes.
    */
   digest: string;
@@ -39,24 +39,24 @@ const selectConfig = (module: Record<string, unknown>, file: string, ruleset?: s
   return mergeRuleset(module[ruleset], `ruleset ${ruleset}`);
 };
 
-/** Where `import ... from 'fitness'` in a config leads: the running fitness, whether or not the project installed it. */
+/** Where `import ... from 'warp'` in a config leads: the running warp, whether or not the project installed it. */
 const entry = new URL(import.meta.url.endsWith('.ts') ? '../index.ts' : '../index.js', import.meta.url).href;
 const ownFiles = new URL('../../', import.meta.url).href;
 
 /**
- * Reads fitness.config.json, or imports a JS or TS config and takes its default export, or the named `ruleset` export
+ * Reads warp.config.json, or imports a JS or TS config and takes its default export, or the named `ruleset` export
  * merged onto its base. Node strips the types, so a TS config and the rules it imports need no build step.
  */
 export const loadConfig = async (file: string, ruleset?: string): Promise<LoadedConfig> => {
   const digest = createHash('sha256');
   if (file.endsWith('.json')) {
-    if (ruleset !== undefined) throw new ConfigError(`${file}: a JSON config has no rulesets. Use a fitness.config.ts for --ruleset ${ruleset}`);
+    if (ruleset !== undefined) throw new ConfigError(`${file}: a JSON config has no rulesets. Use a warp.config.ts for --ruleset ${ruleset}`);
     const text = readFileSync(file, 'utf8');
     return { raw: JSON.parse(text), digest: digest.update(text).digest('hex') };
   }
   const hooks = registerHooks({
     resolve: (specifier, context, nextResolve) =>
-      specifier === 'fitness' ? { url: entry, shortCircuit: true } : nextResolve(specifier, context),
+      specifier === 'warp' ? { url: entry, shortCircuit: true } : nextResolve(specifier, context),
     load: (url, context, nextLoad) => {
       const loaded = nextLoad(url, context);
       if (url.startsWith('file:') && !url.startsWith(ownFiles)) digest.update(url).update(String(loaded.source ?? ''));

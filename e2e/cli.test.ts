@@ -3,20 +3,20 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { before, describe, it } from 'node:test';
+import { beforeAll, describe, it } from 'vite-plus/test';
 
 const cli = join(import.meta.dirname, '../src/cli.ts');
 let repo: string;
 let project: string;
 
 const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' });
-const fitness = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: project, encoding: 'utf8' });
+const warp = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: project, encoding: 'utf8' });
 
 /** A repo whose project sits in a subdirectory, with one commit of the hexagonal-app fixture and then a change. */
-before(() => {
-  repo = mkdtempSync(join(tmpdir(), 'fitness-test-'));
+beforeAll(() => {
+  repo = mkdtempSync(join(tmpdir(), 'warp-test-'));
   project = join(repo, 'app');
-  cpSync(join(import.meta.dirname, 'fixtures/hexagonal-app'), project, { recursive: true });
+  cpSync(join(import.meta.dirname, '../fixtures/hexagonal-app'), project, { recursive: true });
   git('init', '--quiet');
   git('add', '.');
   git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
@@ -26,9 +26,9 @@ before(() => {
   writeFileSync(join(project, 'src/domain/audit.ts'), "import { handle } from '../app/handle.ts';\n\nexport const audit = handle;\n");
 });
 
-describe('fitness diff', () => {
+describe('warp diff', () => {
   it('reports only new and worsened findings against the working tree', () => {
-    const run = fitness('diff', 'HEAD', '--reporter', 'json');
+    const run = warp('diff', 'HEAD', '--reporter', 'json');
     assert.equal(run.status, 0, run.stderr);
     const delta = JSON.parse(run.stdout);
     assert.deepEqual(delta.added.map((f: { key: string }) => f.key), ['dependency-direction:src/domain/audit.ts->src/app/handle.ts']);
@@ -40,48 +40,48 @@ describe('fitness diff', () => {
   it('compares two commits', () => {
     git('add', '.');
     git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'head');
-    const run = fitness('diff', 'HEAD~1..HEAD', '--fail');
+    const run = warp('diff', 'HEAD~1..HEAD', '--fail');
     assert.equal(run.status, 1);
     assert.match(run.stdout, /1 new finding, 1 worsened, 0 resolved\./);
     assert.match(run.stdout, /Domain module src\/domain\/audit.ts imports app src\/app\/handle.ts\. This breaks the dependency direction, so the domain should depend on a port it owns for what it needs \(handle\)/);
   });
 
   it('prints a hook response only when there is a delta', () => {
-    const changed = JSON.parse(fitness('diff', 'HEAD~1..HEAD', '--reporter', 'claude-hook').stdout);
+    const changed = JSON.parse(warp('diff', 'HEAD~1..HEAD', '--reporter', 'claude-hook').stdout);
     assert.equal(changed.hookSpecificOutput.hookEventName, 'PostToolUse');
     assert.match(changed.hookSpecificOutput.additionalContext, /new: src\/domain\/audit.ts:1/);
-    assert.equal(fitness('diff', 'HEAD', '--reporter', 'claude-hook').stdout, '');
+    assert.equal(warp('diff', 'HEAD', '--reporter', 'claude-hook').stdout, '');
   });
 
   it('compares from the merge base with three dots', () => {
-    const run = fitness('diff', 'HEAD~1...HEAD', '--reporter', 'json');
+    const run = warp('diff', 'HEAD~1...HEAD', '--reporter', 'json');
     assert.equal(run.status, 0, run.stderr);
     assert.equal(JSON.parse(run.stdout).added.length, 1);
   });
 
   it('refuses a malformed range', () => {
-    const run = fitness('diff', 'HEAD~1..HEAD..HEAD');
+    const run = warp('diff', 'HEAD~1..HEAD..HEAD');
     assert.equal(run.status, 2);
     assert.match(run.stderr, /is not a range/);
   });
 
   it('resolves the project path when reached through a symlink', () => {
-    const link = join(mkdtempSync(join(tmpdir(), 'fitness-link-')), 'repo');
+    const link = join(mkdtempSync(join(tmpdir(), 'warp-link-')), 'repo');
     symlinkSync(repo, link);
-    const config = join(link, 'app/fitness.config.json');
+    const config = join(link, 'app/warp.config.json');
     const run = spawnSync(process.execPath, [cli, 'diff', 'HEAD~1..HEAD', '--reporter', 'json', '--config', config], { cwd: project, encoding: 'utf8' });
     assert.equal(run.status, 0, run.stderr);
     assert.equal(JSON.parse(run.stdout).added.length, 1);
   });
 
   it('counts a base from before the project existed as having no findings', () => {
-    const fresh = mkdtempSync(join(tmpdir(), 'fitness-fresh-'));
+    const fresh = mkdtempSync(join(tmpdir(), 'warp-fresh-'));
     const run = (args: string[], cwd = fresh) => execFileSync('git', args, { cwd, encoding: 'utf8' });
     run(['init', '--quiet']);
     writeFileSync(join(fresh, 'README.md'), 'before\n');
     run(['add', '.']);
     run(['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'before']);
-    cpSync(join(import.meta.dirname, 'fixtures/hexagonal-app'), join(fresh, 'app'), { recursive: true });
+    cpSync(join(import.meta.dirname, '../fixtures/hexagonal-app'), join(fresh, 'app'), { recursive: true });
     run(['add', '.']);
     run(['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'add app']);
     const diffed = spawnSync(process.execPath, [cli, 'diff', 'HEAD~1..HEAD', '--reporter', 'json'], { cwd: join(fresh, 'app'), encoding: 'utf8' });
@@ -95,24 +95,24 @@ describe('fitness diff', () => {
   });
 });
 
-describe('fitness diff from a linked checkout', () => {
-  // A copy of fitness itself, as a global `pnpm link` runs it, so a test can edit a built-in rule.
+describe('warp diff from a linked checkout', () => {
+  // A copy of warp itself, as a global `pnpm link` runs it, so a test can edit a built-in rule.
   let tool: string;
   let dir: string;
   const run = (...args: string[]) =>
     spawnSync(process.execPath, [join(tool, 'src/cli.ts'), ...args], { cwd: dir, encoding: 'utf8' });
-  const cached = () => readdirSync(join(dir, '../.git/fitness-cache'));
+  const cached = () => readdirSync(join(dir, '../.git/warp-cache'));
 
-  before(() => {
-    tool = mkdtempSync(join(tmpdir(), 'fitness-tool-'));
+  beforeAll(() => {
+    tool = mkdtempSync(join(tmpdir(), 'warp-tool-'));
     const own = join(import.meta.dirname, '..');
     cpSync(join(own, 'src'), join(tool, 'src'), { recursive: true });
     cpSync(join(own, 'package.json'), join(tool, 'package.json'));
     symlinkSync(join(own, 'node_modules'), join(tool, 'node_modules'));
 
-    const repo = mkdtempSync(join(tmpdir(), 'fitness-linked-'));
+    const repo = mkdtempSync(join(tmpdir(), 'warp-linked-'));
     dir = join(repo, 'app');
-    cpSync(join(import.meta.dirname, 'fixtures/hexagonal-app'), dir, { recursive: true });
+    cpSync(join(import.meta.dirname, '../fixtures/hexagonal-app'), dir, { recursive: true });
     execFileSync('git', ['init', '--quiet'], { cwd: repo });
     execFileSync('git', ['add', '.'], { cwd: repo });
     execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base'], { cwd: repo });
@@ -130,15 +130,15 @@ describe('fitness diff from a linked checkout', () => {
   });
 });
 
-describe('a fitness.config.ts with a plugin', () => {
+describe('a warp.config.ts with a plugin', () => {
   let dir: string;
   const run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: dir, encoding: 'utf8' });
   const commit = (...args: string[]) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
 
-  // Outside any package.json, as a project without "type": "module" would be, and without fitness installed.
-  before(() => {
-    dir = join(mkdtempSync(join(tmpdir(), 'fitness-plugin-')), 'wt');
-    cpSync(join(import.meta.dirname, 'fixtures/custom-rule'), dir, { recursive: true });
+  // Outside any package.json, as a project without "type": "module" would be, and without warp installed.
+  beforeAll(() => {
+    dir = join(mkdtempSync(join(tmpdir(), 'warp-plugin-')), 'wt');
+    cpSync(join(import.meta.dirname, '../fixtures/custom-rule'), dir, { recursive: true });
     commit('init', '--quiet');
     commit('add', '.');
     commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
@@ -173,32 +173,32 @@ describe('a fitness.config.ts with a plugin', () => {
     writeFileSync(join(dir, 'empty.config.ts'), 'export const config = {};\n');
     const checked = run('check', '--config', 'empty.config.ts');
     assert.equal(checked.status, 2);
-    assert.match(checked.stderr, /fitness config: .*empty.config.ts: expected the config as its default export/);
+    assert.match(checked.stderr, /warp config: .*empty.config.ts: expected the config as its default export/);
   });
 });
 
-describe('fitness check', () => {
+describe('warp check', () => {
   it('exits 1 with --fail when there are findings', () => {
-    assert.equal(fitness('check', '--fail').status, 1);
+    assert.equal(warp('check', '--fail').status, 1);
   });
 
   it('refuses an unknown reporter', () => {
-    const run = fitness('check', '--reporter', 'xml');
+    const run = warp('check', '--reporter', 'xml');
     assert.equal(run.status, 2);
     assert.match(run.stderr, /no reporter called xml/);
   });
 
   it('reports a config error', () => {
     writeFileSync(join(project, 'bad.json'), '{"kinds": {"a": {"match": "src/**", "dependsOn": ["b"]}}}');
-    const run = fitness('check', '--config', 'bad.json');
+    const run = warp('check', '--config', 'bad.json');
     assert.equal(run.status, 2);
-    assert.match(run.stderr, /fitness config: kinds.a.dependsOn: no kind called b/);
+    assert.match(run.stderr, /warp config: kinds.a.dependsOn: no kind called b/);
   });
 
   it('exits 1 rather than 2 when a claude-hook run fails, so the hook warns without blocking', () => {
     writeFileSync(join(project, 'bad.json'), '{"kinds": {}}');
     for (const reporter of ['--reporter=claude-hook', '--reporter claude-hook']) {
-      assert.equal(fitness('check', '--config', 'bad.json', ...reporter.split(' ')).status, 1);
+      assert.equal(warp('check', '--config', 'bad.json', ...reporter.split(' ')).status, 1);
     }
   });
 });
@@ -211,13 +211,13 @@ describe('rulesets', () => {
 
   // The hexagonal-app fixture with its config as a TS default export, minus cognitive complexity on app modules, and an
   // `edit` ruleset that turns it back on there.
-  before(() => {
-    dir = join(mkdtempSync(join(tmpdir(), 'fitness-ruleset-')), 'app');
-    cpSync(join(import.meta.dirname, 'fixtures/hexagonal-app'), dir, { recursive: true });
-    const base = JSON.parse(readFileSync(join(dir, 'fitness.config.json'), 'utf8'));
+  beforeAll(() => {
+    dir = join(mkdtempSync(join(tmpdir(), 'warp-ruleset-')), 'app');
+    cpSync(join(import.meta.dirname, '../fixtures/hexagonal-app'), dir, { recursive: true });
+    const base = JSON.parse(readFileSync(join(dir, 'warp.config.json'), 'utf8'));
     base.kinds.app.rules = { 'cognitive-complexity': false };
     writeFileSync(
-      join(dir, 'fitness.config.ts'),
+      join(dir, 'warp.config.ts'),
       `const base = ${JSON.stringify(base)};\nexport default base;\n` +
         'export const edit = [base, { rules: { "module-cohesion": { maxLines: 10 } } }, ' +
         '{ kinds: { app: { rules: { "cognitive-complexity": true, "function-cohesion": false } } } }];\n' +
@@ -262,11 +262,11 @@ describe('rulesets', () => {
   it('refuses an overlay that changes the architecture', () => {
     const checked = run('check', '--ruleset', 'moved');
     assert.equal(checked.status, 2);
-    assert.match(checked.stderr, /fitness config: ruleset moved\[1\]\.kinds\.domain: a ruleset overlay sets rules only, not dependsOn/);
+    assert.match(checked.stderr, /warp config: ruleset moved\[1\]\.kinds\.domain: a ruleset overlay sets rules only, not dependsOn/);
   });
 
   it('refuses a ruleset for a JSON config', () => {
-    const checked = run('check', '--config', 'fitness.config.json', '--ruleset', 'edit');
+    const checked = run('check', '--config', 'warp.config.json', '--ruleset', 'edit');
     assert.equal(checked.status, 2);
     assert.match(checked.stderr, /a JSON config has no rulesets/);
   });

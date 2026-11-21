@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { before, describe, it } from 'node:test';
-import { typescriptAnalyzer } from '../src/analysis/typescript.ts';
-import { parseConfig } from '../src/model/config.ts';
-import { builtinRegistry } from '../src/builtins.ts';
-import type { ModuleFacts } from '../src/model/facts.ts';
+import { beforeAll, describe, it } from 'vite-plus/test';
+import { typescriptAnalyzer } from '../analysis/typescript.ts';
+import { parseConfig } from '../model/config.ts';
+import { builtinRegistry } from '../builtins.ts';
+import type { ModuleFacts } from '../model/facts.ts';
 
-const root = join(import.meta.dirname, 'fixtures/facts');
+const root = join(import.meta.dirname, '../../fixtures/facts');
 let modules: Map<string, ModuleFacts>;
 
-before(() => {
-  const config = parseConfig(JSON.parse(readFileSync(join(root, 'fitness.config.json'), 'utf8')), builtinRegistry);
+beforeAll(() => {
+  const config = parseConfig(JSON.parse(readFileSync(join(root, 'warp.config.json'), 'utf8')), builtinRegistry);
   modules = new Map(typescriptAnalyzer.analyze(root, config).modules.map((module) => [module.file, module]));
 });
 
@@ -61,8 +61,8 @@ describe('import graph', () => {
   });
 
   it('marks an import type-only when every name declares only a type', () => {
-    const hexagonalApp = join(import.meta.dirname, 'fixtures/hexagonal-app');
-    const config = parseConfig(JSON.parse(readFileSync(join(hexagonalApp, 'fitness.config.json'), 'utf8')), builtinRegistry);
+    const hexagonalApp = join(import.meta.dirname, '../../fixtures/hexagonal-app');
+    const config = parseConfig(JSON.parse(readFileSync(join(hexagonalApp, 'warp.config.json'), 'utf8')), builtinRegistry);
     const order = typescriptAnalyzer.analyze(hexagonalApp, config).modules.find((module) => module.file === 'src/domain/order.ts');
     assert.deepEqual(order?.imports.map((edge) => [edge.names, edge.typeOnly]), [[['saveOrder'], false], [['OrderRow'], true]]);
   });

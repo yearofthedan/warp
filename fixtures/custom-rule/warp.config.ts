@@ -1,4 +1,4 @@
-import { defineConfig } from 'fitness';
+import { defineConfig } from 'warp';
 import wt from './rules/noPortsThroughApplication.ts';
 
 export default defineConfig({

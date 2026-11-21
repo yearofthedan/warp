@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { InvalidRange, parseRange } from '../src/app/diff.ts';
+import { describe, it } from 'vite-plus/test';
+import { InvalidRange, parseRange } from '../app/diff.ts';
 
 describe('parseRange', () => {
   it('reads a base alone, two dots and three dots', () => {

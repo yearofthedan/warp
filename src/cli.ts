@@ -16,15 +16,15 @@ import { reporters } from './reporters/index.ts';
 import { actionable, type Report } from './reporters/reporter.ts';
 
 const usage = `usage:
-  fitness check [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]
-  fitness diff <base>[..<head> | ...<head>] [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]
-  fitness --print-config [--config <file>] [--ruleset <name>]
+  warp check [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]
+  warp diff <base>[..<head> | ...<head>] [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]
+  warp --print-config [--config <file>] [--ruleset <name>]
 
 check   reports every finding in the working tree.
 diff    reports findings that are new or worse at <head> than at <base>. Without <head>, compares the working tree.
         <base>...<head> compares from where <head> left <base>, as git does.
 
---config    path to the config file (default: the first of fitness.config.ts, .mts, .js, .mjs, .json)
+--config    path to the config file (default: the first of warp.config.ts, .mts, .js, .mjs, .json)
 --ruleset   a named export of the config: [config, ...overlays] merged in order (default: the default export)
 --print-config  print the config as resolved, with each kind's rules and options, and exit
 --reporter  ${[...reporters.keys()].join(', ')} (default: text)
@@ -105,7 +105,7 @@ const version = (): string => JSON.parse(readFileSync(new URL('../package.json',
 
 /** Says why the run failed and returns the exit code: the reporter's when there is one, else 2. */
 const failed = (error: unknown, exitCode = 2): number => {
-  console.error(error instanceof ConfigError ? `fitness config: ${error.message}` : error instanceof Error ? error.message : error);
+  console.error(error instanceof ConfigError ? `warp config: ${error.message}` : error instanceof Error ? error.message : error);
   return exitCode;
 };
 

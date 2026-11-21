@@ -16,7 +16,7 @@ export const gitRepository = (projectRoot: string): Repository => {
     commit: (ref) => git('rev-parse', '--verify', `${ref}^{commit}`),
     mergeBase: (a, b) => git('merge-base', a, b),
     checkout(commit, requiredFile) {
-      const dir = mkdtempSync(join(tmpdir(), 'fitness-'));
+      const dir = mkdtempSync(join(tmpdir(), 'warp-'));
       const dispose = () => {
         try {
           git('worktree', 'remove', '--force', dir);

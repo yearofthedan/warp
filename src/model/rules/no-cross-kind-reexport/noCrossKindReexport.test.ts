@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vite-plus/test';
 import { check } from '../../check.ts';
 import { type Config, parseConfig } from '../../config.ts';
 import type { ModuleFacts } from '../../facts.ts';

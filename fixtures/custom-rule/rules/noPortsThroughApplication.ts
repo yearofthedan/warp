@@ -1,5 +1,5 @@
 import { matchesGlob } from 'node:path';
-import { ConfigError, type Rule } from 'fitness';
+import { ConfigError, type Rule } from 'warp';
 
 interface Options {
   /** Where the application layer keeps its ports. */

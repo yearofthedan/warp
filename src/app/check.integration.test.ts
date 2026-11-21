@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { before, describe, it } from 'node:test';
-import { typescriptAnalyzer } from '../src/analysis/typescript.ts';
-import { checkProject } from '../src/app/check.ts';
-import { parseConfig } from '../src/model/config.ts';
-import { builtinRegistry, unclassifiedDocs } from '../src/builtins.ts';
-import type { Finding } from '../src/model/rule.ts';
+import { beforeAll, describe, it } from 'vite-plus/test';
+import { typescriptAnalyzer } from '../analysis/typescript.ts';
+import { checkProject } from '../app/check.ts';
+import { parseConfig } from '../model/config.ts';
+import { builtinRegistry, unclassifiedDocs } from '../builtins.ts';
+import type { Finding } from '../model/rule.ts';
 
-const root = join(import.meta.dirname, 'fixtures/hexagonal-app');
+const root = join(import.meta.dirname, '../../fixtures/hexagonal-app');
 let findings: Finding[];
 
-before(() => {
-  findings = checkProject(typescriptAnalyzer, root, parseConfig(JSON.parse(readFileSync(join(root, 'fitness.config.json'), 'utf8')), builtinRegistry, { unclassifiedDocs }));
+beforeAll(() => {
+  findings = checkProject(typescriptAnalyzer, root, parseConfig(JSON.parse(readFileSync(join(root, 'warp.config.json'), 'utf8')), builtinRegistry, { unclassifiedDocs }));
 });
 
 const byKey = (key: string) => findings.find((finding) => finding.key === key);
@@ -48,11 +48,11 @@ describe('check', () => {
         'Have importers that may depend on domain import it from src/domain/order.ts, and give the rest a app API that hides it, ' +
         "or allow domain in this rule's options if app is meant to expose it.",
     );
-    assert.equal(finding?.docs, 'https://github.com/yearofthedan/snippets/blob/main/fitness/src/model/rules/no-cross-kind-reexport/README.md');
+    assert.equal(finding?.docs, 'https://github.com/yearofthedan/warp/blob/main/src/model/rules/no-cross-kind-reexport/README.md');
   });
 
   it('links an unclassified module to the page on kinds', () => {
-    assert.equal(byKey('unclassified:src/stray.ts')?.docs, 'https://github.com/yearofthedan/snippets/blob/main/fitness/docs/unclassified.md');
+    assert.equal(byKey('unclassified:src/stray.ts')?.docs, 'https://github.com/yearofthedan/warp/blob/main/docs/unclassified.md');
   });
 
   it('reports the groups a module splits into', () => {
@@ -69,7 +69,7 @@ describe('check', () => {
 
   it('reports the statement groups a function splits into', () => {
     assert.deepEqual(
-      (byKey('function-cohesion:src/app/handle.ts:handle')?.details as { groups: unknown }).groups,
+      (byKey('function-cohesion:src/app/handle.ts:handle')!.details as { groups: unknown }).groups,
       [
         { names: ['line 4', 'line 5', 'line 6'], lines: [4, 6] },
         { names: ['line 7', 'line 8', 'line 9'], lines: [7, 9] },

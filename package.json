@@ -1,8 +1,13 @@
 {
-  "name": "fitness",
+  "name": "warp",
   "version": "0.1.0",
   "private": true,
   "description": "Architectural fitness checks for TypeScript codebases",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yearofthedan/warp.git"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -11,22 +16,31 @@
     }
   },
   "bin": {
-    "fitness": "./dist/cli.js"
+    "warp": "./dist/cli.js"
   },
+  "files": [
+    "dist"
+  ],
   "engines": {
-    "node": ">=22.18"
+    "node": ">=26"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test 'test/*.test.ts' 'src/**/*.test.ts'",
-    "fitness": "node src/cli.ts"
+    "prepare": "vp config --no-agent",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "typescript": "7.1.0-beta"
   },
   "devDependencies": {
-    "@types/node": "^22.18.0"
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
+    "@types/node": "26.6.6",
+    "secretlint": "14.0.1",
+    "vite-plus": "catalog:"
   },
-  "packageManager": "pnpm@10.28.0"
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "packageManager": "pnpm@12.20.0"
 }
