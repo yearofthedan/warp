@@ -383,6 +383,24 @@ describe('a warp.config.ts with archetypes', () => {
     assert.match(modelled.stderr, /src\/main\.ts: app's files parts a \('src\/\*\.ts'\) and b \('\*\*\/\*\.ts'\)/);
   });
 
+  it("checks rule ids and each rule's options against the rules an archetype config runs", () => {
+    writeFileSync(
+      join(dir, 'rules.config.ts'),
+      [
+        "import { archetype, defineConfig } from 'warp';",
+        "const app = archetype('app').contains((p) => p.files('src', '**', { rules: { 'no-such-rule': false } }));",
+        "export default defineConfig({ root: app, rules: { 'unit-cycle': { types: 'always' } } });",
+        '',
+      ].join('\n'),
+    );
+    const checked = run('check', '--config', 'rules.config.ts');
+    assert.equal(checked.status, 2);
+    assert.equal(
+      checked.stderr,
+      "warp config: app.src.rules: no rule called no-such-rule\nconfig.rules.unit-cycle.types: expected 'count' or 'ignore'\n",
+    );
+  });
+
   it('keeps --print-config and warp model to the config shape each reads', () => {
     assert.match(run('--print-config').stderr, /warp model shows what an archetype config finds/);
     const kinds = join(import.meta.dirname, '../fixtures/hexagonal-app/warp.config.json');

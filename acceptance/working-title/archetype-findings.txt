@@ -15,3 +15,12 @@ dependency-direction:src/ui/project/project.dom.ts->src/ui/header/header.dom.ts
 dependency-direction:src/ui/project/project.dsl.ts->src/ui/your-projects/your-projects.dsl.ts
 dependency-direction:src/ui/project/project.harness.ts->src/ui/header/header.dom.ts
 dependency-direction:src/ui/project/project.harness.ts->src/ui/your-projects/your-projects.test-page.ts
+unit-cycle:src/adapters->src/domain
+unit-cycle:src/adapters->src/test-helpers
+unit-cycle:src/application->src/domain
+unit-cycle:src/application->src/test-helpers
+unit-cycle:src/domain->src/test-helpers
+unit-cycle:src/test-helpers->src/adapters
+unit-cycle:src/test-helpers->src/application
+unit-cycle:src/test-helpers->src/ui
+unit-cycle:src/ui->src/test-helpers
