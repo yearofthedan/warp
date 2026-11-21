@@ -39,3 +39,8 @@ commit against approved findings; it runs nightly in CI, not on pull requests.
 - Never push to `main`. A change lands by pull request, merged with a merge commit or squash.
 - Commit subjects are [conventional commits](https://www.conventionalcommits.org/): release-please reads them to
   version and write the changelog, and the `commit-msg` hook refuses any other subject.
+
+## Dated records stay as written
+
+A change across the repo, such as a find and replace, leaves dated records as they are: merged pull requests' bodies,
+the history notes in docs/design/archetypes.md and decision records once Accepted hold what was true when written.
