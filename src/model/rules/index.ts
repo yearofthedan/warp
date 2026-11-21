@@ -5,7 +5,7 @@ import { functionCohesion } from './function-cohesion/functionCohesion.ts';
 import { moduleCohesion } from './module-cohesion/moduleCohesion.ts';
 import { noCrossKindReexport } from './no-cross-kind-reexport/noCrossKindReexport.ts';
 
-/** The rules fitness ships, without docs links: whoever composes them knows where their pages are published. */
+/** The rules warp ships, without docs links: whoever composes them knows where their pages are published. */
 export const builtinRules: readonly Rule[] = [
   dependencyDirection,
   noCrossKindReexport,

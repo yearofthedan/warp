@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { reporters } from '../src/reporters/index.ts';
-import type { Report } from '../src/reporters/reporter.ts';
-import type { Finding } from '../src/model/rule.ts';
+import { describe, it } from 'vite-plus/test';
+import { reporters } from '../reporters/index.ts';
+import type { Report } from '../reporters/reporter.ts';
+import type { Finding } from '../model/rule.ts';
 
 const finding: Finding = { rule: 'cognitive-complexity', key: 'cognitive-complexity:src/a.ts:f', file: 'src/a.ts', line: 3, value: 20, limit: 15, message: 'Too complex.' };
 const documented: Finding = { ...finding, docs: 'https://example.test/cognitive-complexity.md' };
@@ -26,7 +26,7 @@ describe('reporters', () => {
         level: 'warning',
         message: { text: 'Too complex.' },
         locations: [{ physicalLocation: { artifactLocation: { uri: 'app/src/a.ts' }, region: { startLine: 3 } } }],
-        partialFingerprints: { 'fitnessKey/v1': 'cognitive-complexity:src/a.ts:f' },
+        partialFingerprints: { 'warpKey/v1': 'cognitive-complexity:src/a.ts:f' },
       },
     ]);
   });

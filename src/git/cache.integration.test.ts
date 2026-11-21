@@ -3,15 +3,15 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { before, describe, it } from 'node:test';
-import { gitDirCache, maxAgeMs } from '../src/git/cache.ts';
+import { beforeAll, describe, it } from 'vite-plus/test';
+import { gitDirCache, maxAgeMs } from '../git/cache.ts';
 
 describe('gitDirCache', () => {
   let repo: string;
-  const entries = () => readdirSync(join(repo, '.git/fitness-cache')).sort();
+  const entries = () => readdirSync(join(repo, '.git/warp-cache')).sort();
 
-  before(() => {
-    repo = mkdtempSync(join(tmpdir(), 'fitness-cache-'));
+  beforeAll(() => {
+    repo = mkdtempSync(join(tmpdir(), 'warp-cache-'));
     execFileSync('git', ['init', '--quiet'], { cwd: repo });
   });
 

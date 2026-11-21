@@ -19,9 +19,9 @@ export const sarifReporter: Reporter = {
           {
             tool: {
               driver: {
-                name: 'fitness',
+                name: 'warp',
                 version: context.toolVersion,
-                informationUri: 'https://github.com/yearofthedan/snippets/tree/main/fitness',
+                informationUri: 'https://github.com/yearofthedan/warp',
                 rules: rules.map((id) => ({ id, shortDescription: { text: id }, ...(docs.has(id) ? { helpUri: docs.get(id) } : {}) })),
               },
             },
@@ -47,5 +47,5 @@ const result = (finding: Finding, context: ReportContext) => ({
       },
     },
   ],
-  partialFingerprints: { 'fitnessKey/v1': finding.key },
+  partialFingerprints: { 'warpKey/v1': finding.key },
 });

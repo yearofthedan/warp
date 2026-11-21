@@ -1,4 +1,4 @@
-import { type FitnessConfig, record, type RuleSettings } from './config.ts';
+import { type WarpConfig, record, type RuleSettings } from './config.ts';
 import { ConfigError } from './rule.ts';
 
 /** What a ruleset changes on top of its base: rules only, never the kinds' globs or dependencies. */
@@ -7,8 +7,8 @@ export interface RulesetOverlay {
   kinds?: Record<string, { rules: RuleSettings }>;
 }
 
-/** A named export of a fitness.config.ts: a base config and the overlays fitness merges onto it, in order. */
-export type Ruleset = readonly [FitnessConfig, ...RulesetOverlay[]];
+/** A named export of a warp.config.ts: a base config and the overlays warp merges onto it, in order. */
+export type Ruleset = readonly [WarpConfig, ...RulesetOverlay[]];
 
 /**
  * Merges a ruleset into one config as written. Top-level `rules` merge by rule id, and a kind's `rules` merge by kind

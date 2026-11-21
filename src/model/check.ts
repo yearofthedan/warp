@@ -27,6 +27,6 @@ const unclassified = (module: ModuleFacts, docs: string | undefined): Finding =>
   value: 1,
   message:
     `${module.file} matches no module kind, so no layer rule or threshold applies to it. ` +
-    'Add a glob that covers it to a kind in the fitness config, or move it under an existing kind.',
+    'Add a glob that covers it to a kind in the warp config, or move it under an existing kind.',
   ...(docs ? { docs } : {}),
 });

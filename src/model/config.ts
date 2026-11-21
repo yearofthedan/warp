@@ -12,8 +12,8 @@ export interface Config {
 /** `false` turns a rule off, `true` turns it back on, and an object turns it on with those options. */
 export type RuleSettings = Record<string, boolean | Record<string, unknown>>;
 
-/** A config as written, in fitness.config.json or as the default export of a fitness.config.ts. */
-export interface FitnessConfig {
+/** A config as written, in warp.config.json or as the default export of a warp.config.ts. */
+export interface WarpConfig {
   /** The tsconfig whose files are checked, relative to the config. Default `tsconfig.json`. */
   tsconfig?: string;
   exclude?: string | string[];
@@ -23,8 +23,8 @@ export interface FitnessConfig {
   kinds: Record<string, { match: string | string[]; dependsOn?: string | string[]; rules?: RuleSettings }>;
 }
 
-/** Types a fitness.config.ts. It returns the config unchanged. */
-export const defineConfig = (config: FitnessConfig): FitnessConfig => config;
+/** Types a warp.config.ts. It returns the config unchanged. */
+export const defineConfig = (config: WarpConfig): WarpConfig => config;
 
 /** Rules by id. Built-in rules come first; a project's own rules join them under namespaced ids. */
 export const registry = (rules: readonly Rule[]): ReadonlyMap<string, Rule> => {
@@ -45,7 +45,7 @@ const name = /^[a-z][a-z0-9-]*$/;
 export const namespaced = (namespace: string, plugin: unknown, at: string): Rule[] => {
   if (!name.test(namespace)) throw new ConfigError(`${at}: a namespace is lowercase letters, digits and dashes`);
   const rules = typeof plugin === 'object' && plugin !== null ? (plugin as { rules?: unknown }).rules : undefined;
-  if (!Array.isArray(rules)) throw new ConfigError(`${at}: expected a plugin, { rules: Rule[] }, imported in a fitness.config.ts`);
+  if (!Array.isArray(rules)) throw new ConfigError(`${at}: expected a plugin, { rules: Rule[] }, imported in a warp.config.ts`);
   return rules.map((rule: Rule, index): Rule => {
     if (typeof rule?.id !== 'string' || !name.test(rule.id)) {
       throw new ConfigError(`${at}.rules[${index}]: a rule id is lowercase letters, digits and dashes`);
@@ -124,7 +124,7 @@ const ruleSettings = (value: unknown, at: string, registry: ReadonlyMap<string, 
 const resolveRules = (registry: ReadonlyMap<string, Rule>, shared: Map<string, Setting>, own: Map<string, Setting>): EnabledRule[] =>
   [...registry.values()].flatMap((rule) => {
     const enabled = own.get(rule.id)?.enabled ?? shared.get(rule.id)?.enabled ?? true;
-    const options = { ...(rule.defaults ?? {}), ...shared.get(rule.id)?.options, ...own.get(rule.id)?.options };
+    const options = { ...rule.defaults, ...shared.get(rule.id)?.options, ...own.get(rule.id)?.options };
     return enabled ? [{ rule, options }] : [];
   });
 
