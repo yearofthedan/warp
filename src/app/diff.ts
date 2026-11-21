@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto';
-import type { Config } from '../model/config.ts';
 import { type Delta, diff } from '../model/diff.ts';
 import type { Finding } from '../model/rule.ts';
-import { checkProject } from './check.ts';
-import type { Analyzer, FindingsCache, Repository } from './ports.ts';
+import type { ProjectCheck } from './check.ts';
+import type { FindingsCache, Repository } from './ports.ts';
 
 export interface Range {
   base: string;
@@ -28,8 +27,8 @@ export interface DiffRequest {
   range: Range;
   /** The working tree's project directory. */
   root: string;
-  /** Checks both sides. Its resolved rules and options are part of the cache key, so each ruleset caches apart. */
-  config: Config;
+  /** Checks both sides. Its resolved config is part of the cache key, so each ruleset caches apart. */
+  project: ProjectCheck;
   /** Part of the cache key: a digest of the config file and the project's own rules it imports. */
   configDigest?: string;
   /** Part of the cache key: a digest of the tool's own code, so a changed built-in rule never reuses old findings. */
@@ -38,11 +37,11 @@ export interface DiffRequest {
 
 /** Checks both sides with the working tree's config, so a delta reflects code changes rather than rule changes. */
 export const diffProject = (
-  { range, root, config, configDigest = '', toolDigest }: DiffRequest,
-  { analyzer, repository, cache }: { analyzer: Analyzer; repository: Repository; cache: FindingsCache },
+  { range, root, project, configDigest = '', toolDigest }: DiffRequest,
+  { repository, cache }: { repository: Repository; cache: FindingsCache },
 ): Delta => {
   const configHash = createHash('sha256')
-    .update(JSON.stringify(config))
+    .update(JSON.stringify(project.config))
     .update(configDigest)
     .digest('hex')
     .slice(0, 16);
@@ -51,10 +50,10 @@ export const diffProject = (
     const key = `${toolDigest}-${configHash}-${commit}-${repository.projectPath().replaceAll('/', '_')}`;
     const cached = cache.get(key);
     if (cached) return cached;
-    const checkout = repository.checkout(commit, config.tsconfig);
+    const checkout = repository.checkout(commit, project.requiredFile);
     try {
       // A commit from before the project existed has nothing to report.
-      const findings = checkout.projectRoot ? checkProject(analyzer, checkout.projectRoot, config) : [];
+      const findings = checkout.projectRoot ? project.check(checkout.projectRoot) : [];
       cache.set(key, findings);
       // Entries for another build of the tool can never be hit again.
       cache.prune((other) => other.startsWith(`${toolDigest}-`));
@@ -65,5 +64,5 @@ export const diffProject = (
   };
   const { head } = range;
   const base = range.fromMergeBase ? repository.mergeBase(range.base, head ?? 'HEAD') : range.base;
-  return diff(atCommit(base), head === undefined ? checkProject(analyzer, root, config) : atCommit(head));
+  return diff(atCommit(base), head === undefined ? project.check(root) : atCommit(head));
 };

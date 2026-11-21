@@ -302,3 +302,78 @@ describe('rulesets', () => {
     assert.match(checked.stderr, /a JSON config has no rulesets/);
   });
 });
+
+describe('a warp.config.ts with archetypes', () => {
+  let dir: string;
+  const run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: dir, encoding: 'utf8' });
+  const commit = (...args: string[]) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+
+  beforeAll(() => {
+    dir = join(mkdtempSync(join(tmpdir(), 'warp-archetypes-')), 'app');
+    cpSync(join(import.meta.dirname, '../fixtures/archetypes'), dir, { recursive: true });
+    commit('init', '--quiet');
+    commit('add', '.');
+    commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
+  });
+
+  it('prints the units it finds, with the files of both tsconfigs in their parts', () => {
+    const modelled = run('model');
+    assert.equal(modelled.status, 0, modelled.stderr);
+    assert.equal(
+      modelled.stdout,
+      [
+        '.  root: app  main: 1',
+        '  loose (deny): src/stray.ts',
+        '  src/domain  domain: layer  src: 1, test: 1',
+        '  src/ui  ui: ui  no files',
+        '    src/ui/card  ui.components: component {name=card}  logic: 1, dom: 1',
+        '    src/ui/strings  ui.strings: plain folder  1 files',
+        '',
+        '5 units, 7 files, 1 loose.',
+        '',
+      ].join('\n'),
+    );
+    const { units } = JSON.parse(run('model', '--json').stdout);
+    assert.deepEqual(units[1].parts, { src: ['src/domain/order.ts'], test: ['src/domain/order.test.ts'] });
+  });
+
+  it('reports a file no part of the root claims as unclassified', () => {
+    const checked = run('check', '--reporter', 'json', '--fail');
+    assert.equal(checked.status, 1, checked.stderr);
+    assert.deepEqual(
+      JSON.parse(checked.stdout).findings.map((finding: { key: string }) => finding.key),
+      ['unclassified:src/stray.ts'],
+    );
+  });
+
+  it('reports only the files a change leaves unclassified', () => {
+    writeFileSync(join(dir, 'src/loose.ts'), 'export const loose = 1;\n');
+    const delta = JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout);
+    assert.deepEqual(
+      delta.added.map((finding: { key: string }) => finding.key),
+      ['unclassified:src/loose.ts'],
+    );
+  });
+
+  it('names the problem when the config cannot place a file', () => {
+    writeFileSync(
+      join(dir, 'tied.config.ts'),
+      [
+        "import { archetype, defineConfig } from 'warp';",
+        "export default defineConfig({ root: archetype('app').contains((p) => p.files('a', 'src/*.ts').files('b', '**/*.ts')) });",
+        '',
+      ].join('\n'),
+    );
+    const modelled = run('model', '--config', 'tied.config.ts');
+    assert.equal(modelled.status, 2);
+    assert.match(modelled.stderr, /src\/main\.ts: app's files parts a \('src\/\*\.ts'\) and b \('\*\*\/\*\.ts'\)/);
+  });
+
+  it('keeps --print-config and warp model to the config shape each reads', () => {
+    assert.match(run('--print-config').stderr, /warp model shows what an archetype config finds/);
+    const kinds = join(import.meta.dirname, '../fixtures/hexagonal-app/warp.config.json');
+    const modelled = run('model', '--config', kinds);
+    assert.equal(modelled.status, 2);
+    assert.match(modelled.stderr, /warp model reads an archetype config/);
+  });
+});

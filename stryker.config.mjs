@@ -11,9 +11,9 @@ export default {
   mutate: ['src/model/**/*.ts', 'src/reporters/**/*.ts', 'src/app/diff.ts', '!src/**/*.test.ts'],
   incremental: true,
   incrementalFile: 'reports/stryker-incremental.json',
-  /* shortcut: the rules came over with integration tests only, so the unit tier kills 80% of mutants
+  /* shortcut: the rules came over with integration tests only, so the unit tier kills 84% of mutants
      overall and nearly all of src/model/archetype; raise break with each slice that adds unit tests, up to 90. */
-  thresholds: { high: 90, low: 80, break: 80 },
+  thresholds: { high: 90, low: 80, break: 84 },
   reporters: ['clear-text', 'html', 'json'],
   htmlReporter: { fileName: 'reports/mutation/mutation.html' },
   jsonReporter: { fileName: 'reports/mutation/mutation.json' },

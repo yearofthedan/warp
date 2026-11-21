@@ -2,36 +2,50 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import { diskFolders } from './analysis/folders.ts';
 import { typescriptAnalyzer } from './analysis/typescript.ts';
-import { checkProject } from './app/check.ts';
+import { archetypeCheck, kindsCheck, modelProject, type ProjectCheck } from './app/check.ts';
 import { diffProject, parseRange } from './app/diff.ts';
 import { builtinRegistry, unclassifiedDocs } from './builtins.ts';
 import { findConfig, loadConfig } from './config/loadConfig.ts';
 import { toolDigest } from './config/toolDigest.ts';
 import { gitDirCache } from './git/cache.ts';
 import { gitRepository, projectPathOf } from './git/repository.ts';
+import type { ConfigData } from './model/archetype/data.ts';
+import { loadConfigData } from './model/archetype/load.ts';
 import { type Config, parseConfig } from './model/config.ts';
 import { ConfigError } from './model/rule.ts';
 import { reporters } from './reporters/index.ts';
+import { modelJson, modelText } from './reporters/model.ts';
 import { actionable, type Report } from './reporters/reporter.ts';
 
 const usage = `usage:
   warp check [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]
   warp diff <base>[..<head> | ...<head>] [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]
+  warp model [--config <file>] [--json]
   warp --print-config [--config <file>] [--ruleset <name>]
 
 check   reports every finding in the working tree.
 diff    reports findings that are new or worse at <head> than at <base>. Without <head>, compares the working tree.
         <base>...<head> compares from where <head> left <base>, as git does.
+model   prints the units an archetype config finds, and which part each file is in.
 
 --config    path to the config file (default: the first of warp.config.ts, .mts, .js, .mjs, .json)
 --ruleset   a named export of the config: [config, ...overlays] merged in order (default: the default export)
 --print-config  print the config as resolved, with each kind's rules and options, and exit
 --reporter  ${[...reporters.keys()].join(', ')} (default: text)
---fail      exit 1 when there are findings (check) or new or worse findings (diff)`;
+--fail      exit 1 when there are findings (check) or new or worse findings (diff)
+--json      print the model as JSON`;
 
 type Options = { config?: string; ruleset?: string; reporter: string; fail: boolean };
-type Produce = (root: string, config: Config, digest: string) => Report;
+type Produce = (root: string, project: ProjectCheck, digest: string) => Report;
+
+/** A config as loaded: the kinds shape, or archetypes from the builders. */
+type Resolved =
+  | { shape: 'kinds'; root: string; config: Config; digest: string }
+  | { shape: 'archetypes'; root: string; config: ConfigData; digest: string };
+
+const adapters = { analyzer: typescriptAnalyzer, foldersAt: diskFolders };
 
 const main = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
@@ -43,6 +57,7 @@ const main = async (argv: string[]): Promise<number> => {
       'print-config': { type: 'boolean', default: false },
       reporter: { type: 'string', default: 'text' },
       fail: { type: 'boolean', default: false },
+      json: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
   });
@@ -50,9 +65,10 @@ const main = async (argv: string[]): Promise<number> => {
   if (values.help) return help(0);
   if (values['print-config'] && positionals.length === 0) return printConfig(values);
   if (command === 'check' && args.length === 0)
-    return run(values, (root, config) => ({ mode: 'check', findings: checkProject(typescriptAnalyzer, root, config) }));
+    return run(values, (root, project) => ({ mode: 'check', findings: project.check(root) }));
   if (command === 'diff' && args.length === 1)
-    return run(values, (root, config, digest) => ({ mode: 'diff', delta: delta(args[0], root, config, digest) }));
+    return run(values, (root, project, digest) => ({ mode: 'diff', delta: delta(args[0], root, project, digest) }));
+  if (command === 'model' && args.length === 0) return printModel(values);
   return help(2);
 };
 
@@ -61,11 +77,17 @@ const help = (code: number): number => {
   return code;
 };
 
-const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail'>) => {
+const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promise<Resolved> => {
   const configFile = realpathSync(options.config ? resolve(options.config) : findConfig(process.cwd()));
+  const root = dirname(configFile);
   const { raw, digest } = await loadConfig(configFile, options.ruleset);
   try {
-    return { root: dirname(configFile), config: parseConfig(raw, builtinRegistry, { unclassifiedDocs }), digest };
+    if (!isArchetypeConfig(raw)) {
+      return { shape: 'kinds', root, config: parseConfig(raw, builtinRegistry, { unclassifiedDocs }), digest };
+    }
+    const { config, warnings } = loadConfigData(raw);
+    for (const warning of warnings) console.error(`warp config: ${warning}`);
+    return { shape: 'archetypes', root, config, digest };
   } catch (error) {
     if (error instanceof ConfigError && options.ruleset !== undefined)
       throw new ConfigError(`ruleset ${options.ruleset}: ${error.message}`);
@@ -73,14 +95,22 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail'>) => {
   }
 };
 
+/** A config with a root archetype, as `defineConfig({ root })` writes it, rather than kinds. */
+const isArchetypeConfig = (raw: unknown): boolean => typeof raw === 'object' && raw !== null && 'root' in raw;
+
+const projectCheck = (resolved: Resolved): ProjectCheck =>
+  resolved.shape === 'kinds'
+    ? kindsCheck(typescriptAnalyzer, resolved.config)
+    : archetypeCheck(adapters, resolved.config, { unclassifiedDocs });
+
 const run = async (options: Options, produce: Produce): Promise<number> => {
   const reporter = reporters.get(options.reporter);
   if (!reporter)
     throw new Error(`no reporter called ${options.reporter}: use one of ${[...reporters.keys()].join(', ')}`);
   try {
-    const { root, config, digest } = await resolveConfig(options);
-    const report = produce(root, config, digest);
-    const output = reporter.render(report, { toolVersion: version(), projectPath: projectPathOf(root) });
+    const resolved = await resolveConfig(options);
+    const report = produce(resolved.root, projectCheck(resolved), resolved.digest);
+    const output = reporter.render(report, { toolVersion: version(), projectPath: projectPathOf(resolved.root) });
     if (output) console.log(output);
     return options.fail && actionable(report).length > 0 ? 1 : 0;
   } catch (error) {
@@ -90,7 +120,10 @@ const run = async (options: Options, produce: Produce): Promise<number> => {
 
 /** The config after defaults, the ruleset's overlays and each kind's own rules: what each kind is checked with. */
 const printConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promise<number> => {
-  const { config } = await resolveConfig(options);
+  const resolved = await resolveConfig(options);
+  if (resolved.shape === 'archetypes')
+    throw new ConfigError('--print-config prints a kinds config; warp model shows what an archetype config finds');
+  const { config } = resolved;
   const kinds = config.kinds.map((kind) => [
     kind.name,
     {
@@ -105,10 +138,24 @@ const printConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promise
   return 0;
 };
 
-const delta = (range: string, root: string, config: Config, configDigest: string) =>
+/** The units an archetype config finds, as a tree or as JSON. */
+const printModel = async (options: Omit<Options, 'reporter' | 'fail'> & { json: boolean }): Promise<number> => {
+  try {
+    const resolved = await resolveConfig(options);
+    if (resolved.shape === 'kinds')
+      throw new ConfigError('warp model reads an archetype config, defineConfig({ root }); this one declares kinds');
+    const { model } = modelProject(adapters, resolved.root, resolved.config);
+    console.log(options.json ? modelJson(model) : modelText(model));
+    return 0;
+  } catch (error) {
+    return failed(error);
+  }
+};
+
+const delta = (range: string, root: string, project: ProjectCheck, configDigest: string) =>
   diffProject(
-    { range: parseRange(range), root, config, configDigest, toolDigest: toolDigest() },
-    { analyzer: typescriptAnalyzer, repository: gitRepository(root), cache: gitDirCache(root) },
+    { range: parseRange(range), root, project, configDigest, toolDigest: toolDigest() },
+    { repository: gitRepository(root), cache: gitDirCache(root) },
   );
 
 const version = (): string => JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;

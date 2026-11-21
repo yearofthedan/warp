@@ -109,6 +109,7 @@ const draftPart = (archetype: string, part: RecordedPart, fail: Fail): DraftPart
   const patterns = [part.kind === 'files' ? part.patterns : part.paths].flat() as string[];
   if (patterns.length === 0 || !patterns.every(isName))
     fail(`${where}: expected a ${part.kind === 'files' ? 'pattern' : 'path'} or a list of them`);
+  if (part.kind === 'dir') checkDirPaths(where, patterns, fail);
   const options = partOptions(where, part.options, fail);
   const using = typeof options.using === 'function' ? options.using(partRefs()) : (options.using ?? []);
   if (!Array.isArray(using)) fail(`${where}.using: expected a list of references, or a callback returning one`);
@@ -119,6 +120,15 @@ const draftPart = (archetype: string, part: RecordedPart, fail: Fail): DraftPart
       : { kind: part.kind, ...common, paths: patterns, archetype: dirArchetype(archetype, part.archetype) };
   return { data, using: Array.isArray(using) ? using : [], rules: options.rules };
 };
+
+const checkDirPaths = (where: string, paths: readonly unknown[], fail: Fail) => {
+  for (const path of paths.filter((path) => isName(path) && !isDirPath(path)))
+    fail(`${where}: a dir path is folder names and {placeholders}, a whole segment each, not '${String(path)}'`);
+};
+
+/** Folder names and whole-segment placeholders, relative to the parent unit: `src/ui`, `{name}`, `src/{name}`. */
+const isDirPath = (path: string): boolean =>
+  path.split('/').every((segment) => segment !== '.' && segment !== '..' && /^(\{\w+\}|[^{}*]+)$/.test(segment));
 
 const partOptions = (where: string, value: unknown, fail: Fail): Record<string, unknown> => {
   if (value !== undefined && !isRecord(value)) fail(`${where}: expected options, { using, rules }`);

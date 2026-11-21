@@ -535,6 +535,26 @@ describe('loadConfigData', () => {
     ]);
   });
 
+  it('refuses a dir path that is not folder names and whole-segment placeholders', () => {
+    const root = archetype('root').contains((p) =>
+      p
+        .dir('fine', ['src/ui', '{name}', 'src/{name}/x', 'src/__testHelpers__'])
+        .dir('glob', 'src/*')
+        .dir('partial', 'src/{name}-x')
+        .dir('up', '../x')
+        .dir('here', './x')
+        .dir('empty', 'src//x')
+        .dir('rooted', '/src'),
+    );
+    assert.deepEqual(
+      failures({ root }),
+      ['src/*', 'src/{name}-x', '../x', './x', 'src//x', '/src'].map(
+        (path, index) =>
+          `root.${['glob', 'partial', 'up', 'here', 'empty', 'rooted'][index]}: a dir path is folder names and {placeholders}, a whole segment each, not '${path}'`,
+      ),
+    );
+  });
+
   it('refuses callbacks that return the wrong thing', () => {
     const root = archetype('root')
       .contains(() => undefined as never)
