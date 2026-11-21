@@ -1,6 +1,7 @@
 # Design: archetypes
 
-Status: in delivery. The config builders and their load-time checks are in `src/model/archetype/`.
+Status: in delivery. The config builders, their load-time checks and finding units (`warp model`) are in
+`src/model/archetype/`.
 
 ## Summary
 
@@ -269,8 +270,8 @@ is one unit; with one (`'{name}'`), a unit per match; a list of paths is a unit 
   taken as a component.
 - Files parts: the longer literal suffix wins. `*.test-page.ts` beats `*.ts`, and `{name}.dom.ts` beats `*.ts`.
   A catch-all (`**`) loses to everything.
-- Equal specificity is a config error that names both candidates and suggests narrowing a pattern. `*.dsl.ts`
-  against `card.*` is one.
+- Equal specificity is a config error that names both candidates and suggests narrowing a pattern. `*.test.ts`
+  against `**/*.test.ts` is one, for a test file directly in the unit.
 
 Finding units reads the file system, so a marker can be a file outside the TS program, such as `component.json`.
 

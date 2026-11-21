@@ -1,6 +1,6 @@
 # unclassified
 
-Report a module that matches no kind.
+Report a module that matches no kind, or in an archetype config, no part where loose files are denied.
 
 ## Why
 
@@ -26,6 +26,11 @@ With this config, `src/stray.ts` is reported:
 
 Fix it by adding a glob that covers the file to a kind, moving the file under an existing kind, or adding it to
 `exclude` if it should not be checked at all.
+
+In an archetype config, a file is unclassified when it is loose (no files part of its unit matches it) and the
+unit's `loose` setting is `deny`, which is the root's default. `warp model` lists every loose file. Fix it by adding a
+files part that matches it, moving it into a part's folder, or setting `.loose('allow')` on an archetype whose
+stray files don't matter.
 
 ## Options
 

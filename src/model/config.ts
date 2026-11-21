@@ -67,7 +67,7 @@ export const namespaced = (namespace: string, plugin: unknown, at: string): Rule
   });
 };
 
-const alwaysExcluded = ['**/*.d.ts'];
+export const alwaysExcluded = ['**/*.d.ts'];
 
 /**
  * Validates a raw config against the rules in `registry` and the config's own plugins. Kinds keep their declared
@@ -114,8 +114,11 @@ export const parseConfig = (
   };
 };
 
-/** Which files analysis reads: the tsconfig's, less the excluded ones. */
-export type AnalysisScope = Pick<Config, 'tsconfig' | 'exclude'>;
+/** Which files analysis reads: those of the tsconfigs' programs, less the excluded ones. */
+export interface AnalysisScope {
+  tsconfig: string | readonly string[];
+  exclude: string[];
+}
 
 export const isExcluded = ({ exclude }: Pick<AnalysisScope, 'exclude'>, file: string): boolean =>
   exclude.some((glob) => matchesGlob(file, glob));

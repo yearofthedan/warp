@@ -148,6 +148,29 @@ Node strips the types itself, so there is no build step. `warp` in an import alw
 installed in the project or not. The config and its rules load as ES modules: in a project whose `package.json` lacks
 `"type": "module"`, name them `.mts` (Node only warns when `type` is missing, but fails on `"type": "commonjs"`).
 
+## Archetypes
+
+The config language is moving from kinds to archetypes, as [docs/design/archetypes.md](docs/design/archetypes.md)
+sets out. A `warp.config.ts` whose default export is `defineConfig({ root })` is read as an archetype config:
+
+```sh
+warp model           # the units the config finds, the part each file is in, and the loose files
+warp model --json    # the same, for tools
+```
+
+- The root unit is the config's folder. A `p.dir` path is folder names and whole-segment placeholders (`src/ui`,
+  `{name}`, `src/{name}`), relative to its unit; a marker or `match` decides which matching folders count.
+- In a files pattern, `**` spans folders, `*` stays within one, `{name}` is the unit's own capture, and the rest is
+  literal.
+- The most specific part wins: a literal dir segment beats a placeholder, and a literal file path beats any glob,
+  then the longer literal suffix after the last `*`, with `**` last. Two equally specific parts are a config error.
+- A file belongs to its deepest unit. One no part matches is loose, and `check` and `diff` report it as
+  [`unclassified`](docs/unclassified.md) where the unit's `loose` is `deny`, the root's default.
+- `tsconfig` takes a list, and warp reads every file of their programs.
+
+Rules and `using` verdicts come to archetype configs in the next slices; until then `check` and `diff` on one report
+`unclassified` findings.
+
 ## Custom rules
 
 A project adds its own rules in a `warp.config.ts`, as plugins: objects with a `rules` list, imported, never named

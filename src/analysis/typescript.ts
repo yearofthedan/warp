@@ -12,49 +12,62 @@ export const typescriptAnalyzer: Analyzer = {
   analyze(root: string, scope: AnalysisScope): Project {
     const api = new API({ cwd: root });
     try {
-      const tsconfig = join(root, scope.tsconfig);
-      const snapshot = api.createSnapshot({ openProjects: [tsconfig] });
-      const project = snapshot.getConfiguredProject(tsconfig);
-      if (!project) throw new Error(`could not load ${tsconfig}`);
-      const { program, checker } = project;
-
-      const files = new Map<string, string>();
-      for (const fileName of program.getSourceFileNames()) {
-        const file = toRelative(root, fileName);
-        if (file && !file.includes('node_modules/')) files.set(fileName, file);
+      const tsconfigs = [scope.tsconfig].flat().map((path) => join(root, path));
+      const snapshot = api.createSnapshot({ openProjects: tsconfigs });
+      const modules = new Map<string, ModuleFacts>();
+      for (const tsconfig of tsconfigs) {
+        const project = snapshot.getConfiguredProject(tsconfig);
+        if (!project) throw new Error(`could not load ${tsconfig}`);
+        for (const module of analyzeProgram(root, scope, project, modules)) modules.set(module.file, module);
       }
-      const byPath = new Map(
-        [...files].flatMap(([fileName, file]) => [
-          [fileName, file],
-          [fileName.toLowerCase(), file],
-        ]),
-      );
-      const resolver: Resolver = {
-        program,
-        checker,
-        relative: (path) => byPath.get(path) ?? byPath.get(path.toLowerCase()),
-      };
-
-      const modules: ModuleFacts[] = [];
-      for (const [fileName, file] of files) {
-        if (isExcluded(scope, file)) continue;
-        const sourceFile = program.getSourceFile(fileName);
-        if (!sourceFile) continue;
-        const source = readSource(checker, sourceFile, file);
-        modules.push({
-          file,
-          lines: countLines(sourceFile.text),
-          imports: importEdges(source, resolver),
-          units: moduleUnits(source),
-          functions: functionFacts(source),
-        });
-      }
-      if (modules.length === 0) throw new Error(`${tsconfig} includes no files to check`);
-      return { modules };
+      if (modules.size === 0) throw new Error(`${tsconfigs.join(', ')} include no files to check`);
+      return { modules: [...modules.values()] };
     } finally {
       api.close();
     }
   },
+};
+
+type Configured = NonNullable<ReturnType<ReturnType<API['createSnapshot']>['getConfiguredProject']>>;
+
+/** The facts of a program's files that no earlier program covered. */
+const analyzeProgram = (
+  root: string,
+  scope: AnalysisScope,
+  { program, checker }: Configured,
+  done: ReadonlyMap<string, ModuleFacts>,
+): ModuleFacts[] => {
+  const files = new Map<string, string>();
+  for (const fileName of program.getSourceFileNames()) {
+    const file = toRelative(root, fileName);
+    if (file && !file.includes('node_modules/')) files.set(fileName, file);
+  }
+  const byPath = new Map(
+    [...files].flatMap(([fileName, file]) => [
+      [fileName, file],
+      [fileName.toLowerCase(), file],
+    ]),
+  );
+  const resolver: Resolver = {
+    program,
+    checker,
+    relative: (path) => byPath.get(path) ?? byPath.get(path.toLowerCase()),
+  };
+  const modules: ModuleFacts[] = [];
+  for (const [fileName, file] of files) {
+    if (done.has(file) || isExcluded(scope, file)) continue;
+    const sourceFile = program.getSourceFile(fileName);
+    if (!sourceFile) continue;
+    const source = readSource(checker, sourceFile, file);
+    modules.push({
+      file,
+      lines: countLines(sourceFile.text),
+      imports: importEdges(source, resolver),
+      units: moduleUnits(source),
+      functions: functionFacts(source),
+    });
+  }
+  return modules;
 };
 
 const toRelative = (root: string, fileName: string): string | undefined => {

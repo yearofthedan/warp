@@ -1,5 +1,5 @@
 #!/bin/sh
-# help: Check working title, at the commit in acceptance/working-title/source, and compare its findings with the approved ones; --approve writes them.
+# help: Check working title, at the commit in acceptance/working-title/source, and compare its findings and the part each file resolves to with the approved ones; --approve writes them.
 
 set -eu
 
@@ -13,23 +13,43 @@ trap 'rm -rf "$work"' EXIT
 git -C "$work" init --quiet
 git -C "$work" fetch --quiet --depth 1 "$url" "$sha"
 git -C "$work" checkout --quiet FETCH_HEAD
-cp "$here/warp.config.json" "$work/warp.config.json"
+cp "$here/warp.config.json" "$here/warp.config.ts" "$work/"
 
-(cd "$work" && node "$root/src/cli.ts" check --reporter json) >"$work/report.json"
+(cd "$work" && node "$root/src/cli.ts" check --config warp.config.json --reporter json) >"$work/report.json"
 node -e '
   const { findings } = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
   console.log([...new Set(findings.map((finding) => finding.key))].sort().join("\n"));
 ' "$work/report.json" >"$work/findings.txt"
 
+# The archetype config from docs/design/archetypes.md: each file, its unit, and its part (- when loose).
+(cd "$work" && node "$root/src/cli.ts" model --config warp.config.ts --json) >"$work/model.json"
+node -e '
+  const { units } = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+  const lines = units.flatMap((unit) => {
+    const parts = new Map(Object.entries(unit.parts).flatMap(([part, files]) => files.map((file) => [file, part])));
+    return unit.ownFiles.map((file) => `${file} ${unit.id} ${parts.get(file) ?? (unit.archetype ? "-" : "(plain)")}`);
+  });
+  console.log(lines.sort().join("\n"));
+' "$work/model.json" >"$work/model.txt"
+
 if [ "${1:-}" = '--approve' ]; then
   cp "$work/findings.txt" "$here/findings.txt"
-  echo "Approved $(wc -l <"$here/findings.txt" | tr -d ' ') findings at $sha."
+  cp "$work/model.txt" "$here/model.txt"
+  echo "Approved $(wc -l <"$here/findings.txt" | tr -d ' ') findings and $(wc -l <"$here/model.txt" | tr -d ' ') files' parts at $sha."
   exit 0
 fi
 
+status=0
 if diff -u "$here/findings.txt" "$work/findings.txt"; then
   echo "Working title at $sha has the approved $(wc -l <"$here/findings.txt" | tr -d ' ') findings."
 else
   echo "error: working title's findings differ from acceptance/working-title/findings.txt (- approved, + now). If the change is intended, run ./do acceptance --approve." >&2
-  exit 1
+  status=1
 fi
+if diff -u "$here/model.txt" "$work/model.txt"; then
+  echo "Working title at $sha resolves its $(wc -l <"$here/model.txt" | tr -d ' ') files to the approved parts."
+else
+  echo "error: working title's files resolve differently from acceptance/working-title/model.txt (- approved, + now). If the change is intended, run ./do acceptance --approve." >&2
+  status=1
+fi
+exit "$status"
