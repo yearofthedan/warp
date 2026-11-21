@@ -20,13 +20,15 @@ export interface LoadedConfigData {
 export interface LoadOptions {
   /** Rule ids the config may configure. Given, an unknown id is an error, and so is an inline rule that takes one. */
   ruleIds?: Iterable<string>;
+  /** Option checks by rule id: a rule's options go through its check, which throws a ConfigError naming `at`. */
+  options?: Readonly<Record<string, (raw: Record<string, unknown>, at: string) => unknown>>;
 }
 
 /**
  * Checks a config built with `archetype()` and returns it as plain data with its warnings. Throws a ConfigError
  * listing every problem, one per line.
  */
-export const loadConfigData = (raw: unknown, { ruleIds }: LoadOptions = {}): LoadedConfigData => {
+export const loadConfigData = (raw: unknown, { ruleIds, options }: LoadOptions = {}): LoadedConfigData => {
   const errors: string[] = [];
   const fail: Fail = (message) => {
     if (!errors.includes(message)) errors.push(message);
@@ -44,6 +46,7 @@ export const loadConfigData = (raw: unknown, { ruleIds }: LoadOptions = {}): Loa
   const check: Check = {
     fail,
     ruleIds: ruleIds && new Set(ruleIds),
+    options: options ?? {},
     surfacesOf: (name) => {
       const exposes = drafts.find((d) => d.data.name === name)?.exposes;
       return exposes && Object.keys(exposes);

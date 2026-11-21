@@ -37,6 +37,10 @@ export interface Verdicts {
   surface(unit: UnitView, name?: string): ReadonlySet<string>;
   /** Whether `from` may import `to`; undefined when `from` has no reach to judge by, or `to` is outside the model. */
   verdict(from: string, to: string): Verdict | undefined;
+  /** The files a reference names, read in a unit of the archetype that holds it. Packages name no files. */
+  files(unit: UnitView, ref: RefData): ReadonlySet<string>;
+  /** The reference as the config writes it: `s.logic`, or `required.strings (from src/ui)` with its provider. */
+  describe(unit: UnitView, ref: RefData): string;
 }
 
 const none: ReadonlySet<string> = new Set();
@@ -69,6 +73,8 @@ export const verdicts = (config: ConfigData, model: Model): Verdicts => {
     reach: (file) => reach(state, file),
     surface: (unit, name) => surface(state, unit, name),
     verdict: (from, to) => verdict(state, from, to),
+    files: (unit, ref) => resolve(state, unit, ref),
+    describe: (unit, ref) => describe(state, unit, ref),
   };
 };
 

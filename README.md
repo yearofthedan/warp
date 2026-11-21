@@ -180,7 +180,23 @@ and report each one outside it as [`dependency-direction`](./src/model/rules/dep
 - An import is judged on the file its specifier names, so a barrel on a surface lets importers through to the files
   behind it. Type-only imports count.
 
-Package imports, rule settings on archetypes, inline rules and cycles come in later slices.
+Rule settings go in four places: `defineConfig({ rules })`, `.rules()` on an archetype, and `rules` in a dir or files
+part's options. For a finding on a file, the nearest setting wins: the file's files part, then for its unit and each
+unit above it the dir part that found it and its archetype, then the global settings. `'off'` turns every rule off at
+that level, and `'*': false` does the same while the rules listed beside it stay on. Options merge nearest first.
+`loose` decides `unclassified`.
+
+```ts
+.dir('generated', 'src/generated', { rules: 'off' })
+.dir('modules', '{name}', module, { rules: { 'unit-cycle': false } })
+```
+
+An inline rule is given by value under a local name, on an archetype or a part. `mustImport({ from, to })` reports
+each file in `from` that imports nothing in `to`, read in each unit of the archetype that declares it; its findings
+carry the local name as their rule.
+
+[`unit-cycle`](docs/unit-cycle.md) reports each import between sibling units that lies on a loop among them, and
+[`no-cycle`](docs/no-cycle.md) each import between files that lies on a loop.
 
 ## Custom rules
 
@@ -314,6 +330,8 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 | --- | --- | --- |
 | [`unclassified`](./docs/unclassified.md) | A module that matches no kind. From the model, so it cannot be turned off. | |
 | [`dependency-direction`](./src/model/rules/dependency-direction/README.md) | An import from a kind the importer's kind does not list in `dependsOn`, followed through barrels; in an archetype config, an import outside the importer's reach. | |
+| [`unit-cycle`](./docs/unit-cycle.md) | In an archetype config, an import between sibling units that lies on a loop among them. | `types` |
+| [`no-cycle`](./docs/no-cycle.md) | In an archetype config, an import between files that lies on a loop. | `types` |
 | [`no-cross-kind-reexport`](./src/model/rules/no-cross-kind-reexport/README.md) | A module that re-exports what another kind declares. | `allow` |
 | [`module-cohesion`](./src/model/rules/module-cohesion/README.md) | A module over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
 | [`function-cohesion`](./src/model/rules/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |

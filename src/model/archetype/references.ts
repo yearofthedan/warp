@@ -2,6 +2,7 @@
  * The second pass of loading: checks every reference against the parts, requirements and surfaces it names, and
  * turns references and rule settings into data.
  */
+import { ConfigError } from '../rule.ts';
 import { recordedAs } from './builder.ts';
 import type { ArchetypeData, MustImportData, PartRefData, RefData, RuleSettingsData } from './data.ts';
 import type { Draft } from './draft.ts';
@@ -12,6 +13,8 @@ export interface Check {
   fail: Fail;
   /** Rule ids the config may configure, when the caller knows them. */
   ruleIds?: ReadonlySet<string>;
+  /** Option checks by rule id. */
+  options: Readonly<Record<string, (raw: Record<string, unknown>, at: string) => unknown>>;
   /** The surfaces an archetype exposes; undefined when it has no `.exposes()`. */
   surfacesOf: (archetype: string) => string[] | undefined;
 }
@@ -111,9 +114,20 @@ const toSetting = (check: Check, id: string, setting: unknown, where: string, sc
   if (inline) return toInline(check, id, inline, where, scope);
   if (id !== '*' && check.ruleIds && !check.ruleIds.has(id)) check.fail(`${where}: no rule called ${id}`);
   else if (typeof setting === 'boolean') return setting;
-  else if (id !== '*' && isRecord(setting) && !recordedAs(setting, 'ref')) return { ...setting };
+  else if (id !== '*' && isRecord(setting) && !recordedAs(setting, 'ref'))
+    return checkOptions(check, id, setting, where);
   else check.fail(`${where}.${id}: expected true, false${id === '*' ? '' : ', options or an inline rule'}`);
   return undefined;
+};
+
+const checkOptions = (check: Check, id: string, options: Record<string, unknown>, where: string) => {
+  try {
+    check.options[id]?.(options, `${where}.${id}`);
+  } catch (error) {
+    if (!(error instanceof ConfigError)) throw error;
+    check.fail(error.message);
+  }
+  return { ...options };
 };
 
 const toInline = (

@@ -13,6 +13,7 @@ import { gitDirCache } from './git/cache.ts';
 import { gitRepository, projectPathOf } from './git/repository.ts';
 import type { ConfigData } from './model/archetype/data.ts';
 import { loadConfigData } from './model/archetype/load.ts';
+import { modelRules } from './model/archetype/rules.ts';
 import { type Config, parseConfig } from './model/config.ts';
 import { ConfigError } from './model/rule.ts';
 import { reporters } from './reporters/index.ts';
@@ -85,7 +86,7 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promi
     if (!isArchetypeConfig(raw)) {
       return { shape: 'kinds', root, config: parseConfig(raw, builtinRegistry, { unclassifiedDocs }), digest };
     }
-    const { config, warnings } = loadConfigData(raw);
+    const { config, warnings } = loadConfigData(raw, { ruleIds: Object.keys(modelRules), options: modelRules });
     for (const warning of warnings) console.error(`warp config: ${warning}`);
     return { shape: 'archetypes', root, config, digest };
   } catch (error) {

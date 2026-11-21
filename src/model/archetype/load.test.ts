@@ -4,6 +4,7 @@ import { defineConfig } from '../config.ts';
 import { archetype, dir, files, mustImport, pkg, requiredRefs } from './builder.ts';
 import { ConfigError } from '../rule.ts';
 import { loadConfigData } from './load.ts';
+import { modelRules } from './rules.ts';
 
 /** Working title's config from docs/design/archetypes.md, as the spike ran it. */
 const workingTitleConfig = () => {
@@ -447,6 +448,30 @@ describe('loadConfigData', () => {
         'root.rules.module-cohesion: module-cohesion is a built-in rule; give the inline rule its own name',
       ],
     );
+  });
+
+  it("checks each rule's options with the check it is given", () => {
+    const root = archetype('root')
+      .contains((p) =>
+        p
+          .files('src', '**', { rules: { 'unit-cycle': { types: 'sometimes' } } })
+          .files('test', '*.test.ts', { rules: { 'no-cycle': { types: 'count' }, 'unit-cycle': {} } }),
+      )
+      .rules({ 'no-cycle': { types: 'count', depth: 1, width: 2 }, 'unit-cycle': { types: 'ignore' } });
+    const options = { ruleIds: Object.keys(modelRules), options: modelRules };
+    assert.deepEqual(failures({ root, rules: { 'dependency-direction': { strict: true } } }, options), [
+      "root.src.rules.unit-cycle.types: expected 'count' or 'ignore'",
+      'root.rules.no-cycle: unknown key depth, width',
+      'config.rules.dependency-direction: unknown key strict',
+    ]);
+    const thrower = {
+      options: {
+        'no-cycle': () => {
+          throw new TypeError('not a config problem');
+        },
+      },
+    };
+    assert.throws(() => loadConfigData({ root }, thrower), TypeError);
   });
 
   it('refuses rule settings of the wrong shape', () => {
