@@ -1,0 +1,9 @@
+#!/bin/sh
+# help: Refuse a credential in the staged files, then check and fix them.
+
+set -eu
+
+. "$(dirname "$0")/_vp"
+
+"$(dirname "$0")/../do" secrets --staged
+vp staged "$@"

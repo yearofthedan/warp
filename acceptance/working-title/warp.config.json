@@ -1,0 +1,22 @@
+{
+  "tsconfig": "tsconfig.json",
+  "kinds": {
+    "domain": { "match": "src/domain/**", "dependsOn": [] },
+    "ports": { "match": "src/ports/**", "dependsOn": ["domain"] },
+    "methods": { "match": "src/methods/**", "dependsOn": ["domain"] },
+    "application": { "match": "src/application/**", "dependsOn": ["domain", "ports"] },
+    "adapters": { "match": "src/adapters/**", "dependsOn": ["domain", "ports"] },
+    "ui": { "match": "src/ui/**", "dependsOn": ["application"] },
+    "app": {
+      "match": ["src/main.ts", "src/app.ts", "src/shell.ts"],
+      "dependsOn": ["application", "adapters", "ports", "methods", "ui"]
+    },
+    "test-helpers": {
+      "match": "src/test-helpers/**",
+      "dependsOn": ["domain", "application", "adapters", "methods", "app", "ui", "ports"]
+    },
+    "e2e": { "match": "e2e/**", "dependsOn": ["adapters", "ui", "test-helpers"] },
+    "lint": { "match": "lint/**", "dependsOn": [] },
+    "tooling": { "match": ["*.ts", "scripts/**"], "dependsOn": ["lint"] }
+  }
+}

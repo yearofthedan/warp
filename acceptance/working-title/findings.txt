@@ -1,0 +1,145 @@
+cognitive-complexity:src/test-helpers/driver.ts:focusAndCurrentIn
+cognitive-complexity:src/test-helpers/folder.ts:narrowing
+cognitive-complexity:src/test-helpers/narrowing.ts:narrowing
+cognitive-complexity:src/test-helpers/play.ts:playScenarios
+cognitive-complexity:src/test-helpers/scenario-file.ts:readScenarioFile
+cognitive-complexity:src/ui/project/graph/card/card.dom.ts:renderCard
+cognitive-complexity:src/ui/project/graph/graph.component.test.ts:<callback to describe("moving the current piece")>
+cognitive-complexity:src/ui/project/graph/graph.dom.ts:keysOn
+cognitive-complexity:src/ui/project/graph/graph.dsl.ts:seesOn
+cognitive-complexity:src/ui/your-projects/project-list/start-a-project/start-a-project.component.test.ts:<callback to describe("starting a project")>
+cognitive-complexity:src/ui/your-projects/project-list/start-a-project/start-a-project.dom.ts:renderStartAProject
+dependency-direction:src/adapters/file-system-folders.component.test.ts->src/methods/snowflake-extended.ts
+dependency-direction:src/adapters/file-system-folders.component.test.ts->src/test-helpers/folders.ts
+dependency-direction:src/adapters/local-storage-project-store.test.ts->src/methods/snowflake-extended.ts
+dependency-direction:src/adapters/local-storage-project-store.test.ts->src/test-helpers/ids.ts
+dependency-direction:src/adapters/local-storage-project-store.test.ts->src/test-helpers/raw-glob.ts
+dependency-direction:src/application/project.test.ts->src/methods/snowflake-extended.ts
+dependency-direction:src/application/project.test.ts->src/test-helpers/ids.ts
+dependency-direction:src/application/project.test.ts->src/test-helpers/toy-method.ts
+dependency-direction:src/domain/project.test.ts->src/test-helpers/ids.ts
+dependency-direction:src/domain/project.test.ts->src/test-helpers/toy-method.ts
+dependency-direction:src/ui/project/graph/card/card.component.test.ts->src/test-helpers/box.ts
+dependency-direction:src/ui/project/graph/card/card.component.test.ts->src/test-helpers/raw-glob.ts
+dependency-direction:src/ui/project/graph/card/card.component.test.ts->src/test-helpers/scenario-entry.ts
+dependency-direction:src/ui/project/graph/card/card.component.test.ts->src/test-helpers/vitest-browser.driver.ts
+dependency-direction:src/ui/project/graph/card/card.dsl.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/project/graph/card/card.dsl.ts->src/test-helpers/narrowing.ts
+dependency-direction:src/ui/project/graph/card/card.dsl.ts->src/test-helpers/steps.ts
+dependency-direction:src/ui/project/graph/card/card.harness.ts->src/test-helpers/staging.ts
+dependency-direction:src/ui/project/graph/graph.component.test.ts->src/test-helpers/box.ts
+dependency-direction:src/ui/project/graph/graph.component.test.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/project/graph/graph.component.test.ts->src/test-helpers/frames.ts
+dependency-direction:src/ui/project/graph/graph.component.test.ts->src/test-helpers/graph-page.ts
+dependency-direction:src/ui/project/graph/graph.component.test.ts->src/test-helpers/look.ts
+dependency-direction:src/ui/project/graph/graph.component.test.ts->src/test-helpers/raw-glob.ts
+dependency-direction:src/ui/project/graph/graph.component.test.ts->src/test-helpers/scenario-entry.ts
+dependency-direction:src/ui/project/graph/graph.component.test.ts->src/test-helpers/staging.ts
+dependency-direction:src/ui/project/graph/graph.component.test.ts->src/test-helpers/vitest-browser.driver.ts
+dependency-direction:src/ui/project/graph/graph.dsl.test.ts->src/test-helpers/recording.ts
+dependency-direction:src/ui/project/graph/graph.dsl.test.ts->src/test-helpers/seed.ts
+dependency-direction:src/ui/project/graph/graph.dsl.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/project/graph/graph.dsl.ts->src/test-helpers/narrowing.ts
+dependency-direction:src/ui/project/graph/graph.dsl.ts->src/test-helpers/seed.ts
+dependency-direction:src/ui/project/graph/graph.dsl.ts->src/test-helpers/steps.ts
+dependency-direction:src/ui/project/graph/graph.harness.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/project/graph/graph.harness.ts->src/test-helpers/graph-page.ts
+dependency-direction:src/ui/project/graph/graph.harness.ts->src/test-helpers/seed.ts
+dependency-direction:src/ui/project/graph/graph.harness.ts->src/test-helpers/staging.ts
+dependency-direction:src/ui/project/graph/graph.harness.ts->src/test-helpers/vitest-browser.driver.ts
+dependency-direction:src/ui/project/panel/panel.component.test.ts->src/test-helpers/box.ts
+dependency-direction:src/ui/project/panel/panel.component.test.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/project/panel/panel.component.test.ts->src/test-helpers/field.ts
+dependency-direction:src/ui/project/panel/panel.component.test.ts->src/test-helpers/staging.ts
+dependency-direction:src/ui/project/panel/panel.component.test.ts->src/test-helpers/vitest-browser.driver.ts
+dependency-direction:src/ui/project/panel/panel.dsl.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/app.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/box.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/field.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/folders.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/frames.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/graph-page.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/look.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/raw-glob.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/scenario-entry.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/seed.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/staging.ts
+dependency-direction:src/ui/project/project.component.test.ts->src/test-helpers/vitest-browser.driver.ts
+dependency-direction:src/ui/project/project.dsl.test.ts->src/test-helpers/recording.ts
+dependency-direction:src/ui/project/project.dsl.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/project/project.dsl.ts->src/test-helpers/seed.ts
+dependency-direction:src/ui/project/project.dsl.ts->src/test-helpers/steps.ts
+dependency-direction:src/ui/project/project.harness.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/project/project.harness.ts->src/test-helpers/folders.ts
+dependency-direction:src/ui/project/project.harness.ts->src/test-helpers/graph-page.ts
+dependency-direction:src/ui/project/project.harness.ts->src/test-helpers/seed.ts
+dependency-direction:src/ui/project/project.harness.ts->src/test-helpers/staging.ts
+dependency-direction:src/ui/project/project.harness.ts->src/test-helpers/the-app.ts
+dependency-direction:src/ui/project/project.harness.ts->src/test-helpers/vitest-browser.driver.ts
+dependency-direction:src/ui/your-projects/project-list/project-list.component.test.ts->src/test-helpers/folders.ts
+dependency-direction:src/ui/your-projects/project-list/project-list.component.test.ts->src/test-helpers/vitest-browser.driver.ts
+dependency-direction:src/ui/your-projects/project-list/project-list.dom.ts->src/ports/projects-folder.ts
+dependency-direction:src/ui/your-projects/project-list/project-list.dsl.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/your-projects/project-list/project-list.harness.ts->src/ports/projects-folder.ts
+dependency-direction:src/ui/your-projects/project-list/project-list.harness.ts->src/test-helpers/folders.ts
+dependency-direction:src/ui/your-projects/project-list/project-list.harness.ts->src/test-helpers/staging.ts
+dependency-direction:src/ui/your-projects/project-list/start-a-project/start-a-project.component.test.ts->src/test-helpers/folders.ts
+dependency-direction:src/ui/your-projects/project-list/start-a-project/start-a-project.component.test.ts->src/test-helpers/vitest-browser.driver.ts
+dependency-direction:src/ui/your-projects/project-list/start-a-project/start-a-project.dom.ts->src/ports/projects-folder.ts
+dependency-direction:src/ui/your-projects/project-list/start-a-project/start-a-project.dsl.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/your-projects/project-list/start-a-project/start-a-project.harness.ts->src/ports/projects-folder.ts
+dependency-direction:src/ui/your-projects/project-list/start-a-project/start-a-project.harness.ts->src/test-helpers/folders.ts
+dependency-direction:src/ui/your-projects/project-list/start-a-project/start-a-project.harness.ts->src/test-helpers/staging.ts
+dependency-direction:src/ui/your-projects/projects-folder/projects-folder.component.test.ts->src/test-helpers/folders.ts
+dependency-direction:src/ui/your-projects/projects-folder/projects-folder.component.test.ts->src/test-helpers/vitest-browser.driver.ts
+dependency-direction:src/ui/your-projects/projects-folder/projects-folder.dom.ts->src/ports/projects-folder.ts
+dependency-direction:src/ui/your-projects/projects-folder/projects-folder.dsl.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/your-projects/projects-folder/projects-folder.dsl.ts->src/test-helpers/steps.ts
+dependency-direction:src/ui/your-projects/projects-folder/projects-folder.harness.ts->src/ports/projects-folder.ts
+dependency-direction:src/ui/your-projects/projects-folder/projects-folder.harness.ts->src/test-helpers/folders.ts
+dependency-direction:src/ui/your-projects/projects-folder/projects-folder.harness.ts->src/test-helpers/staging.ts
+dependency-direction:src/ui/your-projects/your-projects.component.test.ts->src/test-helpers/folders.ts
+dependency-direction:src/ui/your-projects/your-projects.component.test.ts->src/test-helpers/vitest-browser.driver.ts
+dependency-direction:src/ui/your-projects/your-projects.dom.ts->src/ports/projects-folder.ts
+dependency-direction:src/ui/your-projects/your-projects.dsl.ts->src/test-helpers/driver.ts
+dependency-direction:src/ui/your-projects/your-projects.dsl.ts->src/test-helpers/steps.ts
+dependency-direction:src/ui/your-projects/your-projects.harness.ts->src/ports/projects-folder.ts
+dependency-direction:src/ui/your-projects/your-projects.harness.ts->src/test-helpers/folders.ts
+dependency-direction:src/ui/your-projects/your-projects.harness.ts->src/test-helpers/staging.ts
+function-cohesion:src/adapters/file-system-folders.component.test.ts:<callback to describe("a free name for a project in the projects folder")>
+function-cohesion:src/adapters/file-system-folders.component.test.ts:<callback to describe("choosing where projects are kept")>
+function-cohesion:src/adapters/file-system-folders.component.test.ts:<callback to describe("starting a project in the projects folder")>
+function-cohesion:src/adapters/folder-name.test.ts:<callback to describe>
+function-cohesion:src/adapters/local-storage-project-store.test.ts:<callback to describe("the project in browser storage")>
+function-cohesion:src/application/project.test.ts:<callback to describe("opening a project")>
+function-cohesion:src/domain/project.test.ts:<callback to describe("readProject")>
+function-cohesion:src/test-helpers/narrowing.test.ts:<callback to describe("narrowing to a part inside another part")>
+function-cohesion:src/test-helpers/narrowing.test.ts:<callback to describe("narrowing to a part that names a role alone")>
+function-cohesion:src/test-helpers/play.test.ts:<callback to describe("playing a scenario file")>
+function-cohesion:src/test-helpers/recording.ts:recording
+function-cohesion:src/test-helpers/scenario-file.test.ts:<callback to describe("a scenario file that records a file in the novel’s folder")>
+function-cohesion:src/test-helpers/scenario-file.test.ts:<callback to describe("a scenario file")>
+function-cohesion:src/test-helpers/scenario-file.test.ts:<callback to describe("replacing what one scenario observed")>
+function-cohesion:src/test-helpers/seed.test.ts:<callback to describe("a seeded project")>
+function-cohesion:src/test-helpers/steps.test.ts:<callback to describe("a step table")>
+function-cohesion:src/ui/project/graph/card/card.component.test.ts:<callback to describe("the card mounted alone")>
+function-cohesion:src/ui/project/graph/graph.component.test.ts:<callback to describe("moving the current piece")>
+function-cohesion:src/ui/project/graph/graph.component.test.ts:<callback to describe("the graph around the current piece")>
+function-cohesion:src/ui/project/graph/graph.component.test.ts:<callback to describe("the motion of a move")>
+function-cohesion:src/ui/project/graph/graph.component.test.ts:<callback to describe("the rows of the graph")>
+function-cohesion:src/ui/project/graph/graph.dsl.test.ts:<callback to describe("a seeded Given")>
+function-cohesion:src/ui/project/graph/graph.dsl.test.ts:<callback to describe("what a graph step returns")>
+function-cohesion:src/ui/project/graph/graph.test.ts:<callback to describe("how a piece is drawn")>
+function-cohesion:src/ui/project/graph/layout.test.ts:<callback to describe("where the pieces are centred")>
+function-cohesion:src/ui/project/panel/panel.component.test.ts:<callback to describe("the panel mounted alone")>
+function-cohesion:src/ui/project/project.component.test.ts:<callback to describe("opening a piece beside the graph")>
+function-cohesion:src/ui/project/project.component.test.ts:<callback to describe("the arrow keys on the page")>
+function-cohesion:src/ui/project/project.component.test.ts:<callback to describe("the fade between screens")>
+function-cohesion:src/ui/project/project.component.test.ts:<callback to describe("the motion of the panel beside the graph")>
+function-cohesion:src/ui/project/project.component.test.ts:<callback to describe("what the app keeps")>
+function-cohesion:src/ui/project/project.dsl.test.ts:<callback to describe("the app language")>
+function-cohesion:src/ui/your-projects/project-list/start-a-project/start-a-project.component.test.ts:<callback to describe("starting a project")>
+module-cohesion:src/test-helpers/driver.ts
+module-cohesion:src/ui/project/graph/graph.dsl.ts
+no-cross-kind-reexport:src/application/project.ts->src/ports/projects-folder.ts
