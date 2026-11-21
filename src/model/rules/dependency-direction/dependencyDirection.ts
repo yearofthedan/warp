@@ -10,7 +10,8 @@ export const dependencyDirection: Rule = {
   id: 'dependency-direction',
   defaults: {},
   parseOptions: (raw, at) => {
-    if (Object.keys(raw).length > 0) throw new ConfigError(`${at}: takes no options; the kind's dependsOn sets what it allows`);
+    if (Object.keys(raw).length > 0)
+      throw new ConfigError(`${at}: takes no options; the kind's dependsOn sets what it allows`);
     return {};
   },
   check: ({ module, kind, kindOf }) => {

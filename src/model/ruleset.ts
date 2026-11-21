@@ -17,7 +17,8 @@ export type Ruleset = readonly [WarpConfig, ...RulesetOverlay[]];
  * same in every ruleset, only what is checked against it changes.
  */
 export const mergeRuleset = (ruleset: unknown, at: string): Record<string, unknown> => {
-  if (!Array.isArray(ruleset) || ruleset.length === 0) throw new ConfigError(`${at}: expected a ruleset, [config, ...overlays]`);
+  if (!Array.isArray(ruleset) || ruleset.length === 0)
+    throw new ConfigError(`${at}: expected a ruleset, [config, ...overlays]`);
   const [first, ...overlays] = ruleset;
   const base = record(first, `${at}[0]`);
   const kinds = record(base.kinds ?? {}, 'kinds');
@@ -44,7 +45,9 @@ const layersOf = (overlays: unknown[], kinds: string[], at: string) => {
     const overlay = record(value, where);
     onlyRules(overlay, ['rules', 'kinds'], where);
     if (overlay.rules !== undefined) shared.push({ rules: overlay.rules, at: `${where}.rules` });
-    for (const [name, kindValue] of Object.entries(overlay.kinds === undefined ? {} : record(overlay.kinds, `${where}.kinds`))) {
+    for (const [name, kindValue] of Object.entries(
+      overlay.kinds === undefined ? {} : record(overlay.kinds, `${where}.kinds`),
+    )) {
       const kind = record(kindValue, `${where}.kinds.${name}`);
       onlyRules(kind, ['rules'], `${where}.kinds.${name}`);
       if (!kinds.includes(name)) throw new ConfigError(`${where}.kinds: no kind called ${name} in the base config`);
@@ -76,6 +79,8 @@ const mergeRules = (base: unknown, baseAt: string, layers: Layer[]): Record<stri
 const onlyRules = (object: Record<string, unknown>, keys: string[], at: string) => {
   const unknown = Object.keys(object).filter((key) => !keys.includes(key));
   if (unknown.length > 0) {
-    throw new ConfigError(`${at}: a ruleset overlay sets rules only, not ${unknown.join(', ')}. Change those in the base config.`);
+    throw new ConfigError(
+      `${at}: a ruleset overlay sets rules only, not ${unknown.join(', ')}. Change those in the base config.`,
+    );
   }
 };

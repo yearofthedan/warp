@@ -10,7 +10,9 @@ const rule = 'no-cross-kind-reexport';
 const module = (file: string, to?: string, reExport?: true): ModuleFacts => ({
   file,
   lines: 1,
-  imports: to ? [{ from: file, to, specifier: to, names: ['x'], typeOnly: false, ...(reExport ? { reExport } : {}), line: 2 }] : [],
+  imports: to
+    ? [{ from: file, to, specifier: to, names: ['x'], typeOnly: false, ...(reExport ? { reExport } : {}), line: 2 }]
+    : [],
   units: { units: [], links: [] },
   functions: [],
 });
@@ -33,11 +35,16 @@ const keys = (config: Config, ...modules: ModuleFacts[]) =>
 
 describe(rule, () => {
   it('flags a re-export of another kind, even one the kind may depend on', () => {
-    assert.deepEqual(keys(kinds(), module('src/app/a.ts', 'src/domain/d.ts', true)), [`${rule}:src/app/a.ts->src/domain/d.ts`]);
+    assert.deepEqual(keys(kinds(), module('src/app/a.ts', 'src/domain/d.ts', true)), [
+      `${rule}:src/app/a.ts->src/domain/d.ts`,
+    ]);
   });
 
   it('passes a plain import and a re-export within the kind', () => {
-    assert.deepEqual(keys(kinds(), module('src/app/a.ts', 'src/domain/d.ts'), module('src/app/c.ts', 'src/app/b.ts', true)), []);
+    assert.deepEqual(
+      keys(kinds(), module('src/app/a.ts', 'src/domain/d.ts'), module('src/app/c.ts', 'src/app/b.ts', true)),
+      [],
+    );
   });
 
   it("passes a re-export from a kind the kind's options allow", () => {

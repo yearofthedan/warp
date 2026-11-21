@@ -19,6 +19,7 @@ export const diffText = (delta: Delta): string => {
   return [...lines, ...(lines.length > 0 ? [''] : []), summary].join('\n');
 };
 
-export const line = (finding: Finding): string => `${finding.file}:${finding.line} [${finding.rule}] ${finding.message}`;
+export const line = (finding: Finding): string =>
+  `${finding.file}:${finding.line} [${finding.rule}] ${finding.message}`;
 
 const count = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' : 's'}`;

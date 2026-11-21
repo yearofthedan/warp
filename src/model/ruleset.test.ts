@@ -23,10 +23,18 @@ describe('mergeRuleset', () => {
 
   it('merges top-level rules by id: options merge, false turns off, true turns on keeping options', () => {
     const merged = mergeRuleset(
-      [base, { rules: { 'cognitive-complexity': { max: 12 }, 'module-cohesion': false } }, { rules: { 'function-cohesion': true, 'cognitive-complexity': true } }],
+      [
+        base,
+        { rules: { 'cognitive-complexity': { max: 12 }, 'module-cohesion': false } },
+        { rules: { 'function-cohesion': true, 'cognitive-complexity': true } },
+      ],
       'ruleset edit',
     );
-    assert.deepEqual(merged.rules, { 'cognitive-complexity': { max: 12 }, 'module-cohesion': false, 'function-cohesion': true });
+    assert.deepEqual(merged.rules, {
+      'cognitive-complexity': { max: 12 },
+      'module-cohesion': false,
+      'function-cohesion': true,
+    });
     assert.deepEqual(merged.kinds, base.kinds);
     assert.deepEqual(merged.exclude, base.exclude);
   });
@@ -45,33 +53,68 @@ describe('mergeRuleset', () => {
   });
 
   it("merges a kind's rules by kind name, keeping its globs, dependencies and the kinds' order", () => {
-    const merged = mergeRuleset([base, { kinds: { adapter: { rules: { 'module-cohesion': { maxLines: 250 }, 'cognitive-complexity': false } } } }], 'r');
+    const merged = mergeRuleset(
+      [
+        base,
+        { kinds: { adapter: { rules: { 'module-cohesion': { maxLines: 250 }, 'cognitive-complexity': false } } } },
+      ],
+      'r',
+    );
     assert.deepEqual(merged.kinds, {
       domain: base.kinds.domain,
-      adapter: { match: 'src/adapters/**', dependsOn: ['domain'], rules: { 'module-cohesion': { maxLines: 250 }, 'cognitive-complexity': false } },
+      adapter: {
+        match: 'src/adapters/**',
+        dependsOn: ['domain'],
+        rules: { 'module-cohesion': { maxLines: 250 }, 'cognitive-complexity': false },
+      },
     });
     const config = parse(merged);
-    assert.deepEqual(config.kinds.map((kind) => kind.name), ['domain', 'adapter']);
-    assert.deepEqual(config.kinds[1].rules.map((enabled) => enabled.rule.id), ['dependency-direction', 'no-cross-kind-reexport', 'module-cohesion']);
+    assert.deepEqual(
+      config.kinds.map((kind) => kind.name),
+      ['domain', 'adapter'],
+    );
+    assert.deepEqual(
+      config.kinds[1].rules.map((enabled) => enabled.rule.id),
+      ['dependency-direction', 'no-cross-kind-reexport', 'module-cohesion'],
+    );
   });
 
   it('never changes the base it was given', () => {
     const before = structuredClone(base);
-    mergeRuleset([base, { rules: { 'cognitive-complexity': { max: 1 } }, kinds: { adapter: { rules: { 'module-cohesion': false } } } }], 'r');
+    mergeRuleset(
+      [
+        base,
+        { rules: { 'cognitive-complexity': { max: 1 } }, kinds: { adapter: { rules: { 'module-cohesion': false } } } },
+      ],
+      'r',
+    );
     assert.deepEqual(base, before);
   });
 
   it('refuses an overlay that changes anything but rules', () => {
-    const refuses = (overlay: unknown, message: RegExp) => assert.throws(() => mergeRuleset([base, overlay], 'ruleset edit'), (error: Error) => error instanceof ConfigError && message.test(error.message));
+    const refuses = (overlay: unknown, message: RegExp) =>
+      assert.throws(
+        () => mergeRuleset([base, overlay], 'ruleset edit'),
+        (error: Error) => error instanceof ConfigError && message.test(error.message),
+      );
     refuses({ exclude: ['src/**'] }, /^ruleset edit\[1\]: a ruleset overlay sets rules only, not exclude/);
     refuses({ plugins: {} }, /\[1\]: a ruleset overlay sets rules only, not plugins/);
-    refuses({ kinds: { domain: { match: 'src/**' } } }, /\[1\]\.kinds\.domain: a ruleset overlay sets rules only, not match/);
-    refuses({ kinds: { domain: { rules: {}, dependsOn: ['adapter'] } } }, /\.kinds\.domain: a ruleset overlay sets rules only, not dependsOn/);
+    refuses(
+      { kinds: { domain: { match: 'src/**' } } },
+      /\[1\]\.kinds\.domain: a ruleset overlay sets rules only, not match/,
+    );
+    refuses(
+      { kinds: { domain: { rules: {}, dependsOn: ['adapter'] } } },
+      /\.kinds\.domain: a ruleset overlay sets rules only, not dependsOn/,
+    );
     refuses({ kinds: { ui: { rules: {} } } }, /\[1\]\.kinds: no kind called ui in the base config/);
   });
 
   it('refuses a ruleset that is not a list', () => {
-    assert.throws(() => mergeRuleset(base, 'ruleset edit'), /ruleset edit: expected a ruleset, \[config, \.\.\.overlays\]/);
+    assert.throws(
+      () => mergeRuleset(base, 'ruleset edit'),
+      /ruleset edit: expected a ruleset, \[config, \.\.\.overlays\]/,
+    );
     assert.throws(() => mergeRuleset([], 'ruleset edit'), /expected a ruleset/);
   });
 });

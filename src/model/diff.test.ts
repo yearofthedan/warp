@@ -11,8 +11,17 @@ describe('diff', () => {
       [finding('kept', 2), finding('worse', 3), finding('gone', 1)],
       [finding('kept', 2), finding('worse', 4), finding('fresh', 1)],
     );
-    assert.deepEqual(delta.added.map((f) => f.key), ['fresh']);
-    assert.deepEqual(delta.worsened.map((f) => [f.key, f.was]), [['worse', 3]]);
-    assert.deepEqual(delta.resolved.map((f) => f.key), ['gone']);
+    assert.deepEqual(
+      delta.added.map((f) => f.key),
+      ['fresh'],
+    );
+    assert.deepEqual(
+      delta.worsened.map((f) => [f.key, f.was]),
+      [['worse', 3]],
+    );
+    assert.deepEqual(
+      delta.resolved.map((f) => f.key),
+      ['gone'],
+    );
   });
 });

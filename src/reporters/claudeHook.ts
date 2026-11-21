@@ -11,7 +11,10 @@ export const claudeHookReporter: Reporter = {
     actionable(report).length === 0
       ? ''
       : JSON.stringify({
-          hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: agentContext(report, { delta: diffText, finding: line }) },
+          hookSpecificOutput: {
+            hookEventName: 'PostToolUse',
+            additionalContext: agentContext(report, { delta: diffText, finding: line }),
+          },
         }),
   // Claude Code treats exit 2 from a hook as blocking feedback; a broken run should only warn.
   failureExitCode: 1,

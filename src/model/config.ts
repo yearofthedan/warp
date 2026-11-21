@@ -45,17 +45,20 @@ const name = /^[a-z][a-z0-9-]*$/;
 export const namespaced = (namespace: string, plugin: unknown, at: string): Rule[] => {
   if (!name.test(namespace)) throw new ConfigError(`${at}: a namespace is lowercase letters, digits and dashes`);
   const rules = typeof plugin === 'object' && plugin !== null ? (plugin as { rules?: unknown }).rules : undefined;
-  if (!Array.isArray(rules)) throw new ConfigError(`${at}: expected a plugin, { rules: Rule[] }, imported in a warp.config.ts`);
+  if (!Array.isArray(rules))
+    throw new ConfigError(`${at}: expected a plugin, { rules: Rule[] }, imported in a warp.config.ts`);
   return rules.map((rule: Rule, index): Rule => {
     if (typeof rule?.id !== 'string' || !name.test(rule.id)) {
       throw new ConfigError(`${at}.rules[${index}]: a rule id is lowercase letters, digits and dashes`);
     }
-    if (typeof rule.check !== 'function') throw new ConfigError(`${at}.rules[${index}]: ${rule.id} has no check function`);
+    if (typeof rule.check !== 'function')
+      throw new ConfigError(`${at}.rules[${index}]: ${rule.id} has no check function`);
     const id = `${namespace}/${rule.id}`;
     return {
       ...rule,
       id,
-      check: (context) => rule.check(context).map((finding) => ({ ...finding, rule: id, key: `${namespace}/${finding.key}` })),
+      check: (context) =>
+        rule.check(context).map((finding) => ({ ...finding, rule: id, key: `${namespace}/${finding.key}` })),
     };
   });
 };
@@ -67,12 +70,20 @@ const alwaysExcluded = ['**/*.d.ts'];
  * order: the first match wins. Every registered rule runs on every kind unless the config turns it off.
  * `unclassifiedDocs` comes from whoever ships the rules, as their own `docs` links do.
  */
-export const parseConfig = (raw: unknown, builtins: ReadonlyMap<string, Rule>, { unclassifiedDocs }: { unclassifiedDocs?: string } = {}): Config => {
+export const parseConfig = (
+  raw: unknown,
+  builtins: ReadonlyMap<string, Rule>,
+  { unclassifiedDocs }: { unclassifiedDocs?: string } = {},
+): Config => {
   const object = record(raw, 'config');
   known(object, ['tsconfig', 'exclude', 'plugins', 'rules', 'kinds'], 'config');
-  if (object.tsconfig !== undefined && typeof object.tsconfig !== 'string') throw new ConfigError('tsconfig: expected a string');
+  if (object.tsconfig !== undefined && typeof object.tsconfig !== 'string')
+    throw new ConfigError('tsconfig: expected a string');
   const plugins = Object.entries(object.plugins === undefined ? {} : record(object.plugins, 'plugins'));
-  const rules = registry([...builtins.values(), ...plugins.flatMap(([namespace, plugin]) => namespaced(namespace, plugin, `plugins.${namespace}`))]);
+  const rules = registry([
+    ...builtins.values(),
+    ...plugins.flatMap(([namespace, plugin]) => namespaced(namespace, plugin, `plugins.${namespace}`)),
+  ]);
   const shared = ruleSettings(object.rules, 'rules', rules);
   const kinds = Object.entries(record(object.kinds ?? {}, 'kinds')).map(([name, value]): Kind => {
     const kind = record(value, `kinds.${name}`);
@@ -102,7 +113,8 @@ export const parseConfig = (raw: unknown, builtins: ReadonlyMap<string, Rule>, {
 /** Which files analysis reads: the tsconfig's, less the excluded ones. */
 export type AnalysisScope = Pick<Config, 'tsconfig' | 'exclude'>;
 
-export const isExcluded = ({ exclude }: Pick<AnalysisScope, 'exclude'>, file: string): boolean => exclude.some((glob) => matchesGlob(file, glob));
+export const isExcluded = ({ exclude }: Pick<AnalysisScope, 'exclude'>, file: string): boolean =>
+  exclude.some((glob) => matchesGlob(file, glob));
 
 export const classify = (config: Config, file: string): Kind | undefined =>
   config.kinds.find((kind) => kind.match.some((glob) => matchesGlob(file, glob)));
@@ -115,13 +127,21 @@ const ruleSettings = (value: unknown, at: string, registry: ReadonlyMap<string, 
     const rule = registry.get(id);
     if (!rule) throw new ConfigError(`${at}: no rule called ${id}`);
     if (typeof setting === 'boolean') settings.set(id, { enabled: setting, options: {} });
-    else settings.set(id, { enabled: true, options: (rule.parseOptions ?? noOptions)(record(setting, `${at}.${id}`), `${at}.${id}`) });
+    else
+      settings.set(id, {
+        enabled: true,
+        options: (rule.parseOptions ?? noOptions)(record(setting, `${at}.${id}`), `${at}.${id}`),
+      });
   }
   return settings;
 };
 
 /** Options layer as defaults, then the shared `rules`, then the kind's `rules`. */
-const resolveRules = (registry: ReadonlyMap<string, Rule>, shared: Map<string, Setting>, own: Map<string, Setting>): EnabledRule[] =>
+const resolveRules = (
+  registry: ReadonlyMap<string, Rule>,
+  shared: Map<string, Setting>,
+  own: Map<string, Setting>,
+): EnabledRule[] =>
   [...registry.values()].flatMap((rule) => {
     const enabled = own.get(rule.id)?.enabled ?? shared.get(rule.id)?.enabled ?? true;
     const options = { ...rule.defaults, ...shared.get(rule.id)?.options, ...own.get(rule.id)?.options };
@@ -129,7 +149,8 @@ const resolveRules = (registry: ReadonlyMap<string, Rule>, shared: Map<string, S
   });
 
 export const record = (value: unknown, at: string): Record<string, unknown> => {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new ConfigError(`${at}: expected an object`);
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    throw new ConfigError(`${at}: expected an object`);
   return value as Record<string, unknown>;
 };
 

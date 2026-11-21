@@ -6,7 +6,8 @@ import type { Repository } from '../app/ports.ts';
 
 /** The git repository holding projectRoot. Checkouts are detached worktrees that share the project's node_modules. */
 export const gitRepository = (projectRoot: string): Repository => {
-  const git = (...args: string[]) => execFileSync('git', args, { cwd: projectRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  const git = (...args: string[]) =>
+    execFileSync('git', args, { cwd: projectRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   // git reports the top level with symlinks resolved, so resolve the project root the same way before comparing.
   const top = realpathSync(git('rev-parse', '--show-toplevel'));
   const project = realpathSync(projectRoot);

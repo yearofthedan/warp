@@ -15,7 +15,8 @@ const moduleWith = (file: string, to?: string) => ({
 });
 
 const parse = (raw: unknown) => parseConfig(raw, builtinRegistry);
-const optionsOf = (config: Config, rule: string) => config.kinds[0].rules.find((enabled) => enabled.rule.id === rule)?.options;
+const optionsOf = (config: Config, rule: string) =>
+  config.kinds[0].rules.find((enabled) => enabled.rule.id === rule)?.options;
 
 describe('parseConfig', () => {
   it("layers a kind's rule options over shared ones over each rule's defaults", () => {
@@ -39,7 +40,13 @@ describe('parseConfig', () => {
     });
     const ids = (index: number) => config.kinds[index].rules.map((enabled) => enabled.rule.id);
     assert.deepEqual(ids(0), ['dependency-direction', 'no-cross-kind-reexport', 'module-cohesion']);
-    assert.deepEqual(ids(1), ['dependency-direction', 'no-cross-kind-reexport', 'module-cohesion', 'function-cohesion', 'cognitive-complexity']);
+    assert.deepEqual(ids(1), [
+      'dependency-direction',
+      'no-cross-kind-reexport',
+      'module-cohesion',
+      'function-cohesion',
+      'cognitive-complexity',
+    ]);
   });
 
   it('runs a rule registered beside the built-in ones', () => {
@@ -49,15 +56,30 @@ describe('parseConfig', () => {
       parseOptions: wholeNumberOptions({ limit: 10 }),
       check: ({ module, options }) =>
         module.imports.length >= options.limit
-          ? [{ rule: 'max-imports', key: `max-imports:${module.file}`, file: module.file, line: 1, value: module.imports.length, message: 'too many' }]
+          ? [
+              {
+                rule: 'max-imports',
+                key: `max-imports:${module.file}`,
+                file: module.file,
+                line: 1,
+                value: module.imports.length,
+                message: 'too many',
+              },
+            ]
           : [],
     };
     const config = parseConfig(
-      { rules: { 'max-imports': { limit: 1 } }, kinds: { all: { match: '**', rules: { 'dependency-direction': false } } } },
+      {
+        rules: { 'max-imports': { limit: 1 } },
+        kinds: { all: { match: '**', rules: { 'dependency-direction': false } } },
+      },
       registry([...builtinRules, custom as Rule]),
     );
     const findings = check(config, { modules: [moduleWith('a.ts', 'b.ts'), moduleWith('b.ts')] });
-    assert.deepEqual(findings.map((f) => f.key), ['max-imports:a.ts']);
+    assert.deepEqual(
+      findings.map((f) => f.key),
+      ['max-imports:a.ts'],
+    );
   });
 
   it('refuses a dependsOn that names no kind', () => {
@@ -65,7 +87,10 @@ describe('parseConfig', () => {
   });
 
   it('refuses a rule that is not registered, and options a rule does not take', () => {
-    assert.throws(() => parse({ rules: { 'max-loc': {} }, kinds: { app: { match: 'src/**' } } }), /rules: no rule called max-loc/);
+    assert.throws(
+      () => parse({ rules: { 'max-loc': {} }, kinds: { app: { match: 'src/**' } } }),
+      /rules: no rule called max-loc/,
+    );
     assert.throws(
       () => parse({ kinds: { app: { match: 'src/**', rules: { 'module-cohesion': { maxLoc: 1 } } } } }),
       /kinds.app.rules.module-cohesion: unknown key maxLoc/,
@@ -78,7 +103,10 @@ describe('parseConfig', () => {
   });
 
   it('refuses a limit below 1 and a tsconfig that is not a string', () => {
-    assert.throws(() => parse({ rules: { 'module-cohesion': { maxLines: 0 } }, kinds: { app: { match: 'src/**' } } }), /at least 1/);
+    assert.throws(
+      () => parse({ rules: { 'module-cohesion': { maxLines: 0 } }, kinds: { app: { match: 'src/**' } } }),
+      /at least 1/,
+    );
     assert.throws(() => parse({ tsconfig: 5, kinds: { app: { match: 'src/**' } } }), /tsconfig: expected a string/);
   });
 
@@ -98,7 +126,16 @@ describe('plugins', () => {
     parseOptions: wholeNumberOptions({ limit: 10 }),
     check: ({ module, options }) =>
       module.imports.length >= options.limit
-        ? [{ rule: 'max-imports', key: `max-imports:${module.file}`, file: module.file, line: 1, value: module.imports.length, message: 'too many' }]
+        ? [
+            {
+              rule: 'max-imports',
+              key: `max-imports:${module.file}`,
+              file: module.file,
+              line: 1,
+              value: module.imports.length,
+              message: 'too many',
+            },
+          ]
         : [],
   };
   const bare: Rule = { id: 'bare', check: () => [] };
@@ -109,25 +146,52 @@ describe('plugins', () => {
     const config = withPlugins({ wt: { rules: [imports] } }, { 'wt/max-imports': { limit: 1 } });
     const findings = check(config, { modules: [moduleWith('a.ts', 'b.ts'), moduleWith('b.ts')] });
     assert.deepEqual(findings, [
-      { rule: 'wt/max-imports', key: 'wt/max-imports:a.ts', file: 'a.ts', line: 1, value: 1, message: 'too many', docs: 'https://example.com/max-imports' },
+      {
+        rule: 'wt/max-imports',
+        key: 'wt/max-imports:a.ts',
+        file: 'a.ts',
+        line: 1,
+        value: 1,
+        message: 'too many',
+        docs: 'https://example.com/max-imports',
+      },
     ]);
-    assert.throws(() => withPlugins({ wt: { rules: [imports] } }, { 'wt/max-imports': { limit: 0 } }), /rules.wt\/max-imports.limit: expected a whole number/);
-    assert.throws(() => withPlugins({ wt: { rules: [imports] } }, { 'max-imports': {} }), /rules: no rule called max-imports/);
+    assert.throws(
+      () => withPlugins({ wt: { rules: [imports] } }, { 'wt/max-imports': { limit: 0 } }),
+      /rules.wt\/max-imports.limit: expected a whole number/,
+    );
+    assert.throws(
+      () => withPlugins({ wt: { rules: [imports] } }, { 'max-imports': {} }),
+      /rules: no rule called max-imports/,
+    );
   });
 
   it('gives no docs link to a rule without one, and refuses options to a rule that declares none', () => {
-    const config = withPlugins({ wt: { rules: [{ ...bare, check: () => [{ rule: 'bare', key: 'k', file: 'a.ts', line: 1, value: 1, message: 'm' }] }] } });
+    const config = withPlugins({
+      wt: {
+        rules: [{ ...bare, check: () => [{ rule: 'bare', key: 'k', file: 'a.ts', line: 1, value: 1, message: 'm' }] }],
+      },
+    });
     assert.equal(check(config, { modules: [moduleWith('a.ts')] })[0].docs, undefined);
     assert.ok(withPlugins({ wt: { rules: [bare] } }, { 'wt/bare': false }));
-    assert.throws(() => withPlugins({ wt: { rules: [bare] } }, { 'wt/bare': { max: 1 } }), /rules.wt\/bare: unknown key max/);
+    assert.throws(
+      () => withPlugins({ wt: { rules: [bare] } }, { 'wt/bare': { max: 1 } }),
+      /rules.wt\/bare: unknown key max/,
+    );
   });
 
   it('refuses duplicate ids, bad names and a plugin given as a path', () => {
     assert.throws(() => withPlugins({ wt: { rules: [bare, bare] } }), /two rules have the id wt\/bare/);
     assert.ok(withPlugins({ wt: { rules: [bare] }, other: { rules: [bare] } }));
     assert.throws(() => withPlugins({ 'w/t': { rules: [bare] } }), /plugins.w\/t: a namespace is/);
-    assert.throws(() => withPlugins({ wt: { rules: [{ ...bare, id: 'x/y' }] } }), /plugins.wt.rules\[0\]: a rule id is/);
+    assert.throws(
+      () => withPlugins({ wt: { rules: [{ ...bare, id: 'x/y' }] } }),
+      /plugins.wt.rules\[0\]: a rule id is/,
+    );
     assert.throws(() => withPlugins({ wt: { rules: [{ id: 'x' }] } }), /x has no check function/);
-    assert.throws(() => withPlugins({ wt: './rules.ts' }), /plugins.wt: expected a plugin, \{ rules: Rule\[\] \}, imported in a warp.config.ts/);
+    assert.throws(
+      () => withPlugins({ wt: './rules.ts' }),
+      /plugins.wt: expected a plugin, \{ rules: Rule\[\] \}, imported in a warp.config.ts/,
+    );
   });
 });

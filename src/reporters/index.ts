@@ -6,5 +6,8 @@ import { sarifReporter } from './sarif.ts';
 import { textReporter } from './text.ts';
 
 export const reporters: ReadonlyMap<string, Reporter> = new Map(
-  [textReporter, jsonReporter, claudeHookReporter, ompReporter, sarifReporter].map((reporter) => [reporter.id, reporter]),
+  [textReporter, jsonReporter, claudeHookReporter, ompReporter, sarifReporter].map((reporter) => [
+    reporter.id,
+    reporter,
+  ]),
 );

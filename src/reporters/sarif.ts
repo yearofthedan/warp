@@ -22,7 +22,11 @@ export const sarifReporter: Reporter = {
                 name: 'warp',
                 version: context.toolVersion,
                 informationUri: 'https://github.com/yearofthedan/warp',
-                rules: rules.map((id) => ({ id, shortDescription: { text: id }, ...(docs.has(id) ? { helpUri: docs.get(id) } : {}) })),
+                rules: rules.map((id) => ({
+                  id,
+                  shortDescription: { text: id },
+                  ...(docs.has(id) ? { helpUri: docs.get(id) } : {}),
+                })),
               },
             },
             results: findings.map((finding) => result(finding, context)),

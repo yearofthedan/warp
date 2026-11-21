@@ -48,7 +48,12 @@ export const moduleUnits = (source: Source): UnitGraph => {
   const loose = source.sourceFile.statements.filter((statement) => isLooseCode(statement));
   if (loose.length > 0) {
     declared.push({
-      unit: { name: '<top-level code>', kind: 'code', line: source.line(loose[0]), endLine: source.endLine(loose[loose.length - 1]) },
+      unit: {
+        name: '<top-level code>',
+        kind: 'code',
+        line: source.line(loose[0]),
+        endLine: source.endLine(loose[loose.length - 1]),
+      },
       node: source.sourceFile,
       keys: [],
     });
@@ -77,16 +82,26 @@ const declarations = (statement: Statement, source: Source): Declared[] => {
     node,
     keys: nameNode ? declaredKeys(nameNode, source) : [],
   });
-  if (isFunctionDeclaration(statement)) return [unit(statement.name?.text ?? 'default', 'function', statement, statement.name)];
-  if (isClassDeclaration(statement)) return [unit(statement.name?.text ?? 'default', 'class', statement, statement.name)];
+  if (isFunctionDeclaration(statement))
+    return [unit(statement.name?.text ?? 'default', 'function', statement, statement.name)];
+  if (isClassDeclaration(statement))
+    return [unit(statement.name?.text ?? 'default', 'class', statement, statement.name)];
   if (isInterfaceDeclaration(statement) || isTypeAliasDeclaration(statement) || isEnumDeclaration(statement)) {
     return [unit(statement.name.text, 'type', statement, statement.name)];
   }
-  if (isModuleDeclaration(statement)) return [unit(statement.name.getText(source.sourceFile), 'type', statement, statement.name)];
+  if (isModuleDeclaration(statement))
+    return [unit(statement.name.getText(source.sourceFile), 'type', statement, statement.name)];
   if (isVariableStatement(statement)) {
     return statement.declarationList.declarations.map((declaration) => {
-      const fn = declaration.initializer && (isArrowFunction(declaration.initializer) || isFunctionExpression(declaration.initializer));
-      return unit(declaration.name.getText(source.sourceFile), fn ? 'function' : 'state', declaration, declaration.name);
+      const fn =
+        declaration.initializer &&
+        (isArrowFunction(declaration.initializer) || isFunctionExpression(declaration.initializer));
+      return unit(
+        declaration.name.getText(source.sourceFile),
+        fn ? 'function' : 'state',
+        declaration,
+        declaration.name,
+      );
     });
   }
   return [];
@@ -192,7 +207,12 @@ const localKeys = (fn: Node, source: Source): Set<string> => {
 };
 
 const declaredName = (node: Node): Identifier | undefined => {
-  const named = isVariableDeclaration(node) || isParameterDeclaration(node) || isBindingElement(node) || isFunctionDeclaration(node) || isClassDeclaration(node);
+  const named =
+    isVariableDeclaration(node) ||
+    isParameterDeclaration(node) ||
+    isBindingElement(node) ||
+    isFunctionDeclaration(node) ||
+    isClassDeclaration(node);
   return named && node.name && isIdentifier(node.name) ? node.name : undefined;
 };
 

@@ -49,8 +49,10 @@ const main = async (argv: string[]): Promise<number> => {
   const [command, ...args] = positionals;
   if (values.help) return help(0);
   if (values['print-config'] && positionals.length === 0) return printConfig(values);
-  if (command === 'check' && args.length === 0) return run(values, (root, config) => ({ mode: 'check', findings: checkProject(typescriptAnalyzer, root, config) }));
-  if (command === 'diff' && args.length === 1) return run(values, (root, config, digest) => ({ mode: 'diff', delta: delta(args[0], root, config, digest) }));
+  if (command === 'check' && args.length === 0)
+    return run(values, (root, config) => ({ mode: 'check', findings: checkProject(typescriptAnalyzer, root, config) }));
+  if (command === 'diff' && args.length === 1)
+    return run(values, (root, config, digest) => ({ mode: 'diff', delta: delta(args[0], root, config, digest) }));
   return help(2);
 };
 
@@ -65,14 +67,16 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail'>) => {
   try {
     return { root: dirname(configFile), config: parseConfig(raw, builtinRegistry, { unclassifiedDocs }), digest };
   } catch (error) {
-    if (error instanceof ConfigError && options.ruleset !== undefined) throw new ConfigError(`ruleset ${options.ruleset}: ${error.message}`);
+    if (error instanceof ConfigError && options.ruleset !== undefined)
+      throw new ConfigError(`ruleset ${options.ruleset}: ${error.message}`);
     throw error;
   }
 };
 
 const run = async (options: Options, produce: Produce): Promise<number> => {
   const reporter = reporters.get(options.reporter);
-  if (!reporter) throw new Error(`no reporter called ${options.reporter}: use one of ${[...reporters.keys()].join(', ')}`);
+  if (!reporter)
+    throw new Error(`no reporter called ${options.reporter}: use one of ${[...reporters.keys()].join(', ')}`);
   try {
     const { root, config, digest } = await resolveConfig(options);
     const report = produce(root, config, digest);
@@ -89,9 +93,15 @@ const printConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promise
   const { config } = await resolveConfig(options);
   const kinds = config.kinds.map((kind) => [
     kind.name,
-    { match: kind.match, dependsOn: kind.dependsOn, rules: Object.fromEntries(kind.rules.map(({ rule, options }) => [rule.id, options])) },
+    {
+      match: kind.match,
+      dependsOn: kind.dependsOn,
+      rules: Object.fromEntries(kind.rules.map(({ rule, options }) => [rule.id, options])),
+    },
   ]);
-  console.log(JSON.stringify({ tsconfig: config.tsconfig, exclude: config.exclude, kinds: Object.fromEntries(kinds) }, null, 2));
+  console.log(
+    JSON.stringify({ tsconfig: config.tsconfig, exclude: config.exclude, kinds: Object.fromEntries(kinds) }, null, 2),
+  );
   return 0;
 };
 
@@ -105,7 +115,9 @@ const version = (): string => JSON.parse(readFileSync(new URL('../package.json',
 
 /** Says why the run failed and returns the exit code: the reporter's when there is one, else 2. */
 const failed = (error: unknown, exitCode = 2): number => {
-  console.error(error instanceof ConfigError ? `warp config: ${error.message}` : error instanceof Error ? error.message : error);
+  console.error(
+    error instanceof ConfigError ? `warp config: ${error.message}` : error instanceof Error ? error.message : error,
+  );
   return exitCode;
 };
 

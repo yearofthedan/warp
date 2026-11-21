@@ -19,7 +19,8 @@ export class InvalidRange extends Error {}
 export const parseRange = (range: string): Range => {
   const match = /^(.+?)(\.\.\.|\.\.)(.*)$/.exec(range);
   const [base, separator, head] = match ? match.slice(1) : [range, '', ''];
-  if (!base || base.includes('..') || head.includes('..')) throw new InvalidRange(`${range} is not a range: expected <base>, <base>..<head> or <base>...<head>`);
+  if (!base || base.includes('..') || head.includes('..'))
+    throw new InvalidRange(`${range} is not a range: expected <base>, <base>..<head> or <base>...<head>`);
   return { base, ...(head ? { head } : {}), fromMergeBase: separator === '...' };
 };
 
@@ -40,7 +41,11 @@ export const diffProject = (
   { range, root, config, configDigest = '', toolDigest }: DiffRequest,
   { analyzer, repository, cache }: { analyzer: Analyzer; repository: Repository; cache: FindingsCache },
 ): Delta => {
-  const configHash = createHash('sha256').update(JSON.stringify(config)).update(configDigest).digest('hex').slice(0, 16);
+  const configHash = createHash('sha256')
+    .update(JSON.stringify(config))
+    .update(configDigest)
+    .digest('hex')
+    .slice(0, 16);
   const atCommit = (ref: string): Finding[] => {
     const commit = repository.commit(ref);
     const key = `${toolDigest}-${configHash}-${commit}-${repository.projectPath().replaceAll('/', '_')}`;

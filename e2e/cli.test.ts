@@ -22,8 +22,14 @@ beforeAll(() => {
   git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
 
   const handle = join(project, 'src/app/handle.ts');
-  writeFileSync(handle, readFileSync(handle, 'utf8').replace("return 'B';", "if (strict) return 'B-';\n    return 'B';"));
-  writeFileSync(join(project, 'src/domain/audit.ts'), "import { handle } from '../app/handle.ts';\n\nexport const audit = handle;\n");
+  writeFileSync(
+    handle,
+    readFileSync(handle, 'utf8').replace("return 'B';", "if (strict) return 'B-';\n    return 'B';"),
+  );
+  writeFileSync(
+    join(project, 'src/domain/audit.ts'),
+    "import { handle } from '../app/handle.ts';\n\nexport const audit = handle;\n",
+  );
 });
 
 describe('warp diff', () => {
@@ -31,10 +37,14 @@ describe('warp diff', () => {
     const run = warp('diff', 'HEAD', '--reporter', 'json');
     assert.equal(run.status, 0, run.stderr);
     const delta = JSON.parse(run.stdout);
-    assert.deepEqual(delta.added.map((f: { key: string }) => f.key), ['dependency-direction:src/domain/audit.ts->src/app/handle.ts']);
-    assert.deepEqual(delta.worsened.map((f: { key: string; was: number; value: number }) => [f.key, f.was, f.value]), [
-      ['cognitive-complexity:src/app/handle.ts:grade', 10, 12],
-    ]);
+    assert.deepEqual(
+      delta.added.map((f: { key: string }) => f.key),
+      ['dependency-direction:src/domain/audit.ts->src/app/handle.ts'],
+    );
+    assert.deepEqual(
+      delta.worsened.map((f: { key: string; was: number; value: number }) => [f.key, f.was, f.value]),
+      [['cognitive-complexity:src/app/handle.ts:grade', 10, 12]],
+    );
   });
 
   it('compares two commits', () => {
@@ -43,7 +53,10 @@ describe('warp diff', () => {
     const run = warp('diff', 'HEAD~1..HEAD', '--fail');
     assert.equal(run.status, 1);
     assert.match(run.stdout, /1 new finding, 1 worsened, 0 resolved\./);
-    assert.match(run.stdout, /Domain module src\/domain\/audit.ts imports app src\/app\/handle.ts\. This breaks the dependency direction, so the domain should depend on a port it owns for what it needs \(handle\)/);
+    assert.match(
+      run.stdout,
+      /Domain module src\/domain\/audit.ts imports app src\/app\/handle.ts\. This breaks the dependency direction, so the domain should depend on a port it owns for what it needs \(handle\)/,
+    );
   });
 
   it('prints a hook response only when there is a delta', () => {
@@ -69,7 +82,10 @@ describe('warp diff', () => {
     const link = join(mkdtempSync(join(tmpdir(), 'warp-link-')), 'repo');
     symlinkSync(repo, link);
     const config = join(link, 'app/warp.config.json');
-    const run = spawnSync(process.execPath, [cli, 'diff', 'HEAD~1..HEAD', '--reporter', 'json', '--config', config], { cwd: project, encoding: 'utf8' });
+    const run = spawnSync(process.execPath, [cli, 'diff', 'HEAD~1..HEAD', '--reporter', 'json', '--config', config], {
+      cwd: project,
+      encoding: 'utf8',
+    });
     assert.equal(run.status, 0, run.stderr);
     assert.equal(JSON.parse(run.stdout).added.length, 1);
   });
@@ -84,7 +100,10 @@ describe('warp diff', () => {
     cpSync(join(import.meta.dirname, '../fixtures/hexagonal-app'), join(fresh, 'app'), { recursive: true });
     run(['add', '.']);
     run(['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'add app']);
-    const diffed = spawnSync(process.execPath, [cli, 'diff', 'HEAD~1..HEAD', '--reporter', 'json'], { cwd: join(fresh, 'app'), encoding: 'utf8' });
+    const diffed = spawnSync(process.execPath, [cli, 'diff', 'HEAD~1..HEAD', '--reporter', 'json'], {
+      cwd: join(fresh, 'app'),
+      encoding: 'utf8',
+    });
     assert.equal(diffed.status, 0, diffed.stderr);
     assert.equal(JSON.parse(diffed.stdout).added.length, 8);
     assert.equal(run(['worktree', 'list']).trim().split('\n').length, 1);
@@ -115,14 +134,22 @@ describe('warp diff from a linked checkout', () => {
     cpSync(join(import.meta.dirname, '../fixtures/hexagonal-app'), dir, { recursive: true });
     execFileSync('git', ['init', '--quiet'], { cwd: repo });
     execFileSync('git', ['add', '.'], { cwd: repo });
-    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base'], { cwd: repo });
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base'], {
+      cwd: repo,
+    });
   });
 
   it('redoes a cached base when a built-in rule changes, and drops the old entry', () => {
     assert.deepEqual(JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout).added, []);
     const [first] = cached();
     const rule = join(tool, 'src/model/rules/cognitive-complexity/cognitiveComplexity.ts');
-    writeFileSync(rule, readFileSync(rule, 'utf8').replace('key: `cognitive-complexity:${module.file}:${name}`', 'key: `cognitive-complexity:${module.file}#${name}`'));
+    writeFileSync(
+      rule,
+      readFileSync(rule, 'utf8').replace(
+        'key: `cognitive-complexity:${module.file}:${name}`',
+        'key: `cognitive-complexity:${module.file}#${name}`',
+      ),
+    );
     const delta = JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout);
     assert.deepEqual([delta.added, delta.resolved], [[], []]);
     assert.equal(cached().length, 1);
@@ -233,7 +260,8 @@ describe('rulesets', () => {
   it('checks with the ruleset merged onto its base', () => {
     const base = JSON.parse(run('check', '--reporter', 'json').stdout).findings;
     const edit = JSON.parse(run('check', '--ruleset', 'edit', '--reporter', 'json').stdout).findings;
-    const only = (findings: { key: string }[], others: { key: string }[]) => keys(findings).filter((key) => !keys(others).includes(key));
+    const only = (findings: { key: string }[], others: { key: string }[]) =>
+      keys(findings).filter((key) => !keys(others).includes(key));
     assert.deepEqual(only(base, edit), ['function-cohesion:src/app/handle.ts:handle']);
     assert.deepEqual(only(edit, base), ['cognitive-complexity:src/app/handle.ts:grade']);
   });
@@ -262,7 +290,10 @@ describe('rulesets', () => {
   it('refuses an overlay that changes the architecture', () => {
     const checked = run('check', '--ruleset', 'moved');
     assert.equal(checked.status, 2);
-    assert.match(checked.stderr, /warp config: ruleset moved\[1\]\.kinds\.domain: a ruleset overlay sets rules only, not dependsOn/);
+    assert.match(
+      checked.stderr,
+      /warp config: ruleset moved\[1\]\.kinds\.domain: a ruleset overlay sets rules only, not dependsOn/,
+    );
   });
 
   it('refuses a ruleset for a JSON config', () => {
