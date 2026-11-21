@@ -1,0 +1,16 @@
+#!/bin/sh
+# help: Run every local check: secrets, format and lint, types, the dependency audit, the tests, then warp on itself.
+
+set -eu
+
+. "$(dirname "$0")/_vp"
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+do="$root/do"
+
+"$do" secrets
+vp check
+tsc -p "$root/tsconfig.json"
+"$do" audit
+"$do" test
+cd "$root" && node src/cli.ts check --fail

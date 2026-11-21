@@ -1,0 +1,19 @@
+#!/bin/sh
+# help: Refuse a commit whose subject is not a conventional commit, which release-please reads to version and changelog.
+
+set -eu
+
+message=$1
+
+git rev-parse -q --verify MERGE_HEAD >/dev/null && exit 0
+
+subject=$(sed -n 1p "$message")
+case $subject in
+'Merge '* | 'Revert '* | 'fixup! '* | 'squash! '* | 'amend! '*) exit 0 ;;
+esac
+
+types='feat|fix|perf|refactor|docs|test|build|ci|chore|style|revert'
+printf '%s\n' "$subject" | grep -Eq "^($types)(\([a-z0-9-]+\))?!?: [^ ]" && exit 0
+
+echo "commit refused: \"$subject\" is not a conventional commit. Start it with <type>[(scope)][!]: , where type is one of ${types}; see AGENTS.md" >&2
+exit 1

@@ -1,2 +1,26 @@
-dist/
+# Dependencies and build output
 node_modules/
+dist/
+*.tsbuildinfo
+
+# Vite+ hooks install their runner here
+.vite-hooks/_/
+
+# Test and mutation output
+.vitest/
+coverage/
+reports/
+.stryker-tmp/
+
+# Agent scratch
+.omp/agent-notes/
+
+# Editors and OS
+.DS_Store
+.idea/
+*.swp
+
+# Local env
+.env
+.env.*
+!.env.example

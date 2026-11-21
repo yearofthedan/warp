@@ -1,0 +1,8 @@
+#!/bin/sh
+# help: Run the tests, or one tier of them with --project unit, integration or e2e.
+
+set -eu
+
+. "$(dirname "$0")/_vp"
+
+vp test "$@"
