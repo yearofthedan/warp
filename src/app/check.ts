@@ -1,5 +1,5 @@
 import type { ConfigData } from '../model/archetype/data.ts';
-import { checkModel } from '../model/archetype/check.ts';
+import { type CheckDocs, checkModel } from '../model/archetype/check.ts';
 import { type Model, resolveModel } from '../model/archetype/resolve.ts';
 import { check } from '../model/check.ts';
 import { alwaysExcluded, type Config } from '../model/config.ts';
@@ -39,9 +39,12 @@ export const modelProject = (
 export const archetypeCheck = (
   adapters: { analyzer: Analyzer; foldersAt: FoldersAt },
   config: ConfigData,
-  options: { unclassifiedDocs?: string } = {},
+  docs: CheckDocs = {},
 ): ProjectCheck => ({
   config,
   requiredFile: config.tsconfig[0]!,
-  check: (root) => checkModel(modelProject(adapters, root, config).model, options),
+  check: (root) => {
+    const { model, project } = modelProject(adapters, root, config);
+    return checkModel(config, model, project, docs);
+  },
 });

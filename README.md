@@ -168,8 +168,19 @@ warp model --json    # the same, for tools
   [`unclassified`](docs/unclassified.md) where the unit's `loose` is `deny`, the root's default.
 - `tsconfig` takes a list, and warp reads every file of their programs.
 
-Rules and `using` verdicts come to archetype configs in the next slices; until then `check` and `diff` on one report
-`unclassified` findings.
+`check` and `diff` on an archetype config judge every import between project files against the importer's reach,
+and report each one outside it as [`dependency-direction`](./src/model/rules/dependency-direction/README.md):
+
+- A file reaches the rest of its own part, what its part's `using` names, and, for a unit's own files, what the
+  `using` of the dir part that found the unit names. A `required.x` reference reaches what the nearest provider above
+  offers.
+- `s.x` on a dir part reaches what its units expose: one surface with `s.x.render`, all of them without. A unit
+  exposes its `.exposes()` surfaces, a plain folder all its files, and an archetype with no `.exposes()` its own files
+  and what its units expose.
+- An import is judged on the file its specifier names, so a barrel on a surface lets importers through to the files
+  behind it. Type-only imports count.
+
+Package imports, rule settings on archetypes, inline rules and cycles come in later slices.
 
 ## Custom rules
 
@@ -302,7 +313,7 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 | Rule | Reports | Options |
 | --- | --- | --- |
 | [`unclassified`](./docs/unclassified.md) | A module that matches no kind. From the model, so it cannot be turned off. | |
-| [`dependency-direction`](./src/model/rules/dependency-direction/README.md) | An import from a kind the importer's kind does not list in `dependsOn`, followed through barrels. | |
+| [`dependency-direction`](./src/model/rules/dependency-direction/README.md) | An import from a kind the importer's kind does not list in `dependsOn`, followed through barrels; in an archetype config, an import outside the importer's reach. | |
 | [`no-cross-kind-reexport`](./src/model/rules/no-cross-kind-reexport/README.md) | A module that re-exports what another kind declares. | `allow` |
 | [`module-cohesion`](./src/model/rules/module-cohesion/README.md) | A module over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
 | [`function-cohesion`](./src/model/rules/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |

@@ -1,6 +1,7 @@
 # dependency-direction
 
-Disallow imports from a kind the importing kind does not depend on.
+Disallow imports from a kind the importing kind does not depend on, or in an archetype config, imports outside the
+importer's reach.
 
 ## Why
 
@@ -53,9 +54,60 @@ There is one finding per pair of modules. Its value is the number of names impor
 same boundary counts as worse. When the target kind may depend on the importer's kind, the message advises a port.
 Otherwise it advises moving the code, or adding the kind to `dependsOn` if the dependency is intended.
 
+## In an archetype config
+
+`using` is the only permission. A file may import the rest of its own part, what its part's `using` names, and, for a
+unit's own files, what the `using` of the dir part that found the unit names. Anything else is a finding, keyed the
+same way, one per pair of files, valued by the names imported.
+
+An import is judged on the file its specifier names, not the file that declares the names, so a barrel a unit exposes
+lets importers through. The barrel's own re-exports are judged as its imports.
+
+With this config:
+
+```ts
+const card = archetype('card')
+  .identify({ marker: '{name}.dom.ts' })
+  .requires({ strings: dir() })
+  .contains((p, { required, self }) =>
+    p
+      .dir('subcomponent', '{name}', self)
+      .files('logic', '*.ts')
+      .files('dom', '{name}.dom.ts', { using: (s) => [s.logic, s.subcomponent.render, required.strings] }),
+  )
+  .exposes((s) => ({ render: s.dom }));
+```
+
+Incorrect code:
+
+```ts
+// src/ui/project/project.dom.ts
+import { cardLooks } from './card/card.ts'; // private: card exposes only render
+import { renderBadge } from './card/badge/badge.dom.ts'; // private: card doesn't pass badge's render on
+import { title } from '../../shell.ts'; // above: a unit reaches up only through what it requires
+```
+
+```ts
+// src/ui/project/project.ts
+import { renderCard } from './card/card.dom.ts'; // not in using: logic doesn't use the subcomponents
+```
+
+Correct code:
+
+```ts
+// src/ui/project/project.dom.ts
+import { project } from './project.ts';
+import { renderCard } from './card/card.dom.ts';
+import { strings } from '../strings/en.ts'; // required.strings, provided by ui
+```
+
+The message says why: the unit that keeps the target private and what it exposes instead, that the target is above
+the importer, or what the importer's reach does hold. Package imports aren't judged yet, and the rule can't be turned
+off on an archetype or part until archetype rule settings land.
+
 ## Options
 
-None. The kind's `dependsOn` sets what it allows.
+None. The kind's `dependsOn`, or the archetype config's `using`, sets what it allows.
 
 ## When not to use it
 

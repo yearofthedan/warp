@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { ConfigError } from '../rule.ts';
 import { type AnyArchetype, archetype, pkg } from './builder.ts';
-import { checkModel } from './check.ts';
 import { loadConfigData } from './load.ts';
 import { type Folders, globRegex, type Model, resolveModel, specificity } from './resolve.ts';
 
@@ -310,46 +309,6 @@ describe('resolveModel', () => {
       'src/ports ports plain: ["src/ports/store.ts"]',
       'src/test-helpers testRunner test-runner: {"runner":["src/test-helpers/driver.ts"]}',
     ]);
-  });
-});
-
-describe('checkModel', () => {
-  it('reports each loose file where its unit denies them, and nothing where it allows or warns', () => {
-    const quiet = archetype('quiet').contains((p) => p.files('src', '*.ts'));
-    const warned = archetype('warned')
-      .loose('warn')
-      .contains((p) => p.files('src', '*.ts'));
-    const denied = archetype('denied')
-      .loose('deny')
-      .contains((p) => p.files('src', '*.ts'));
-    const root = archetype('app').contains((p) =>
-      p.dir('quiet', 'quiet', quiet).dir('warned', 'warned', warned).dir('denied', 'denied', denied),
-    );
-    const model = resolve(root, ['stray.ts', 'quiet/a.css', 'warned/b.css', 'denied/c.css', 'denied/d.ts']);
-    assert.deepEqual(checkModel(model, { unclassifiedDocs: 'https://docs' }), [
-      {
-        rule: 'unclassified',
-        key: 'unclassified:stray.ts',
-        file: 'stray.ts',
-        line: 1,
-        value: 1,
-        message:
-          "stray.ts is in no part of . (app), so nothing says what it may import. Add a files part to app that matches it, or move it into a part's folder.",
-        docs: 'https://docs',
-      },
-      {
-        rule: 'unclassified',
-        key: 'unclassified:denied/c.css',
-        file: 'denied/c.css',
-        line: 1,
-        value: 1,
-        message:
-          "denied/c.css is in no part of denied (denied), so nothing says what it may import. Add a files part to denied that matches it, or move it into a part's folder.",
-        docs: 'https://docs',
-      },
-    ]);
-    assert.equal(checkModel(model)[0]?.docs, undefined);
-    assert.ok(!('docs' in checkModel(model)[0]!));
   });
 });
 

@@ -6,7 +6,7 @@ import { diskFolders } from './analysis/folders.ts';
 import { typescriptAnalyzer } from './analysis/typescript.ts';
 import { archetypeCheck, kindsCheck, modelProject, type ProjectCheck } from './app/check.ts';
 import { diffProject, parseRange } from './app/diff.ts';
-import { builtinRegistry, unclassifiedDocs } from './builtins.ts';
+import { archetypeDocs, builtinRegistry, unclassifiedDocs } from './builtins.ts';
 import { findConfig, loadConfig } from './config/loadConfig.ts';
 import { toolDigest } from './config/toolDigest.ts';
 import { gitDirCache } from './git/cache.ts';
@@ -101,7 +101,7 @@ const isArchetypeConfig = (raw: unknown): boolean => typeof raw === 'object' && 
 const projectCheck = (resolved: Resolved): ProjectCheck =>
   resolved.shape === 'kinds'
     ? kindsCheck(typescriptAnalyzer, resolved.config)
-    : archetypeCheck(adapters, resolved.config, { unclassifiedDocs });
+    : archetypeCheck(adapters, resolved.config, archetypeDocs);
 
 const run = async (options: Options, produce: Produce): Promise<number> => {
   const reporter = reporters.get(options.reporter);

@@ -12,3 +12,9 @@ export const builtinRegistry = registry(builtinRules.map(documented));
 
 /** The page for `unclassified`, which the model reports rather than a rule. */
 export const unclassifiedDocs = `${source}/docs/unclassified.md`;
+
+/** The pages for what an archetype config reports, until its rules run through the registry. */
+export const archetypeDocs = {
+  unclassified: unclassifiedDocs,
+  'dependency-direction': builtinRegistry.get('dependency-direction')?.docs,
+};
