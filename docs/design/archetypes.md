@@ -1,6 +1,6 @@
 # Design: archetypes
 
-Status: proposal. No code changes yet.
+Status: in delivery. The config builders and their load-time checks are in `src/model/archetype/`.
 
 ## Summary
 
