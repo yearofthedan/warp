@@ -1,4 +1,5 @@
 import { matchesGlob } from 'node:path';
+import type { ArchetypeConfig } from './archetype/builder.ts';
 import { ConfigError, type EnabledRule, type Kind, noOptions, type Plugin, type Rule } from './rule.ts';
 
 export interface Config {
@@ -23,8 +24,11 @@ export interface WarpConfig {
   kinds: Record<string, { match: string | string[]; dependsOn?: string | string[]; rules?: RuleSettings }>;
 }
 
-/** Types a warp.config.ts. It returns the config unchanged. */
-export const defineConfig = (config: WarpConfig): WarpConfig => config;
+/** Types a warp.config.ts, with `root` as an archetype or with `kinds`. It returns the config unchanged. */
+export const defineConfig: {
+  <const C extends ArchetypeConfig>(config: C): C;
+  (config: WarpConfig): WarpConfig;
+} = <C>(config: C): C => config;
 
 /** Rules by id. Built-in rules come first; a project's own rules join them under namespaced ids. */
 export const registry = (rules: readonly Rule[]): ReadonlyMap<string, Rule> => {
