@@ -9,7 +9,7 @@ export default {
     'src/builtins/**/*.ts',
     'src/rules/**/*.ts',
     'src/reporters/**/*.ts',
-    'src/app/{checkModel,diff,load,unclassified}.ts',
+    'src/app/{checkModel,diff,facts,load,unclassified}.ts',
     '!src/**/*.test.ts',
   ],
   incremental: true,

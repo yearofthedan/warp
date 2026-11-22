@@ -141,9 +141,10 @@ describe('warp diff from a linked checkout', () => {
     });
   });
 
-  it('redoes a cached base when a built-in rule changes, and drops the old entry', () => {
+  it('redoes a cached base and its facts when a built-in rule changes, and drops the old entries', () => {
     assert.deepEqual(JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout).added, []);
-    const [first] = cached();
+    const first = cached();
+    assert.equal(first.length, 2);
     const rule = join(tool, 'src/builtins/cognitive-complexity/cognitiveComplexity.ts');
     writeFileSync(
       rule,
@@ -154,8 +155,11 @@ describe('warp diff from a linked checkout', () => {
     );
     const delta = JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout);
     assert.deepEqual([delta.added, delta.resolved], [[], []]);
-    assert.equal(cached().length, 1);
-    assert.notEqual(cached()[0], first);
+    assert.equal(cached().length, 2);
+    assert.deepEqual(
+      cached().filter((entry) => first.includes(entry)),
+      [],
+    );
   });
 });
 
