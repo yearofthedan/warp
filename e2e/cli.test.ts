@@ -326,7 +326,7 @@ describe('a warp.config.ts with archetypes', () => {
       modelled.stdout,
       [
         '.  root: app  main: 1',
-        '  loose (deny): src/stray.ts',
+        '  loose: src/stray.ts',
         '  src/domain  domain: layer  src: 1, index: 1, test: 1',
         '  src/ui  ui: ui  no files',
         '    src/ui/card  ui.components: component {name=card}  logic: 1, dom: 1',

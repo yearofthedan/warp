@@ -70,5 +70,6 @@ directly, the unit wraps it in its own type, or the other unit moves inside the 
 
 ## When not to use it
 
-When an archetype exists to present its siblings as one API and the structure can't change yet. Turn the rule off on
-that archetype or part, `rules: { 'no-cross-unit-reexport': false }`, so it stays on everywhere else.
+When an archetype exists to present its siblings as one API and the structure can't change yet. Turn the rule off for
+that archetype or part in a ruleset, `.on(facade, { 'no-cross-unit-reexport': false })`, so it stays on everywhere
+else.

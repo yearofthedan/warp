@@ -48,7 +48,8 @@ warp model --json    # the same, for tools, with every unit's and part's resolve
 - The most specific part wins: a literal dir segment beats a placeholder, and a literal file path beats any glob,
   then the longer literal suffix after the last `*`, with `**` last. Two equally specific parts are a config error.
 - A file belongs to its deepest unit. One no part matches is loose, and `check` and `diff` report it as
-  [`unclassified`](../src/model/rules/unclassified/README.md) where the unit's `loose` is `deny`, the root's default.
+  [`unclassified`](../src/model/rules/unclassified/README.md): on the root unit unless a ruleset turns it off, and
+  below it where a ruleset turns it on.
 - `tsconfig` takes a list, and warp reads every file of their programs except declaration files. A solution-style
   tsconfig with only `references` is not followed: list the project configs.
 
@@ -75,17 +76,18 @@ surface, so there is one way to each name: a barrel over private files, or expos
 [`no-cross-unit-reexport`](../src/model/rules/no-cross-unit-reexport/README.md) reports a file that re-exports
 another unit's file, other than one nested in its own unit, so a unit doesn't pass on what it uses.
 
-An archetype's `.constraints()` gives inline rules by value under local names. `mustImport({ from, to })` reports each
-file in `from` that imports nothing in `to`, read in each unit of the archetype; its findings carry the local name as
-their rule.
+A files part's `mustImport` names what every file in it must import, each one from its `using`.
+[`must-import`](../src/model/rules/must-import/README.md) reports each file that imports nothing from one of them,
+directly or through a barrel.
 
 ```ts
-import { archetype, files, mustImport } from 'warp';
+import { archetype, files } from 'warp';
 
 const feature = archetype('feature')
   .requires({ contract: files() })
-  .contains((p, { required }) => p.files('logic', '*.ts').files('dsl', '*.dsl.ts', { using: [required.contract] }))
-  .constraints((s, { required }) => ({ 'dsl-on-the-contract': mustImport({ from: s.dsl, to: required.contract }) }));
+  .contains((p, { required }) =>
+    p.files('logic', '*.ts').files('dsl', '*.dsl.ts', { using: [required.contract], mustImport: [required.contract] }),
+  );
 ```
 
 [`unit-cycle`](../src/model/rules/unit-cycle/README.md) reports each import between sibling units that lies on a loop among them, and
@@ -131,14 +133,14 @@ warp model --ruleset edit --rules   # what each unit and part changes
 ```
 
 - Settings are `true`, `false` or options by rule id, or `'off'` for every rule at that place. `'*': false` turns
-  every rule off there while the rules listed beside it stay on. Plugin rules are `namespace/id`, and an inline rule
-  goes by its local name.
+  every rule off there while the rules listed beside it stay on. Plugin rules are `namespace/id`.
 - A later line merges into an earlier one at the same place: options into options, `false` off, and `true` on with
   the options kept. `.extends(base)` puts the base's lines first, so a ruleset changes only what differs. A base need
   not be one of the config's rulesets.
 - An archetype's line reaches every unit of that archetype, and a dir part's line every unit it finds. For a finding
   on a file, the nearest place wins: the file's files part, then for its unit and each unit above it the dir part
-  that found it and its archetype, then `.rules()`. Options merge nearest first. `loose` decides `unclassified`.
+  that found it and its archetype, then `.rules()`. Options merge nearest first. Where no line
+  sets `unclassified`, it is on at the root unit and off below.
 - `diff` checks both sides with the same ruleset, and each ruleset caches its own findings, so switching rulesets
   never shows up as new findings. An unknown name fails and lists the rulesets there are.
 
@@ -235,9 +237,10 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 
 | Rule | Reports | Options |
 | --- | --- | --- |
-| [`unclassified`](../src/model/rules/unclassified/README.md) | A loose file where `loose` is `deny`. From the model, so it cannot be turned off. | |
+| [`unclassified`](../src/model/rules/unclassified/README.md) | A loose file. On at the root unit, off below, unless a ruleset says otherwise. | |
 | [`dependency-direction`](../src/model/rules/dependency-direction/README.md) | An import outside the importer's reach. | |
 | [`unit-externals`](../src/model/rules/unit-externals/README.md) | A package import that no `using` in the importer's reach lists. | |
+| [`must-import`](../src/model/rules/must-import/README.md) | A file that imports nothing from one of its part's `mustImport`. | |
 | [`no-double-export`](../src/model/rules/no-double-export/README.md) | A re-export, in a file on its unit's surface, of another file on that surface. | |
 | [`unit-cycle`](../src/model/rules/unit-cycle/README.md) | An import between sibling units that lies on a loop among them. | `types` |
 | [`no-cycle`](../src/model/rules/no-cycle/README.md) | An import between files that lies on a loop. | `types` |

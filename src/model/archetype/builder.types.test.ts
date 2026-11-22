@@ -101,6 +101,21 @@ describe('archetype builders', () => {
     assert.deepEqual(errorsIn(child), ['c.a uses lgoic; a sees logic']);
   });
 
+  it('refuse mustImport on a dir part, and a package in mustImport', () => {
+    const child = archetype('c').contains((p) =>
+      p
+        .files('logic', '*.ts')
+        // @ts-expect-error mustImport is for files parts
+        .dir('d', 'd', { using: (s) => [s.logic], mustImport: (s) => [s.logic] })
+        // @ts-expect-error a package belongs in using
+        .files('a', 'a.ts', { using: [pkg('x')], mustImport: [pkg('x')] }),
+    );
+    assert.deepEqual(errorsIn(child), [
+      'c.d: unknown option mustImport',
+      "c.a must import pkg('x'); a package belongs in using",
+    ]);
+  });
+
   it('refuse a part declared further down', () => {
     const child = archetype('c').contains((p) =>
       p

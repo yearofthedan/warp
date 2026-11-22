@@ -3,7 +3,6 @@ export {
   defineConfig,
   dir,
   files,
-  mustImport,
   pkg,
   ruleset,
   type PartHandle,

@@ -1,12 +1,11 @@
 import { ConfigError } from '../rule.ts';
 import { recordedAs } from './builder.ts';
-import type { ArchetypeData, MustImportData, PartRefData, RefData, RuleSettingsData } from './data.ts';
+import type { ArchetypeData, PartRefData, RefData, RequiredRefData, RuleSettingsData } from './data.ts';
 import type { Draft } from './draft.ts';
 import { type Fail, isName, isRecord, list, shapeText } from './shared.ts';
 
 export interface Check {
   fail: Fail;
-  registered?: ReadonlySet<string> | undefined;
   ruleIds?: ReadonlySet<string> | undefined;
   options: Readonly<Record<string, (raw: Record<string, unknown>, at: string) => unknown>>;
   surfacesOf: (archetype: string) => string[] | undefined;
@@ -23,25 +22,32 @@ interface Scope {
   whole?: boolean;
 }
 
-const packagesInUsing = 'pkg() belongs in using';
-const ruleKinds: readonly RefKind[] = ['part', 'required'];
-
 export const show = (ref: RefData): string =>
   ref.kind === 'package'
     ? `pkg('${ref.pattern}')`
     : `${ref.kind === 'required' ? `required.${ref.name}` : ref.part}${ref.surface === undefined ? '' : `.${ref.surface}`}`;
 
-export const resolveDraft = (check: Check, { data: archetype, parts, exposes, provides, constraints }: Draft) => {
+export const resolveDraft = (check: Check, { data: archetype, parts, exposes, provides }: Draft) => {
   for (const [index, part] of parts.entries()) {
     const scope: Scope = {
       archetype,
       visible: index,
       kinds: ['part', 'required', 'package'],
-      refused: packagesInUsing,
+      refused: '',
       part: part.data.name,
     };
     const where = `${archetype.name}.${part.data.name}`;
     part.data.using.push(...part.using.map((value) => toRef(check, value, `${where} uses`, scope)));
+    if (part.data.kind === 'files' && part.mustImport.length > 0) {
+      const required = { ...scope, kinds: ['part', 'required'] as const, refused: 'a package belongs in using' };
+      const using = part.data.using;
+      part.data.mustImport = part.mustImport.map((value) => {
+        const ref = toRef(check, value, `${where} must import`, required) as PartRefData | RequiredRefData;
+        if (!using.some((granted) => grants(granted, ref)))
+          check.fail(`${where} must import ${show(ref)}, which its using does not list`);
+        return ref;
+      });
+    }
   }
   const visible = archetype.parts.length;
   const own: Scope = {
@@ -62,9 +68,14 @@ export const resolveDraft = (check: Check, { data: archetype, parts, exposes, pr
     const scope = { ...own, whole: true };
     archetype.provides[name] = toRef(check, value, `${archetype.name} provides ${name} as`, scope) as PartRefData;
   }
-  const scope: Scope = { archetype, visible, kinds: ruleKinds, refused: packagesInUsing };
-  archetype.constraints = toConstraints(check, constraints, `${archetype.name}.constraints`, scope);
 };
+
+const grants = (granted: RefData, ref: PartRefData | RequiredRefData): boolean =>
+  granted.kind === ref.kind &&
+  (granted.kind === 'part'
+    ? granted.part === (ref as PartRefData).part
+    : granted.name === (ref as RequiredRefData).name) &&
+  (granted.surface === undefined || granted.surface === ref.surface);
 
 const toRef = (check: Check, value: unknown, where: string, scope: Scope): RefData => {
   const ref = recordedAs(value, 'ref');
@@ -88,30 +99,12 @@ export const toRules = (check: Check, value: unknown, where: string): RuleSettin
 };
 
 const toSetting = (check: Check, id: string, setting: unknown, where: string) => {
-  if (recordedAs(setting, 'inline')) check.fail(`${where}.${id}: an inline rule belongs in an archetype's constraints`);
-  else if (id !== '*' && check.ruleIds && !check.ruleIds.has(id)) check.fail(`${where}: no rule called ${id}`);
+  if (id !== '*' && check.ruleIds && !check.ruleIds.has(id)) check.fail(`${where}: no rule called ${id}`);
   else if (typeof setting === 'boolean') return setting;
   else if (id !== '*' && isRecord(setting) && !recordedAs(setting, 'ref'))
     return checkOptions(check, id, setting, where);
   else check.fail(`${where}.${id}: expected true, false${id === '*' ? '' : ' or options'}`);
   return undefined;
-};
-
-const toConstraints = (
-  check: Check,
-  value: unknown,
-  where: string,
-  scope: Scope,
-): Record<string, MustImportData> | undefined => {
-  if (!isRecord(value)) return undefined;
-  const constraints: Record<string, MustImportData> = {};
-  for (const [id, setting] of Object.entries(value)) {
-    const inline = recordedAs(setting, 'inline');
-    const data = inline ? toInline(check, id, inline, where, scope) : undefined;
-    if (!inline) check.fail(`${where}.${id}: expected an inline rule, mustImport({ from, to })`);
-    if (data) constraints[id] = data;
-  }
-  return constraints;
 };
 
 const checkOptions = (check: Check, id: string, options: Record<string, unknown>, where: string) => {
@@ -122,24 +115,6 @@ const checkOptions = (check: Check, id: string, options: Record<string, unknown>
     check.fail(error.message);
   }
   return { ...options };
-};
-
-const toInline = (
-  check: Check,
-  id: string,
-  inline: { from: unknown; to: unknown },
-  where: string,
-  scope: Scope,
-): MustImportData | undefined => {
-  if (check.registered?.has(id))
-    check.fail(`${where}.${id}: ${id} is a registered rule; give the inline rule its own name`);
-  else {
-    const refs = { ...scope, kinds: ruleKinds };
-    const from = toRef(check, inline.from, `${where}.${id} takes from`, refs) as MustImportData['from'];
-    const to = toRef(check, inline.to, `${where}.${id} takes to`, refs) as MustImportData['to'];
-    return { inline: 'mustImport', from, to };
-  }
-  return undefined;
 };
 
 const refProblem = (check: Check, ref: RefData, scope: Scope): string | undefined => {

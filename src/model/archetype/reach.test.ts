@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { ExternalImport, ImportEdge, ModuleFacts } from '../facts.ts';
-import { archetype, dir, pkg } from './builder.ts';
+import { archetype, dir, pkg, ruleset } from './builder.ts';
 import { builtinRules } from '../rules/index.ts';
 import { noDoubleExport } from '../rules/no-double-export/noDoubleExport.ts';
 import { unitExternals } from '../rules/unit-externals/unitExternals.ts';
@@ -358,19 +358,13 @@ describe('checkModel', () => {
     assert.ok(!('docs' in check(imports)[0]!));
   });
 
-  it('reports each loose file where its unit denies them, and nothing where it allows or warns', () => {
+  it('reports loose files on the root and where a ruleset turns unclassified on, and nowhere else', () => {
     const quiet = archetype('quiet').contains((p) => p.files('src', '*.ts'));
-    const warned = archetype('warned')
-      .loose('warn')
-      .contains((p) => p.files('src', '*.ts'));
-    const denied = archetype('denied')
-      .loose('deny')
-      .contains((p) => p.files('src', '*.ts'));
-    const root = archetype('app').contains((p) =>
-      p.dir('quiet', 'quiet', quiet).dir('warned', 'warned', warned).dir('denied', 'denied', denied),
-    );
-    const paths = ['stray.ts', 'quiet/a.css', 'warned/b.css', 'denied/c.css', 'denied/d.ts'];
-    const data = loadConfigData({ root }).config;
+    const denied = archetype('denied').contains((p) => p.files('src', '*.ts'));
+    const root = archetype('app').contains((p) => p.dir('quiet', 'quiet', quiet).dir('denied', 'denied', denied));
+    const base = ruleset().on(denied, { unclassified: true });
+    const paths = ['stray.ts', 'quiet/a.css', 'denied/c.css', 'denied/d.ts'];
+    const data = loadConfigData({ root, rulesets: { default: base } }, { ruleset: 'default' }).config;
     const looseModel = resolveModel(data, folders(paths), paths);
     assert.deepEqual(checkModel(data, looseModel, { modules: [] }, [], 'https://docs'), [
       {
@@ -395,6 +389,15 @@ describe('checkModel', () => {
       },
     ]);
     assert.ok(!('docs' in checkModel(data, looseModel, { modules: [] })[0]!));
+  });
+
+  it("turns unclassified off for a unit and the units below it from the unit's archetype", () => {
+    const leaf = archetype('leaf').contains((p) => p.files('src', '*.ts'));
+    const root = archetype('app').contains((p) => p.dir('leaf', 'leaf', leaf));
+    const everywhere = ruleset().rules({ unclassified: true }).on(root, { unclassified: false });
+    const paths = ['stray.ts', 'leaf/a.css'];
+    const data = loadConfigData({ root, rulesets: { default: everywhere } }, { ruleset: 'default' }).config;
+    assert.deepEqual(checkModel(data, resolveModel(data, folders(paths), paths), { modules: [] }), []);
   });
 });
 

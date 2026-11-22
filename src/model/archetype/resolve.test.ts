@@ -119,9 +119,7 @@ describe('resolveModel', () => {
     const widget = archetype('widget')
       .identify({ marker: '{name}.json' })
       .contains((p) => p.files('src', '**'));
-    const root = archetype('app')
-      .loose('allow')
-      .contains((p) => p.dir('widgets', 'src/{name}', widget));
+    const root = archetype('app').contains((p) => p.dir('widgets', 'src/{name}', widget));
     const model = resolve(root, ['src/a/a.ts', 'src/b/b.ts', 'src/c/c.ts'], ['src/a/a.json', 'src/c/a.json']);
     assert.deepEqual(
       model.units.map((unit) => unit.id),
@@ -258,23 +256,20 @@ describe('resolveModel', () => {
     ]);
   });
 
-  it('keeps the files no part matches as loose, denied on the root and allowed below unless set', () => {
+  it('keeps the files no part matches as loose in their unit', () => {
     const quiet = archetype('quiet').contains((p) => p.files('src', '*.ts'));
-    const strict = archetype('strict')
-      .loose('warn')
-      .contains((p) => p.files('src', '*.ts'));
+    const strict = archetype('strict').contains((p) => p.files('src', '*.ts'));
     const root = archetype('app').contains((p) => p.dir('quiet', 'quiet', quiet).dir('strict', 'strict', strict));
     const model = resolve(root, ['stray.ts', 'quiet/a.ts', 'quiet/a.css', 'strict/b.css']);
     assert.deepEqual(
-      model.units.map((unit) => [unit.id, unit.loose, unit.looseFiles]),
+      model.units.map((unit) => [unit.id, unit.looseFiles]),
       [
-        ['.', 'deny', ['stray.ts']],
-        ['quiet', 'allow', ['quiet/a.css']],
-        ['strict', 'warn', ['strict/b.css']],
+        ['.', ['stray.ts']],
+        ['quiet', ['quiet/a.css']],
+        ['strict', ['strict/b.css']],
       ],
     );
     assert.deepEqual(model.unitOf('quiet/a.css')?.ownFiles, ['quiet/a.css', 'quiet/a.ts']);
-    assert.equal(resolve(archetype('app').loose('allow'), ['x.ts']).root.loose, 'allow');
   });
 
   it("resolves working title's shape: layers, plain folders, a provided runner and nested components", () => {

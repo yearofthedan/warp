@@ -45,7 +45,7 @@ describe('modelText', () => {
       modelText(model),
       [
         '.  root: app  main: 1',
-        '  loose (deny): src/stray.ts',
+        '  loose: src/stray.ts',
         '  lib/orders/list  features: plain folder {area=orders} {name=list}  1 files',
         '  src/card  components: component {name=card}  logic: 1, dom: 1',
         '  src/empty  components: component {name=empty}  no files',
@@ -65,7 +65,7 @@ describe('modelText with rules', () => {
       [
         '.  root: app  main: 1',
         '  rules in unit: max-lines {"max":200}',
-        '  loose (deny): src/stray.ts',
+        '  loose: src/stray.ts',
         '  lib/orders/list  features: plain folder {area=orders} {name=list}  1 files',
         '  src/card  components: component {name=card}  logic: 1, dom: 1',
         '    rules in unit: max-lines {"max":300}',
@@ -99,7 +99,6 @@ describe('modelJson', () => {
       children: ['lib/orders/list', 'src/card', 'src/empty', 'src/strings'],
       ownFiles: ['src/main.ts', 'src/stray.ts'],
       parts: { main: ['src/main.ts'] },
-      loose: 'deny',
       looseFiles: ['src/stray.ts'],
     });
     assert.deepEqual(units[4], {
@@ -110,7 +109,6 @@ describe('modelJson', () => {
       children: [],
       ownFiles: ['src/strings/en.ts'],
       parts: {},
-      loose: 'allow',
       looseFiles: [],
     });
   });

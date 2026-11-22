@@ -3,7 +3,7 @@
 **Audience:** anyone reading a `unclassified` finding, or setting the rule.
 **Purpose:** what `unclassified` reports, why, and its options.
 
-Report a loose file, one no part of its unit matches, where loose files are denied.
+Report a loose file, one no part of its unit matches.
 
 ## Why
 
@@ -13,8 +13,9 @@ for code a decision.
 
 ## Rule details
 
-This comes from the model rather than a rule, and cannot be turned off. A file is unclassified when it is loose and
-the unit's `loose` setting is `deny`, which is the root's default. `warp model` lists every loose file.
+The rule judges the root unit's loose files unless a ruleset turns it off, and a nested unit's only where a ruleset
+turns it on, for the unit's archetype, the dir part that found it, a unit above it, or the whole config. `warp model`
+lists every loose file.
 
 With this config, `src/stray.ts` is reported:
 
@@ -24,9 +25,13 @@ import { archetype } from 'warp';
 const app = archetype('app').contains((p) => p.files('domain', 'src/domain/**').files('ui', 'src/ui/**'));
 ```
 
-Fix it by adding a files part that matches it, moving it into a part's folder, or setting `.loose('allow')` on an
-archetype whose stray files don't matter.
+Fix it by adding a files part that matches it, or moving it into a part's folder.
 
 ## Options
 
 None.
+
+## When not to use it
+
+While a codebase is being described part by part. Turn it off for the archetype still in progress, so new folders
+elsewhere are still reported.
