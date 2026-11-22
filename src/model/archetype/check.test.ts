@@ -36,6 +36,7 @@ const project = (imports: Record<string, readonly Import[]>): Project => ({
       const [to, extra] = typeof target === 'string' ? [target, {}] : target;
       return { from: file, to, specifier: `./${to}`, names: ['x'], typeOnly: false, line: 2, ...extra };
     }),
+    externals: [],
     units: { units: [], links: [] },
     functions: [],
   })),

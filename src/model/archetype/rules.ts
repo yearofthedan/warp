@@ -14,6 +14,8 @@ const cycleOptions = (raw: Record<string, unknown>, at: string): Partial<CycleOp
 
 export const modelRules: Readonly<Record<string, (raw: Record<string, unknown>, at: string) => unknown>> = {
   'dependency-direction': noOptions,
+  'unit-externals': noOptions,
+  'no-private-reexport': noOptions,
   'unit-cycle': cycleOptions,
   'no-cycle': cycleOptions,
 };

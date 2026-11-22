@@ -1,13 +1,14 @@
-import { archetype, defineConfig, dir } from 'warp';
+import { archetype, defineConfig, dir, pkg } from 'warp';
 
 const layer = archetype('layer')
   .contains((p) =>
     p
       .files('src', '**')
       .files('index', 'index.ts', { using: (s) => [s.src] })
-      .files('test', '**/*.test.ts', { using: (s) => [s.src] }),
+      .files('test', '**/*.test.ts', { using: (s) => [s.src, pkg('node:*')] }),
   )
-  .exposes((s) => ({ api: s.index }));
+  .exposes((s) => ({ api: s.index }))
+  .rules({ 'no-private-reexport': false });
 
 const component = archetype('component')
   .identify({ marker: '{name}.dom.ts' })

@@ -6,6 +6,7 @@ export interface Grant {
   owner: string;
   ref?: string;
   files: ReadonlySet<string>;
+  package?: string;
 }
 
 export const grantText = ({ owner, ref }: Grant): string => (ref === undefined ? owner : `${owner} uses ${ref}`);
@@ -106,7 +107,12 @@ const describe = (state: State, unit: UnitView, ref: RefData): string => {
 };
 
 const grants = (state: State, unit: UnitView, owner: string, refs: readonly RefData[]): Grant[] =>
-  refs.map((ref) => ({ owner, ref: describe(state, unit, ref), files: resolve(state, unit, ref) }));
+  refs.map((ref) => ({
+    owner,
+    ref: describe(state, unit, ref),
+    files: resolve(state, unit, ref),
+    ...(ref.kind === 'package' ? { package: ref.pattern } : {}),
+  }));
 
 const reach = (state: State, file: string): readonly Grant[] | undefined => {
   const unit = state.model.unitOf(file);

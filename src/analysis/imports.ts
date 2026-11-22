@@ -18,7 +18,8 @@ import {
   isStringLiteralLikeNode,
 } from 'typescript/ast/is';
 import { type Checker, type Program, SymbolFlags } from 'typescript/sync';
-import type { ImportEdge } from '../model/facts.ts';
+import { isBuiltin } from 'node:module';
+import type { ExternalImport, ImportEdge } from '../model/facts.ts';
 import type { Source } from './source.ts';
 
 export interface Resolver {
@@ -33,26 +34,59 @@ interface Binding {
   reExport: boolean;
 }
 
-export const importEdges = (source: Source, resolver: Resolver): ImportEdge[] => {
+export interface ModuleEdges {
+  imports: ImportEdge[];
+  externals: ExternalImport[];
+}
+
+export const moduleEdges = (source: Source, resolver: Resolver): ModuleEdges => {
   const exported = locallyExportedNames(source.sourceFile);
-  return source.sourceFile.statements.flatMap((statement) => statementEdges(statement, exported, source, resolver));
+  const edges: ModuleEdges = { imports: [], externals: [] };
+  for (const statement of source.sourceFile.statements) {
+    const declaration = moduleDeclaration(statement, exported);
+    if (!declaration) continue;
+    const resolved = resolver.program.getResolvedModuleFromModuleSpecifier(
+      declaration.specifier,
+      source.sourceFile.fileName,
+    );
+    const via = resolved?.resolvedFileName ? resolver.relative(resolved.resolvedFileName) : undefined;
+    if (via) edges.imports.push(...statementEdges(statement, declaration, via, source, resolver));
+    else if (isBare(declaration.specifier.text)) edges.externals.push(externalImport(statement, declaration, source));
+  }
+  return edges;
+};
+
+const isBare = (specifier: string): boolean => !specifier.startsWith('.') && !specifier.startsWith('/');
+
+const packageOf = (specifier: string): string => {
+  const segments = specifier.split('/');
+  if (specifier.startsWith('@')) return segments.slice(0, 2).join('/');
+  const [name] = segments as [string];
+  return !name.includes(':') && isBuiltin(name) ? `node:${name}` : name;
+};
+
+const externalImport = (statement: Statement, declaration: ModuleStatement, source: Source): ExternalImport => {
+  const reExport = declaration.reExport || declaration.bindings.some((binding) => binding.reExport);
+  return {
+    from: source.file,
+    package: packageOf(declaration.specifier.text),
+    specifier: declaration.specifier.text,
+    names: declaration.bindings.map((binding) => binding.identifier.text),
+    typeOnly:
+      declaration.typeOnly ||
+      (declaration.bindings.length > 0 && declaration.bindings.every((binding) => binding.typeOnly)),
+    ...(reExport ? { reExport } : {}),
+    line: source.line(statement),
+  };
 };
 
 const statementEdges = (
   statement: Statement,
-  exported: Set<string>,
+  declaration: ModuleStatement,
+  via: string,
   source: Source,
   resolver: Resolver,
 ): ImportEdge[] => {
-  const declaration = moduleDeclaration(statement, exported);
-  if (!declaration) return [];
-  const resolved = resolver.program.getResolvedModuleFromModuleSpecifier(
-    declaration.specifier,
-    source.sourceFile.fileName,
-  );
-  const via = resolved?.resolvedFileName ? resolver.relative(resolved.resolvedFileName) : undefined;
-  if (!via) return [];
-
   const edge = (to: string, names: string[], typeOnly: boolean, reExport: boolean): ImportEdge => ({
     from: source.file,
     to,

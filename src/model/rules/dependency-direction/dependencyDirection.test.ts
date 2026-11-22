@@ -9,6 +9,7 @@ const module = (file: string, to?: string): ModuleFacts => ({
   file,
   lines: 1,
   imports: to ? [{ from: file, to, specifier: to, names: ['x'], typeOnly: false, line: 2 }] : [],
+  externals: [],
   units: { units: [], links: [] },
   functions: [],
 });

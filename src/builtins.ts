@@ -15,6 +15,8 @@ export const unclassifiedDocs = `${source}/docs/unclassified.md`;
 export const archetypeDocs = {
   unclassified: unclassifiedDocs,
   'dependency-direction': builtinRegistry.get('dependency-direction')?.docs,
+  'unit-externals': `${source}/docs/unit-externals.md`,
+  'no-private-reexport': `${source}/docs/no-private-reexport.md`,
   'unit-cycle': `${source}/docs/unit-cycle.md`,
   'no-cycle': `${source}/docs/no-cycle.md`,
 };
