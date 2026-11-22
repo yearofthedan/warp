@@ -3,7 +3,7 @@ import { API } from 'typescript/sync';
 import type { Analyzer } from '../app/ports.ts';
 import { type AnalysisScope, isExcluded } from '../model/config.ts';
 import type { ModuleFacts, Project } from '../model/facts.ts';
-import { importEdges, type Resolver } from './imports.ts';
+import { moduleEdges, type Resolver } from './imports.ts';
 import { countLines, readSource } from './source.ts';
 import { functionFacts, moduleUnits } from './units.ts';
 
@@ -60,7 +60,7 @@ const analyzeProgram = (
     modules.push({
       file,
       lines: countLines(sourceFile.text),
-      imports: importEdges(source, resolver),
+      ...moduleEdges(source, resolver),
       units: moduleUnits(source),
       functions: functionFacts(source),
     });

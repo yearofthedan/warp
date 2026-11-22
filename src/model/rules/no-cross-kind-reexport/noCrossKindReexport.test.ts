@@ -13,6 +13,7 @@ const module = (file: string, to?: string, reExport?: true): ModuleFacts => ({
   imports: to
     ? [{ from: file, to, specifier: to, names: ['x'], typeOnly: false, ...(reExport ? { reExport } : {}), line: 2 }]
     : [],
+  externals: [],
   units: { units: [], links: [] },
   functions: [],
 });

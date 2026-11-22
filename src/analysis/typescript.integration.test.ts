@@ -66,6 +66,32 @@ describe('import graph', () => {
     );
   });
 
+  it('keeps an import of a package apart, by package name, whether or not it resolves', () => {
+    const module = modules.get('src/externals.ts')!;
+    assert.deepEqual(
+      module.externals.map(({ package: name, specifier, names, typeOnly, reExport, line }) => [
+        name,
+        specifier,
+        names,
+        typeOnly,
+        reExport ?? false,
+        line,
+      ]),
+      [
+        ['left-pad', 'left-pad', [], false, false, 1],
+        ['node:path', 'node:path', ['join'], false, false, 2],
+        ['node:fs', 'fs/promises', ['readFile'], false, false, 3],
+        ['@scope/tool', '@scope/tool/plugin', ['Plugin'], true, false, 4],
+        ['virtual:config', 'virtual:config', ['Config', 'defineConfig'], false, false, 5],
+        ['yaml', 'yaml', ['parse'], false, true, 8],
+      ],
+    );
+    assert.deepEqual(
+      module.imports.map((edge) => edge.specifier),
+      ['./lib/index.ts'],
+    );
+  });
+
   it('marks an import type-only when every name declares only a type', () => {
     const hexagonalApp = join(import.meta.dirname, '../../fixtures/hexagonal-app');
     const config = parseConfig(

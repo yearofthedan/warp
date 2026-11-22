@@ -6,6 +6,7 @@ export interface ModuleFacts {
   file: string;
   lines: number;
   imports: ImportEdge[];
+  externals: ExternalImport[];
   units: UnitGraph;
   functions: FunctionFacts[];
 }
@@ -14,6 +15,16 @@ export interface ImportEdge {
   from: string;
   to: string;
   via?: string;
+  specifier: string;
+  names: string[];
+  typeOnly: boolean;
+  reExport?: true;
+  line: number;
+}
+
+export interface ExternalImport {
+  from: string;
+  package: string;
   specifier: string;
   names: string[];
   typeOnly: boolean;

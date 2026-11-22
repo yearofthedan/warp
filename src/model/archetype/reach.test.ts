@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import type { ImportEdge, ModuleFacts } from '../facts.ts';
+import type { ExternalImport, ImportEdge, ModuleFacts } from '../facts.ts';
 import { archetype, dir, pkg } from './builder.ts';
 import { checkModel } from './check.ts';
 import type { ConfigData } from './data.ts';
 import { loadConfigData } from './load.ts';
 import { grantText, type Verdict, verdicts } from './reach.ts';
+import { externalFindings } from './externals.ts';
+import { reexportFindings } from './reexports.ts';
 import { type Folders, type Model, resolveModel } from './resolve.ts';
 
 const folders = (paths: readonly string[]): Folders => {
@@ -60,7 +62,7 @@ const app = archetype('app')
     p
       .dir('strings', 'src/strings')
       .dir('runner', 'src/runner', runner)
-      .dir('domain', 'src/domain')
+      .dir('domain', 'src/domain', { using: [pkg('node:*'), pkg('lodash.get')] })
       .dir('ui', 'src/ui', ui, { using: (s) => [s.domain] })
       .files('main', 'src/main.ts', { using: (s) => [s.ui] }),
   )
@@ -214,10 +216,21 @@ const edge = (from: string, to: string, extra: Partial<ImportEdge> = {}): Import
   ...extra,
 });
 
-const module = (file: string, imports: ImportEdge[]): ModuleFacts => ({
+const external = (from: string, specifier: string, extra: Partial<ExternalImport> = {}): ExternalImport => ({
+  from,
+  package: specifier.split('/')[0]!,
+  specifier,
+  names: ['x'],
+  typeOnly: false,
+  line: 1,
+  ...extra,
+});
+
+const module = (file: string, imports: ImportEdge[], externals: ExternalImport[] = []): ModuleFacts => ({
   file,
   lines: 10,
   imports,
+  externals,
   units: { units: [], links: [] },
   functions: [],
 });
@@ -377,5 +390,180 @@ describe('checkModel', () => {
       },
     ]);
     assert.ok(!('docs' in checkModel(data, looseModel, { modules: [] })[0]!));
+  });
+});
+
+describe('unit-externals', () => {
+  const check = (modules: ModuleFacts[], docs = {}) =>
+    checkModel(config, model, { modules }, docs).filter((finding) => finding.rule === 'unit-externals');
+  const keys = (modules: ModuleFacts[]) => check(modules).map((finding) => finding.key);
+
+  it('passes a package a using in reach lists, by name or by specifier, and its subpaths', () => {
+    assert.deepEqual(
+      keys([
+        module(
+          'src/ui/a/a.test.ts',
+          [],
+          [external('src/ui/a/a.test.ts', 'vitest'), external('src/ui/a/a.test.ts', 'vitest/config')],
+        ),
+        module(
+          'src/domain/order.ts',
+          [],
+          [
+            external('src/domain/order.ts', 'node:fs/promises', { package: 'node:fs' }),
+            external('src/domain/order.ts', 'lodash.get'),
+          ],
+        ),
+      ]),
+      [],
+    );
+  });
+
+  it('reports one finding per file and package outside reach, valued by the names imported', () => {
+    const edges = [
+      external('src/ui/a/a.test.ts', 'react', { names: ['useState'], line: 2, typeOnly: true }),
+      external('src/ui/a/a.test.ts', 'react/jsx-runtime', { package: 'react', names: ['jsx', 'useState'], line: 3 }),
+    ];
+    assert.deepEqual(check([module('src/ui/a/a.test.ts', [], [external('src/ui/a/a.test.ts', 'vitest'), ...edges])]), [
+      {
+        rule: 'unit-externals',
+        key: 'unit-externals:src/ui/a/a.test.ts->react',
+        file: 'src/ui/a/a.test.ts',
+        line: 2,
+        value: 2,
+        message:
+          "src/ui/a/a.test.ts (test of card src/ui/a) imports react, react/jsx-runtime, a package outside test's reach: test uses pkg('vitest'). Add pkg('react') to a using if the dependency is intended, or move the code.",
+        details: { from: { unit: 'src/ui/a', part: 'test' }, package: 'react', edges },
+      },
+    ]);
+  });
+
+  it("grants a dir part's packages to its units' own files, and says when no using lists one", () => {
+    const [logic, domain] = check([
+      module('src/ui/a/a.ts', [], [external('src/ui/a/a.ts', 'node:fs', { names: [], typeOnly: true })]),
+      module('src/domain/order.ts', [], [external('src/domain/order.ts', 'lodashxget')]),
+    ]);
+    assert.equal(
+      logic?.message,
+      "src/ui/a/a.ts (logic of card src/ui/a) imports types from node:fs, a package outside logic's reach: no using in its reach lists a package. Add pkg('node:fs') to a using if the dependency is intended, or move the code.",
+    );
+    assert.equal(logic?.value, 1);
+    assert.match(
+      domain!.message,
+      /outside src\/domain's reach: app\.domain uses pkg\('node:\*'\), pkg\('lodash\.get'\)\./,
+    );
+  });
+
+  it('reports only the imports of a package outside reach, naming each using that lists packages', () => {
+    const leaf = archetype('leaf').contains((p) => p.files('src', '*.ts', { using: [pkg('vite-plus/*')] }));
+    const root = archetype('root').contains((p) => p.dir('leaf', 'leaf', leaf, { using: [pkg('node:*')] }));
+    const data = loadConfigData({ root }).config;
+    const paths = ['leaf/a.ts'];
+    const edges = [external('leaf/a.ts', 'vite-plus/test'), external('leaf/a.ts', 'vite-plus', { line: 2 })];
+    const leafModel = resolveModel(data, folders(paths), paths);
+    const [finding] = externalFindings(leafModel, verdicts(data, leafModel), {
+      modules: [module('leaf/a.ts', [], edges)],
+    });
+    assert.deepEqual(finding?.details, {
+      from: { unit: 'leaf', part: 'src' },
+      package: 'vite-plus',
+      edges: [edges[1]],
+    });
+    assert.match(finding!.message, /reach: src uses pkg\('vite-plus\/\*'\); root\.leaf uses pkg\('node:\*'\)\. Add/);
+  });
+
+  it('judges nothing from a loose file or a file outside the model, and attaches docs when given', () => {
+    assert.deepEqual(
+      externalFindings(model, judge(), {
+        modules: [module('src/ui/a/a.test.ts', [], [external('src/ui/a/a.test.ts', 'vitest')])],
+      }),
+      [],
+    );
+    assert.deepEqual(
+      keys([
+        module('src/ui/notes.md', [], [external('src/ui/notes.md', 'react')]),
+        module('elsewhere.ts', [], [external('elsewhere.ts', 'react')]),
+      ]),
+      [],
+    );
+    const modules = [module('src/main.ts', [], [external('src/main.ts', 'react')])];
+    assert.equal(check(modules, { 'unit-externals': 'https://docs' })[0]?.docs, 'https://docs');
+    assert.ok(!('docs' in check(modules)[0]!));
+  });
+});
+
+describe('no-private-reexport', () => {
+  const check = (modules: ModuleFacts[], docs = {}) =>
+    checkModel(config, model, { modules }, docs).filter((finding) => finding.rule === 'no-private-reexport');
+  const reExport = (from: string, to: string, extra: Partial<ImportEdge> = {}) =>
+    edge(from, to, { reExport: true, ...extra });
+
+  it('reports a file on a surface that re-exports a file its unit keeps private, one finding per pair', () => {
+    const edges = [
+      reExport('src/ui/a/a.dom.ts', 'src/ui/a/a.ts', { names: ['label'], line: 2 }),
+      reExport('src/ui/a/a.dom.ts', 'src/ui/a/a.ts', { names: [], line: 3 }),
+    ];
+    assert.deepEqual(check([module('src/ui/a/a.dom.ts', edges)]), [
+      {
+        rule: 'no-private-reexport',
+        key: 'no-private-reexport:src/ui/a/a.dom.ts->src/ui/a/a.ts',
+        file: 'src/ui/a/a.dom.ts',
+        line: 2,
+        value: 1,
+        message:
+          "src/ui/a/a.dom.ts (dom of card src/ui/a) is on src/ui/a's surface and re-exports src/ui/a/a.ts (logic of card src/ui/a), which src/ui/a keeps private (it exposes render, page). Expose what holds src/ui/a/a.ts from card if other units should reach it, or stop re-exporting it.",
+        details: {
+          unit: 'src/ui/a',
+          to: { unit: 'src/ui/a', part: 'logic' },
+          edges,
+        },
+      },
+    ]);
+  });
+
+  it("counts a child's exposed file as private unless the unit passes it on, judging the file the specifier names", () => {
+    const findings = check([
+      module('src/ui/a/a.dom.ts', [
+        reExport('src/ui/a/a.dom.ts', 'src/ui/a/b/b.dom.ts', { names: ['b', 'c'] }),
+        reExport('src/ui/a/a.dom.ts', 'src/ui/a/b/c/c.ts', { via: 'src/ui/a/a.page.ts' }),
+      ]),
+    ]);
+    assert.deepEqual(
+      findings.map((finding) => [finding.key, finding.value]),
+      [['no-private-reexport:src/ui/a/a.dom.ts->src/ui/a/b/b.dom.ts', 2]],
+    );
+  });
+
+  it('passes plain imports, files off the surface, and targets outside the unit', () => {
+    assert.deepEqual(
+      check([
+        module('src/ui/a/a.dom.ts', [
+          edge('src/ui/a/a.dom.ts', 'src/ui/a/a.ts'),
+          reExport('src/ui/a/a.dom.ts', 'src/domain/order.ts'),
+        ]),
+        module('src/ui/a/a.ts', [reExport('src/ui/a/a.ts', 'src/ui/a/b/b.ts')]),
+        module('src/ui/shared.ts', [reExport('src/ui/shared.ts', 'src/ui/a/a.dom.ts')]),
+      ]),
+      [],
+    );
+    const outside = [
+      module('src/ui/a/a.dom.ts', [reExport('src/ui/a/a.dom.ts', 'elsewhere.ts')]),
+      module('elsewhere.ts', [reExport('elsewhere.ts', 'src/ui/a/a.ts')]),
+    ];
+    assert.deepEqual(reexportFindings(config, model, judge(), { modules: outside }), []);
+  });
+
+  it('holds a unit with no .exposes() to its own files and what its units expose', () => {
+    const [finding] = check([module('src/ui/shared.ts', [reExport('src/ui/shared.ts', 'src/ui/a/a.ts')])]);
+    assert.match(
+      finding!.message,
+      /which src\/ui keeps private \(it exposes its own files and what its units expose\)\. Expose what holds src\/ui\/a\/a\.ts from ui /,
+    );
+  });
+
+  it('attaches docs when given', () => {
+    const modules = [module('src/ui/a/a.dom.ts', [reExport('src/ui/a/a.dom.ts', 'src/ui/a/a.ts')])];
+    assert.equal(check(modules, { 'no-private-reexport': 'https://docs' })[0]?.docs, 'https://docs');
+    assert.ok(!('docs' in check(modules)[0]!));
   });
 });

@@ -337,14 +337,19 @@ describe('a warp.config.ts with archetypes', () => {
     });
   });
 
-  it('reports loose files and imports outside their reach, passing a barrel on a surface', () => {
+  it('reports loose files and imports and packages outside their reach, passing a barrel on a surface', () => {
     const checked = run('check', '--reporter', 'json', '--fail');
     assert.equal(checked.status, 1, checked.stderr);
     const { findings } = JSON.parse(checked.stdout);
     assert.deepEqual(
       findings.map((finding: { key: string }) => finding.key),
-      ['unclassified:src/stray.ts', 'dependency-direction:src/ui/card/card.ts->src/domain/order.ts'],
+      [
+        'unclassified:src/stray.ts',
+        'dependency-direction:src/ui/card/card.ts->src/domain/order.ts',
+        'unit-externals:src/ui/card/card.ts->node:util',
+      ],
     );
+    assert.match(findings[2].docs, /docs\/unit-externals\.md$/);
     assert.equal(
       findings[1].message,
       'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes, or expose src/domain/order.ts from layer if other units should reach it.',

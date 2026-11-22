@@ -4,7 +4,8 @@
 **Purpose:** where the config language is going, and the source of truth for it.
 
 Status: in delivery. The config builders, their load-time checks, finding units (`warp model`), edge verdicts
-(`dependency-direction`), rule settings, `mustImport`, `unit-cycle` and `no-cycle` are in `src/model/archetype/`.
+(`dependency-direction`), package edges (`unit-externals`), `no-private-reexport`, rule settings, `mustImport`,
+`unit-cycle` and `no-cycle` are in `src/model/archetype/`.
 
 ## Summary
 
@@ -298,7 +299,8 @@ silenced.
 Analysis already resolves each import to the module that declares the names, through barrels and re-exports, and
 records `via`, whether it is type-only, and whether it is a re-export. Two additions:
 
-- **External edges:** an import of a package or a `node:` module is kept as an edge with `external: '<package>'`.
+- **External imports:** an import of a package or a `node:` module is kept in the module's `externals`, by package
+  name, apart from the edges between project files.
 - **Assets:** an import of a CSS, JSON or SVG file is an edge to that file.
 
 ### How an edge is judged
@@ -316,7 +318,8 @@ A reference reaches only what it names. `s.ui.render` holds the files `ui` puts 
 don't reach each other unless the part lists itself, which declare-before-use doesn't yet allow ([open](#open)).
 
 Type imports are imports: they obey `using` and surfaces like any other. A unit exposes types through a public file,
-a types file in an exposed part, or a barrel (`.exposes((s) => ({ api: s.index }))`).
+a types file in an exposed part, or a barrel (`.exposes((s) => ({ api: s.index }))`). A barrel over private files
+turns `no-private-reexport` off on its archetype, which says the barrel, not its parts, is the surface.
 
 **Packages** go through `using` like anything else: `pkg('vitest')`, or a glob such as `pkg('node:*')` or
 `pkg('@aws-sdk/*')`. An external edge passes when A's part, or the dir part that matched A's unit, lists a matching
@@ -350,6 +353,7 @@ Each failure is one finding per file pair per rule.
 | B outside A's reach (details say whether B is private or just not in `using`) | `dependency-direction` |
 | an inline rule | its local name |
 | re-exporting another unit's names | `no-cross-unit-reexport` (`allow` takes references) |
+| a file on a surface re-exporting a file its unit keeps private | `no-private-reexport` |
 | a package not in the part's `using` | `unit-externals` |
 | a loop between units | `unit-cycle` |
 | a loop between files | `no-cycle` |
@@ -417,7 +421,7 @@ interface UnitView {
 
 | Fact | For |
 | --- | --- |
-| `ImportEdge.external` | `unit-externals` |
+| `ModuleFacts.externals` | `unit-externals` |
 | `ModuleFacts.exports: { name, line, typeOnly, from? }[]`, `from` for re-exports | export surface (#5), export use (#6) |
 | `FunctionFacts.calls: { callee, line }[]`, in order, the callee as the checker's symbol key | chained use (#4a), repeated call sequences (#4b) |
 
@@ -969,7 +973,7 @@ Folders holding several components side by side stay out of scope: they would ne
    (`mustImport`), `no-cross-unit-reexport`, `unit-cycle`, `no-cycle`. Working title's config lands here, reporting beside depcruise.
 4. Queries: `where` and `may`. Try them from omp on working title before going further, so a real consumer shapes
    what follows.
-5. Facts: external edges and assets, then `unit-externals`.
+5. Facts: assets. External imports and `unit-externals` are in.
 6. Facts: exports, then export use (#6) and export surface (#5).
 7. Facts: calls, then #4a and #4b. Naming anonymous callbacks by their call lands with this.
 
