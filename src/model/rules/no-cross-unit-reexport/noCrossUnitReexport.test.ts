@@ -57,11 +57,13 @@ const check = (root: AnyArchetype, modules: ModuleFacts[]) => {
     ...files.filter((file) => !modules.some((m) => m.file === file)).map((file) => module(file)),
   ];
   const model = resolveModel(config, folders(files), files);
-  return checkModel(config, model, { modules: all }, [noCrossUnitReexport]).filter((finding) => finding.rule === rule);
+  return checkModel(config, model, { modules: all }, [noCrossUnitReexport]).filter(
+    (finding) => finding.rule !== 'unclassified',
+  );
 };
 
 const keys = (findings: readonly { rule: string; key: string }[]) =>
-  findings.filter((finding) => finding.rule === rule).map((finding) => finding.key);
+  findings.filter((finding) => finding.rule !== 'unclassified').map((finding) => finding.key);
 
 const card = archetype('card').contains((p) => p.files('src', '*.ts'));
 
@@ -89,7 +91,7 @@ const app = (child: AnyArchetype) =>
 describe(rule, () => {
   it('flags a re-export of another unit, even one the unit may use', () => {
     const edges = [
-      reExport('ui/index.ts', 'ports/folder.ts', { names: ['Folder'] }),
+      reExport('ui/index.ts', 'ports/folder.ts', { names: ['Folder', 'Chooser'] }),
       reExport('ui/index.ts', 'ports/folder.ts', { names: [], line: 3 }),
     ];
     assert.deepEqual(check(app(ui()), [module('ui/index.ts', edges)]), [
@@ -98,15 +100,15 @@ describe(rule, () => {
         key: `${rule}:ui/index.ts->ports/folder.ts`,
         file: 'ui/index.ts',
         line: 2,
-        value: 1,
+        value: 2,
         message:
-          'ui/index.ts (api of ui ui) re-exports Folder from ports/folder.ts (plain folder ports), so its importers ' +
+          'ui/index.ts (api of ui ui) re-exports Folder, Chooser from ports/folder.ts (plain folder ports), so its importers ' +
           'reach ports through ui. Have importers that need it use ports directly, give ui its own type that ' +
           'hides it, or move it into ui if ui owns it.',
         details: {
           from: { unit: 'ui', part: 'api' },
           to: { unit: 'ports', part: undefined },
-          names: ['Folder'],
+          names: ['Folder', 'Chooser'],
           edges,
         },
       },
