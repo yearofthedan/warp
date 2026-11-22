@@ -169,7 +169,7 @@ describe('a warp.config.ts with a plugin', () => {
     commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
   });
 
-  it('is found without --config and runs the plugin rule on the kinds that turn it on', () => {
+  it('is found without --config and runs the plugin rule on the parts that turn it on', () => {
     const checked = run('check', '--reporter', 'json');
     assert.equal(checked.status, 0, checked.stderr);
     assert.deepEqual(JSON.parse(checked.stdout).findings, [

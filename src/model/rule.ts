@@ -75,7 +75,7 @@ export interface ProjectRule<Options extends object = object> extends RuleBase<O
 export type ArchetypeRule = ModuleRule<any> | ProjectRule<any>;
 
 export interface Plugin {
-  rules: readonly Rule<any>[];
+  rules: readonly (Rule<any> | ArchetypeRule)[];
 }
 
 export class ConfigError extends Error {

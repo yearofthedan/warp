@@ -6,7 +6,7 @@ import { diskFolders } from './analysis/folders.ts';
 import { typescriptAnalyzer } from './analysis/typescript.ts';
 import { archetypeCheck, kindsCheck, modelProject, type ProjectCheck } from './app/check.ts';
 import { diffProject, parseRange } from './app/diff.ts';
-import { archetypeLoadOptions, archetypeRegistry, builtinRegistry, unclassifiedDocs } from './builtins.ts';
+import { archetypeRegistry, builtinRegistry, unclassifiedDocs } from './builtins.ts';
 import { findConfig, loadConfig } from './config/loadConfig.ts';
 import { toolDigest } from './config/toolDigest.ts';
 import { gitDirCache } from './git/cache.ts';
@@ -14,7 +14,7 @@ import { gitRepository, projectPathOf } from './git/repository.ts';
 import type { ConfigData } from './model/archetype/data.ts';
 import { loadConfigData } from './model/archetype/load.ts';
 import { type Config, parseConfig } from './model/config.ts';
-import { ConfigError } from './model/rule.ts';
+import { type ArchetypeRule, ConfigError } from './model/rule.ts';
 import { reporters } from './reporters/index.ts';
 import { modelJson, modelText } from './reporters/model.ts';
 import { actionable, type Report } from './reporters/reporter.ts';
@@ -42,7 +42,7 @@ type Produce = (root: string, project: ProjectCheck, digest: string) => Report;
 
 type Resolved =
   | { shape: 'kinds'; root: string; config: Config; digest: string }
-  | { shape: 'archetypes'; root: string; config: ConfigData; digest: string };
+  | { shape: 'archetypes'; root: string; config: ConfigData; rules: ArchetypeRule[]; digest: string };
 
 const adapters = { analyzer: typescriptAnalyzer, foldersAt: diskFolders };
 
@@ -84,9 +84,9 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promi
     if (!isArchetypeConfig(raw)) {
       return { shape: 'kinds', root, config: parseConfig(raw, builtinRegistry, { unclassifiedDocs }), digest };
     }
-    const { config, warnings } = loadConfigData(raw, archetypeLoadOptions);
+    const { config, rules, warnings } = loadConfigData(raw, { builtins: [...archetypeRegistry.values()] });
     for (const warning of warnings) console.error(`warp config: ${warning}`);
-    return { shape: 'archetypes', root, config, digest };
+    return { shape: 'archetypes', root, config, rules, digest };
   } catch (error) {
     if (error instanceof ConfigError && options.ruleset !== undefined)
       throw new ConfigError(`ruleset ${options.ruleset}: ${error.message}`);
@@ -99,7 +99,7 @@ const isArchetypeConfig = (raw: unknown): boolean => typeof raw === 'object' && 
 const projectCheck = (resolved: Resolved): ProjectCheck =>
   resolved.shape === 'kinds'
     ? kindsCheck(typescriptAnalyzer, resolved.config)
-    : archetypeCheck(adapters, resolved.config, { rules: [...archetypeRegistry.values()], unclassifiedDocs });
+    : archetypeCheck(adapters, resolved.config, { rules: resolved.rules, unclassifiedDocs });
 
 const run = async (options: Options, produce: Produce): Promise<number> => {
   const reporter = reporters.get(options.reporter);

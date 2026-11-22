@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { check } from './check.ts';
-import { classify, type Config, parseConfig, registry } from './config.ts';
+import { classify, type Config, parseConfig } from './config.ts';
+import { registry } from './registry.ts';
 import { ConfigError, type Rule, wholeNumberOptions } from './rule.ts';
 import { builtinRules } from './rules/index.ts';
 import { builtinRegistry } from '../builtins.ts';
