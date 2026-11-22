@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import { examplePath, examplesIn, fragmentProblems, headerProblems, located, plan, valueExports } from './_docs.ts';
+import {
+  examplePath,
+  examplesIn,
+  fragmentProblems,
+  headerProblems,
+  linkProblems,
+  located,
+  plan,
+  valueExports,
+} from './_docs.ts';
 
 describe('headerProblems', () => {
   it('passes a page that opens with its title, Audience and Purpose', () => {
@@ -82,5 +91,18 @@ describe('plan', () => {
       'docs/a.md:10: error TS1: no.',
     );
     assert.equal(located('error TS5: elsewhere.', files), 'error TS5: elsewhere.');
+  });
+});
+
+describe('linkProblems', () => {
+  it('refuses a doc that links to AGENTS.md, which links into the docs', () => {
+    assert.deepEqual(linkProblems('docs/a.md', 'See [tiers](../AGENTS.md#tests).'), [
+      'links to ../AGENTS.md#tests: AGENTS.md links into the docs, never the reverse',
+    ]);
+  });
+
+  it('passes AGENTS.md itself and links elsewhere', () => {
+    assert.deepEqual(linkProblems('AGENTS.md', '[x](AGENTS.md)'), []);
+    assert.deepEqual(linkProblems('docs/a.md', '[x](../README.md)'), []);
   });
 });
