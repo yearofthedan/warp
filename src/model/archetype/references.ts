@@ -1,6 +1,6 @@
 import { ConfigError } from '../rule.ts';
 import { recordedAs } from './builder.ts';
-import type { ArchetypeData, PartRefData, RefData, RequiredRefData, RuleSettingsData } from './data.ts';
+import type { ArchetypeData, PartRefData, RefData, RuleSettingsData } from './data.ts';
 import type { Draft } from './draft.ts';
 import { type Fail, isName, isRecord, list, shapeText } from './shared.ts';
 
@@ -38,16 +38,6 @@ export const resolveDraft = (check: Check, { data: archetype, parts, exposes, pr
     };
     const where = `${archetype.name}.${part.data.name}`;
     part.data.using.push(...part.using.map((value) => toRef(check, value, `${where} uses`, scope)));
-    if (part.data.kind === 'files' && part.mustImport.length > 0) {
-      const required = { ...scope, kinds: ['part', 'required'] as const, refused: 'a package belongs in using' };
-      const using = part.data.using;
-      part.data.mustImport = part.mustImport.map((value) => {
-        const ref = toRef(check, value, `${where} must import`, required) as PartRefData | RequiredRefData;
-        if (!using.some((granted) => grants(granted, ref)))
-          check.fail(`${where} must import ${show(ref)}, which its using does not list`);
-        return ref;
-      });
-    }
   }
   const visible = archetype.parts.length;
   const own: Scope = {
@@ -69,13 +59,6 @@ export const resolveDraft = (check: Check, { data: archetype, parts, exposes, pr
     archetype.provides[name] = toRef(check, value, `${archetype.name} provides ${name} as`, scope) as PartRefData;
   }
 };
-
-const grants = (granted: RefData, ref: PartRefData | RequiredRefData): boolean =>
-  granted.kind === ref.kind &&
-  (granted.kind === 'part'
-    ? granted.part === (ref as PartRefData).part
-    : granted.name === (ref as RequiredRefData).name) &&
-  (granted.surface === undefined || granted.surface === ref.surface);
 
 const toRef = (check: Check, value: unknown, where: string, scope: Scope): RefData => {
   const ref = recordedAs(value, 'ref');

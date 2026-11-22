@@ -5,7 +5,7 @@
 
 Status: in delivery. The config builders, their load-time checks, finding units (`warp model`), edge verdicts
 (`dependency-direction`), package edges (`unit-externals`), `no-double-export`, `no-cross-unit-reexport`, rulesets,
-`mustImport` (`must-import`), `unit-cycle` and `no-cycle` are in, and the built-in rules and plugins run through the rule contract's
+`unit-cycle` and `no-cycle` are in, and the built-in rules and plugins run through the rule contract's
 module and project scopes. Kinds are gone.
 
 ## Summary
@@ -205,8 +205,8 @@ A provision that nothing below requires is a warning.
 **Loose files.** A unit's own files that no part matches are loose. `unclassified` reports them on the root unit,
 and below it where a ruleset turns it on.
 
-**Structure and rules are separate.** The archetypes say what the codebase is: parts, the edges they may have
-(`using`) and must have (`mustImport`), surfaces and requirements. Which rules judge it, and how strictly, lives in
+**Structure and rules are separate.** The archetypes say what the codebase is: parts, `using`, surfaces and
+requirements. Which rules judge it, and how strictly, lives in
 [rulesets](#rulesets), so the structure reads the same whatever the thresholds, and tuning a rule never touches it.
 
 **Plain data.** The builders return data, and references become part paths once resolved. `warp model --json` prints
@@ -324,9 +324,7 @@ re-exports are not both exposed, so each name has one way in (`no-double-export`
 package, so a part with none may import none. The canonical case is a hexagon where only `adapters` lists packages,
 and a `test` part lists its runner while the code beside it lists nothing.
 
-**Required edges.** `using` says what a file may import; a files part's `mustImport` says what each of its files
-must, as references that are also in its `using`. `must-import` reports a file with no edge to one of them. Forbidding
-an edge needs nothing more, since leaving it out of `using` does that.
+**Forbidden edges need nothing more than `using`:** leaving an edge out of it forbids it.
 
 **Thresholds resolve nearest first.** For a rule's options: the file's files part, then its dir part, then each
 archetype from the innermost out, then the global `rules`, then the rule's defaults. Options resolve for the file a
@@ -350,7 +348,6 @@ Each failure is one finding per file pair per rule.
 | Check | Rule id |
 | --- | --- |
 | B outside A's reach (details say whether B is private or just not in `using`) | `dependency-direction` |
-| a file in a part with no edge to one of its `mustImport` | `must-import` |
 | re-exporting a file of a unit outside the re-exporting unit and the units nested in it | `no-cross-unit-reexport` |
 | a file on a surface re-exporting another file on that surface | `no-double-export` |
 | a package not in the part's `using` | `unit-externals` |
@@ -536,7 +533,7 @@ is built separately from rules. New fact sources add edges without touching rule
 | File categories | no | yes | regex | no | files parts, each with its own `using` |
 | Type and value edges | no | yes | yes | no | recorded; cycle rules can ignore type-only edges |
 | Re-export chains | no | no | no | no | resolved to the declarer |
-| Required imports | no | no | yes | no | `mustImport` |
+| Required imports | no | no | yes | no | no ([decided](#decided)) |
 | Cycles | no | no | files | projects | files and units |
 | External packages | no | yes | yes | per tag | per part |
 | Unit measures | no | no | no | no | yes |
@@ -598,10 +595,7 @@ const component = archetype('component')
     .files('dom', '{name}.dom.ts', {
       using: (s) => [s.logic, s.subcomponent.render, required.icons, required.strings, required.transition, required.application, required.ports],
     })
-    .files('dsl', '*.dsl.ts', {
-      using: (s) => [s.subcomponent.dsl, required.testRunner.contract],
-      mustImport: [required.testRunner.contract],
-    })
+    .files('dsl', '*.dsl.ts', { using: (s) => [s.subcomponent.dsl, required.testRunner.contract] })
     .files('testPage', '*.test-page.ts', { using: (s) => [s.subcomponent.testPage, pkg('vite-plus/*')] })
     .files('harness', '*.harness.ts', {
       using: (s) => [s.dom, s.logic, s.dsl, s.testPage, required.testRunner.runner, required.testRunner.contract, required.application, required.ports, pkg('vite-plus/*')],
@@ -628,7 +622,7 @@ const ui = archetype('ui')
 const journeys = archetype('journeys')
   .requires({ testRunner, ui })
   .contains((p, { required }) => p
-    .files('dsl', '*.dsl.ts', { using: [required.testRunner.contract, required.ui.dsl], mustImport: [required.testRunner.contract] })
+    .files('dsl', '*.dsl.ts', { using: [required.testRunner.contract, required.ui.dsl] })
     .files('rest', '**', { using: (s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl] }));
 
 const workingTitle = archetype('working-title')
@@ -694,8 +688,9 @@ The new ones are smells of the same kind as the known ones: `project`'s tests dr
 What fits:
 
 - Layer direction, a component reached only through its render file, logic kept off the dom, drivers kept out of
-  languages, and cycles all map directly. The depcruise rules become `using` lists, and the one that says what a
-  file must import, every language on the driver contract, is a `mustImport` (the spike left it out). `ui/icons`
+  languages, and cycles all map directly. The depcruise rules become `using` lists. The one that says what a file
+  must import, every language on the driver contract, has no counterpart: `using` already keeps languages off the
+  concrete drivers. `ui/icons`
   has no `icons.dom.ts`, so the marker leaves it out of `components`.
 - The nesting is the reach: a component reaches only its direct children, and `icons`, `strings` and `transition`
   are what `ui` provides to every component at any depth. The root provides the application and ports the same way.
@@ -945,8 +940,7 @@ Folders holding several components side by side stay out of scope: they would ne
 1. Model: archetype types, finding units on the file system, `unclassified`, specificity and its errors,
    `warp model`. Existing rules run on `unit` through a shim.
 2. Rule contract: scopes, `ModelView`, phase and `--phase`. Port the built-in rules.
-3. Structure: parts, surfaces, `using`, requires and provides with their checks, inline rules
-   (`mustImport`), `no-cross-unit-reexport`, `unit-cycle`, `no-cycle`. Working title's config lands here, reporting beside depcruise.
+3. Structure: parts, surfaces, `using`, requires and provides with their checks, `no-cross-unit-reexport`, `unit-cycle`, `no-cycle`. Working title's config lands here, reporting beside depcruise.
 4. Queries: `where` and `may`. Try them from omp on working title before going further, so a real consumer shapes
    what follows.
 5. Facts: assets. External imports and `unit-externals` are in.
@@ -984,8 +978,9 @@ Folders holding several components side by side stay out of scope: they would ne
 12. **Types for convenience, the load-time check for correctness.** Self surfaces (`s.subcomponent.render`) accept
     any name in the types and are checked when the config loads; everything else is strictly typed. Surface names
     aren't declared up front.
-13. **Required edges are structure.** A files part's `mustImport` sits beside its `using` and names a subset of it;
-    `must-import` judges it like any rule. Forbidding an edge is leaving it out of `using`.
+13. **No required edges until a project needs one.** `using` keeps a part off what it mustn't reach, so a rule that a
+    file must import something only adds a check that never fired on working title. Forbidding an edge is leaving it
+    out of `using`.
 14. **A unit may re-export only what it owns:** its own files and the surfaces of the units nested in it.
     `no-cross-unit-reexport` has no `allow`: a meant pass-through is structure (consumers use the other unit, the
     unit wraps it in its own type, or the other unit moves inside it), and the escape is turning the rule off.

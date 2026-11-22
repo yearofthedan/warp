@@ -5,7 +5,6 @@ import { type Fail, isName, isRecord } from './shared.ts';
 export interface DraftPart {
   data: PartData;
   using: unknown[];
-  mustImport: unknown[];
 }
 
 export interface Draft {
@@ -96,22 +95,15 @@ const draftPart = (archetype: string, part: RecordedPart, fail: Fail): DraftPart
   if (patterns.length === 0 || !patterns.every(isName))
     fail(`${where}: expected a ${part.kind === 'files' ? 'pattern' : 'path'} or a list of them`);
   if (part.kind === 'dir') checkDirPaths(where, patterns, fail);
-  const options = partOptions(where, part.kind, part.options, fail);
-  const using = references(where, 'using', options.using, fail);
-  const mustImport = references(where, 'mustImport', options.mustImport, fail);
+  const options = partOptions(where, part.options, fail);
+  const using = typeof options.using === 'function' ? options.using(partRefs()) : (options.using ?? []);
+  if (!Array.isArray(using)) fail(`${where}.using: expected a list of references, or a callback returning one`);
   const common = { name: name as string, using: [], description: options.description as string | undefined };
   const data: PartData =
     part.kind === 'files'
       ? { kind: part.kind, ...common, patterns }
       : { kind: part.kind, ...common, paths: patterns, archetype: dirArchetype(archetype, part.archetype) };
-  return { data, using, mustImport };
-};
-
-const references = (where: string, option: string, value: unknown, fail: Fail): unknown[] => {
-  const refs = typeof value === 'function' ? value(partRefs()) : (value ?? []);
-  if (Array.isArray(refs)) return refs;
-  fail(`${where}.${option}: expected a list of references, or a callback returning one`);
-  return [];
+  return { data, using: Array.isArray(using) ? using : [] };
 };
 
 const checkDirPaths = (where: string, paths: readonly unknown[], fail: Fail) => {
@@ -122,13 +114,10 @@ const checkDirPaths = (where: string, paths: readonly unknown[], fail: Fail) => 
 const isDirPath = (path: string): boolean =>
   path.split('/').every((segment) => segment !== '.' && segment !== '..' && /^(\{\w+\}|[^{}*]+)$/.test(segment));
 
-const optionKeys = { files: ['using', 'mustImport', 'description'], dir: ['using', 'description'] };
-
-const partOptions = (where: string, kind: PartData['kind'], value: unknown, fail: Fail): Record<string, unknown> => {
-  const keys = optionKeys[kind];
-  if (value !== undefined && !isRecord(value)) fail(`${where}: expected options, { ${keys.join(', ')} }`);
+const partOptions = (where: string, value: unknown, fail: Fail): Record<string, unknown> => {
+  if (value !== undefined && !isRecord(value)) fail(`${where}: expected options, { using, description }`);
   const options = isRecord(value) ? value : {};
-  const unknownKeys = Object.keys(options).filter((key) => !keys.includes(key));
+  const unknownKeys = Object.keys(options).filter((key) => !['using', 'description'].includes(key));
   if (unknownKeys.length > 0) fail(`${where}: unknown option ${unknownKeys.join(', ')}`);
   if (options.description !== undefined && typeof options.description !== 'string')
     fail(`${where}.description: expected a string`);

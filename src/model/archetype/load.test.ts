@@ -101,14 +101,9 @@ const workingTitleConfig = () => {
   const journeys = archetype('journeys')
     .requires({ testRunner, ui })
     .contains((p, { required }) =>
-      p
-        .files('dsl', '*.dsl.ts', {
-          using: [required.testRunner.contract, required.ui.dsl],
-          mustImport: [required.testRunner.contract],
-        })
-        .files('rest', '**', {
-          using: (s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl],
-        }),
+      p.files('dsl', '*.dsl.ts', { using: [required.testRunner.contract, required.ui.dsl] }).files('rest', '**', {
+        using: (s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl],
+      }),
     );
 
   const workingTitle = archetype('working-title')
@@ -211,9 +206,7 @@ describe('loadConfigData', () => {
       .identify({ match })
       .requires({ strings: dir() })
       .contains((p, { required, self }) =>
-        p
-          .dir('child', '{name}', self)
-          .files('src', '**', { using: [required.strings], mustImport: [required.strings] }),
+        p.dir('child', '{name}', self).files('src', '**', { using: [required.strings] }),
       );
     const config = defineConfig({
       root: archetype('top')
@@ -281,13 +274,7 @@ describe('loadConfigData', () => {
           requires: { strings: { kind: 'dir' } },
           parts: [
             { kind: 'dir', name: 'child', paths: ['{name}'], archetype: 'node', using: [] },
-            {
-              kind: 'files',
-              name: 'src',
-              patterns: ['**'],
-              using: [{ kind: 'required', name: 'strings' }],
-              mustImport: [{ kind: 'required', name: 'strings' }],
-            },
+            { kind: 'files', name: 'src', patterns: ['**'], using: [{ kind: 'required', name: 'strings' }] },
           ],
           provides: {},
         },
@@ -502,29 +489,6 @@ describe('loadConfigData', () => {
       'rulesets.default.on(root).module-cohesion: expected true, false or options',
       'rulesets.default.on(root).cognitive-complexity: expected true, false or options',
       "rulesets.default.on(root.src): expected 'off' or rule settings by id",
-    ]);
-  });
-
-  it('checks what a part must import: earlier parts or requirements, also in its using', () => {
-    const root = archetype('root')
-      .requires({ strings: dir() })
-      .contains((p, { required }) =>
-        p
-          .files('src', '**')
-          .files('test', '*.test.ts', {
-            using: (s) => [s.src],
-            // @ts-expect-error a files part has no surfaces
-            mustImport: (s) => [s.src, s.src.api, required.strings, pkg('vitest') as never],
-          })
-          .dir('dir', 'dir', { using: [], mustImport: [] } as never),
-      );
-    assert.deepEqual(failures({ root }), [
-      'root.dir: unknown option mustImport',
-      'root.test must import src.api; src is a files part, which has no surfaces',
-      'root.test must import required.strings, which its using does not list',
-      "root.test must import pkg('vitest'); a package belongs in using",
-      "root.test must import pkg('vitest'), which its using does not list",
-      'root requires strings, which no part lists in using',
     ]);
   });
 
