@@ -1,5 +1,8 @@
 # dependency-direction
 
+**Audience:** anyone reading a `dependency-direction` finding, or setting the rule.
+**Purpose:** what `dependency-direction` reports, why, and its options.
+
 Disallow imports from a kind the importing kind does not depend on, or in an archetype config, imports outside the
 importer's reach.
 
@@ -28,7 +31,7 @@ With this config:
 
 Incorrect code:
 
-```ts
+```ts fragment
 // src/domain/order.ts
 import { saveOrder } from '../adapters/index.ts'; // reported against src/adapters/db/orderRepo.ts
 import type { OrderRow } from '../adapters/db/orderRepo.ts';
@@ -36,14 +39,14 @@ import type { OrderRow } from '../adapters/db/orderRepo.ts';
 
 Correct code:
 
-```ts
+```ts fragment
 // src/domain/order.ts: the domain owns the port
 export interface OrderStore {
   save(order: Order): void;
 }
 ```
 
-```ts
+```ts fragment
 // src/adapters/db/orderRepo.ts: the adapter implements it
 import type { OrderStore } from '../../domain/order.ts';
 
@@ -66,6 +69,8 @@ lets importers through. The barrel's own re-exports are judged as its imports.
 With this config:
 
 ```ts
+import { archetype, dir } from 'warp';
+
 const card = archetype('card')
   .identify({ marker: '{name}.dom.ts' })
   .requires({ strings: dir() })
@@ -80,21 +85,21 @@ const card = archetype('card')
 
 Incorrect code:
 
-```ts
+```ts fragment
 // src/ui/project/project.dom.ts
 import { cardLooks } from './card/card.ts'; // private: card exposes only render
 import { renderBadge } from './card/badge/badge.dom.ts'; // private: card doesn't pass badge's render on
 import { title } from '../../shell.ts'; // above: a unit reaches up only through what it requires
 ```
 
-```ts
+```ts fragment
 // src/ui/project/project.ts
 import { renderCard } from './card/card.dom.ts'; // not in using: logic doesn't use the subcomponents
 ```
 
 Correct code:
 
-```ts
+```ts fragment
 // src/ui/project/project.dom.ts
 import { project } from './project.ts';
 import { renderCard } from './card/card.dom.ts';

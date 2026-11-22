@@ -1,5 +1,5 @@
 #!/bin/sh
-# help: Run every local check: secrets, format and lint, types, the dependency audit, the tests, then warp on itself.
+# help: Run every local check: secrets, comments, docs, format and lint, types, the audit, the tests, then warp on itself.
 
 set -eu
 
@@ -9,6 +9,8 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 do="$root/do"
 
 "$do" secrets
+"$do" comments
+"$do" docs
 vp check
 tsc -p "$root/tsconfig.json"
 "$do" audit

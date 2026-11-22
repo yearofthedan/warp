@@ -45,9 +45,8 @@ make_copy() {
   done
   printf '#!/bin/sh\necho "node $*" >> "$VP_LOG"\n' >"$copy/node_modules/.bin/node"
   cat >>"$copy/node_modules/.bin/node" <<'STUB'
-# The copy has no warp source, so warp checking itself is recorded and not run.
 case "$*" in
-src/cli.ts*) exit 0 ;;
+src/cli.ts* | scripts/_comments.ts* | scripts/_docs.ts*) exit 0 ;;
 esac
 STUB
   printf 'exec "%s" "$@"\n' "$(command -v node)" >>"$copy/node_modules/.bin/node"

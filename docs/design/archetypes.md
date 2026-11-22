@@ -1,5 +1,8 @@
 # Design: archetypes
 
+**Audience:** anyone changing warp's config language.
+**Purpose:** where the config language is going, and the source of truth for it.
+
 Status: in delivery. The config builders, their load-time checks, finding units (`warp model`), edge verdicts
 (`dependency-direction`), rule settings, `mustImport`, `unit-cycle` and `no-cycle` are in `src/model/archetype/`.
 
@@ -203,7 +206,7 @@ is `allow`, and the root defaults to `deny`.
 part (`rules` in its options). A built-in rule is configured by id. A rule defined inline is given by value under a
 local name, and a local name that shadows a built-in id is refused:
 
-```ts
+```ts fragment
 .rules((s, { required }) => ({
   'module-cohesion': { maxLines: 300 },                                        // built-in, by id
   'dsl-on-the-contract': mustImport({ from: s.dsl, to: required.testRunner }),   // inline, by value
@@ -216,7 +219,7 @@ Finding keys and the diff cache hash that data.
 
 ### Types
 
-```ts
+```ts fragment
 archetype(name: string)                 // each step returns the builder; order: as listed
   .identify({ marker: string } | { match: (dir: string, chain: UnitView[]) => false | Record<string, string> })
   .requires(Record<string, Archetype | Shape>)       // Shape: dir() or files(), a part with no archetype
@@ -370,7 +373,7 @@ else.
 
 ## Rule contract
 
-```ts
+```ts fragment
 interface Rule<O extends object = object> {
   id: string;
   docs?: string;
@@ -445,7 +448,7 @@ Rulesets are named exports of `warp.config.ts` that overlay the base config. The
 or at the PR. Overlays change rules only, so the structure is the same in every ruleset. They name parts by typed
 path, checked against the base config's types:
 
-```ts
+```ts fragment
 export const edit = ruleset(config, {
   rules: { 'cognitive-complexity': { max: 12 } },
   parts: {
@@ -732,6 +735,8 @@ Weaver has its own layers: ports at the bottom, an engine tier, operations, a da
 slices. Layers expose all of their code, so only `using` limits reach.
 
 ```ts
+import { archetype, defineConfig, dir, files, mustImport, pkg } from 'warp';
+
 const layer = archetype('layer')
   .requires({ testHelpers: dir() })
   .contains((p, { required }) => p
@@ -800,6 +805,8 @@ What doesn't, mostly design smells the model brings out rather than gaps in it:
 Warp's own package, still at `fitness/` in snippets.
 
 ```ts
+import { archetype, defineConfig, dir, files, mustImport, pkg } from 'warp';
+
 const rule = archetype('rule')
   .requires({ core: files() })
   .contains((p, { required }) => p
@@ -858,7 +865,7 @@ What doesn't fit well:
 A Nest app is a set of feature modules, each a folder with `{name}.module.ts`, holding controllers, services,
 repositories and DTOs, and importing other modules through what they export.
 
-```ts
+```ts fragment
 const nest = pkg('@nestjs/*');
 
 const nestModule = archetype('nest-module')
@@ -907,7 +914,7 @@ units.
 A library of components above the app's own, which app components import and which imports nothing from the app.
 It reuses working title's `component` archetype.
 
-```ts
+```ts fragment
 const designSystem = archetype('design-system')
   .contains((p) => p
     .dir('icons', 'icons')

@@ -1,5 +1,8 @@
 # cognitive-complexity
 
+**Audience:** anyone reading a `cognitive-complexity` finding, or setting the rule.
+**Purpose:** what `cognitive-complexity` reports, why, and its options.
+
 Limit how hard a function is to follow.
 
 ## Why

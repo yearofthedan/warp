@@ -1,5 +1,8 @@
 # warp
 
+**Audience:** anyone running warp on a project, or deciding whether to.
+**Purpose:** what warp does today, how to run it, and its config, rules and reporters.
+
 Architectural fitness checks for TypeScript codebases. It builds a model of the codebase (the import graph, which
 kind each module is, and the rules between kinds) and reports findings against it, as text for people, JSON or SARIF
 for tools, and hook responses for coding agents. `diff` reports only what a change made new or worse, so it can run after every edit.
@@ -186,7 +189,7 @@ unit above it the dir part that found it and its archetype, then the global sett
 that level, and `'*': false` does the same while the rules listed beside it stay on. Options merge nearest first.
 `loose` decides `unclassified`.
 
-```ts
+```ts fragment
 .dir('generated', 'src/generated', { rules: 'off' })
 .dir('modules', '{name}', module, { rules: { 'unit-cycle': false } })
 ```
@@ -208,6 +211,7 @@ Working title's application layer re-exports its ports so adapters can implement
 through `application` without breaking `dependency-direction`. A rule for that, in `warp/rules.ts`:
 
 ```ts
+// warp/rules.ts
 import { matchesGlob } from 'node:path';
 import { ConfigError, type Plugin, type Rule } from 'warp';
 

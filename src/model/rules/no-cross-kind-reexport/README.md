@@ -1,5 +1,8 @@
 # no-cross-kind-reexport
 
+**Audience:** anyone reading a `no-cross-kind-reexport` finding, or setting the rule.
+**Purpose:** what `no-cross-kind-reexport` reports, why, and its options.
+
 Disallow re-exporting what another kind declares.
 
 ## Why
@@ -29,31 +32,31 @@ With this config:
 
 Incorrect code:
 
-```ts
+```ts fragment
 // src/app/project.ts
 export { type ProjectsFolder } from '../domain/ports.ts';
 ```
 
-```ts
+```ts fragment
 // src/app/project.ts
 import { ProjectsFolder } from '../domain/ports.ts';
 
 export { ProjectsFolder };
 ```
 
-```ts
+```ts fragment
 // src/app/index.ts
 export * from '../domain/order.ts';
 ```
 
 Correct code:
 
-```ts
+```ts fragment
 // src/app/index.ts: a barrel over its own kind
 export { openProject } from './project.ts';
 ```
 
-```ts
+```ts fragment
 // src/app/project.ts: uses the port without passing it on, and exposes an app-level API instead
 import type { ProjectsFolder } from '../domain/ports.ts';
 

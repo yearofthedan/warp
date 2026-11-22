@@ -1,5 +1,8 @@
 # function-cohesion
 
+**Audience:** anyone reading a `function-cohesion` finding, or setting the rule.
+**Purpose:** what `function-cohesion` reports, why, and its options.
+
 Flag a long function whose statements fall into unrelated groups.
 
 ## Why
@@ -17,7 +20,7 @@ only once it is over `maxLines`.
 
 Incorrect code, over the tripwire:
 
-```ts
+```ts fragment
 export function handle(order: Order, log: (line: string) => void) {
   const placed = place(order);
   const id = placed.id;

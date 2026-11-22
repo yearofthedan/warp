@@ -1,5 +1,8 @@
 # module-cohesion
 
+**Audience:** anyone reading a `module-cohesion` finding, or setting the rule.
+**Purpose:** what `module-cohesion` reports, why, and its options.
+
 Flag a large module whose code falls into unrelated groups.
 
 ## Why

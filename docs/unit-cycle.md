@@ -1,5 +1,8 @@
 # unit-cycle
 
+**Audience:** anyone reading a `unit-cycle` finding, or setting the rule.
+**Purpose:** what `unit-cycle` reports, why, and its options.
+
 Report each import between sibling units that lies on a loop among them, in an archetype config.
 
 ## Why
@@ -22,6 +25,8 @@ that cross. A loop that grows only adds findings or raises a value.
 With this config, `domain` and `infra` loop when `src/domain/order.ts` imports `src/infra/db.ts`:
 
 ```ts
+import { archetype } from 'warp';
+
 const app = archetype('app').contains((p) =>
   p.dir('domain', 'src/domain').dir('infra', 'src/infra', { using: (s) => [s.domain] }),
 );
