@@ -236,7 +236,7 @@ describe('cycles', () => {
   const cycles = (rules = featuresMayLoop) =>
     check(app, imports, rules).filter((finding) => finding.rule !== 'dependency-direction');
 
-  it('reports each edge of a loop between files, ignoring type-only imports and imports of the file itself', () => {
+  it('reports each edge of a loop between files, counting type-only imports and ignoring imports of the file itself', () => {
     assert.deepEqual(keys(cycles().filter((finding) => finding.rule === 'no-cycle')), [
       'no-cycle:main.ts->domain/u.ts',
       'no-cycle:domain/u.ts->main.ts',
@@ -244,6 +244,8 @@ describe('cycles', () => {
       'no-cycle:infra/y.ts->domain/x.ts',
       'no-cycle:domain/m.ts->infra/w.ts',
       'no-cycle:infra/w.ts->domain/m.ts',
+      'no-cycle:domain/t.ts->infra/z.ts',
+      'no-cycle:infra/z.ts->domain/t.ts',
       'no-cycle:domain/p.ts->domain/q.ts',
       'no-cycle:domain/q.ts->domain/r.ts',
       'no-cycle:domain/r.ts->domain/p.ts',
@@ -297,7 +299,7 @@ describe('cycles', () => {
     assert.deepEqual(
       units.map(({ key, file, line, value }) => [key, file, line, value]),
       [
-        ['unit-cycle:domain->infra', 'domain/m.ts', 2, 3],
+        ['unit-cycle:domain->infra', 'domain/m.ts', 2, 4],
         ['unit-cycle:infra->domain', 'infra/w.ts', 7, 3],
       ],
     );
@@ -323,16 +325,19 @@ describe('cycles', () => {
           ['domain/x.ts', 'infra/y.ts', 1],
           ['domain/m.ts', 'infra/w.ts', 2],
           ['domain/m.ts', 'infra/v.ts', 1],
+          ['domain/t.ts', 'infra/z.ts', 1],
         ],
       ],
     );
   });
 
-  it("counts type-only imports where types is 'count'", () => {
-    const counted = cycles(featuresMayLoop.rules({ 'no-cycle': { types: 'count' }, 'unit-cycle': { types: 'count' } }));
-    assert.ok(keys(counted).includes('no-cycle:domain/t.ts->infra/z.ts'));
-    const loop = counted.find((finding) => finding.key === 'unit-cycle:domain->infra')!;
-    assert.equal(loop.value, 4);
+  it("leaves type-only imports out where types is 'ignore'", () => {
+    const ignored = cycles(
+      featuresMayLoop.rules({ 'no-cycle': { types: 'ignore' }, 'unit-cycle': { types: 'ignore' } }),
+    );
+    assert.ok(!keys(ignored).includes('no-cycle:domain/t.ts->infra/z.ts'));
+    const loop = ignored.find((finding) => finding.key === 'unit-cycle:domain->infra')!;
+    assert.equal(loop.value, 3);
   });
 
   it("attaches each rule's docs", () => {

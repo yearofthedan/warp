@@ -1,11 +1,11 @@
-import type { ImportEdge } from '../facts.ts';
+import type { ImportEdge } from '../model/facts.ts';
 import { ConfigError } from '../model/configError.ts';
 
 export interface CycleOptions {
   types: 'count' | 'ignore';
 }
 
-export const cycleDefaults: CycleOptions = { types: 'ignore' };
+export const cycleDefaults: CycleOptions = { types: 'count' };
 
 export const cycleOptions = (raw: Record<string, unknown>, at: string): Partial<CycleOptions> => {
   const unknown = Object.keys(raw).filter((key) => key !== 'types');

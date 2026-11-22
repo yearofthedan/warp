@@ -332,12 +332,13 @@ finding is reported on, so a project can set different thresholds for tests and 
 utilities.
 
 **Edge kinds.** Edges record whether they are type-only and whether they re-export. The cycle rules take
-`types: 'count' | 'ignore'`, since a type-only edge doesn't load at run time. Re-exports have their own rule.
+`types: 'count' | 'ignore'`: a type-only edge couples two files as much as a value does, so it counts by default,
+and `'ignore'` keeps the loops that matter at run time. Re-exports have their own rule.
 
 **Cycles.** `unit-cycle` builds, for each unit, the graph of edges between its child units, and reports each loop,
 so two layers that import each other are a cycle even when no pair of files is. `no-cycle` does the same over files.
 Each reports one finding per edge in a loop, keyed `unit-cycle:src/ui->src/application` or `no-cycle:a.ts->b.ts`,
-so a loop that grows only adds findings. Type-only edges are ignored by default. A known loop among a dir part's units is
+so a loop that grows only adds findings. Type-only edges count by default. A known loop among a dir part's units is
 tolerated by turning the rule off on that part, `.on(app.features, { 'unit-cycle': false })`, and `where` shows it as
 off.
 

@@ -31,9 +31,14 @@ describe('check', () => {
       'module-cohesion:src/app/handle.ts',
       'module-cohesion:src/domain/pricing.ts',
       'no-cross-unit-reexport:src/app/index.ts->src/domain/order.ts',
+      'no-cycle:src/adapters/db/orderRepo.ts->src/domain/order.ts',
+      'no-cycle:src/adapters/index.ts->src/adapters/db/orderRepo.ts',
+      'no-cycle:src/domain/order.ts->src/adapters/index.ts',
       'no-double-export:src/adapters/index.ts->src/adapters/db/orderRepo.ts',
       'no-double-export:src/app/index.ts->src/app/handle.ts',
       'unclassified:src/stray.ts',
+      'unit-cycle:src/adapters->src/domain',
+      'unit-cycle:src/domain->src/adapters',
     ]);
   });
 

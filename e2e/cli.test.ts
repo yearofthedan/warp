@@ -108,7 +108,7 @@ describe('warp diff', () => {
       encoding: 'utf8',
     });
     assert.equal(diffed.status, 0, diffed.stderr);
-    assert.equal(JSON.parse(diffed.stdout).added.length, 10);
+    assert.equal(JSON.parse(diffed.stdout).added.length, 15);
     assert.equal(run(['worktree', 'list']).trim().split('\n').length, 1);
   });
 
