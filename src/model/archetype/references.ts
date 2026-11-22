@@ -1,4 +1,4 @@
-import { ConfigError } from '../rule.ts';
+import { ConfigError } from '../configError.ts';
 import { recordedAs } from './builder.ts';
 import type { ArchetypeData, PartRefData, RefData, RuleSettingsData } from './data.ts';
 import type { Draft } from './draft.ts';

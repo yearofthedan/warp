@@ -1,4 +1,4 @@
-import { ConfigError } from '../rule.ts';
+import { ConfigError } from '../configError.ts';
 import type { ArchetypeData, ConfigData, DirPartData } from './data.ts';
 
 export interface Folders {

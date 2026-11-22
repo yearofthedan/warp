@@ -1,4 +1,4 @@
-import { ConfigError } from '../rule.ts';
+import { ConfigError } from '../configError.ts';
 import { type RecordedRuleset, recordedAs } from './builder.ts';
 import type { ConfigData, RuleSettingsData } from './data.ts';
 import { type Fail, isRecord, list } from './shared.ts';

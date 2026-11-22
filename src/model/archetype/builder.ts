@@ -1,4 +1,4 @@
-import { ConfigError } from '../rule.ts';
+import { ConfigError } from '../configError.ts';
 import type { IdentifyData } from './data.ts';
 
 declare const referenceBrand: unique symbol;

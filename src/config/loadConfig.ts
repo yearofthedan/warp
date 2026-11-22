@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ConfigError } from '../model/rule.ts';
+import { ConfigError } from '../model/configError.ts';
 
 export const configNames = ['warp.config.ts', 'warp.config.mts', 'warp.config.js', 'warp.config.mjs'];
 

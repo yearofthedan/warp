@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import { ConfigError } from '../rule.ts';
+import { ConfigError } from '../configError.ts';
 import { type AnyArchetype, archetype, pkg } from './builder.ts';
-import { loadConfigData } from './load.ts';
+import { loadConfigData } from '../../app/load.ts';
 import { type Folders, globRegex, type Model, resolveModel, specificity } from './resolve.ts';
 
 const folders = (paths: readonly string[]): Folders => {

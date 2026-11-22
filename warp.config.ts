@@ -4,40 +4,41 @@ const testing = [pkg('vite-plus/test'), pkg('node:*')];
 
 const rules = archetype('rules')
   .description('The built-in rules: one folder per rule, holding its module, its tests and its page')
-  .requires({ model: files() })
+  .requires({ model: files(), rule: files(), app: files() })
   .contains((p, { required }) =>
-    p
-      .files('code', '**', { using: [required.model, pkg('node:*')] })
-      .files('test', '**/*.test.ts', { using: (s) => [s.code, required.model, ...testing] }),
+    p.files('code', '**', { using: [required.rule, required.model] }).files('test', '**/*.test.ts', {
+      using: (s) => [s.code, required.app, required.rule, required.model, ...testing],
+    }),
   );
 
 const warp = archetype('warp')
   .contains((p) =>
     p
-      .files('model', 'src/model/**', { using: [pkg('node:*')] })
-      .dir('rules', 'src/model/rules', rules)
-      .files('app', 'src/app/**', { using: (s) => [s.model, pkg('node:*')] })
-      .files('reporters', 'src/reporters/**', { using: (s) => [s.model, pkg('node:*')] })
+      .files('model', 'src/model/**')
+      .files('rule', 'src/rule/**', { using: (s) => [s.model] })
+      .dir('rules', 'src/rules', rules)
+      .files('app', 'src/app/**', { using: (s) => [s.rule, s.model, pkg('node:*')] })
+      .files('reporters', 'src/reporters/**', { using: (s) => [s.rule, s.model] })
       .files('adapters', ['src/analysis/**', 'src/config/**', 'src/git/**'], {
-        using: (s) => [s.app, s.model, pkg('node:*'), pkg('typescript')],
+        using: (s) => [s.app, s.rule, s.model, pkg('node:*'), pkg('typescript')],
       })
       .files('entry', ['src/cli.ts', 'src/builtins.ts'], {
-        using: (s) => [s.adapters, s.reporters, s.app, s.model, s.rules, pkg('node:*')],
+        using: (s) => [s.adapters, s.reporters, s.app, s.rule, s.model, s.rules, pkg('node:*')],
       })
-      .files('api', 'src/index.ts', { using: (s) => [s.model] })
+      .files('api', 'src/index.ts', { using: (s) => [s.app, s.rule, s.model] })
       .files('integration', 'integrations/**', { using: [pkg('node:*')] })
       .files('tooling', ['*.ts', 'scripts/*.ts'], {
         using: (s) => [s.api, pkg('node:*'), pkg('vite-plus'), pkg('typescript')],
       })
       .files('unitTest', ['src/**/*.test.ts', 'integrations/**/*.test.ts', 'scripts/*.test.ts'], {
-        using: (s) => [s.entry, s.app, s.reporters, s.model, s.rules, s.integration, s.tooling, ...testing],
+        using: (s) => [s.entry, s.app, s.reporters, s.rule, s.model, s.rules, s.integration, s.tooling, ...testing],
       })
       .files('integrationTest', 'src/**/*.integration.test.ts', {
-        using: (s) => [s.adapters, s.entry, s.app, s.reporters, s.model, s.rules, ...testing],
+        using: (s) => [s.adapters, s.entry, s.app, s.reporters, s.rule, s.model, s.rules, ...testing],
       })
       .files('e2e', ['e2e/**', 'do.test.ts'], { using: testing }),
   )
-  .provides((s) => ({ model: s.model }))
+  .provides((s) => ({ model: s.model, rule: s.rule, app: s.app }))
   .exposes((s) => ({ api: s.api }));
 
 const testsRunLong = { 'function-cohesion': false };

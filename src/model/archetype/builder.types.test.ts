@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, expectTypeOf, it } from 'vite-plus/test';
-import { ConfigError } from '../rule.ts';
+import { ConfigError } from '../configError.ts';
 import { type AnyArchetype, archetype, defineConfig, dir, files, pkg, ruleset } from './builder.ts';
-import { loadConfigData } from './load.ts';
+import { loadConfigData } from '../../app/load.ts';
 
 const testRunner = archetype('test-runner')
   .contains((p) => p.files('contract', 'driver.ts').files('runner', '**', { using: (s) => [s.contract] }))
