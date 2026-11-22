@@ -30,10 +30,10 @@ the edit itself is never blocked. A failed run is left out of the context. The e
    it everywhere; in a project without a config the run fails and the extension stays silent. Environment
    variables change what it runs, set where you start omp:
    - `WARP_BASE=main...` reports against where the branch left main, instead of the last commit.
-   - `WARP_RULESET=edit` checks with a [ruleset](../../docs/config.md#rulesets) from a `warp.config.ts`.
+   - `WARP_RULESET=edit` checks with a [ruleset](../../docs/config.md#rulesets) from the config.
    - `WARP_COMMAND="pnpm exec warp"` runs a project dev dependency instead of the linked command.
 
 4. **Confirm it works.** With a clean tree, `warp diff HEAD --reporter omp` prints nothing. Add an import that
-   breaks a `dependsOn` rule, such as a domain module importing an adapter, and run it again: it prints
+   no `using` allows, such as a domain module importing an adapter, and run it again: it prints
    `{"additionalContext": ...}` naming the import. Revert it, start a new omp session (extensions load at session
    start), and ask omp to make the same edit. Its next reply should take the finding into account.

@@ -49,5 +49,5 @@ The finding's value is the total, and the message names the largest increments w
 
 ## When not to use it
 
-For generated code, or parsers and state machines whose shape follows a grammar. Raise `max` for that kind or part rather
+For generated code, or parsers and state machines whose shape follows a grammar. Raise `max` for that part rather
 than turning the rule off.

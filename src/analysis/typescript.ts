@@ -1,23 +1,22 @@
 import { join, relative, sep } from 'node:path';
 import { API } from 'typescript/sync';
 import type { Analyzer } from '../app/ports.ts';
-import { type AnalysisScope, isExcluded } from '../model/config.ts';
 import type { ModuleFacts, Project } from '../model/facts.ts';
 import { moduleEdges, type Resolver } from './imports.ts';
 import { countLines, readSource } from './source.ts';
 import { functionFacts, moduleUnits } from './units.ts';
 
 export const typescriptAnalyzer: Analyzer = {
-  analyze(root: string, scope: AnalysisScope): Project {
+  analyze(root: string, tsconfig: readonly string[]): Project {
     const api = new API({ cwd: root });
     try {
-      const tsconfigs = [scope.tsconfig].flat().map((path) => join(root, path));
+      const tsconfigs = tsconfig.map((path) => join(root, path));
       const snapshot = api.createSnapshot({ openProjects: tsconfigs });
       const modules = new Map<string, ModuleFacts>();
       for (const tsconfig of tsconfigs) {
         const project = snapshot.getConfiguredProject(tsconfig);
         if (!project) throw new Error(`could not load ${tsconfig}`);
-        for (const module of analyzeProgram(root, scope, project, modules)) modules.set(module.file, module);
+        for (const module of analyzeProgram(root, project, modules)) modules.set(module.file, module);
       }
       if (modules.size === 0) throw new Error(`${tsconfigs.join(', ')} include no files to check`);
       return { modules: [...modules.values()] };
@@ -31,7 +30,6 @@ type Configured = NonNullable<ReturnType<ReturnType<API['createSnapshot']>['getC
 
 const analyzeProgram = (
   root: string,
-  scope: AnalysisScope,
   { program, checker }: Configured,
   done: ReadonlyMap<string, ModuleFacts>,
 ): ModuleFacts[] => {
@@ -53,7 +51,7 @@ const analyzeProgram = (
   };
   const modules: ModuleFacts[] = [];
   for (const [fileName, file] of files) {
-    if (done.has(file) || isExcluded(scope, file)) continue;
+    if (done.has(file) || file.endsWith('.d.ts')) continue;
     const sourceFile = program.getSourceFile(fileName);
     if (!sourceFile) continue;
     const source = readSource(checker, sourceFile, file);

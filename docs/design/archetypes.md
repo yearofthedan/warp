@@ -4,14 +4,14 @@
 **Purpose:** where the config language is going, and the source of truth for it.
 
 Status: in delivery. The config builders, their load-time checks, finding units (`warp model`), edge verdicts
-(`dependency-direction`), package edges (`unit-externals`), `no-double-export`, rule settings, `mustImport`,
-`unit-cycle` and `no-cycle` are in, and the built-in rules run on archetype configs through the rule contract's
-module and project scopes.
+(`dependency-direction`), package edges (`unit-externals`), `no-double-export`, `no-cross-unit-reexport`, rulesets,
+`mustImport`, `unit-cycle` and `no-cycle` are in, and the built-in rules and plugins run through the rule contract's
+module and project scopes. Kinds are gone.
 
 ## Summary
 
-Warp (renamed from fitness) classifies files today with `kinds`: a flat list of globs, the first match wins. This
-design replaces them with **archetypes**: unit types that nest, so a config describes the codebase as a tree of
+Warp (renamed from fitness) classified files with `kinds`: a flat list of globs, the first match wins. This
+design replaced them with **archetypes**: unit types that nest, so a config describes the codebase as a tree of
 modules rather than a list of folders. It also widens the rule contract so rules can see whole units and the whole
 graph, not one file at a time.
 
@@ -98,7 +98,7 @@ A config is built with typed, chained builders that return plain data. Each step
 `requires` from above, what it `contains`, what it `exposes` to its parent, and what it `provides` to anything below.
 
 ```ts
-import { archetype, defineConfig, dir, files, pkg } from 'warp';
+import { archetype, defineConfig, dir, files, pkg, ruleset } from 'warp';
 
 const testRunner = archetype('test-runner')
   .contains((p) => p
@@ -135,7 +135,9 @@ const app = archetype('app')
     .dir('testRunner', 'src/test-helpers', testRunner, { using: (s) => [s.domain, s.application, s.ui.testPage] }))
   .provides((s) => ({ testRunner: s.testRunner, application: s.application }));
 
-export default defineConfig({ root: app, rules: { 'cognitive-complexity': { max: 15 } } });
+const base = ruleset().rules({ 'cognitive-complexity': { max: 15 } }).on(component.test, { 'function-cohesion': false });
+
+export default defineConfig({ root: app, rulesets: { default: base } });
 ```
 
 Read it as: the project holds a domain, an application, a ui, an entry point and a test runner. A component is a
@@ -204,20 +206,22 @@ A provision that nothing below requires is a warning.
 `warn` reports them without counting them in `--fail`, and `deny` makes each an `unclassified` finding. The default
 is `allow`, and the root defaults to `deny`.
 
-**Rules.** One `rules` setting in four places: global (`defineConfig`), archetype (`.rules()`), dir part and files
-part (`rules` in its options). A built-in rule is configured by id. A rule defined inline is given by value under a
-local name, and a local name that shadows a built-in id is refused:
+**Structure and rules are separate.** The archetypes say what the codebase is: parts, `using`, surfaces,
+requirements, and the constraints that are part of the architecture. Which rules judge it, and how strictly, lives in
+[rulesets](#rulesets), so the structure reads the same whatever the thresholds, and tuning a rule never touches it.
+
+**Constraints.** `.constraints()` gives an archetype's inline rules by value under local names. A local name that
+shadows a registered rule's id is refused:
 
 ```ts fragment
-.rules((s, { required }) => ({
-  'module-cohesion': { maxLines: 300 },                                        // built-in, by id
-  'dsl-on-the-contract': mustImport({ from: s.dsl, to: required.testRunner }),   // inline, by value
+.constraints((s, { required }) => ({
+  'dsl-on-the-contract': mustImport({ from: s.dsl, to: required.testRunner }),
 }))
 ```
 
-**Plain data.** The builders return data, and references become part paths once resolved. `--print-config` prints the
-resolved model with every default filled in; `match` functions and plugin rules are the only code left in it.
-Finding keys and the diff cache hash that data.
+**Plain data.** The builders return data, and references become part paths once resolved. `warp model --json` prints
+the resolved model with every unit's and part's rules; `match` functions and plugin rules are the only code left in
+the data. Finding keys and the diff cache hash that data.
 
 ### Types
 
@@ -229,8 +233,9 @@ archetype(name: string)                 // each step returns the builder; order:
   .exposes((s) => Record<string, Ref | Ref[]>)       // unset: everything is exposed
   .provides((s) => Record<string, Ref>)              // offered to anything below that requires the name
   .loose('allow' | 'warn' | 'deny')                  // default 'allow'; the root defaults to 'deny'
-  .rules(RuleSettings | ((s, { required }) => RuleSettings))
+  .constraints((s, { required }) => Record<string, InlineRule>)   // InlineRule: mustImport, for now
   .description(string)                               // for agents choosing where code goes
+// after .contains(), archetype.<part> is that part's handle, for rulesets
 
 type Ref = Reference;   // s.part, s.part.surface, required.name, required.name.surface
 type Pkg = Package;     // pkg('vitest'), pkg('node:*'), pkg('@aws-sdk/*'), pkg('*')
@@ -241,18 +246,22 @@ type Using = (Ref | Pkg)[] | ((s: PartsAbove) => (Ref | Pkg)[]);
 // p.dir(name: string, path: string | string[], archetype: Archetype, options?: PartOptions)
 interface PartOptions {
   using?: Using;                 // what its files may import, beyond their own part
-  rules?: RuleSettings;
   description?: string;
 }
 
+ruleset()                        // each step returns a new ruleset
+  .extends(Ruleset)              // its lines first; one base
+  .rules(RuleSettings)           // the whole config
+  .on(Archetype | PartHandle, RuleSettings)
+
 // 'off' is shorthand for { '*': false }: every rule off at that level, any listed beside '*' back on
-type RuleSettings = 'off' | Record<string, boolean | object | InlineRule>;   // InlineRule: mustImport, for now
+type RuleSettings = 'off' | Record<string, boolean | object>;
 
 interface WarpConfig {
   root: Archetype;
   tsconfig?: string | string[];  // default 'tsconfig.json'; their programs are what Warp reads
   plugins?: Record<string, Plugin>;
-  rules?: RuleSettings;
+  rulesets?: Record<string, Ruleset>;   // 'default' applies when the command names none
 }
 ```
 
@@ -290,8 +299,8 @@ code imports (CSS, JSON, SVG) belongs to a part like any other file. It can be t
 apply to it, but nothing is analysed inside it. Facts come from fact sources (today, the TS analysis), so another
 source, such as CSS's own `@import`s, can add edges later without touching rules.
 
-**Generated files.** Generated code is a part with its rules off: `.dir('generated', 'src/generated', {
-rules: 'off' })`, or `rules: { '*': false, 'unit-cycle': true }` to keep a few. It stays a normal node: its importers are judged by
+**Generated files.** Generated code is a part whose rules a ruleset turns off: `.on(app.generated, 'off')`, or
+`.on(app.generated, { '*': false, 'unit-cycle': true })` to keep a few. It stays a normal node: its importers are judged by
 their own `using`, and it counts in fan-in, cycles and queries. Only findings located in it are
 silenced.
 
@@ -343,7 +352,8 @@ utilities.
 so two layers that import each other are a cycle even when no pair of files is. `no-cycle` does the same over files.
 Each reports one finding per edge in a loop, keyed `unit-cycle:src/ui->src/application` or `no-cycle:a.ts->b.ts`,
 so a loop that grows only adds findings. Type-only edges are ignored by default. A known loop among a dir part's units is
-tolerated by turning the rule off on that part, `rules: { 'unit-cycle': false }`, and `where` shows it as off.
+tolerated by turning the rule off on that part, `.on(app.features, { 'unit-cycle': false })`, and `where` shows it as
+off.
 
 ### Rules that judge the model
 
@@ -449,22 +459,26 @@ Diff matches findings by key, so a key must survive edits that don't change the 
 
 ## Rulesets
 
-Rulesets are named exports of `warp.config.ts` that overlay the base config. They answer "when": after each edit,
-or at the PR. Overlays change rules only, so the structure is the same in every ruleset. They name parts by typed
-path, checked against the base config's types:
+Rulesets hold every rule setting, and answer "how strictly, and when": after each edit, or at the PR. A ruleset is
+flat, one line per change, and names its places by value, so a misspelt archetype or part fails to compile:
 
 ```ts fragment
-export const edit = ruleset(config, {
-  rules: { 'cognitive-complexity': { max: 12 } },
-  parts: {
-    'ui.components': { rules: { 'module-cohesion': false } },
-    'ui.components.test': { rules: { 'function-cohesion': false } },
-  },
-});
+const base = ruleset()
+  .rules({ 'cognitive-complexity': { max: 15 } })
+  .on(component.test, { 'function-cohesion': false });
+
+export const edit = ruleset()
+  .extends(base)
+  .rules({ 'cognitive-complexity': { max: 12 } })
+  .on(ui.components, { 'module-cohesion': false });
+
+export default defineConfig({ root: app, rulesets: { default: base, edit } });
 ```
 
-A part path names that part in every unit at any depth, since recursive components share one part. `--print-config`
-prints the part tree with each part's resolved rules.
+An archetype's line reaches every unit of that archetype at any depth, since recursive components share one
+archetype, and a dir part's line every unit it finds. `default` applies without `--ruleset`. Boundary rules
+(`dependency-direction`, the cycle and re-export rules, `unclassified`) are on everywhere until a ruleset turns them
+off. `warp model --rules` shows what each unit and part changes.
 
 ## Queries
 
@@ -609,7 +623,7 @@ const component = archetype('component')
       ],
     }))
   .exposes((s) => ({ render: s.dom, testPage: s.testPage, dsl: s.dsl }))
-  .rules((s, { required }) => ({
+  .constraints((s, { required }) => ({
     'dsl-on-the-driver-contract': mustImport({ from: s.dsl, to: required.testRunner.contract }),
   }));
 
@@ -628,7 +642,7 @@ const journeys = archetype('journeys')
   .contains((p, { required }) => p
     .files('dsl', '*.dsl.ts', { using: [required.testRunner.contract, required.ui.dsl] })
     .files('rest', '**', { using: (s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl] }))
-  .rules((s, { required }) => ({
+  .constraints((s, { required }) => ({
     'dsl-on-the-driver-contract': mustImport({ from: s.dsl, to: required.testRunner.contract }),
   }));
 
@@ -740,7 +754,7 @@ Weaver has its own layers: ports at the bottom, an engine tier, operations, a da
 slices. Layers expose all of their code, so only `using` limits reach.
 
 ```ts
-import { archetype, defineConfig, dir, files, mustImport, pkg } from 'warp';
+import { archetype, defineConfig, dir, files, mustImport, pkg, ruleset } from 'warp';
 
 const layer = archetype('layer')
   .requires({ testHelpers: dir() })
@@ -767,12 +781,10 @@ const weaver = archetype('weaver')
     .dir('domain', 'src/domain', layer, { using: (s) => [s.ports, pkg('node:path')] })
     .dir('utils', 'src/utils', layer, { using: (s) => [s.domain, s.ports, pkg('*')] })
     .dir('engines', ['src/ts-engine', 'src/operations'], layer, {
-      rules: { 'unit-cycle': false },   // its two units use each other; see below and Open
       using: (s) => [s.domain, s.ports, s.utils, pkg('*')],
     })
     .dir('plugins', 'src/plugins', plugins)
     .dir('daemon', ['src/daemon', 'src/adapters'], layer, {
-      rules: { 'unit-cycle': false },
       using: (s) => [s.domain, s.ports, s.utils, s.engines, s.plugins, pkg('*')],
     })
     .dir('testHelpers', 'src/__testHelpers__', {
@@ -782,7 +794,10 @@ const weaver = archetype('weaver')
     testHelpers: s.testHelpers, domain: s.domain, ports: s.ports, utils: s.utils, engines: s.engines,
   }));
 
-export default defineConfig({ root: weaver, tsconfig: ['tsconfig.json', 'tsconfig.test.json'] });
+// engines' two units use each other, and so do daemon's; see below and Open
+const base = ruleset().on(weaver.engines, { 'unit-cycle': false }).on(weaver.daemon, { 'unit-cycle': false });
+
+export default defineConfig({ root: weaver, tsconfig: ['tsconfig.json', 'tsconfig.test.json'], rulesets: { default: base } });
 ```
 
 What fits: the tiers, and plugins as slices: the `plugin` part doesn't list itself, so a Svelte plugin couldn't
@@ -807,7 +822,8 @@ What doesn't, mostly design smells the model brings out rather than gaps in it:
 
 ### Warp itself
 
-Warp's own package, still at `fitness/` in snippets.
+Warp's own package, as it was laid out when this was written. [warp.config.ts](../../warp.config.ts) is the config
+it checks itself with today.
 
 ```ts
 import { archetype, defineConfig, dir, files, mustImport, pkg } from 'warp';
@@ -943,29 +959,10 @@ What doesn't:
 
 Folders holding several components side by side stay out of scope: they would need units made of file groups.
 
-## Migration
-
-- `kinds` is replaced. Each kind becomes a files part of the root with its globs, its `dependsOn` as `using`, and its
-  `rules`. That's mechanical: `warp migrate-config` prints it, and the project nests parts by hand afterwards.
-- `exclude` is removed; the tsconfig decides which files are read. Today's configs exclude tests, so the first run
-  after migrating will classify test files, which need parts. Projects whose tsconfig leaves tests out
-  need a tsconfig that holds them.
-- Overlaps between kinds, which order resolved silently, now resolve by specificity or fail as equal-specificity
-  errors. A flat migration keeps globs as they are, so expect a few on the first run.
-- Today "a kind may import itself" covers every file in the kind, and a files part still does. Two units of one dir
-  part need `using: [<own part>]` to meet. A flat migration makes one part per kind, so nothing changes until a dir
-  part uses a placeholder.
-- Keys of existing rules keep their form (`rule:file->file`), so the first diff after migrating is quiet apart from
-  the renamed rule (`no-cross-kind-reexport` to `no-cross-unit-reexport`). The diff cache key already includes the
-  tool's digest, so old findings aren't reused.
-- Plugins use `unit` and `model.unitOf` in place of `RuleContext.kind` and `kindOf`. The only plugin today, the test
-  fixture modelled on working title, becomes an inline rule.
-- Ruleset overlays move from `kinds: { x: { rules } }` to `parts: { 'x': { rules } }`; `migrate-config` rewrites them.
-
 ## Delivery
 
 1. Model: archetype types, finding units on the file system, `unclassified`, specificity and its errors,
-   `warp model`, `migrate-config`. Existing rules run on `unit` through a shim.
+   `warp model`. Existing rules run on `unit` through a shim.
 2. Rule contract: scopes, `ModelView`, phase and `--phase`. Port the built-in rules.
 3. Structure: parts, surfaces, `using`, requires and provides with their checks, inline rules
    (`mustImport`), `no-cross-unit-reexport`, `unit-cycle`, `no-cycle`. Working title's config lands here, reporting beside depcruise.
@@ -1036,7 +1033,7 @@ Folders holding several components side by side stay out of scope: they would ne
   the runner". A shorthand such as `s.$unit` would cut most of them.
 - **Self surfaces are checked late.** `s.subcomponent.<anything>` compiles and offers no completions; a typo shows
   up when the config loads, not in the editor.
-- **Callbacks mean the config is data only after it runs.** `--print-config` shows the result, but the source can't
+- **Callbacks mean the config is data only after it runs.** `warp model --json` shows the result, but the source can't
   be read statically, and `match` functions and plugin rules stay executable.
 
 ## Next step

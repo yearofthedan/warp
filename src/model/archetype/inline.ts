@@ -1,6 +1,6 @@
 import type { ModuleFacts, Project } from '../facts.ts';
 import type { Finding } from '../rule.ts';
-import type { ArchetypeData, ConfigData, MustImportData, RuleSettingsData } from './data.ts';
+import type { ArchetypeData, ConfigData, MustImportData } from './data.ts';
 import { place } from './place.ts';
 import type { Verdicts } from './reach.ts';
 import type { Model, UnitView } from './resolve.ts';
@@ -11,17 +11,8 @@ interface Declared {
   owner: string;
 }
 
-const inlineRules = (settings: RuleSettingsData | undefined, owner: string): Declared[] =>
-  typeof settings === 'object'
-    ? Object.entries(settings).flatMap(([name, rule]) =>
-        typeof rule === 'object' && 'inline' in rule ? [{ name, rule: rule as MustImportData, owner }] : [],
-      )
-    : [];
-
-const declaredIn = (archetype: ArchetypeData): Declared[] => [
-  ...inlineRules(archetype.rules, archetype.name),
-  ...archetype.parts.flatMap((part) => inlineRules(part.rules, `${archetype.name}.${part.name}`)),
-];
+const declaredIn = (archetype: ArchetypeData): Declared[] =>
+  Object.entries(archetype.constraints ?? {}).map(([name, rule]) => ({ name, rule, owner: archetype.name }));
 
 export const inlineFindings = (config: ConfigData, model: Model, verdicts: Verdicts, project: Project): Finding[] => {
   const modules = new Map(project.modules.map((module) => [module.file, module]));

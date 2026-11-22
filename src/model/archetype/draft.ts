@@ -1,11 +1,18 @@
-import { partRefs, type RecordedArchetype, type RecordedPart, recordedAs, requiredRefs, self } from './builder.ts';
+import {
+  archetypeMethods,
+  partRefs,
+  type RecordedArchetype,
+  type RecordedPart,
+  recordedAs,
+  requiredRefs,
+  self,
+} from './builder.ts';
 import type { ArchetypeData, IdentifyData, Loose, PartData, RequirementData } from './data.ts';
 import { type Fail, isName, isRecord } from './shared.ts';
 
 export interface DraftPart {
   data: PartData;
   using: unknown[];
-  rules: unknown;
 }
 
 export interface Draft {
@@ -13,7 +20,7 @@ export interface Draft {
   parts: DraftPart[];
   exposes?: Record<string, unknown[]>;
   provides: Record<string, unknown>;
-  rules: unknown;
+  constraints: unknown;
 }
 
 const looseValues: readonly unknown[] = ['allow', 'warn', 'deny'];
@@ -69,8 +76,16 @@ export const draft = (name: string, state: RecordedArchetype, fail: Fail): Draft
       ? Object.fromEntries(Object.entries(exposes).map(([surface, refs]) => [surface, [refs].flat()]))
       : undefined,
     provides: isRecord(provides) ? provides : {},
-    rules: typeof state.rules === 'function' ? state.rules(partRefs(), { required: requiredRefs() }) : state.rules,
+    constraints: constraintsOf(name, state.constraints, fail),
   };
+};
+
+const constraintsOf = (name: string, value: unknown, fail: Fail): unknown => {
+  if (value === undefined) return undefined;
+  const constraints = typeof value === 'function' ? value(partRefs(), { required: requiredRefs() }) : undefined;
+  if (isRecord(constraints)) return constraints;
+  fail(`${name}.constraints: expected a callback returning inline rules by name, (s) => ({ x: mustImport(...) })`);
+  return undefined;
 };
 
 const checkFields = (name: string, state: RecordedArchetype, fail: Fail) => {
@@ -96,6 +111,8 @@ const draftPart = (archetype: string, part: RecordedPart, fail: Fail): DraftPart
   const { name } = part;
   if (!isName(name) || name.includes('.'))
     fail(`${archetype}: a part's name is a non-empty string without dots, not ${JSON.stringify(name)}`);
+  else if ((archetypeMethods as readonly string[]).includes(name))
+    fail(`${archetype}: a part named ${name} would hide the archetype's ${name}`);
   const where = `${archetype}.${String(name)}`;
   const patterns = [part.kind === 'files' ? part.patterns : part.paths].flat() as string[];
   if (patterns.length === 0 || !patterns.every(isName))
@@ -109,7 +126,7 @@ const draftPart = (archetype: string, part: RecordedPart, fail: Fail): DraftPart
     part.kind === 'files'
       ? { kind: part.kind, ...common, patterns }
       : { kind: part.kind, ...common, paths: patterns, archetype: dirArchetype(archetype, part.archetype) };
-  return { data, using: Array.isArray(using) ? using : [], rules: options.rules };
+  return { data, using: Array.isArray(using) ? using : [] };
 };
 
 const checkDirPaths = (where: string, paths: readonly unknown[], fail: Fail) => {
@@ -121,9 +138,9 @@ const isDirPath = (path: string): boolean =>
   path.split('/').every((segment) => segment !== '.' && segment !== '..' && /^(\{\w+\}|[^{}*]+)$/.test(segment));
 
 const partOptions = (where: string, value: unknown, fail: Fail): Record<string, unknown> => {
-  if (value !== undefined && !isRecord(value)) fail(`${where}: expected options, { using, rules }`);
+  if (value !== undefined && !isRecord(value)) fail(`${where}: expected options, { using, description }`);
   const options = isRecord(value) ? value : {};
-  const unknownKeys = Object.keys(options).filter((key) => !['using', 'rules', 'description'].includes(key));
+  const unknownKeys = Object.keys(options).filter((key) => !['using', 'description'].includes(key));
   if (unknownKeys.length > 0) fail(`${where}: unknown option ${unknownKeys.join(', ')}`);
   if (options.description !== undefined && typeof options.description !== 'string')
     fail(`${where}.description: expected a string`);

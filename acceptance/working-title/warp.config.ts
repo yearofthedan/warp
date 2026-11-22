@@ -74,7 +74,7 @@ const component = archetype('component')
       }),
   )
   .exposes((s) => ({ render: s.dom, testPage: s.testPage, dsl: s.dsl }))
-  .rules((s, { required }) => ({
+  .constraints((s, { required }) => ({
     'dsl-on-the-driver-contract': mustImport({ from: s.dsl, to: required.testRunner.contract }),
   }));
 
@@ -102,7 +102,7 @@ const journeys = archetype('journeys')
       using: (s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl],
     }),
   )
-  .rules((s, { required }) => ({
+  .constraints((s, { required }) => ({
     'dsl-on-the-driver-contract': mustImport({ from: s.dsl, to: required.testRunner.contract }),
   }));
 

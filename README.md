@@ -3,11 +3,11 @@
 **Audience:** anyone running warp on a project, or deciding whether to.
 **Purpose:** what warp does today and how to run it, with links to the pages for writing a config and wiring warp in.
 
-Architectural fitness checks for TypeScript codebases. It builds a model of the codebase (the import graph, which
-kind each module is, and the rules between kinds) and reports findings against it, as text for people, JSON or SARIF
-for tools, and hook responses for coding agents. `diff` reports only what a change made new or worse, so it can run
-after every edit. It covers module kinds, dependency direction, re-exports across kinds, cohesion and cognitive
-complexity.
+Architectural fitness checks for TypeScript codebases. A config declares the codebase's units, the parts of each and
+what each part may use. warp builds a model from it and the import graph, and reports findings against it, as text
+for people, JSON or SARIF for tools, and hook responses for coding agents. `diff` reports only what a change made new
+or worse, so it can run after every edit. It covers dependency direction and package use, unit surfaces and
+re-exports, cycles, cohesion and cognitive complexity.
 
 ## Run it
 
@@ -27,20 +27,22 @@ Or add it to one project as a dev dependency, and run it there with `pnpm exec w
 pnpm add -D link:~/src/warp
 ```
 
-In the project to check, add a `warp.config.json`, or a `warp.config.ts`, next to its `tsconfig.json`, then:
+In the project to check, add a `warp.config.ts` next to its `tsconfig.json`, then:
 
 ```sh
 warp check                 # every finding in the working tree
 warp diff HEAD             # new or worse findings in the working tree since HEAD
 warp diff main..feature    # new or worse findings between two refs
 warp diff main...          # new or worse findings since the working tree's branch left main
+warp model                 # the units the config finds, and the part each file is in
 ```
 
 | Flag | Effect |
 | --- | --- |
-| `--config <file>` | Config path. The project root is its directory. Default: the first of `warp.config.ts`, `.mts`, `.js`, `.mjs` and `.json` in the current directory. |
-| `--ruleset <name>` | Check with a [ruleset](docs/config.md#rulesets), a named export of a `warp.config.ts`. Default: the default export. |
-| `--print-config` | Print the config as resolved, with each kind's rules and options, and exit. Takes `--config` and `--ruleset`. |
+| `--config <file>` | Config path. The project root is its directory. Default: the first of `warp.config.ts`, `.mts`, `.js` and `.mjs` in the current directory. |
+| `--ruleset <name>` | Check with one of the config's [rulesets](docs/config.md#rulesets). Default: the one named `default`, if any. |
+| `--rules` | With `model`, list the rule settings each unit and part changes. |
+| `--json` | With `model`, print the model as JSON, with every unit's and part's resolved rule settings. |
 | `--reporter <name>` | Output format, default `text`. |
 | `--fail` | Exit 1 when there are findings (`check`) or new or worse ones (`diff`). Without it, both exit 0. |
 
@@ -58,23 +60,27 @@ warp diff main...          # new or worse findings since the working tree's bran
 
 A starter for a hexagonal layout, to adjust to the project's folders:
 
-```json
-{
-  "exclude": ["**/*.test.ts", "**/*.spec.ts"],
-  "kinds": {
-    "domain": { "match": "src/domain/**", "dependsOn": [] },
-    "app": { "match": "src/app/**", "dependsOn": ["domain"] },
-    "adapter": { "match": "src/adapters/**", "dependsOn": ["domain", "app"] },
-    "utility": { "match": "src/lib/**", "dependsOn": [] },
-    "entry": { "match": ["src/main.ts", "src/index.ts"], "dependsOn": ["domain", "app", "adapter", "utility"] }
-  }
-}
+```ts
+// warp.config.ts
+import { archetype, defineConfig, pkg } from 'warp';
+
+const app = archetype('app').contains((p) =>
+  p
+    .files('domain', 'src/domain/**')
+    .files('application', 'src/app/**', { using: (s) => [s.domain] })
+    .files('adapters', 'src/adapters/**', { using: (s) => [s.domain, s.application, pkg('*')] })
+    .files('lib', 'src/lib/**')
+    .files('entry', ['src/main.ts', 'src/index.ts'], { using: (s) => [s.domain, s.application, s.adapters, s.lib] })
+    .files('test', 'src/**/*.test.ts', { using: (s) => [s.domain, s.application, s.adapters, s.lib, pkg('*')] }),
+);
+
+export default defineConfig({ root: app });
 ```
 
-Run `warp check` and add globs until no `unclassified` findings are left. The other findings it reports are the
+Run `warp check` and add parts until no `unclassified` findings are left. The other findings it reports are the
 existing baseline, which `diff` leaves out, so they need no fixing first. Commit the config.
 
-- [docs/config.md](docs/config.md): the config, archetypes, custom rules, rulesets and the rules.
+- [docs/config.md](docs/config.md): the config, custom rules, rulesets and the rules.
 - [docs/agents-and-ci.md](docs/agents-and-ci.md): how `diff` works, and running warp from Claude Code or GitHub code
   scanning.
 - [integrations/omp/README.md](integrations/omp/README.md): running warp from omp.

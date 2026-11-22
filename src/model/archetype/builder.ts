@@ -1,3 +1,4 @@
+import { ConfigError } from '../rule.ts';
 import type { IdentifyData, Loose } from './data.ts';
 
 declare const referenceBrand: unique symbol;
@@ -6,6 +7,8 @@ declare const shapeBrand: unique symbol;
 declare const selfBrand: unique symbol;
 declare const inlineBrand: unique symbol;
 declare const exposesType: unique symbol;
+declare const partBrand: unique symbol;
+declare const rulesetBrand: unique symbol;
 
 export interface Reference {
   readonly [referenceBrand]: true;
@@ -27,7 +30,11 @@ export interface InlineRule {
   readonly [inlineBrand]: true;
 }
 
-export type RuleSettings = 'off' | Record<string, boolean | InlineRule | object>;
+export interface PartHandle {
+  readonly [partBrand]: true;
+}
+
+export type RuleSettings = 'off' | Record<string, boolean | object>;
 
 export interface Archetype<N extends string = string, E = unknown> {
   readonly name: N;
@@ -45,11 +52,26 @@ export type Using<C> = readonly (Reference | Package)[] | ((s: C) => readonly (R
 
 export interface PartOptions<C> {
   using?: Using<C>;
-  rules?: RuleSettings;
   description?: string;
 }
 
-type NewName<K extends string, C> = K extends keyof C ? `part '${K}' is already declared` : K;
+export const archetypeMethods = [
+  'name',
+  'identify',
+  'requires',
+  'contains',
+  'exposes',
+  'provides',
+  'loose',
+  'constraints',
+  'description',
+] as const;
+
+type NewName<K extends string, C> = K extends keyof C
+  ? `part '${K}' is already declared`
+  : K extends (typeof archetypeMethods)[number]
+    ? `part '${K}' would hide the archetype's ${K}`
+    : K;
 
 export interface Parts<C> {
   files<const K extends string>(
@@ -77,7 +99,11 @@ export interface ContainsContext<R> {
 
 export type Identify = IdentifyData;
 
-export interface ArchetypeBuilder<N extends string, C, R, E> extends Archetype<N, E> {
+type PartHandles<C> = { readonly [K in keyof C]: PartHandle };
+
+export type ArchetypeBuilder<N extends string, C, R, E> = ArchetypeMethods<N, C, R, E> & PartHandles<C>;
+
+export interface ArchetypeMethods<N extends string, C, R, E> extends Archetype<N, E> {
   identify(identify: Identify): ArchetypeBuilder<N, C, R, E>;
   requires<const R2 extends Record<string, AnyArchetype | Shape>>(
     requires: R2,
@@ -88,15 +114,24 @@ export interface ArchetypeBuilder<N extends string, C, R, E> extends Archetype<N
   ): ArchetypeBuilder<N, C, R, E2>;
   provides(provides: (s: C) => Record<string, Reference>): ArchetypeBuilder<N, C, R, E>;
   loose(loose: Loose): ArchetypeBuilder<N, C, R, E>;
-  rules(rules: RuleSettings | ((s: C, context: { required: R }) => RuleSettings)): ArchetypeBuilder<N, C, R, E>;
+  constraints(
+    constraints: (s: C, context: { required: R }) => Record<string, InlineRule>,
+  ): ArchetypeBuilder<N, C, R, E>;
   description(description: string): ArchetypeBuilder<N, C, R, E>;
 }
 
-export interface ArchetypeConfig {
+export interface Ruleset {
+  readonly [rulesetBrand]: true;
+  rules(settings: RuleSettings): Ruleset;
+  on(target: AnyArchetype | PartHandle, settings: RuleSettings): Ruleset;
+  extends(base: Ruleset): Ruleset;
+}
+
+export interface WarpConfig {
   root: AnyArchetype;
   tsconfig?: string | readonly string[];
   plugins?: Record<string, unknown>;
-  rules?: RuleSettings;
+  rulesets?: Record<string, Ruleset>;
 }
 
 const recorded = Symbol('warp.recorded');
@@ -118,8 +153,13 @@ export interface RecordedArchetype {
   exposes?: unknown;
   provides?: unknown;
   loose?: unknown;
-  rules?: unknown;
+  constraints?: unknown;
   description?: unknown;
+}
+
+export interface RecordedRuleset {
+  base?: unknown;
+  entries: readonly { target?: unknown; settings: unknown }[];
 }
 
 interface Recorded {
@@ -129,6 +169,8 @@ interface Recorded {
   inline: { kind: 'mustImport'; from: unknown; to: unknown };
   parts: readonly RecordedPart[];
   archetype: RecordedArchetype;
+  partHandle: { archetype: unknown; part: unknown };
+  ruleset: RecordedRuleset;
 }
 
 const record = <T extends keyof Recorded>(type: T, data: Recorded[T]) => ({ [recorded]: { type, data } });
@@ -166,7 +208,15 @@ const parts = (entries: readonly RecordedPart[]): unknown => ({
     ]),
 });
 
+const handles = (state: RecordedArchetype) =>
+  Object.fromEntries(
+    (Array.isArray(state.parts) ? (state.parts as RecordedPart[]) : [])
+      .filter((part) => typeof part.name === 'string' && !(archetypeMethods as readonly unknown[]).includes(part.name))
+      .map((part) => [part.name, Object.freeze(record('partHandle', { archetype: state.name, part: part.name }))]),
+  );
+
 const builder = (state: RecordedArchetype): unknown => ({
+  ...handles(state),
   name: state.name,
   ...record('archetype', state),
   identify: (identify: unknown) => builder({ ...state, identify }),
@@ -176,7 +226,7 @@ const builder = (state: RecordedArchetype): unknown => ({
   exposes: (exposes: unknown) => builder({ ...state, exposes }),
   provides: (provides: unknown) => builder({ ...state, provides }),
   loose: (loose: unknown) => builder({ ...state, loose }),
-  rules: (rules: unknown) => builder({ ...state, rules }),
+  constraints: (constraints: unknown) => builder({ ...state, constraints }),
   description: (description: unknown) => builder({ ...state, description }),
 });
 
@@ -191,3 +241,18 @@ export const pkg = (pattern: string): Package => ref({ kind: 'package', pattern 
 
 export const mustImport = ({ from, to }: { from: Reference; to: Reference }): InlineRule =>
   Object.freeze(record('inline', { kind: 'mustImport', from, to })) as never;
+
+export const defineConfig = <const C extends WarpConfig>(config: C): C => config;
+
+const rulesetOf = (state: RecordedRuleset): unknown => ({
+  ...record('ruleset', state),
+  rules: (settings: unknown) => rulesetOf({ ...state, entries: [...state.entries, { settings }] }),
+  on: (target: unknown, settings: unknown) =>
+    rulesetOf({ ...state, entries: [...state.entries, { target, settings }] }),
+  extends: (base: unknown) => {
+    if (state.base !== undefined) throw new ConfigError('ruleset().extends: a ruleset extends one base');
+    return rulesetOf({ ...state, base });
+  },
+});
+
+export const ruleset = (): Ruleset => rulesetOf({ entries: [] }) as never;

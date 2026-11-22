@@ -1,5 +1,5 @@
 import type { Project } from '../facts.ts';
-import type { ArchetypeRule, Finding, ProjectContext } from '../rule.ts';
+import type { Rule, Finding, ProjectContext } from '../rule.ts';
 import type { ConfigData } from './data.ts';
 import { inlineFindings } from './inline.ts';
 import { verdicts } from './reach.ts';
@@ -10,7 +10,7 @@ export const checkModel = (
   config: ConfigData,
   model: Model,
   project: Project,
-  rules: readonly ArchetypeRule[] = [],
+  rules: readonly Rule[] = [],
   unclassifiedDocs?: string,
 ): Finding[] => {
   const settled = settings(config, model);
@@ -30,7 +30,7 @@ export const checkModel = (
 
 type Shared = Omit<ProjectContext<object>, 'atFile' | 'atUnit'>;
 
-const run = (rule: ArchetypeRule, shared: Shared, settled: Settings): Finding[] => {
+const run = (rule: Rule, shared: Shared, settled: Settings): Finding[] => {
   if (rule.scope === 'project')
     return rule.check({
       ...shared,

@@ -3,8 +3,7 @@
 **Audience:** anyone reading a `dependency-direction` finding, or setting the rule.
 **Purpose:** what `dependency-direction` reports, why, and its options.
 
-Disallow imports from a kind the importing kind does not depend on, or in an archetype config, imports outside the
-importer's reach.
+Disallow imports outside the importer's reach.
 
 ## Why
 
@@ -14,54 +13,10 @@ cheap to keep and expensive to recover, so it is checked on every import.
 
 ## Rule details
 
-A module may import from its own kind and the kinds its kind's `dependsOn` lists. Named imports are followed through
-barrels and re-exports to the module that declares them, so going through an allowed barrel does not hide the
-dependency: the finding names the declaring module and the barrel as the route. Type-only imports count too.
-
-With this config:
-
-```json
-{
-  "kinds": {
-    "domain": { "match": "src/domain/**", "dependsOn": [] },
-    "adapter": { "match": "src/adapters/**", "dependsOn": ["domain"] }
-  }
-}
-```
-
-Incorrect code:
-
-```ts fragment
-// src/domain/order.ts
-import { saveOrder } from '../adapters/index.ts'; // reported against src/adapters/db/orderRepo.ts
-import type { OrderRow } from '../adapters/db/orderRepo.ts';
-```
-
-Correct code:
-
-```ts fragment
-// src/domain/order.ts: the domain owns the port
-export interface OrderStore {
-  save(order: Order): void;
-}
-```
-
-```ts fragment
-// src/adapters/db/orderRepo.ts: the adapter implements it
-import type { OrderStore } from '../../domain/order.ts';
-
-export const orderRepo: OrderStore = { save: (order) => { /* ... */ } };
-```
-
-There is one finding per pair of modules. Its value is the number of names imported, so importing more across the
-same boundary counts as worse. When the target kind may depend on the importer's kind, the message advises a port.
-Otherwise it advises moving the code, or adding the kind to `dependsOn` if the dependency is intended.
-
-## In an archetype config
-
 `using` is the only permission. A file may import the rest of its own part, what its part's `using` names, and, for a
-unit's own files, what the `using` of the dir part that found the unit names. Anything else is a finding, keyed the
-same way, one per pair of files, valued by the names imported.
+unit's own files, what the `using` of the dir part that found the unit names. Anything else is a finding, one per
+pair of files. Its value is the number of names imported, so importing more across the same boundary counts as
+worse. Type-only imports count too.
 
 An import is judged on the file its specifier names, not the file that declares the names, so a barrel a unit exposes
 lets importers through. The barrel's own re-exports are judged as its imports.
@@ -112,12 +67,12 @@ the importer, or what the importer's reach does hold. Package imports are judged
 
 ## Options
 
-None. The kind's `dependsOn`, or the archetype config's `using`, sets what it allows.
+None. The config's `using` sets what it allows.
 
 ## When not to use it
 
-For a kind with no direction to keep, such as tests or scripts. Give it a `dependsOn` that lists every kind it may
-reach, or turn the rule off for that kind.
+For code with no direction to keep, such as scripts. Give its part a `using` that lists what it may reach, or turn
+the rule off for that part.
 
-See also [`no-cross-kind-reexport`](../no-cross-kind-reexport/README.md), which reports the module that re-exports another
-kind, where this rule reports each importer.
+See also [`no-cross-unit-reexport`](../no-cross-unit-reexport/README.md), which reports the file that re-exports
+another unit's file, where this rule reports each importer.

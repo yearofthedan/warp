@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import { defineConfig } from '../config.ts';
-import { archetype, dir, files, mustImport, pkg, requiredRefs } from './builder.ts';
+import { archetype, defineConfig, dir, files, mustImport, pkg, requiredRefs, ruleset } from './builder.ts';
 import { ConfigError, wholeNumberOptions } from '../rule.ts';
 import { loadConfigData } from './load.ts';
-import { archetypeRegistry } from '../../builtins.ts';
+import { builtinRegistry } from '../../builtins.ts';
 import type { ModuleRule } from '../rule.ts';
 
 const workingTitleConfig = () => {
@@ -81,7 +80,7 @@ const workingTitleConfig = () => {
         }),
     )
     .exposes((s) => ({ render: s.dom, testPage: s.testPage, dsl: s.dsl }))
-    .rules((s, { required }) => ({
+    .constraints((s, { required }) => ({
       'dsl-on-the-driver-contract': mustImport({ from: s.dsl, to: required.testRunner.contract }),
     }));
 
@@ -109,7 +108,7 @@ const workingTitleConfig = () => {
         using: (s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl],
       }),
     )
-    .rules((s, { required }) => ({
+    .constraints((s, { required }) => ({
       'dsl-on-the-driver-contract': mustImport({ from: s.dsl, to: required.testRunner.contract }),
     }));
 
@@ -207,24 +206,28 @@ describe('loadConfigData', () => {
         p
           .dir('strings', 'strings', { description: 'words' })
           .dir('kids', ['kids/{name}', 'more/{name}'], kid, { using: (s) => [s.strings, pkg('lit')] })
-          .files('main', 'main.ts', { using: (s) => [s.kids.render, s.kids], rules: { 'module-cohesion': false } }),
+          .files('main', 'main.ts', { using: (s) => [s.kids.render, s.kids] }),
       )
       .exposes((s) => ({ main: s.main }))
-      .provides((s) => ({ strings: s.strings }))
-      .rules({ '*': false, 'cognitive-complexity': { max: 10 } });
+      .provides((s) => ({ strings: s.strings }));
     const node = archetype('node')
       .identify({ match })
       .requires({ strings: dir() })
       .contains((p, { required, self }) =>
         p.dir('child', '{name}', self).files('src', '**', { using: [required.strings] }),
       )
-      .rules((s, { required }) => ({ 'src-on-strings': mustImport({ from: s.src, to: required.strings }) }));
+      .constraints((s, { required }) => ({ 'src-on-strings': mustImport({ from: s.src, to: required.strings }) }));
     const config = defineConfig({
       root: archetype('top')
         .contains((p) => p.dir('words', 'words').dir('root', 'root', root).dir('nodes', 'nodes', node))
         .provides((s) => ({ strings: s.words })),
       tsconfig: ['tsconfig.json', 'tsconfig.test.json'],
-      rules: 'off',
+      rulesets: {
+        default: ruleset()
+          .rules('off')
+          .on(root, { '*': false, 'cognitive-complexity': { max: 10 } })
+          .on(root.main, { 'module-cohesion': false }),
+      },
     });
     const { config: data, warnings } = loadConfigData(config);
     assert.deepEqual(warnings, ['root provides strings, which nothing below requires']);
@@ -284,7 +287,7 @@ describe('loadConfigData', () => {
             { kind: 'files', name: 'src', patterns: ['**'], using: [{ kind: 'required', name: 'strings' }] },
           ],
           provides: {},
-          rules: {
+          constraints: {
             'src-on-strings': {
               inline: 'mustImport',
               from: { kind: 'part', part: 'src' },
@@ -424,42 +427,41 @@ describe('loadConfigData', () => {
     assert.deepEqual(failures({ root }), ['two archetypes are named same: give each its own name']);
   });
 
-  it('checks rule ids against the ones it is given', () => {
+  it('checks rule ids against the registered rules and the inline rules the archetypes declare', () => {
     const root = archetype('root')
-      .contains((p) =>
-        p.files('src', '**').files('test', '*.test.ts', { rules: { '*': false, 'no-such-rule': false } }),
-      )
-      .rules((s) => ({
+      .contains((p) => p.files('src', '**').files('test', '*.test.ts'))
+      .constraints((s) => ({
         'module-cohesion': mustImport({ from: s.test, to: s.src }),
         'my-rule': mustImport({ from: s.test, to: s.src }),
       }));
+    const rules = ruleset()
+      .rules({ 'cognitive-complexity': { max: 3 }, 'my-rule': false })
+      .on(root.test, { '*': false, 'no-such-rule': false });
     assert.deepEqual(
       failures(
-        { root, rules: { 'cognitive-complexity': { max: 3 } } },
-        { builtins: [archetypeRegistry.get('module-cohesion')!, archetypeRegistry.get('cognitive-complexity')!] },
+        { root, rulesets: { default: rules } },
+        { builtins: [builtinRegistry.get('module-cohesion')!, builtinRegistry.get('cognitive-complexity')!] },
       ),
       [
-        'root.test.rules: no rule called no-such-rule',
-        'root.rules.module-cohesion: module-cohesion is a built-in rule; give the inline rule its own name',
+        'root.constraints.module-cohesion: module-cohesion is a registered rule; give the inline rule its own name',
+        'rulesets.default.on(root.test): no rule called no-such-rule',
       ],
     );
   });
 
   it("checks each rule's options with the check it is given", () => {
-    const root = archetype('root')
-      .contains((p) =>
-        p
-          .files('src', '**', { rules: { 'unit-cycle': { types: 'sometimes' } } })
-          .files('test', '*.test.ts', { rules: { 'no-cycle': { types: 'count' }, 'unit-cycle': {} } }),
-      )
-      .rules({ 'no-cycle': { types: 'count', depth: 1, width: 2 }, 'unit-cycle': { types: 'ignore' } });
-    const options = { builtins: [...archetypeRegistry.values()] };
-    const rules = { 'dependency-direction': { strict: true }, 'module-cohesion': { maxLines: 0 } };
-    assert.deepEqual(failures({ root, rules }, options), [
-      "root.src.rules.unit-cycle.types: expected 'count' or 'ignore'",
-      'root.rules.no-cycle: unknown key depth, width',
-      'config.rules.dependency-direction: unknown key strict',
-      'config.rules.module-cohesion.maxLines: expected a whole number of at least 1',
+    const root = archetype('root').contains((p) => p.files('src', '**').files('test', '*.test.ts'));
+    const rules = ruleset()
+      .rules({ 'dependency-direction': { strict: true }, 'module-cohesion': { maxLines: 0 } })
+      .on(root, { 'no-cycle': { types: 'count', depth: 1, width: 2 }, 'unit-cycle': { types: 'ignore' } })
+      .on(root.src, { 'unit-cycle': { types: 'sometimes' } })
+      .on(root.test, { 'no-cycle': { types: 'count' }, 'unit-cycle': {} });
+    const options = { builtins: [...builtinRegistry.values()] };
+    assert.deepEqual(failures({ root, rulesets: { default: rules } }, options), [
+      'rulesets.default.rules.dependency-direction: unknown key strict',
+      'rulesets.default.rules.module-cohesion.maxLines: expected a whole number of at least 1',
+      'rulesets.default.on(root).no-cycle: unknown key depth, width',
+      "rulesets.default.on(root.src).unit-cycle.types: expected 'count' or 'ignore'",
     ]);
     const thrower = {
       builtins: [
@@ -472,7 +474,7 @@ describe('loadConfigData', () => {
         },
       ],
     };
-    assert.throws(() => loadConfigData({ root }, thrower), TypeError);
+    assert.throws(() => loadConfigData({ root, rulesets: { default: rules } }, thrower), TypeError);
   });
 
   it("joins plugins' rules to the built-in ones under their namespace, ids and options checked alike", () => {
@@ -482,45 +484,58 @@ describe('loadConfigData', () => {
       parseOptions: wholeNumberOptions({ max: 5 }),
       check: () => [],
     };
-    const root = archetype('root').contains((p) =>
-      p.files('src', '**', { rules: { 'mine/max-imports': { max: 0 }, 'max-imports': false } }),
-    );
-    const builtins = [archetypeRegistry.get('module-cohesion')!];
-    assert.deepEqual(failures({ root, plugins: { mine: { rules: [limit] } } }, { builtins }), [
-      'root.src.rules.mine/max-imports.max: expected a whole number of at least 1',
-      'root.src.rules: no rule called max-imports',
-    ]);
-    const { rules } = loadConfigData({ root: archetype('r'), plugins: { mine: { rules: [limit] } } }, { builtins });
+    const root = archetype('root').contains((p) => p.files('src', '**'));
+    const rules = ruleset().on(root.src, { 'mine/max-imports': { max: 0 }, 'max-imports': false });
+    const builtins = [builtinRegistry.get('module-cohesion')!];
     assert.deepEqual(
-      rules.map((rule) => rule.id),
+      failures({ root, plugins: { mine: { rules: [limit] } }, rulesets: { default: rules } }, { builtins }),
+      [
+        'rulesets.default.on(root.src).mine/max-imports.max: expected a whole number of at least 1',
+        'rulesets.default.on(root.src): no rule called max-imports',
+      ],
+    );
+    const { rules: registered } = loadConfigData(
+      { root: archetype('r'), plugins: { mine: { rules: [limit] } } },
+      { builtins },
+    );
+    assert.deepEqual(
+      registered.map((rule) => rule.id),
       ['module-cohesion', 'mine/max-imports'],
     );
   });
 
-  it('refuses rule settings of the wrong shape', () => {
-    const root = archetype('root')
-      .contains((p) => p.files('src', '**', { rules: 'all' as never }))
-      .rules({ '*': {}, 'module-cohesion': 3 as never, 'cognitive-complexity': pkg('x') as never });
-    assert.deepEqual(
-      failures({ root, rules: { mine: mustImport({ from: pkg('a') as never, to: pkg('b') as never }) } }),
-      [
-        "root.src.rules: expected 'off' or rule settings by id",
-        'root.rules.*: expected true, false',
-        'root.rules.module-cohesion: expected true, false, options or an inline rule',
-        'root.rules.cognitive-complexity: expected true, false, options or an inline rule',
-        'config.rules.mine: an inline rule belongs to an archetype or a part',
-      ],
-    );
+  it('refuses rule settings of the wrong shape, and an inline rule outside constraints', () => {
+    const root = archetype('root').contains((p) => p.files('src', '**'));
+    const rules = ruleset()
+      .rules({ mine: mustImport({ from: pkg('a') as never, to: pkg('b') as never }) })
+      .on(root, { '*': {}, 'module-cohesion': 3 as never, 'cognitive-complexity': pkg('x') as never })
+      .on(root.src, 'all' as never);
+    assert.deepEqual(failures({ root, rulesets: { default: rules } }), [
+      "rulesets.default.rules.mine: an inline rule belongs in an archetype's constraints",
+      'rulesets.default.on(root).*: expected true, false',
+      'rulesets.default.on(root).module-cohesion: expected true, false or options',
+      'rulesets.default.on(root).cognitive-complexity: expected true, false or options',
+      "rulesets.default.on(root.src): expected 'off' or rule settings by id",
+    ]);
+    const odd = archetype('odd')
+      .contains((p) => p.files('src', '**'))
+      .constraints((s) => ({ plain: { 'not-inline': true } as never, fine: mustImport({ from: s.src, to: s.src }) }));
+    assert.deepEqual(failures({ root: odd }), [
+      'odd.constraints.plain: expected an inline rule, mustImport({ from, to })',
+    ]);
+    assert.deepEqual(failures({ root: archetype('cb').constraints({} as never) }), [
+      'cb.constraints: expected a callback returning inline rules by name, (s) => ({ x: mustImport(...) })',
+    ]);
   });
 
   it("checks an inline rule's references", () => {
     const root = archetype('root')
       .contains((p) => p.files('src', '**').files('test', '*.test.ts'))
       // @ts-expect-error a files part has no surfaces
-      .rules((s) => ({ 'tests-on-src': mustImport({ from: pkg('vitest') as never, to: s.src.api }) }));
+      .constraints((s) => ({ 'tests-on-src': mustImport({ from: pkg('vitest') as never, to: s.src.api }) }));
     assert.deepEqual(failures({ root }), [
-      "root.rules.tests-on-src takes from pkg('vitest'); pkg() belongs in using",
-      'root.rules.tests-on-src takes to src.api; src is a files part, which has no surfaces',
+      "root.constraints.tests-on-src takes from pkg('vitest'); pkg() belongs in using",
+      'root.constraints.tests-on-src takes to src.api; src is a files part, which has no surfaces',
     ]);
   });
 
@@ -530,8 +545,8 @@ describe('loadConfigData', () => {
     const root = archetype('root')
       .requires({ x: 'nope' as never })
       .contains((p) => p.files('src', '**'));
-    assert.deepEqual(failures({ root, kinds: {}, exclude: [], tsconfig: [], plugins: [] }), [
-      'config: unknown key kinds, exclude',
+    assert.deepEqual(failures({ root, layers: {}, exclude: [], tsconfig: [], plugins: [] }), [
+      'config: unknown key layers, exclude',
       'config.plugins: expected plugins by namespace',
       'root.requires.x: expected an archetype, dir() or files()',
       'config.tsconfig: expected a path or a list of paths',
@@ -573,7 +588,7 @@ describe('loadConfigData', () => {
       'root.blank: expected a pattern or a list of them',
       'root.number: expected a pattern or a list of them',
       'root.nowhere: expected a path or a list of them',
-      'root.bad: expected options, { using, rules }',
+      'root.bad: expected options, { using, description }',
       'root.odd: unknown option usin, uses',
       'root.flat.description: expected a string',
       'root.flat.using: expected a list of references, or a callback returning one',
