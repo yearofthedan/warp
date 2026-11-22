@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { API } from 'typescript/sync';
 import { freshFacts } from '../app/facts.ts';
@@ -27,7 +27,7 @@ export const typescriptAnalyzer: Analyzer = {
       const hashes = new Map(
         projects.flatMap(({ files }) => [...files.values()].map((file) => [file, hashOf(root, file)])),
       );
-      const digest = digestOf(root, tsconfig);
+      const digest = digestOf(root, projects);
       const fresh = freshFacts(store?.read(), { digest, hashes });
       const cached = new Map<string, Omit<CachedFile, 'hash'>>();
       for (const { project, files } of projects)
@@ -58,9 +58,17 @@ const hashOf = (root: string, file: string): string =>
     .digest('hex')
     .slice(0, 16);
 
-const digestOf = (root: string, tsconfig: readonly string[]): string => {
+const digestOf = (root: string, projects: readonly { project: Configured; files: ReadonlyMap<string, string> }[]) => {
   const digest = createHash('sha256');
-  for (const path of tsconfig) digest.update(path).update(readFileSync(join(root, path)));
+  const own = (path: string) => path.split(root).join('.');
+  for (const { project, files } of projects) {
+    digest.update(own(JSON.stringify(project.program.getCompilerOptions())));
+    for (const fileName of project.program.getSourceFileNames()) {
+      if (files.has(fileName)) continue;
+      const { size, mtimeMs } = statSync(fileName);
+      digest.update(`${own(fileName)}\0${size}\0${mtimeMs}\0`);
+    }
+  }
   return digest.digest('hex').slice(0, 16);
 };
 
