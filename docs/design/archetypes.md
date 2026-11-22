@@ -353,7 +353,7 @@ Each failure is one finding per file pair per rule.
 | --- | --- |
 | B outside A's reach (details say whether B is private or just not in `using`) | `dependency-direction` |
 | an inline rule | its local name |
-| re-exporting another unit's names | `no-cross-unit-reexport` (`allow` takes references) |
+| re-exporting a file of a unit outside the re-exporting unit and the units nested in it | `no-cross-unit-reexport` |
 | a file on a surface re-exporting another file on that surface | `no-double-export` |
 | a package not in the part's `using` | `unit-externals` |
 | a loop between units | `unit-cycle` |
@@ -841,7 +841,6 @@ const warp = archetype('warp')
     .files('entry', ['src/cli.ts', 'src/builtins.ts'], { using: (s) => [s.adapters, s.reporters, s.app, s.model] })
     .files('api', 'src/index.ts', {
       using: (s) => [s.model],
-      rules: { 'no-cross-unit-reexport': { allow: ['model'] } },
     })
     .dir('integrations', 'integrations')
     .files('tests', 'test/*.ts', {
@@ -861,8 +860,6 @@ What doesn't fit well:
 
 - Tests in `test/` reach internals such as `rules/shared.ts` because `model` exposes everything. A separate test tree
   gets less from the model than colocated tests.
-- A rule option that names a part (`allow` above) can't take a typed reference inside a part's own options, so it
-  takes a part name.
 - "Every rule folder has a README.md" is a rule about the file system, not imports. Out of scope for now.
 
 ### NestJS
@@ -1011,6 +1008,9 @@ Folders holding several components side by side stay out of scope: they would ne
     aren't declared up front.
 13. **Inline rules say what a file must do,** named `mustX`. `mustImport` is the only one so far; forbidding an edge
     is leaving it out of `using`.
+14. **A unit may re-export only what it owns:** its own files and the surfaces of the units nested in it.
+    `no-cross-unit-reexport` has no `allow`: a meant pass-through is structure (consumers use the other unit, the
+    unit wraps it in its own type, or the other unit moves inside it), and the escape is turning the rule off.
 
 ## Open
 
@@ -1021,6 +1021,9 @@ Folders holding several components side by side stay out of scope: they would ne
 3. **The test runner as one surface** (proposed). Every consumer of the runner listed both `contract` and `runner`,
    for one rule: languages kept off the drivers. One surface, `required.testRunner`, drops the second entry
    everywhere and gives up that rule.
+4. **References in rule options.** No built-in rule's options name a part yet. If one does, a part's `rules` could
+   take a callback over the parts above it, as its `using` does, with each reference resolved in the unit whose
+   archetype declares it, so an inherited option names the same files in every unit below.
 
 ## Noted concerns
 
