@@ -24,7 +24,6 @@ export interface FilesPartData {
   name: string;
   patterns: string[];
   using: RefData[];
-  mustImport?: (PartRefData | RequiredRefData)[];
   rules?: RuleSettingsData;
   description?: string;
 }

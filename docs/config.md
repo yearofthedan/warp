@@ -76,20 +76,6 @@ surface, so there is one way to each name: a barrel over private files, or expos
 [`no-cross-unit-reexport`](../src/model/rules/no-cross-unit-reexport/README.md) reports a file that re-exports
 another unit's file, other than one nested in its own unit, so a unit doesn't pass on what it uses.
 
-A files part's `mustImport` names what every file in it must import, each one from its `using`.
-[`must-import`](../src/model/rules/must-import/README.md) reports each file that imports nothing from one of them,
-directly or through a barrel.
-
-```ts
-import { archetype, files } from 'warp';
-
-const feature = archetype('feature')
-  .requires({ contract: files() })
-  .contains((p, { required }) =>
-    p.files('logic', '*.ts').files('dsl', '*.dsl.ts', { using: [required.contract], mustImport: [required.contract] }),
-  );
-```
-
 [`unit-cycle`](../src/model/rules/unit-cycle/README.md) reports each import between sibling units that lies on a loop among them, and
 [`no-cycle`](../src/model/rules/no-cycle/README.md) each import between files that lies on a loop.
 
@@ -240,7 +226,6 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 | [`unclassified`](../src/model/rules/unclassified/README.md) | A loose file. On at the root unit, off below, unless a ruleset says otherwise. | |
 | [`dependency-direction`](../src/model/rules/dependency-direction/README.md) | An import outside the importer's reach. | |
 | [`unit-externals`](../src/model/rules/unit-externals/README.md) | A package import that no `using` in the importer's reach lists. | |
-| [`must-import`](../src/model/rules/must-import/README.md) | A file that imports nothing from one of its part's `mustImport`. | |
 | [`no-double-export`](../src/model/rules/no-double-export/README.md) | A re-export, in a file on its unit's surface, of another file on that surface. | |
 | [`unit-cycle`](../src/model/rules/unit-cycle/README.md) | An import between sibling units that lies on a loop among them. | `types` |
 | [`no-cycle`](../src/model/rules/no-cycle/README.md) | An import between files that lies on a loop. | `types` |

@@ -50,10 +50,6 @@ export interface PartOptions<C> {
   description?: string;
 }
 
-export interface FilesPartOptions<C> extends PartOptions<C> {
-  mustImport?: readonly Reference[] | ((s: C) => readonly Reference[]);
-}
-
 export const archetypeMethods = [
   'name',
   'identify',
@@ -74,7 +70,7 @@ export interface Parts<C> {
   files<const K extends string>(
     name: NewName<K, C>,
     patterns: string | readonly string[],
-    options?: FilesPartOptions<C>,
+    options?: PartOptions<C>,
   ): Parts<C & { readonly [k in K]: Reference }>;
   dir<const K extends string>(
     name: NewName<K, C>,
