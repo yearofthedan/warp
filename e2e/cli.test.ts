@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, describe, it } from 'vite-plus/test';
@@ -114,6 +114,44 @@ describe('warp diff', () => {
 
   it('leaves no worktrees behind', () => {
     assert.equal(git('worktree', 'list').trim().split('\n').length, 1);
+  });
+});
+
+describe('warp diff --since-last-run', () => {
+  let dir: string;
+  const commit = (...args: string[]) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+  const added = () =>
+    JSON.parse(
+      spawnSync(process.execPath, [cli, 'diff', 'HEAD', '--since-last-run', '--reporter', 'json'], {
+        cwd: dir,
+        encoding: 'utf8',
+      }).stdout,
+    ).added.map((f: { key: string }) => f.key);
+  const write = (file: string, text: string) => writeFileSync(join(dir, file), text);
+
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), 'warp-since-'));
+    cpSync(join(import.meta.dirname, '../fixtures/hexagonal-app'), dir, { recursive: true });
+    commit('init', '--quiet');
+    commit('add', '.');
+    commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
+  });
+
+  it('reports each new finding once, at the run after the edit that made it', () => {
+    write('src/domain/audit.ts', "import { handle } from '../app/handle.ts';\n\nexport const audit = handle;\n");
+    assert.ok(added().includes('dependency-direction:src/domain/audit.ts->src/app/handle.ts'));
+    write('src/domain/other.ts', 'export const other = 1;\n');
+    assert.deepEqual(added(), []);
+  });
+
+  it('starts again from HEAD when HEAD moves, so a pulled finding is not put on the next edit', () => {
+    const audit = readFileSync(join(dir, 'src/domain/audit.ts'), 'utf8');
+    rmSync(join(dir, 'src/domain/audit.ts'));
+    assert.deepEqual(added(), []);
+    write('src/domain/audit.ts', audit);
+    commit('add', '.');
+    commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'audit');
+    assert.deepEqual(added(), []);
   });
 });
 

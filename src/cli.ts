@@ -23,22 +23,24 @@ import { actionable, type Report } from './reporters/reporter.ts';
 
 const usage = `usage:
   warp check [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]
-  warp diff <base>[..<head> | ...<head>] [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]
+  warp diff <base>[..<head> | ...<head>] [--since-last-run] [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]
   warp model [--config <file>] [--ruleset <name>] [--rules] [--json]
 
 check   reports every finding in the working tree.
 diff    reports findings that are new or worse at <head> than at <base>. Without <head>, compares the working tree.
         <base>...<head> compares from where <head> left <base>, as git does.
+        With --since-last-run, compares the working tree with the last such run, or with <base> if there is none.
 model   prints the units the config finds, and which part each file is in.
 
---config    path to the config file (default: the first of warp.config.ts, .mts, .js, .mjs)
---ruleset   one of the config's rulesets (default: the one named default, if any)
---reporter  ${[...reporters.keys()].join(', ')} (default: text)
---fail      exit 1 when there are findings (check) or new or worse findings (diff)
---rules     with model, list each unit's and part's rule settings that differ from the defaults
---json      print the model as JSON, with every unit's and part's resolved rule settings`;
+--config          path to the config file (default: the first of warp.config.ts, .mts, .js, .mjs)
+--ruleset         one of the config's rulesets (default: the one named default, if any)
+--reporter        ${[...reporters.keys()].join(', ')} (default: text)
+--since-last-run  with diff, compare with the last diff run that had this flag
+--fail            exit 1 when there are findings (check) or new or worse findings (diff)
+--rules           with model, list each unit's and part's rule settings that differ from the defaults
+--json            print the model as JSON, with every unit's and part's resolved rule settings`;
 
-type Options = { config?: string; ruleset?: string; reporter: string; fail: boolean };
+type Options = { config?: string; ruleset?: string; reporter: string; fail: boolean; 'since-last-run': boolean };
 type Produce = (root: string, project: ProjectCheck, digest: string) => Report;
 
 interface Resolved {
@@ -67,6 +69,7 @@ const main = async (argv: string[]): Promise<number> => {
       rules: { type: 'boolean', default: false },
       reporter: { type: 'string', default: 'text' },
       fail: { type: 'boolean', default: false },
+      'since-last-run': { type: 'boolean', default: false },
       json: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
@@ -76,7 +79,10 @@ const main = async (argv: string[]): Promise<number> => {
   if (command === 'check' && args.length === 0)
     return run(values, (root, project) => ({ mode: 'check', findings: project.check(root) }));
   if (command === 'diff' && args.length === 1)
-    return run(values, (root, project, digest) => ({ mode: 'diff', delta: delta(args[0], root, project, digest) }));
+    return run(values, (root, project, digest) => ({
+      mode: 'diff',
+      delta: delta(args[0], root, project, digest, values['since-last-run']),
+    }));
   if (command === 'model' && args.length === 0) return printModel(values);
   return help(2);
 };
@@ -86,7 +92,7 @@ const help = (code: number): number => {
   return code;
 };
 
-const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promise<Resolved> => {
+const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail' | 'since-last-run'>): Promise<Resolved> => {
   const configFile = realpathSync(options.config ? resolve(options.config) : findConfig(process.cwd()));
   const root = dirname(configFile);
   const { raw, digest } = await loadConfig(configFile);
@@ -114,7 +120,7 @@ const run = async (options: Options, produce: Produce): Promise<number> => {
   }
 };
 
-type ModelOptions = Omit<Options, 'reporter' | 'fail'> & { json: boolean; rules: boolean };
+type ModelOptions = Omit<Options, 'reporter' | 'fail' | 'since-last-run'> & { json: boolean; rules: boolean };
 
 const printModel = async (options: ModelOptions): Promise<number> => {
   try {
@@ -128,9 +134,9 @@ const printModel = async (options: ModelOptions): Promise<number> => {
   }
 };
 
-const delta = (range: string, root: string, project: ProjectCheck, configDigest: string) =>
+const delta = (range: string, root: string, project: ProjectCheck, configDigest: string, sinceLastRun: boolean) =>
   diffProject(
-    { range: parseRange(range), root, project, configDigest, toolDigest: toolDigest() },
+    { range: parseRange(range), root, project, configDigest, toolDigest: toolDigest(), sinceLastRun },
     { repository: gitRepository(root), cache: gitDirCache(root) },
   );
 

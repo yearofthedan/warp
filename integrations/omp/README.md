@@ -4,7 +4,7 @@
 **Purpose:** what the omp extension does, and how to set a project up with it.
 
 [`warp.ts`](./warp.ts) is an omp extension. After each successful `edit`, `write`, `ast_edit` or `apply_patch`, it
-runs `warp diff HEAD --reporter omp` in the session's directory and returns the result from its `tool_result`
+runs `warp diff HEAD --since-last-run --reporter omp` in the session's directory and returns the result from its `tool_result`
 handler. omp sends a handler's `additionalContext` with the next request to the model, outside the tool result, and
 the edit itself is never blocked. A failed run is left out of the context. The event and result shapes are from
 `@oh-my-pi/pi-coding-agent` 18.22 (`dist/types/extensibility/extensions/types.d.ts`).
@@ -29,7 +29,8 @@ the edit itself is never blocked. A failed run is left out of the context. The e
    `echo .omp/extensions/warp.ts >> .git/info/exclude`. Linking it into `~/.omp/agent/extensions/` instead loads
    it everywhere; in a project without a config the run fails and the extension stays silent. Environment
    variables change what it runs, set where you start omp:
-   - `WARP_BASE=main...` reports against where the branch left main, instead of the last commit.
+   - `WARP_BASE=main...` makes a run with no [last run](../../docs/agents-and-ci.md#since-the-last-run) to
+     compare with report against where the branch left main, instead of the last commit.
    - `WARP_RULESET=edit` checks with a [ruleset](../../docs/config.md#rulesets) from the config.
    - `WARP_COMMAND="pnpm exec warp"` runs a project dev dependency instead of the linked command.
 

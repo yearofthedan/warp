@@ -23,7 +23,7 @@ export const agentContext = (
 ): string => {
   const body =
     report.mode === 'diff'
-      ? `Architecture fitness changes since the base commit. Address them if this edit caused them:\n${render.delta(report.delta)}`
+      ? `New or worse architecture fitness findings. Address them if this edit caused them:\n${render.delta(report.delta)}`
       : `Architecture fitness findings:\n${report.findings.map(render.finding).join('\n')}`;
   const docs = ruleDocs(actionable(report));
   return docs.length === 0
