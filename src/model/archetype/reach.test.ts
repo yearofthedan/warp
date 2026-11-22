@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { ExternalImport, ImportEdge, ModuleFacts } from '../facts.ts';
 import { archetype, dir, pkg, ruleset } from './builder.ts';
-import { builtinRules } from '../rules/index.ts';
-import { noDoubleExport } from '../rules/no-double-export/noDoubleExport.ts';
-import { unitExternals } from '../rules/unit-externals/unitExternals.ts';
-import { checkModel } from './check.ts';
+import { builtinRules } from '../../rules/index.ts';
+import { noDoubleExport } from '../../rules/no-double-export/noDoubleExport.ts';
+import { unitExternals } from '../../rules/unit-externals/unitExternals.ts';
+import { checkModel } from '../../app/checkModel.ts';
 import type { ConfigData } from './data.ts';
-import { loadConfigData } from './load.ts';
+import { loadConfigData } from '../../app/load.ts';
 import { grantText, type Verdict, verdicts } from './reach.ts';
 
 import { type Folders, type Model, resolveModel } from './resolve.ts';

@@ -144,7 +144,7 @@ describe('warp diff from a linked checkout', () => {
   it('redoes a cached base when a built-in rule changes, and drops the old entry', () => {
     assert.deepEqual(JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout).added, []);
     const [first] = cached();
-    const rule = join(tool, 'src/model/rules/cognitive-complexity/cognitiveComplexity.ts');
+    const rule = join(tool, 'src/rules/cognitive-complexity/cognitiveComplexity.ts');
     writeFileSync(
       rule,
       readFileSync(rule, 'utf8').replace(
@@ -356,12 +356,12 @@ describe('a warp.config.ts with archetypes', () => {
         'unit-externals:src/ui/card/card.ts->node:util',
       ],
     );
-    assert.match(findings[2].docs, /src\/model\/rules\/unit-externals\/README\.md$/);
+    assert.match(findings[2].docs, /src\/rules\/unit-externals\/README\.md$/);
     assert.equal(
       findings[1].message,
       'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes, or expose src/domain/order.ts from layer if other units should reach it.',
     );
-    assert.match(findings[1].docs, /src\/model\/rules\/dependency-direction\/README\.md$/);
+    assert.match(findings[1].docs, /src\/rules\/dependency-direction\/README\.md$/);
   });
 
   it('reports only the loose files and imports a change adds', () => {

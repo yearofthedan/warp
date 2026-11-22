@@ -4,7 +4,14 @@ export default {
   plugins: ['@stryker-mutator/vitest-runner'],
   testRunner: 'vitest',
   vitest: { configFile: 'stryker.vitest.config.ts' },
-  mutate: ['src/model/**/*.ts', 'src/reporters/**/*.ts', 'src/app/diff.ts', '!src/**/*.test.ts'],
+  mutate: [
+    'src/model/**/*.ts',
+    'src/rule/**/*.ts',
+    'src/rules/**/*.ts',
+    'src/reporters/**/*.ts',
+    'src/app/{checkModel,diff,load,unclassified}.ts',
+    '!src/**/*.test.ts',
+  ],
   incremental: true,
   incrementalFile: 'reports/stryker-incremental.json',
   // why: the rules came over with integration tests only; raise break as slices add unit tests.

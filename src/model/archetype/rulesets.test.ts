@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { builtinRegistry } from '../../builtins.ts';
-import { ConfigError } from '../rule.ts';
+import { ConfigError } from '../configError.ts';
 import { archetype, ruleset } from './builder.ts';
-import { loadConfigData } from './load.ts';
+import { loadConfigData } from '../../app/load.ts';
 
 const leaf = archetype('leaf').contains((p) => p.files('src', '*.ts').files('test', '*.test.ts'));
 const root = archetype('root').contains((p) => p.dir('leaves', '{name}', leaf));

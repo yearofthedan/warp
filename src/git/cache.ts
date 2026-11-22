@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { FindingsCache } from '../app/ports.ts';
-import type { Finding } from '../model/rule.ts';
+import type { Finding } from '../rule/rule.ts';
 
 export const maxAgeMs = 30 * 24 * 60 * 60 * 1000;
 

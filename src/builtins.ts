@@ -1,14 +1,14 @@
-import { registry } from './model/registry.ts';
-import type { Rule } from './model/rule.ts';
-import { builtinRules } from './model/rules/index.ts';
+import { registry } from './rule/registry.ts';
+import type { Rule } from './rule/rule.ts';
+import { builtinRules } from './rules/index.ts';
 
 const source = 'https://github.com/yearofthedan/warp/blob/main';
 
 const documented = (rule: Rule): Rule => ({
   ...rule,
-  docs: `${source}/src/model/rules/${rule.id}/README.md`,
+  docs: `${source}/src/rules/${rule.id}/README.md`,
 });
 
 export const builtinRegistry = registry(builtinRules.map(documented));
 
-export const unclassifiedDocs = `${source}/src/model/rules/unclassified/README.md`;
+export const unclassifiedDocs = `${source}/src/rules/unclassified/README.md`;

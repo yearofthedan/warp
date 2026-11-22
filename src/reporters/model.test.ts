@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { archetype, ruleset } from '../model/archetype/builder.ts';
-import { loadConfigData } from '../model/archetype/load.ts';
+import { loadConfigData } from '../app/load.ts';
 import { resolveModel } from '../model/archetype/resolve.ts';
 import { rulesOf } from '../model/archetype/settings.ts';
 import { modelJson, modelText } from './model.ts';
