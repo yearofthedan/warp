@@ -19,7 +19,7 @@ export default function warp(pi: Extension, env: Record<string, string | undefin
   const ruleset = env.WARP_RULESET ? ['--ruleset', env.WARP_RULESET] : [];
   pi.on('tool_result', async (event, context) => {
     if (event.isError || !editTools.has(event.toolName)) return undefined;
-    const run = await pi.exec(command, [...prefix, 'diff', base, ...ruleset, '--reporter', 'omp'], {
+    const run = await pi.exec(command, [...prefix, 'diff', base, '--since-last-run', ...ruleset, '--reporter', 'omp'], {
       cwd: context.cwd,
       timeout: 60_000,
     });

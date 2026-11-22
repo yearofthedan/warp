@@ -37,10 +37,18 @@ still share a name get `#2`, `#3` in order of appearance.
 `diff HEAD` measures uncommitted changes, so a commit resets the baseline. To measure the whole branch instead, diff
 against where it left main, `main...`.
 
+## Since the last run
+
+`diff <base> --since-last-run` compares the working tree with its findings at the previous run with the flag, so a
+hook that runs it after every edit reports each new or worse finding once, after the edit that made it. The findings
+are kept under `.git/warp-cache/` for each working tree, config and ruleset. The first run, and the first after
+`HEAD` moves (a commit, a pull or a branch switch), compares with `<base>` instead. A change made between two runs by
+anyone is reported at the second run, so an agent may see a finding its own edit did not cause.
+
 ## Claude Code
 
-To have Claude Code see the delta after each edit without being blocked, add a `PostToolUse` hook to the project's
-`.claude/settings.json`:
+To have Claude Code see what each edit made new or worse, [since the last run](#since-the-last-run), without being
+blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`:
 
 ```json
 {
@@ -49,7 +57,7 @@ To have Claude Code see the delta after each edit without being blocked, add a `
       {
         "matcher": "Edit|MultiEdit|Write",
         "hooks": [
-          { "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && warp diff HEAD --ruleset edit --reporter claude-hook", "timeout": 60 }
+          { "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && warp diff HEAD --since-last-run --ruleset edit --reporter claude-hook", "timeout": 60 }
         ]
       }
     ]

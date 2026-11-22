@@ -24,7 +24,9 @@ describe('omp extension', () => {
   it('diffs after an edit and returns the reporter output as additional context', async () => {
     const { calls, fire } = extension('{"additionalContext":"new: src/a.ts:1"}\n');
     assert.deepEqual(await fire('edit'), { additionalContext: 'new: src/a.ts:1' });
-    assert.deepEqual(calls, [{ command: 'warp', args: ['diff', 'main...', '--reporter', 'omp'], cwd: '/repo' }]);
+    assert.deepEqual(calls, [
+      { command: 'warp', args: ['diff', 'main...', '--since-last-run', '--reporter', 'omp'], cwd: '/repo' },
+    ]);
   });
 
   it('runs a command with arguments, such as pnpm exec', async () => {
@@ -32,14 +34,14 @@ describe('omp extension', () => {
     await fire('write');
     assert.deepEqual(
       calls.map((call) => [call.command, call.args]),
-      [['pnpm', ['exec', 'warp', 'diff', 'HEAD', '--reporter', 'omp']]],
+      [['pnpm', ['exec', 'warp', 'diff', 'HEAD', '--since-last-run', '--reporter', 'omp']]],
     );
   });
 
   it('passes a ruleset', async () => {
     const { calls, fire } = extension('', 0, { WARP_RULESET: 'edit' });
     await fire('edit');
-    assert.deepEqual(calls[0].args, ['diff', 'HEAD', '--ruleset', 'edit', '--reporter', 'omp']);
+    assert.deepEqual(calls[0].args, ['diff', 'HEAD', '--since-last-run', '--ruleset', 'edit', '--reporter', 'omp']);
   });
 
   it('skips tools that change no files, failed edits, empty deltas and broken runs', async () => {

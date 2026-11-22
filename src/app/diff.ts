@@ -26,10 +26,11 @@ export interface DiffRequest {
   project: ProjectCheck;
   configDigest?: string;
   toolDigest: string;
+  sinceLastRun?: boolean;
 }
 
 export const diffProject = (
-  { range, root, project, configDigest = '', toolDigest }: DiffRequest,
+  { range, root, project, configDigest = '', toolDigest, sinceLastRun = false }: DiffRequest,
   { repository, cache }: { repository: Repository; cache: FindingsCache },
 ): Delta => {
   const configHash = createHash('sha256')
@@ -53,6 +54,17 @@ export const diffProject = (
     }
   };
   const { head } = range;
-  const base = range.fromMergeBase ? repository.mergeBase(range.base, head ?? 'HEAD') : range.base;
-  return diff(atCommit(base), head === undefined ? project.check(root) : atCommit(head));
+  if (sinceLastRun && head !== undefined)
+    throw new InvalidRange('a diff since the last run compares the working tree, so its range takes no <head>');
+  const baseFindings = () =>
+    atCommit(range.fromMergeBase ? repository.mergeBase(range.base, head ?? 'HEAD') : range.base);
+  if (head !== undefined) return diff(baseFindings(), atCommit(head));
+  const current = project.check(root);
+  if (!sinceLastRun) return diff(baseFindings(), current);
+  const worktree = `${toolDigest}-${configHash}-last-run-${createHash('sha256').update(root).digest('hex').slice(0, 16)}-`;
+  const lastRunKey = `${worktree}${repository.commit('HEAD')}`;
+  const delta = diff(cache.get(lastRunKey) ?? baseFindings(), current);
+  cache.set(lastRunKey, current);
+  cache.prune((key) => key === lastRunKey || !key.startsWith(worktree));
+  return delta;
 };

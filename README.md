@@ -6,7 +6,7 @@
 Architectural fitness checks for TypeScript codebases. A config declares the codebase's units, the parts of each and
 what each part may use. warp builds a model from it and the import graph, and reports findings against it, as text
 for people, JSON or SARIF for tools, and hook responses for coding agents. `diff` reports only what a change made new
-or worse, so it can run after every edit. It covers dependency direction and package use, unit surfaces and
+or worse, and with `--since-last-run` only what the last edit did, so it can run after every edit. It covers dependency direction and package use, unit surfaces and
 re-exports, cycles, cohesion and cognitive complexity.
 
 ## Run it
@@ -41,6 +41,7 @@ warp model                 # the units the config finds, and the part each file 
 | --- | --- |
 | `--config <file>` | Config path. The project root is its directory. Default: the first of `warp.config.ts`, `.mts`, `.js` and `.mjs` in the current directory. |
 | `--ruleset <name>` | Check with one of the config's [rulesets](docs/config.md#rulesets). Default: the one named `default`, if any. |
+| `--since-last-run` | With `diff` and no head, compare the working tree with its findings at the last run with this flag. The first run, and the first after `HEAD` moves, compares with the base. |
 | `--rules` | With `model`, list the rule settings each unit and part changes. |
 | `--json` | With `model`, print the model as JSON, with every unit's and part's resolved rule settings. |
 | `--reporter <name>` | Output format, default `text`. |
