@@ -12,7 +12,6 @@ let project: string;
 const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' });
 const warp = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: project, encoding: 'utf8' });
 
-/** A repo whose project sits in a subdirectory, with one commit of the hexagonal-app fixture and then a change. */
 beforeAll(() => {
   repo = mkdtempSync(join(tmpdir(), 'warp-test-'));
   project = join(repo, 'app');
@@ -115,7 +114,6 @@ describe('warp diff', () => {
 });
 
 describe('warp diff from a linked checkout', () => {
-  // A copy of warp itself, as a global `pnpm link` runs it, so a test can edit a built-in rule.
   let tool: string;
   let dir: string;
   const run = (...args: string[]) =>
@@ -162,9 +160,9 @@ describe('a warp.config.ts with a plugin', () => {
   const run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: dir, encoding: 'utf8' });
   const commit = (...args: string[]) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
 
-  // Outside any package.json, as a project without "type": "module" would be, and without warp installed.
   beforeAll(() => {
-    dir = join(mkdtempSync(join(tmpdir(), 'warp-plugin-')), 'wt');
+    const outsideAnyPackageJson = mkdtempSync(join(tmpdir(), 'warp-plugin-'));
+    dir = join(outsideAnyPackageJson, 'wt');
     cpSync(join(import.meta.dirname, '../fixtures/custom-rule'), dir, { recursive: true });
     commit('init', '--quiet');
     commit('add', '.');
@@ -236,8 +234,6 @@ describe('rulesets', () => {
   const keys = (findings: { key: string }[]) => findings.map((finding) => finding.key).sort();
   const commit = (...args: string[]) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
 
-  // The hexagonal-app fixture with its config as a TS default export, minus cognitive complexity on app modules, and an
-  // `edit` ruleset that turns it back on there.
   beforeAll(() => {
     dir = join(mkdtempSync(join(tmpdir(), 'warp-ruleset-')), 'app');
     cpSync(join(import.meta.dirname, '../fixtures/hexagonal-app'), dir, { recursive: true });
@@ -267,8 +263,8 @@ describe('rulesets', () => {
   });
 
   it('diffs both sides with the same ruleset, so a rule it turns on adds no findings by itself', () => {
-    // The default run caches the base first, so a ruleset that reused its entry would report grade's complexity as new.
-    assert.deepEqual(JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout).added, []);
+    const cachesTheBaseFirst = run('diff', 'HEAD', '--reporter', 'json');
+    assert.deepEqual(JSON.parse(cachesTheBaseFirst.stdout).added, []);
     const delta = JSON.parse(run('diff', 'HEAD', '--ruleset', 'edit', '--reporter', 'json').stdout);
     assert.deepEqual([delta.added, delta.worsened, delta.resolved], [[], [], []]);
   });

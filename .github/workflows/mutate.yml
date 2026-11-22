@@ -3,8 +3,6 @@ name: Mutation
 on:
   pull_request:
     branches: [main]
-  # A pull request's cache is scoped to its own merge ref, so only a run on main seeds the next pull
-  # request's (https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache).
   push:
     branches: [main]
 
@@ -21,8 +19,6 @@ jobs:
         with:
           node-version-file: .node-version
       - run: pnpm install --frozen-lockfile
-      # A run reuses results whatever changes in the files it reads besides the mutated ones, so those
-      # are in the key (https://stryker-mutator.io/docs/stryker-js/incremental).
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: incremental
         with:
@@ -30,8 +26,6 @@ jobs:
           key: mutation-${{ hashFiles('pnpm-lock.yaml', 'stryker.config.mjs', 'stryker.vitest.config.ts', 'vite.config.ts', 'tsconfig.json', '.node-version') }}-${{ github.sha }}
           restore-keys: mutation-${{ hashFiles('pnpm-lock.yaml', 'stryker.config.mjs', 'stryker.vitest.config.ts', 'vite.config.ts', 'tsconfig.json', '.node-version') }}-
       - run: ./do mutate
-      # Saved apart from the restore: the cache action saves only on success, and a failing run's
-      # results are worth keeping.
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: always() && steps.incremental.outputs.cache-hit != 'true'
         with:
@@ -39,7 +33,6 @@ jobs:
           key: mutation-${{ hashFiles('pnpm-lock.yaml', 'stryker.config.mjs', 'stryker.vitest.config.ts', 'vite.config.ts', 'tsconfig.json', '.node-version') }}-${{ github.sha }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         id: report
-        # A failed run still hands over the report that says which mutants survived.
         if: always()
         with:
           name: mutation-report

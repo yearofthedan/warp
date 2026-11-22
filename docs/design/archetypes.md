@@ -572,8 +572,8 @@ const testRunner = archetype('test-runner')
     .files('runner', '**', { using: (s) => [s.contract] }))
   .exposes((s) => ({ contract: s.contract, runner: s.runner }));
 
-// a folder of code whose tests need the runner: domain, application, adapters, lint
 const layer = archetype('layer')
+  .description('A folder of code whose tests need the runner: domain, application, adapters, lint')
   .requires({ testRunner, methods: dir() })
   .contains((p, { required }) => p
     .files('src', '**')

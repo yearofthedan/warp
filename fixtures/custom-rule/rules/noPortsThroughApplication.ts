@@ -2,14 +2,9 @@ import { matchesGlob } from 'node:path';
 import { ConfigError, type Rule } from 'warp';
 
 interface Options {
-  /** Where the application layer keeps its ports. */
   ports: string[];
 }
 
-/**
- * The application layer re-exports its ports for adapters to implement, so dependency-direction lets any kind that
- * depends on application reach them. A UI module should call use cases, never hold a port.
- */
 export const noPortsThroughApplication: Rule<Options> = {
   id: 'no-ports-through-application',
   docs: 'https://example.com/rules/no-ports-through-application',

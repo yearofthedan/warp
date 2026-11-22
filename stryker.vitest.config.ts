@@ -1,6 +1,5 @@
 import config from './vite.config.ts';
 
-// Stryker runs the unit tier alone: the other tiers read the disk or spawn the CLI.
 export default {
   ...config,
   test: {
