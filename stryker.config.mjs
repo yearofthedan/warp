@@ -9,7 +9,7 @@ export default {
   incrementalFile: 'reports/stryker-incremental.json',
   // why: the rules came over with integration tests only; raise break as slices add unit tests.
   // until: break reaches 90, the high mark
-  thresholds: { high: 90, low: 80, break: 88 },
+  thresholds: { high: 90, low: 80, break: 89 },
   reporters: ['clear-text', 'html', 'json'],
   htmlReporter: { fileName: 'reports/mutation/mutation.html' },
   jsonReporter: { fileName: 'reports/mutation/mutation.json' },
