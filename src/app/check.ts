@@ -2,7 +2,7 @@ import type { ConfigData } from '../model/archetype/data.ts';
 import { checkModel } from './checkModel.ts';
 import { type Model, resolveModel } from '../model/archetype/resolve.ts';
 import type { Project } from '../model/facts.ts';
-import type { Finding, Rule } from '../rule/rule.ts';
+import type { Finding, Rule } from '../rules/rule.ts';
 import type { Analyzer, FoldersAt } from './ports.ts';
 
 export interface ProjectCheck {

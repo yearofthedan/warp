@@ -4,10 +4,10 @@ import { beforeAll, describe, it } from 'vite-plus/test';
 import { diskFolders } from '../analysis/folders.ts';
 import { typescriptAnalyzer } from '../analysis/typescript.ts';
 import { projectCheck } from '../app/check.ts';
-import { builtinRegistry, unclassifiedDocs } from '../builtins.ts';
+import { builtinRegistry, unclassifiedDocs } from '../builtins/index.ts';
 import { loadConfig } from '../config/loadConfig.ts';
 import { loadConfigData } from './load.ts';
-import type { Finding } from '../rule/rule.ts';
+import type { Finding } from '../rules/rule.ts';
 
 const root = join(import.meta.dirname, '../../fixtures/hexagonal-app');
 let findings: Finding[];
@@ -45,14 +45,14 @@ describe('check', () => {
   it('links each finding to its rule page', () => {
     assert.equal(
       byKey('no-cross-unit-reexport:src/app/index.ts->src/domain/order.ts')?.docs,
-      'https://github.com/yearofthedan/warp/blob/main/src/rules/no-cross-unit-reexport/README.md',
+      'https://github.com/yearofthedan/warp/blob/main/src/builtins/no-cross-unit-reexport/README.md',
     );
   });
 
   it('links a loose file to the unclassified page', () => {
     assert.equal(
       byKey('unclassified:src/stray.ts')?.docs,
-      'https://github.com/yearofthedan/warp/blob/main/src/rules/unclassified/README.md',
+      'https://github.com/yearofthedan/warp/blob/main/src/builtins/unclassified/README.md',
     );
   });
 

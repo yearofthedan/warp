@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import { builtinRegistry } from '../../builtins.ts';
+import { builtinRegistry } from '../../builtins/index.ts';
 import { ConfigError } from '../configError.ts';
 import { archetype, ruleset } from './builder.ts';
 import { loadConfigData } from '../../app/load.ts';

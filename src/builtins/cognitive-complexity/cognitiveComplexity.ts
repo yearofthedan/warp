@@ -1,4 +1,4 @@
-import { type ModuleRule, wholeNumberOptions } from '../../rule/rule.ts';
+import { type ModuleRule, wholeNumberOptions } from '../../rules/rule.ts';
 import { withOrdinals } from '../shared.ts';
 
 const defaults = { max: 15 };

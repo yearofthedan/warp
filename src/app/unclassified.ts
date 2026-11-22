@@ -1,4 +1,4 @@
-import type { Finding } from '../rule/rule.ts';
+import type { Finding } from '../rules/rule.ts';
 import type { Model } from '../model/archetype/resolve.ts';
 import type { Settings } from '../model/archetype/settings.ts';
 

@@ -1,5 +1,5 @@
 import { components } from '../components.ts';
-import { type ModuleRule, wholeNumberOptions } from '../../rule/rule.ts';
+import { type ModuleRule, wholeNumberOptions } from '../../rules/rule.ts';
 import { group, type Group } from '../shared.ts';
 
 const defaults = { maxLines: 200 };

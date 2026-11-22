@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { reporters } from '../reporters/index.ts';
 import type { Report } from '../reporters/reporter.ts';
-import type { Finding } from '../rule/rule.ts';
+import type { Finding } from '../rules/rule.ts';
 
 const finding: Finding = {
   rule: 'cognitive-complexity',

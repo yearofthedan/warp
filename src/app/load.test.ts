@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { archetype, defineConfig, dir, files, pkg, requiredRefs, ruleset } from '../model/archetype/builder.ts';
 import { ConfigError } from '../model/configError.ts';
-import { wholeNumberOptions } from '../rule/rule.ts';
+import { wholeNumberOptions } from '../rules/rule.ts';
 import { loadConfigData } from './load.ts';
-import { builtinRegistry } from '../builtins.ts';
-import type { ModuleRule } from '../rule/rule.ts';
+import { builtinRegistry } from '../builtins/index.ts';
+import type { ModuleRule } from '../rules/rule.ts';
 
 const workingTitleConfig = () => {
   const testRunner = archetype('test-runner')

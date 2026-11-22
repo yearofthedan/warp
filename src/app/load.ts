@@ -1,6 +1,6 @@
-import { pluginRules, registry } from '../rule/registry.ts';
+import { pluginRules, registry } from '../rules/registry.ts';
 import { ConfigError } from '../model/configError.ts';
-import { type Rule, noOptions } from '../rule/rule.ts';
+import { type Rule, noOptions } from '../rules/rule.ts';
 import { recordedAs } from '../model/archetype/builder.ts';
 import type { ArchetypeData, ConfigData } from '../model/archetype/data.ts';
 import { collect, draft } from '../model/archetype/draft.ts';
