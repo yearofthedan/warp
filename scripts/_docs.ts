@@ -13,6 +13,13 @@ export const headerProblems = (path: string, text: string): string[] => {
   return problems;
 };
 
+export const linkProblems = (path: string, text: string): string[] =>
+  path === 'AGENTS.md'
+    ? []
+    : [...text.matchAll(/\]\(([^)\s]*AGENTS\.md(#[^)\s]*)?)\)/g)].map(
+        ([, target]) => `links to ${target}: AGENTS.md links into the docs, never the reverse`,
+      );
+
 export const examplesIn = (text: string): Example[] => {
   const examples: Example[] = [];
   let open: { line: number; info: string; code: string[] } | undefined;
@@ -55,6 +62,7 @@ export type Planned = { code: string; doc: string; line: number };
 
 const docProblems = (doc: string, text: string, api: string[]) => [
   ...headerProblems(doc, text).map((problem) => `${doc}:1: ${problem}`),
+  ...linkProblems(doc, text).map((problem) => `${doc}: ${problem}`),
   ...examplesIn(text)
     .filter((example) => example.fragment)
     .flatMap((example) =>
