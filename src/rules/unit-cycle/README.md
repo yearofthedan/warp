@@ -38,5 +38,5 @@ rule off on that part: `.dir('modules', '{name}', module, { rules: { 'unit-cycle
 
 ## Options
 
-- `types`: `'ignore'` (default) leaves type-only imports out of the graph, since they don't load at run time;
-  `'count'` counts them.
+- `types`: `'count'` (default) counts type-only imports, since a type couples two files as much as a value does;
+  `'ignore'` leaves them out of the graph, for a loop that matters only at run time.

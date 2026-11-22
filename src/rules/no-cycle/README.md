@@ -34,5 +34,5 @@ Fix it by moving what both need into a file they both import, or by inverting on
 
 ## Options
 
-- `types`: `'ignore'` (default) leaves type-only imports out of the graph, since they don't load at run time;
-  `'count'` counts them.
+- `types`: `'count'` (default) counts type-only imports, since a type couples two files as much as a value does;
+  `'ignore'` leaves them out of the graph, for a loop that matters only at run time.
