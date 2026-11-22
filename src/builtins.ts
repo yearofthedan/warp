@@ -1,22 +1,22 @@
+import type { LoadOptions } from './model/archetype/load.ts';
 import { registry } from './model/config.ts';
-import type { Rule } from './model/rule.ts';
-import { builtinRules } from './model/rules/index.ts';
+import { type ArchetypeRule, noOptions, type Rule } from './model/rule.ts';
+import { archetypeRules, builtinRules } from './model/rules/index.ts';
 
 const source = 'https://github.com/yearofthedan/warp/blob/main';
 
-const documented = (rule: Rule): Rule => ({ ...rule, docs: `${source}/src/model/rules/${rule.id}/README.md` });
+const documented = <R extends Rule | ArchetypeRule>(rule: R): R => ({
+  ...rule,
+  docs: `${source}/src/model/rules/${rule.id}/README.md`,
+});
 
 export const builtinRegistry = registry(builtinRules.map(documented));
 
-export const unclassifiedDocs = `${source}/docs/unclassified.md`;
+export const archetypeRegistry = registry(archetypeRules.map(documented));
 
-// why: an archetype config's rules run outside the registry, so their pages are listed by hand.
-// until: archetype rules run through the registry, in the rules port
-export const archetypeDocs = {
-  unclassified: unclassifiedDocs,
-  'dependency-direction': builtinRegistry.get('dependency-direction')?.docs,
-  'unit-externals': `${source}/docs/unit-externals.md`,
-  'no-double-export': `${source}/docs/no-double-export.md`,
-  'unit-cycle': `${source}/docs/unit-cycle.md`,
-  'no-cycle': `${source}/docs/no-cycle.md`,
+export const unclassifiedDocs = `${source}/src/model/rules/unclassified/README.md`;
+
+export const archetypeLoadOptions: LoadOptions = {
+  ruleIds: [...archetypeRegistry.keys()],
+  options: Object.fromEntries([...archetypeRegistry].map(([id, rule]) => [id, rule.parseOptions ?? noOptions])),
 };

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { ImportEdge, Project } from '../facts.ts';
 import { type AnyArchetype, archetype, files, mustImport } from './builder.ts';
+import { archetypeRules } from '../rules/index.ts';
 import { checkModel } from './check.ts';
 import { loadConfigData } from './load.ts';
 import { type Folders, resolveModel } from './resolve.ts';
@@ -50,7 +51,7 @@ const modelOf = (root: AnyArchetype, imports: Record<string, readonly Import[]>,
 
 const check = (root: AnyArchetype, imports: Record<string, readonly Import[]>, rules?: unknown) => {
   const { config, model, project } = modelOf(root, imports, rules);
-  return checkModel(config, model, project);
+  return checkModel(config, model, project, archetypeRules);
 };
 
 const keys = (findings: readonly { key: string }[]) => findings.map((finding) => finding.key);
@@ -142,6 +143,51 @@ describe('rule settings', () => {
   });
 });
 
+describe('code measures', () => {
+  const complex = (file: string, total: number): Project['modules'][number] => ({
+    file,
+    lines: 10,
+    imports: [],
+    externals: [],
+    units: { units: [], links: [] },
+    functions: [
+      {
+        name: 'run',
+        line: 1,
+        endLine: 9,
+        lines: 9,
+        statements: { units: [], links: [] },
+        complexity: { total, increments: [{ line: 2, amount: total, reason: 'if' }] },
+      },
+    ],
+  });
+  const app = archetype('app')
+    .contains((p) =>
+      p
+        .files('scripts', 'scripts/*.ts', { rules: { 'cognitive-complexity': false } })
+        .files('tests', '*.test.ts', { rules: { 'cognitive-complexity': { max: 30 } } })
+        .files('src', '*.ts'),
+    )
+    .rules({ 'cognitive-complexity': { max: 20 } });
+
+  it("judges each file's functions against the threshold nearest to it, and not where the rule is off", () => {
+    const modules = [complex('a.ts', 25), complex('b.ts', 18), complex('a.test.ts', 25), complex('scripts/c.ts', 40)];
+    const { config, model } = modelOf(app, Object.fromEntries(modules.map((module) => [module.file, []])));
+    const findings = checkModel(config, model, { modules }, archetypeRules);
+    assert.deepEqual(
+      findings.map((finding) => [finding.key, finding.limit]),
+      [['cognitive-complexity:a.ts:run', 20]],
+    );
+  });
+
+  it("falls back to the rule's defaults", () => {
+    const plain = archetype('plain').contains((p) => p.files('src', '*.ts'));
+    const modules = [complex('a.ts', 16), complex('b.ts', 15)];
+    const { config, model } = modelOf(plain, Object.fromEntries(modules.map((module) => [module.file, []])));
+    assert.deepEqual(keys(checkModel(config, model, { modules }, archetypeRules)), ['cognitive-complexity:a.ts:run']);
+  });
+});
+
 describe('mustImport', () => {
   const runner = archetype('runner')
     .contains((p) => p.files('contract', 'contract.ts').files('rest', '**', { using: (s) => [s.contract] }))
@@ -221,7 +267,12 @@ describe('mustImport', () => {
       .contains((p) => p.dir('kids', '{name}', kid))
       .rules((s) => ({ 'dsl-on-api': mustImport({ from: s.kids.dsl, to: s.kids.api }) }));
     const { config, model, project: facts } = modelOf(parent, { 'a/api.ts': [], 'a/x.dsl.ts': [], 'a/y.dsl.ts': [] });
-    const findings = checkModel(config, model, { modules: facts.modules.filter((m) => m.file !== 'a/y.dsl.ts') });
+    const findings = checkModel(
+      config,
+      model,
+      { modules: facts.modules.filter((m) => m.file !== 'a/y.dsl.ts') },
+      archetypeRules,
+    );
     assert.deepEqual(keys(findings), ['dsl-on-api:a/x.dsl.ts']);
     assert.deepEqual((findings[0]!.details as { declaredBy: string }).declaredBy, 'parent');
   });
@@ -368,11 +419,12 @@ describe('cycles', () => {
     assert.equal(loop.value, 4);
   });
 
-  it('attaches docs when given', () => {
+  it("attaches each rule's docs", () => {
     const { config, model, project: facts } = modelOf(app, imports);
-    const docs = checkModel(config, model, facts, { 'no-cycle': 'https://no', 'unit-cycle': 'https://unit' });
-    assert.equal(docs.find((finding) => finding.rule === 'no-cycle')?.docs, 'https://no');
-    assert.equal(docs.find((finding) => finding.rule === 'unit-cycle')?.docs, 'https://unit');
+    const rules = archetypeRules.map((rule) => ({ ...rule, docs: `https://${rule.id}` }));
+    const docs = checkModel(config, model, facts, rules);
+    assert.equal(docs.find((finding) => finding.rule === 'no-cycle')?.docs, 'https://no-cycle');
+    assert.equal(docs.find((finding) => finding.rule === 'unit-cycle')?.docs, 'https://unit-cycle');
     assert.ok(cycles().every((finding) => !('docs' in finding)));
   });
 });

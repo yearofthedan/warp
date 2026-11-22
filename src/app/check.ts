@@ -1,10 +1,10 @@
 import type { ConfigData } from '../model/archetype/data.ts';
-import { type CheckDocs, checkModel } from '../model/archetype/check.ts';
+import { checkModel } from '../model/archetype/check.ts';
 import { type Model, resolveModel } from '../model/archetype/resolve.ts';
 import { check } from '../model/check.ts';
 import { alwaysExcluded, type Config } from '../model/config.ts';
 import type { Project } from '../model/facts.ts';
-import type { Finding } from '../model/rule.ts';
+import type { ArchetypeRule, Finding } from '../model/rule.ts';
 import type { Analyzer, FoldersAt } from './ports.ts';
 
 export interface ProjectCheck {
@@ -35,12 +35,12 @@ export const modelProject = (
 export const archetypeCheck = (
   adapters: { analyzer: Analyzer; foldersAt: FoldersAt },
   config: ConfigData,
-  docs: CheckDocs = {},
+  { rules = [], unclassifiedDocs }: { rules?: readonly ArchetypeRule[]; unclassifiedDocs?: string } = {},
 ): ProjectCheck => ({
   config,
   requiredFile: config.tsconfig[0]!,
   check: (root) => {
     const { model, project } = modelProject(adapters, root, config);
-    return checkModel(config, model, project, docs);
+    return checkModel(config, model, project, rules, unclassifiedDocs);
   },
 });

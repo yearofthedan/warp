@@ -1,27 +1,27 @@
-import type { ImportEdge, Project } from '../facts.ts';
-import type { Finding } from '../rule.ts';
-import type { ConfigData } from './data.ts';
-import type { Refusal, Verdicts } from './reach.ts';
-import type { Model, UnitView } from './resolve.ts';
+import type { ConfigData } from '../../archetype/data.ts';
+import { place } from '../../archetype/place.ts';
+import type { Refusal, Verdicts } from '../../archetype/reach.ts';
+import type { Model } from '../../archetype/resolve.ts';
+import type { ImportEdge } from '../../facts.ts';
+import { type Finding, noOptions, type ProjectRule } from '../../rule.ts';
 
 const id = 'dependency-direction';
 
-export const directionFindings = (
-  config: ConfigData,
-  model: Model,
-  verdicts: Verdicts,
-  project: Project,
-  docs?: string,
-): Finding[] =>
-  project.modules.flatMap((module) => {
-    const byTarget = Map.groupBy(module.imports, (edge) => edge.via ?? edge.to);
-    return [...byTarget].flatMap(([to, edges]) => {
-      const verdict = verdicts.verdict(module.file, to);
-      if (verdict === undefined || verdict.allowed) return [];
-      const finding = refused({ config, model, verdicts }, module.file, to, verdict, edges);
-      return [docs ? { ...finding, docs } : finding];
-    });
-  });
+export const dependencyDirectionByReach: ProjectRule = {
+  id,
+  scope: 'project',
+  parseOptions: noOptions,
+  check: ({ config, model, verdicts, project, atFile }) =>
+    project.modules.flatMap((module) => {
+      if (!atFile(module.file).on) return [];
+      const byTarget = Map.groupBy(module.imports, (edge) => edge.via ?? edge.to);
+      return [...byTarget].flatMap(([to, edges]) => {
+        const verdict = verdicts.verdict(module.file, to);
+        if (verdict === undefined || verdict.allowed) return [];
+        return [refused({ config, model, verdicts }, module.file, to, verdict, edges)];
+      });
+    }),
+};
 
 interface Context {
   config: ConfigData;
@@ -50,12 +50,6 @@ const refused = (context: Context, from: string, to: string, refusal: Refusal, e
       edges,
     },
   };
-};
-
-export const place = (model: Model, file: string, unit: UnitView = model.unitOf(file)!): string => {
-  if (unit.archetype === undefined) return `plain folder ${unit.id}`;
-  const part = model.partOf(file);
-  return `${part === undefined ? 'loose in' : `${part} of`} ${unit.archetype} ${unit.id}`;
 };
 
 const explain = ({ config, model, verdicts }: Context, from: string, to: string, refusal: Refusal): string => {

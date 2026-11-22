@@ -1,7 +1,7 @@
 import type { ModuleFacts, Project } from '../facts.ts';
 import type { Finding } from '../rule.ts';
 import type { ArchetypeData, ConfigData, MustImportData, RuleSettingsData } from './data.ts';
-import { place } from './direction.ts';
+import { place } from './place.ts';
 import type { Verdicts } from './reach.ts';
 import type { Model, UnitView } from './resolve.ts';
 

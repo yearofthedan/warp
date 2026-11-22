@@ -39,9 +39,9 @@ commit against approved findings; it runs nightly in CI, not on pull requests.
 ## Adding a rule
 
 A built-in rule is a folder in [src/model/rules/](src/model/rules): the rule module, its unit tests, and its page as
-the folder's `README.md`. The archetype config's rules live in [src/model/archetype/](src/model/archetype), with
-their pages in `docs/`. Either way, a new rule's page has the same sections as the others, and gets a row in the rules
-table in [docs/config.md](docs/config.md#rules).
+the folder's `README.md`. [src/model/rules/index.ts](src/model/rules/index.ts) lists it for kinds configs, archetype
+configs, or both. A new rule's page has the same sections as the others, and gets a row in the rules table in
+[docs/config.md](docs/config.md#rules).
 
 ## Comments and docs
 

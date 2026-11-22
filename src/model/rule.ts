@@ -1,4 +1,7 @@
-import type { ModuleFacts } from './facts.ts';
+import type { ConfigData } from './archetype/data.ts';
+import type { Verdicts } from './archetype/reach.ts';
+import type { Model, UnitView } from './archetype/resolve.ts';
+import type { ModuleFacts, Project } from './facts.ts';
 
 export interface EnabledRule {
   rule: Rule;
@@ -24,20 +27,52 @@ export interface Finding {
   details?: unknown;
 }
 
-export interface RuleContext<Options> {
+export interface ModuleContext<Options> {
   module: ModuleFacts;
-  kind: Kind;
   options: Options;
+}
+
+export interface RuleContext<Options> extends ModuleContext<Options> {
+  kind: Kind;
   kindOf: (file: string) => Kind | undefined;
 }
 
-export interface Rule<Options extends object = object> {
+export interface Setting<Options> {
+  on: boolean;
+  options: Options;
+}
+
+export interface ProjectContext<Options> {
+  project: Project;
+  config: ConfigData;
+  model: Model;
+  verdicts: Verdicts;
+  atFile: (file: string) => Setting<Options>;
+  atUnit: (unit: UnitView) => Setting<Options>;
+}
+
+interface RuleBase<Options extends object> {
   id: string;
   docs?: string;
   defaults?: Options;
   parseOptions?: (raw: Record<string, unknown>, at: string) => Partial<Options>;
+}
+
+export interface Rule<Options extends object = object> extends RuleBase<Options> {
   check: (context: RuleContext<Options>) => Finding[];
 }
+
+export interface ModuleRule<Options extends object = object> extends RuleBase<Options> {
+  scope?: 'module';
+  check: (context: ModuleContext<Options>) => Finding[];
+}
+
+export interface ProjectRule<Options extends object = object> extends RuleBase<Options> {
+  scope: 'project';
+  check: (context: ProjectContext<Options>) => Finding[];
+}
+
+export type ArchetypeRule = ModuleRule<any> | ProjectRule<any>;
 
 export interface Plugin {
   rules: readonly Rule<any>[];

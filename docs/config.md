@@ -79,7 +79,7 @@ warp model --json    # the same, for tools
 - The most specific part wins: a literal dir segment beats a placeholder, and a literal file path beats any glob,
   then the longer literal suffix after the last `*`, with `**` last. Two equally specific parts are a config error.
 - A file belongs to its deepest unit. One no part matches is loose, and `check` and `diff` report it as
-  [`unclassified`](./unclassified.md) where the unit's `loose` is `deny`, the root's default.
+  [`unclassified`](../src/model/rules/unclassified/README.md) where the unit's `loose` is `deny`, the root's default.
 - `tsconfig` takes a list, and warp reads every file of their programs.
 
 `check` and `diff` on an archetype config judge every import between project files against the importer's reach,
@@ -95,10 +95,10 @@ and report each one outside it as [`dependency-direction`](../src/model/rules/de
   behind it. Type-only imports count.
 
 A package import is judged the same way, against the `pkg()` entries in the file's reach, and one outside it is
-reported as [`unit-externals`](./unit-externals.md). `pkg('x')` covers the package and its subpaths, and `*` matches
+reported as [`unit-externals`](../src/model/rules/unit-externals/README.md). `pkg('x')` covers the package and its subpaths, and `*` matches
 any run of characters: `pkg('node:*')`, `pkg('@aws-sdk/*')`, `pkg('*')`.
 
-[`no-double-export`](./no-double-export.md) reports a file on a unit's surface that re-exports another file on that
+[`no-double-export`](../src/model/rules/no-double-export/README.md) reports a file on a unit's surface that re-exports another file on that
 surface, so there is one way to each name: a barrel over private files, or exposed files with no barrel.
 
 Rule settings go in four places: `defineConfig({ rules })`, `.rules()` on an archetype, and `rules` in a dir or files
@@ -116,8 +116,11 @@ An inline rule is given by value under a local name, on an archetype or a part. 
 each file in `from` that imports nothing in `to`, read in each unit of the archetype that declares it; its findings
 carry the local name as their rule.
 
-[`unit-cycle`](./unit-cycle.md) reports each import between sibling units that lies on a loop among them, and
-[`no-cycle`](./no-cycle.md) each import between files that lies on a loop.
+[`unit-cycle`](../src/model/rules/unit-cycle/README.md) reports each import between sibling units that lies on a loop among them, and
+[`no-cycle`](../src/model/rules/no-cycle/README.md) each import between files that lies on a loop.
+
+`module-cohesion`, `function-cohesion` and `cognitive-complexity` judge each file's code as they do in a kinds config,
+with the options that resolve for that file, so tests and code, or two parts, can have different thresholds.
 
 ## Custom rules
 
@@ -236,10 +239,12 @@ warp --print-config --ruleset edit   # the merged result, per kind
 ## Rules
 
 Analysis extracts the facts once for the whole project: the import graph, with re-exports marked, each module's top-level units and the
-links between them, and each function's statements and complexity. Each rule is its own module in
-[`src/model/rules/`](../src/model/rules) that reads those facts for one module at a time, so it stays pure. A rule
-declares its id, its default options and how to validate them, and a `check` that returns findings. Rules are looked
-up in a registry, where a project's [own rules](#custom-rules) join the built-in ones.
+links between them, and each function's statements and complexity. Each rule is its own folder in
+[`src/model/rules/`](../src/model/rules), holding its module and its page, and reads those facts without touching
+source, so it stays pure. A rule declares its id, its default options and how to validate them, and a `check` that
+returns findings. Most read one module at a time; in an archetype config, a project rule reads the whole project and
+the model once, and looks up its setting for each file or unit. Rules are looked up in a registry, where a project's
+[own rules](#custom-rules) join the built-in ones in a kinds config.
 
 Every finding has a `rule`, a `key` that identifies it across commits, a `value` that `diff` compares, a `message`,
 `details` an agent can act on, and for built-in rules a `docs` link to the rule's page. The rules don't know where
@@ -250,13 +255,13 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 
 | Rule | Reports | Options |
 | --- | --- | --- |
-| [`unclassified`](./unclassified.md) | A module that matches no kind. From the model, so it cannot be turned off. | |
+| [`unclassified`](../src/model/rules/unclassified/README.md) | A module that matches no kind, or in an archetype config a loose file where `loose` is `deny`. From the model, so it cannot be turned off. | |
 | [`dependency-direction`](../src/model/rules/dependency-direction/README.md) | An import from a kind the importer's kind does not list in `dependsOn`, followed through barrels; in an archetype config, an import outside the importer's reach. | |
-| [`unit-externals`](./unit-externals.md) | In an archetype config, a package import that no `using` in the importer's reach lists. | |
-| [`no-double-export`](./no-double-export.md) | In an archetype config, a re-export, in a file on its unit's surface, of another file on that surface. | |
-| [`unit-cycle`](./unit-cycle.md) | In an archetype config, an import between sibling units that lies on a loop among them. | `types` |
-| [`no-cycle`](./no-cycle.md) | In an archetype config, an import between files that lies on a loop. | `types` |
-| [`no-cross-kind-reexport`](../src/model/rules/no-cross-kind-reexport/README.md) | A module that re-exports what another kind declares. | `allow` |
+| [`unit-externals`](../src/model/rules/unit-externals/README.md) | In an archetype config, a package import that no `using` in the importer's reach lists. | |
+| [`no-double-export`](../src/model/rules/no-double-export/README.md) | In an archetype config, a re-export, in a file on its unit's surface, of another file on that surface. | |
+| [`unit-cycle`](../src/model/rules/unit-cycle/README.md) | In an archetype config, an import between sibling units that lies on a loop among them. | `types` |
+| [`no-cycle`](../src/model/rules/no-cycle/README.md) | In an archetype config, an import between files that lies on a loop. | `types` |
+| [`no-cross-kind-reexport`](../src/model/rules/no-cross-kind-reexport/README.md) | In a kinds config, a module that re-exports what another kind declares. | `allow` |
 | [`module-cohesion`](../src/model/rules/module-cohesion/README.md) | A module over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
 | [`function-cohesion`](../src/model/rules/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
 | [`cognitive-complexity`](../src/model/rules/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |
