@@ -7,7 +7,7 @@ export const modelText = (model: Model, rules?: RulesOf): string => {
     const indent = '  '.repeat(depth);
     lines.push(`${indent}${unit.id}  ${heading(unit)}  ${contents(unit)}`);
     if (rules) lines.push(...changedRules(unit, rules).map((line) => `${indent}  ${line}`));
-    for (const file of unit.looseFiles) lines.push(`${indent}  loose (${unit.loose}): ${file}`);
+    for (const file of unit.looseFiles) lines.push(`${indent}  loose: ${file}`);
     for (const child of unit.children) visit(child, depth + 1);
   };
   visit(model.root, 0);
@@ -62,7 +62,6 @@ export const modelJson = (model: Model, rules?: RulesOf): string =>
         children: unit.children.map((child) => child.id),
         ownFiles: unit.ownFiles,
         parts: unit.parts,
-        loose: unit.loose,
         looseFiles: unit.looseFiles,
         ...(rules ? resolvedRules(unit, rules) : {}),
       })),

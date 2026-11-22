@@ -1,11 +1,10 @@
 import { ConfigError } from '../rule.ts';
-import type { IdentifyData, Loose } from './data.ts';
+import type { IdentifyData } from './data.ts';
 
 declare const referenceBrand: unique symbol;
 declare const packageBrand: unique symbol;
 declare const shapeBrand: unique symbol;
 declare const selfBrand: unique symbol;
-declare const inlineBrand: unique symbol;
 declare const exposesType: unique symbol;
 declare const partBrand: unique symbol;
 declare const rulesetBrand: unique symbol;
@@ -24,10 +23,6 @@ export interface Shape {
 
 export interface Self {
   readonly [selfBrand]: true;
-}
-
-export interface InlineRule {
-  readonly [inlineBrand]: true;
 }
 
 export interface PartHandle {
@@ -55,6 +50,10 @@ export interface PartOptions<C> {
   description?: string;
 }
 
+export interface FilesPartOptions<C> extends PartOptions<C> {
+  mustImport?: readonly Reference[] | ((s: C) => readonly Reference[]);
+}
+
 export const archetypeMethods = [
   'name',
   'identify',
@@ -62,8 +61,6 @@ export const archetypeMethods = [
   'contains',
   'exposes',
   'provides',
-  'loose',
-  'constraints',
   'description',
 ] as const;
 
@@ -77,7 +74,7 @@ export interface Parts<C> {
   files<const K extends string>(
     name: NewName<K, C>,
     patterns: string | readonly string[],
-    options?: PartOptions<C>,
+    options?: FilesPartOptions<C>,
   ): Parts<C & { readonly [k in K]: Reference }>;
   dir<const K extends string>(
     name: NewName<K, C>,
@@ -113,10 +110,6 @@ export interface ArchetypeMethods<N extends string, C, R, E> extends Archetype<N
     exposes: (s: C) => E2,
   ): ArchetypeBuilder<N, C, R, E2>;
   provides(provides: (s: C) => Record<string, Reference>): ArchetypeBuilder<N, C, R, E>;
-  loose(loose: Loose): ArchetypeBuilder<N, C, R, E>;
-  constraints(
-    constraints: (s: C, context: { required: R }) => Record<string, InlineRule>,
-  ): ArchetypeBuilder<N, C, R, E>;
   description(description: string): ArchetypeBuilder<N, C, R, E>;
 }
 
@@ -152,8 +145,6 @@ export interface RecordedArchetype {
   parts: unknown;
   exposes?: unknown;
   provides?: unknown;
-  loose?: unknown;
-  constraints?: unknown;
   description?: unknown;
 }
 
@@ -166,7 +157,6 @@ interface Recorded {
   ref: RecordedRef;
   self: true;
   shape: 'dir' | 'files';
-  inline: { kind: 'mustImport'; from: unknown; to: unknown };
   parts: readonly RecordedPart[];
   archetype: RecordedArchetype;
   partHandle: { archetype: unknown; part: unknown };
@@ -225,8 +215,6 @@ const builder = (state: RecordedArchetype): unknown => ({
     builder({ ...state, parts: recordedAs(contains(parts([]), { required: requiredRefs(), self }), 'parts') }),
   exposes: (exposes: unknown) => builder({ ...state, exposes }),
   provides: (provides: unknown) => builder({ ...state, provides }),
-  loose: (loose: unknown) => builder({ ...state, loose }),
-  constraints: (constraints: unknown) => builder({ ...state, constraints }),
   description: (description: unknown) => builder({ ...state, description }),
 });
 
@@ -238,9 +226,6 @@ export const dir = (): Shape => Object.freeze(record('shape', 'dir')) as never;
 export const files = (): Shape => Object.freeze(record('shape', 'files')) as never;
 
 export const pkg = (pattern: string): Package => ref({ kind: 'package', pattern }) as never;
-
-export const mustImport = ({ from, to }: { from: Reference; to: Reference }): InlineRule =>
-  Object.freeze(record('inline', { kind: 'mustImport', from, to })) as never;
 
 export const defineConfig = <const C extends WarpConfig>(config: C): C => config;
 

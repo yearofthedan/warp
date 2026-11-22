@@ -5,6 +5,7 @@ import type { ArchetypeData, ConfigData } from './data.ts';
 import { collect, draft } from './draft.ts';
 import { type Check, resolveDraft, toRules } from './references.ts';
 import { checkRequirements, checkUnused } from './requirements.ts';
+import { unclassified } from './unclassified.ts';
 import { withRuleset } from './rulesets.ts';
 import { defined, type Fail, isName, isRecord } from './shared.ts';
 
@@ -35,10 +36,9 @@ export const loadConfigData = (raw: unknown, { builtins, ruleset }: LoadOptions 
 
   const rules = [...registry([...(builtins ?? []), ...pluginRules(plugins(raw.plugins, fail))]).values()];
   const drafts = [...collect(root, fail)].map(([name, state]) => draft(name, state, fail));
-  const registered = builtins && new Set(rules.map((rule) => rule.id));
   const check: Check = {
     fail,
-    registered,
+    ruleIds: builtins && new Set([...rules.map((rule) => rule.id), unclassified]),
     options: Object.fromEntries(rules.map((rule) => [rule.id, rule.parseOptions ?? noOptions])),
     surfacesOf: (name) => {
       const exposes = drafts.find((d) => d.data.name === name)?.exposes;
@@ -51,8 +51,6 @@ export const loadConfigData = (raw: unknown, { builtins, ruleset }: LoadOptions 
     archetypes: Object.fromEntries(drafts.map(({ data }) => [data.name, archetypeData(data)])),
     tsconfig: tsconfigs(raw.tsconfig, fail),
   };
-  const constraints = drafts.flatMap(({ data }) => Object.keys(data.constraints ?? {}));
-  check.ruleIds = registered && new Set([...registered, ...constraints]);
   const config = withRuleset(structure, raw.rulesets, ruleset, (value, at) => toRules(check, value, at), fail);
   for (const d of drafts) checkUnused(d, fail);
   failed();
@@ -61,18 +59,8 @@ export const loadConfigData = (raw: unknown, { builtins, ruleset }: LoadOptions 
   return { config, rules, warnings };
 };
 
-const archetypeData = ({
-  name,
-  description,
-  identify,
-  requires,
-  parts,
-  exposes,
-  provides,
-  loose,
-  constraints,
-}: ArchetypeData) =>
-  defined({ name, description, identify, requires, parts: parts.map(defined), exposes, provides, loose, constraints });
+const archetypeData = ({ name, description, identify, requires, parts, exposes, provides }: ArchetypeData) =>
+  defined({ name, description, identify, requires, parts: parts.map(defined), exposes, provides });
 
 const plugins = (value: unknown, fail: Fail): Record<string, unknown> => {
   if (value === undefined) return {};

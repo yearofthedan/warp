@@ -1,4 +1,4 @@
-import { archetype, defineConfig, dir, files, mustImport, pkg } from 'warp';
+import { archetype, defineConfig, dir, files, pkg } from 'warp';
 
 const testRunner = archetype('test-runner')
   .contains((p) =>
@@ -42,7 +42,10 @@ const component = archetype('component')
           required.ports,
         ],
       })
-      .files('dsl', '*.dsl.ts', { using: (s) => [s.subcomponent.dsl, required.testRunner.contract] })
+      .files('dsl', '*.dsl.ts', {
+        using: (s) => [s.subcomponent.dsl, required.testRunner.contract],
+        mustImport: [required.testRunner.contract],
+      })
       .files('testPage', '*.test-page.ts', { using: (s) => [s.subcomponent.testPage, pkg('vite-plus/*')] })
       .files('harness', '*.harness.ts', {
         using: (s) => [
@@ -73,10 +76,7 @@ const component = archetype('component')
         ],
       }),
   )
-  .exposes((s) => ({ render: s.dom, testPage: s.testPage, dsl: s.dsl }))
-  .constraints((s, { required }) => ({
-    'dsl-on-the-driver-contract': mustImport({ from: s.dsl, to: required.testRunner.contract }),
-  }));
+  .exposes((s) => ({ render: s.dom, testPage: s.testPage, dsl: s.dsl }));
 
 const ui = archetype('ui')
   .contains((p) =>
@@ -98,16 +98,17 @@ const ui = archetype('ui')
 const journeys = archetype('journeys')
   .requires({ testRunner, ui })
   .contains((p, { required }) =>
-    p.files('dsl', '*.dsl.ts', { using: [required.testRunner.contract, required.ui.dsl] }).files('rest', '**', {
-      using: (s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl],
-    }),
-  )
-  .constraints((s, { required }) => ({
-    'dsl-on-the-driver-contract': mustImport({ from: s.dsl, to: required.testRunner.contract }),
-  }));
+    p
+      .files('dsl', '*.dsl.ts', {
+        using: [required.testRunner.contract, required.ui.dsl],
+        mustImport: [required.testRunner.contract],
+      })
+      .files('rest', '**', {
+        using: (s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl],
+      }),
+  );
 
 const workingTitle = archetype('working-title')
-  .loose('deny')
   .contains((p) =>
     p
       .dir('domain', 'src/domain', layer)

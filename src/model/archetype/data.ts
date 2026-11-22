@@ -17,12 +17,6 @@ export interface PackageRefData {
 
 export type RefData = PartRefData | RequiredRefData | PackageRefData;
 
-export interface MustImportData {
-  inline: 'mustImport';
-  from: PartRefData | RequiredRefData;
-  to: PartRefData | RequiredRefData;
-}
-
 export type RuleSettingsData = 'off' | Record<string, boolean | Record<string, unknown>>;
 
 export interface FilesPartData {
@@ -30,6 +24,7 @@ export interface FilesPartData {
   name: string;
   patterns: string[];
   using: RefData[];
+  mustImport?: (PartRefData | RequiredRefData)[];
   rules?: RuleSettingsData;
   description?: string;
 }
@@ -52,8 +47,6 @@ export type IdentifyData =
   | { marker: string }
   | { match: (dir: string, chain: readonly unknown[]) => false | Record<string, string> };
 
-export type Loose = 'allow' | 'warn' | 'deny';
-
 export interface ArchetypeData {
   name: string;
   description?: string;
@@ -62,8 +55,6 @@ export interface ArchetypeData {
   parts: PartData[];
   exposes?: Record<string, RefData[]>;
   provides: Record<string, PartRefData>;
-  loose?: Loose;
-  constraints?: Record<string, MustImportData>;
   rules?: RuleSettingsData;
 }
 

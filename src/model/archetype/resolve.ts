@@ -1,5 +1,5 @@
 import { ConfigError } from '../rule.ts';
-import type { ArchetypeData, ConfigData, DirPartData, Loose } from './data.ts';
+import type { ArchetypeData, ConfigData, DirPartData } from './data.ts';
 
 export interface Folders {
   folders(dir: string): string[];
@@ -16,7 +16,6 @@ export interface UnitView {
   children: UnitView[];
   ownFiles: string[];
   parts: Record<string, string[]>;
-  loose: Loose;
   looseFiles: string[];
 }
 
@@ -106,7 +105,6 @@ const build = (resolution: Resolution, { dir, archetype, captures, parent, part 
     children: [],
     ownFiles: [],
     parts: {},
-    loose: archetype?.loose ?? (parent === undefined ? 'deny' : 'allow'),
     looseFiles: [],
   };
   resolution.units.push(unit);

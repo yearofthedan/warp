@@ -5,7 +5,7 @@
 
 Status: in delivery. The config builders, their load-time checks, finding units (`warp model`), edge verdicts
 (`dependency-direction`), package edges (`unit-externals`), `no-double-export`, `no-cross-unit-reexport`, rulesets,
-`mustImport`, `unit-cycle` and `no-cycle` are in, and the built-in rules and plugins run through the rule contract's
+`mustImport` (`must-import`), `unit-cycle` and `no-cycle` are in, and the built-in rules and plugins run through the rule contract's
 module and project scopes. Kinds are gone.
 
 ## Summary
@@ -202,22 +202,12 @@ to anything below that requires it by that name. The nearest provider wins, and 
 
 A provision that nothing below requires is a warning.
 
-**Loose files.** `.loose('allow' | 'warn' | 'deny')` says what happens to a unit's own files that no part matches.
-`warn` reports them without counting them in `--fail`, and `deny` makes each an `unclassified` finding. The default
-is `allow`, and the root defaults to `deny`.
+**Loose files.** A unit's own files that no part matches are loose. `unclassified` reports them on the root unit,
+and below it where a ruleset turns it on.
 
-**Structure and rules are separate.** The archetypes say what the codebase is: parts, `using`, surfaces,
-requirements, and the constraints that are part of the architecture. Which rules judge it, and how strictly, lives in
+**Structure and rules are separate.** The archetypes say what the codebase is: parts, the edges they may have
+(`using`) and must have (`mustImport`), surfaces and requirements. Which rules judge it, and how strictly, lives in
 [rulesets](#rulesets), so the structure reads the same whatever the thresholds, and tuning a rule never touches it.
-
-**Constraints.** `.constraints()` gives an archetype's inline rules by value under local names. A local name that
-shadows a registered rule's id is refused:
-
-```ts fragment
-.constraints((s, { required }) => ({
-  'dsl-on-the-contract': mustImport({ from: s.dsl, to: required.testRunner }),
-}))
-```
 
 **Plain data.** The builders return data, and references become part paths once resolved. `warp model --json` prints
 the resolved model with every unit's and part's rules; `match` functions and plugin rules are the only code left in
@@ -232,8 +222,6 @@ archetype(name: string)                 // each step returns the builder; order:
   .contains((p, { required, self }) => p.files(...).dir(...))
   .exposes((s) => Record<string, Ref | Ref[]>)       // unset: everything is exposed
   .provides((s) => Record<string, Ref>)              // offered to anything below that requires the name
-  .loose('allow' | 'warn' | 'deny')                  // default 'allow'; the root defaults to 'deny'
-  .constraints((s, { required }) => Record<string, InlineRule>)   // InlineRule: mustImport, for now
   .description(string)                               // for agents choosing where code goes
 // after .contains(), archetype.<part> is that part's handle, for rulesets
 
@@ -276,7 +264,7 @@ is one unit; with one (`'{name}'`), a unit per match; a list of paths is a unit 
 2. For each unit, each `p.dir` part finds its units among the unit's own folders. A marker matches the shallowest
    folder. Deeper matches are found when Warp looks inside that unit, if its archetype has a part that finds them.
 3. A file belongs to its deepest unit, and within it to exactly one files part: the most specific that matches.
-4. A file no part matches is loose, and the unit's `loose` setting decides what that means.
+4. A file no part matches is loose, and `unclassified` reports it where it is on.
 
 **Most specific wins.** Line order in the config never matters.
 
@@ -316,7 +304,7 @@ records `via`, whether it is type-only, and whether it is a re-export. Two addit
 ### How an edge is judged
 
 Privacy belongs to the target, reach to the consumer. An edge from file A to file B passes when B is within A's
-reach and every inline rule that applies to A passes. A's reach is:
+reach. A's reach is:
 
 - **its own part:** the other files in it;
 - **its part's `using`:** the parts and surfaces listed, with each `required.x` resolved to what the nearest
@@ -336,9 +324,9 @@ re-exports are not both exposed, so each name has one way in (`no-double-export`
 package, so a part with none may import none. The canonical case is a hexagon where only `adapters` lists packages,
 and a `test` part lists its runner while the code beside it lists nothing.
 
-**Inline rules.** `using` says what a file may import; an inline rule says what it must. `mustImport({ from, to })`
-reports a file in `from` that has no edge to `to`, and takes references. Inline rules are named `mustX`; forbidding
-an edge needs no rule, since leaving it out of `using` does that.
+**Required edges.** `using` says what a file may import; a files part's `mustImport` says what each of its files
+must, as references that are also in its `using`. `must-import` reports a file with no edge to one of them. Forbidding
+an edge needs nothing more, since leaving it out of `using` does that.
 
 **Thresholds resolve nearest first.** For a rule's options: the file's files part, then its dir part, then each
 archetype from the innermost out, then the global `rules`, then the rule's defaults. Options resolve for the file a
@@ -362,13 +350,13 @@ Each failure is one finding per file pair per rule.
 | Check | Rule id |
 | --- | --- |
 | B outside A's reach (details say whether B is private or just not in `using`) | `dependency-direction` |
-| an inline rule | its local name |
+| a file in a part with no edge to one of its `mustImport` | `must-import` |
 | re-exporting a file of a unit outside the re-exporting unit and the units nested in it | `no-cross-unit-reexport` |
 | a file on a surface re-exporting another file on that surface | `no-double-export` |
 | a package not in the part's `using` | `unit-externals` |
 | a loop between units | `unit-cycle` |
 | a loop between files | `no-cycle` |
-| a loose file where `loose` is `deny` (or `warn`, reported only) | `unclassified` |
+| a loose file, on the root unit or where a ruleset turns it on | `unclassified` |
 
 ## Tests
 
@@ -514,7 +502,7 @@ comes from the file's part, the dir parts above it and its requirements, so `whe
 ```
 
 `may` returns the verdict and what decided it: the reference that allowed the edge, or whether the target was
-private or simply not in `using`, and any inline rule that refused it. Part `description`s are what an agent reads to
+private or simply not in `using`. Part `description`s are what an agent reads to
 choose where new code goes.
 
 ## Extending the model
@@ -583,7 +571,7 @@ This is the spike's config, 84 lines, which types cleanly and runs. It keeps the
 surfaces apart; making the runner one surface is proposed (see [Open](#open)).
 
 ```ts
-import { archetype, defineConfig, dir, files, mustImport, pkg } from 'warp';
+import { archetype, defineConfig, dir, files, pkg } from 'warp';
 
 const testRunner = archetype('test-runner')
   .contains((p) => p
@@ -610,7 +598,10 @@ const component = archetype('component')
     .files('dom', '{name}.dom.ts', {
       using: (s) => [s.logic, s.subcomponent.render, required.icons, required.strings, required.transition, required.application, required.ports],
     })
-    .files('dsl', '*.dsl.ts', { using: (s) => [s.subcomponent.dsl, required.testRunner.contract] })
+    .files('dsl', '*.dsl.ts', {
+      using: (s) => [s.subcomponent.dsl, required.testRunner.contract],
+      mustImport: [required.testRunner.contract],
+    })
     .files('testPage', '*.test-page.ts', { using: (s) => [s.subcomponent.testPage, pkg('vite-plus/*')] })
     .files('harness', '*.harness.ts', {
       using: (s) => [s.dom, s.logic, s.dsl, s.testPage, required.testRunner.runner, required.testRunner.contract, required.application, required.ports, pkg('vite-plus/*')],
@@ -622,10 +613,7 @@ const component = archetype('component')
         pkg('vite-plus/*'), pkg('@playwright/*'),
       ],
     }))
-  .exposes((s) => ({ render: s.dom, testPage: s.testPage, dsl: s.dsl }))
-  .constraints((s, { required }) => ({
-    'dsl-on-the-driver-contract': mustImport({ from: s.dsl, to: required.testRunner.contract }),
-  }));
+  .exposes((s) => ({ render: s.dom, testPage: s.testPage, dsl: s.dsl }));
 
 const ui = archetype('ui')
   .contains((p) => p
@@ -640,14 +628,10 @@ const ui = archetype('ui')
 const journeys = archetype('journeys')
   .requires({ testRunner, ui })
   .contains((p, { required }) => p
-    .files('dsl', '*.dsl.ts', { using: [required.testRunner.contract, required.ui.dsl] })
-    .files('rest', '**', { using: (s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl] }))
-  .constraints((s, { required }) => ({
-    'dsl-on-the-driver-contract': mustImport({ from: s.dsl, to: required.testRunner.contract }),
-  }));
+    .files('dsl', '*.dsl.ts', { using: [required.testRunner.contract, required.ui.dsl], mustImport: [required.testRunner.contract] })
+    .files('rest', '**', { using: (s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl] }));
 
 const workingTitle = archetype('working-title')
-  .loose('deny')
   .contains((p) => p
     .dir('domain', 'src/domain', layer)
     .dir('ports', 'src/ports', { using: (s) => [s.domain] })
@@ -754,7 +738,7 @@ Weaver has its own layers: ports at the bottom, an engine tier, operations, a da
 slices. Layers expose all of their code, so only `using` limits reach.
 
 ```ts
-import { archetype, defineConfig, dir, files, mustImport, pkg, ruleset } from 'warp';
+import { archetype, defineConfig, dir, files, pkg, ruleset } from 'warp';
 
 const layer = archetype('layer')
   .requires({ testHelpers: dir() })
@@ -775,7 +759,6 @@ const plugins = archetype('plugins')
   .contains((p) => p.dir('plugin', '{name}', plugin));
 
 const weaver = archetype('weaver')
-  .loose('deny')
   .contains((p) => p
     .dir('ports', 'src/ports', layer, { using: [pkg('node:*')] })
     .dir('domain', 'src/domain', layer, { using: (s) => [s.ports, pkg('node:path')] })
@@ -826,7 +809,7 @@ Warp's own package, as it was laid out when this was written. [warp.config.ts](.
 it checks itself with today.
 
 ```ts
-import { archetype, defineConfig, dir, files, mustImport, pkg } from 'warp';
+import { archetype, defineConfig, dir, files, pkg } from 'warp';
 
 const rule = archetype('rule')
   .requires({ core: files() })
@@ -848,7 +831,6 @@ const model = archetype('model')
   .provides((s) => ({ core: s.core }));
 
 const warp = archetype('warp')
-  .loose('deny')
   .contains((p) => p
     .dir('model', 'src/model', model)
     .dir('app', 'src/app', { using: (s) => [s.model, pkg('node:*')] })
@@ -907,7 +889,6 @@ const nestModule = archetype('nest-module')
   .exposes((s) => ({ api: [s.module, s.service, s.dto] }));
 
 const nestApp = archetype('nest-app')
-  .loose('deny')
   .contains((p) => p
     .dir('common', 'src/common', { using: [nest] })
     .dir('modules', 'src/{name}', nestModule, { using: (s) => [s.modules.api] })
@@ -1003,8 +984,8 @@ Folders holding several components side by side stay out of scope: they would ne
 12. **Types for convenience, the load-time check for correctness.** Self surfaces (`s.subcomponent.render`) accept
     any name in the types and are checked when the config loads; everything else is strictly typed. Surface names
     aren't declared up front.
-13. **Inline rules say what a file must do,** named `mustX`. `mustImport` is the only one so far; forbidding an edge
-    is leaving it out of `using`.
+13. **Required edges are structure.** A files part's `mustImport` sits beside its `using` and names a subset of it;
+    `must-import` judges it like any rule. Forbidding an edge is leaving it out of `using`.
 14. **A unit may re-export only what it owns:** its own files and the surfaces of the units nested in it.
     `no-cross-unit-reexport` has no `allow`: a meant pass-through is structure (consumers use the other unit, the
     unit wraps it in its own type, or the other unit moves inside it), and the escape is turning the rule off.

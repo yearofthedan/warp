@@ -11,6 +11,7 @@ export interface Settings {
   atFile(file: string, id: string, defaults?: object): RuleAt;
   atPart(unit: UnitView, part: string, id: string, defaults?: object): RuleAt;
   atUnit(unit: UnitView, id: string, defaults?: object): RuleAt;
+  decidedAt(unit: UnitView, id: string): boolean | undefined;
 }
 
 type Levels = readonly (RuleSettingsData | undefined)[];
@@ -34,6 +35,7 @@ export const settings = (config: ConfigData, model: Model): Settings => {
     },
     atPart,
     atUnit: (unit, id, defaults) => ruleAt(unitLevels(unit), id, defaults),
+    decidedAt: (unit, id) => decided(unitLevels(unit), id),
   };
 };
 
@@ -55,8 +57,11 @@ const optionsAt = (level: RuleSettingsData | undefined, id: string): object | un
   return isRecord(setting) ? setting : undefined;
 };
 
+const decided = (levels: Levels, id: string): boolean | undefined =>
+  levels.map((level) => decision(level, id)).find((said) => said !== undefined);
+
 const ruleAt = (levels: Levels, id: string, defaults: object = {}): RuleAt => ({
-  on: levels.map((level) => decision(level, id)).find((said) => said !== undefined) ?? true,
+  on: decided(levels, id) ?? true,
   options: Object.assign({}, defaults, ...levels.map((level) => optionsAt(level, id)).reverse()),
 });
 

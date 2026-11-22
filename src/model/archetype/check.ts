@@ -1,10 +1,10 @@
 import type { Project } from '../facts.ts';
 import type { Rule, Finding, ProjectContext } from '../rule.ts';
 import type { ConfigData } from './data.ts';
-import { inlineFindings } from './inline.ts';
 import { verdicts } from './reach.ts';
 import type { Model } from './resolve.ts';
 import { settings, type Settings } from './settings.ts';
+import { unclassifiedFindings } from './unclassified.ts';
 
 export const checkModel = (
   config: ConfigData,
@@ -19,13 +19,7 @@ export const checkModel = (
     const findings = run(rule, { project, config, model, verdicts: judged }, settled);
     return rule.docs ? findings.map((finding) => ({ ...finding, docs: rule.docs })) : findings;
   });
-  return [
-    ...unclassifiedFindings(model, unclassifiedDocs),
-    ...found,
-    ...inlineFindings(config, model, judged, project).filter(
-      (finding) => settled.atFile(finding.file, finding.rule).on,
-    ),
-  ];
+  return [...unclassifiedFindings(model, settled, unclassifiedDocs), ...found];
 };
 
 type Shared = Omit<ProjectContext<object>, 'atFile' | 'atUnit'>;
@@ -42,20 +36,3 @@ const run = (rule: Rule, shared: Shared, settled: Settings): Finding[] => {
     return on ? rule.check({ module, options }) : [];
   });
 };
-
-const unclassifiedFindings = (model: Model, docs: string | undefined): Finding[] =>
-  model.units.flatMap((unit) =>
-    unit.loose !== 'deny'
-      ? []
-      : unit.looseFiles.map((file): Finding => ({
-          rule: 'unclassified',
-          key: `unclassified:${file}`,
-          file,
-          line: 1,
-          value: 1,
-          message:
-            `${file} is in no part of ${unit.id} (${unit.archetype}), so nothing says what it may import. ` +
-            `Add a files part to ${unit.archetype} that matches it, or move it into a part's folder.`,
-          ...(docs ? { docs } : {}),
-        })),
-  );

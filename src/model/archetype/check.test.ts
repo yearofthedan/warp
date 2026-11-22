@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { ImportEdge, Project } from '../facts.ts';
-import { type AnyArchetype, archetype, mustImport, type Ruleset, ruleset } from './builder.ts';
+import { type AnyArchetype, archetype, type Ruleset, ruleset } from './builder.ts';
 import { builtinRules } from '../rules/index.ts';
 import { checkModel } from './check.ts';
 import { loadConfigData } from './load.ts';
@@ -196,7 +196,7 @@ describe('code measures', () => {
   });
 });
 
-describe('mustImport', () => {
+describe('must-import', () => {
   const runner = archetype('runner')
     .contains((p) => p.files('contract', 'contract.ts').files('rest', '**', { using: (s) => [s.contract] }))
     .exposes((s) => ({ contract: s.contract, rest: s.rest }));
@@ -205,12 +205,12 @@ describe('mustImport', () => {
     .contains((p, { required }) =>
       p
         .files('logic', '*.ts')
-        .files('dsl', '*.dsl.ts', { using: (s) => [s.logic, required.runner.contract, required.runner.rest] })
+        .files('dsl', '*.dsl.ts', {
+          using: (s) => [s.logic, required.runner],
+          mustImport: [required.runner.contract],
+        })
         .files('test', '*.test.ts', { using: (s) => [s.logic, s.dsl] }),
-    )
-    .constraints((s, { required }) => ({
-      'dsl-on-contract': mustImport({ from: s.dsl, to: required.runner.contract }),
-    }));
+    );
   const app = archetype('app')
     .contains((p) =>
       p
@@ -219,7 +219,7 @@ describe('mustImport', () => {
         .dir('legacy', 'legacy/{name}', feature),
     )
     .provides((s) => ({ runner: s.runner }));
-  const legacyOff = ruleset().on(app.legacy, { 'dsl-on-contract': false });
+  const legacyOff = ruleset().on(app.legacy, { 'must-import': false });
   const imports = {
     'runner/contract.ts': [],
     'runner/index.ts': [],
@@ -233,46 +233,57 @@ describe('mustImport', () => {
     'features/a/off.dsl.ts': ['runner/index.ts'],
     'legacy/b/off.dsl.ts': [],
   } satisfies Record<string, Import[]>;
+  const mustImports = (findings: readonly { rule: string; key: string }[]) =>
+    keys(findings.filter((finding) => finding.rule === 'must-import'));
 
-  it('reports each file in from with no import of anything in to, through a barrel or not', () => {
-    assert.deepEqual(keys(check(app, imports, legacyOff)), ['dsl-on-contract:features/a/off.dsl.ts']);
-    assert.deepEqual(keys(check(app, imports)), [
-      'dsl-on-contract:features/a/off.dsl.ts',
-      'dsl-on-contract:legacy/b/off.dsl.ts',
+  it('reports each file in the part with no import of the target, through a barrel or not', () => {
+    assert.deepEqual(mustImports(check(app, imports, legacyOff)), [
+      'must-import:features/a/off.dsl.ts->required.runner.contract',
+    ]);
+    assert.deepEqual(mustImports(check(app, imports)), [
+      'must-import:features/a/off.dsl.ts->required.runner.contract',
+      'must-import:legacy/b/off.dsl.ts->required.runner.contract',
     ]);
   });
 
-  it('says which rule asks for the import, where the config declares it, and how to answer it', () => {
-    const [contract] = check(app, imports, legacyOff);
+  it('says which part asks for the import, and how to answer it', () => {
+    const [contract] = check(app, imports, legacyOff).filter((finding) => finding.rule === 'must-import');
     assert.deepEqual(contract, {
-      rule: 'dsl-on-contract',
-      key: 'dsl-on-contract:features/a/off.dsl.ts',
+      rule: 'must-import',
+      key: 'must-import:features/a/off.dsl.ts->required.runner.contract',
       file: 'features/a/off.dsl.ts',
       line: 1,
       value: 1,
       message:
-        "features/a/off.dsl.ts (dsl of feature features/a) imports nothing from required.runner.contract (from .), which feature's dsl-on-contract asks of every file in s.dsl. Import what it needs from required.runner.contract (from .), or move the file out of s.dsl.",
-      details: { unit: 'features/a', from: 's.dsl', to: 'required.runner.contract (from .)', declaredBy: 'feature' },
+        'features/a/off.dsl.ts (dsl of feature features/a) imports nothing from required.runner.contract (from .), which every file in dsl must import. Import what it needs from required.runner.contract (from .), or move the file out of dsl.',
+      details: { unit: 'features/a', part: 'dsl', to: 'required.runner.contract (from .)' },
     });
   });
 
-  it('reports a file once when two units name it, and skips a file outside the program', () => {
-    const kid = archetype('kid')
-      .contains((p) => p.files('dsl', '*.dsl.ts').files('api', 'api.ts'))
-      .exposes((s) => ({ dsl: s.dsl, api: s.api }))
-      .constraints((s) => ({ 'dsl-on-api': mustImport({ from: s.dsl, to: s.api }) }));
-    const parent = archetype('parent')
-      .contains((p) => p.dir('kids', '{name}', kid))
-      .constraints((s) => ({ 'dsl-on-api': mustImport({ from: s.kids.dsl, to: s.kids.api }) }));
-    const { config, model, project: facts } = modelOf(parent, { 'a/api.ts': [], 'a/x.dsl.ts': [], 'a/y.dsl.ts': [] });
+  it('reports each target a file misses, and skips a file outside the program', () => {
+    const kid = archetype('kid').contains((p) =>
+      p
+        .files('api', 'api.ts')
+        .files('types', 'types.ts')
+        .files('dsl', '*.dsl.ts', { using: (s) => [s.api, s.types], mustImport: (s) => [s.api, s.types] }),
+    );
+    const {
+      config,
+      model,
+      project: facts,
+    } = modelOf(kid, {
+      'api.ts': [],
+      'types.ts': [],
+      'x.dsl.ts': ['types.ts'],
+      'y.dsl.ts': [],
+    });
     const findings = checkModel(
       config,
       model,
-      { modules: facts.modules.filter((m) => m.file !== 'a/y.dsl.ts') },
+      { modules: facts.modules.filter((m) => m.file !== 'y.dsl.ts') },
       builtinRules,
     );
-    assert.deepEqual(keys(findings), ['dsl-on-api:a/x.dsl.ts']);
-    assert.deepEqual((findings[0]!.details as { declaredBy: string }).declaredBy, 'parent');
+    assert.deepEqual(mustImports(findings), ['must-import:x.dsl.ts->api']);
   });
 });
 

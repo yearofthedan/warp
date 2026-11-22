@@ -1,18 +1,11 @@
-import {
-  archetypeMethods,
-  partRefs,
-  type RecordedArchetype,
-  type RecordedPart,
-  recordedAs,
-  requiredRefs,
-  self,
-} from './builder.ts';
-import type { ArchetypeData, IdentifyData, Loose, PartData, RequirementData } from './data.ts';
+import { archetypeMethods, partRefs, type RecordedArchetype, type RecordedPart, recordedAs, self } from './builder.ts';
+import type { ArchetypeData, IdentifyData, PartData, RequirementData } from './data.ts';
 import { type Fail, isName, isRecord } from './shared.ts';
 
 export interface DraftPart {
   data: PartData;
   using: unknown[];
+  mustImport: unknown[];
 }
 
 export interface Draft {
@@ -20,10 +13,7 @@ export interface Draft {
   parts: DraftPart[];
   exposes?: Record<string, unknown[]>;
   provides: Record<string, unknown>;
-  constraints: unknown;
 }
-
-const looseValues: readonly unknown[] = ['allow', 'warn', 'deny'];
 
 export const collect = (root: RecordedArchetype, fail: Fail): Map<string, RecordedArchetype> => {
   const byName = new Map<string, RecordedArchetype>();
@@ -69,30 +59,18 @@ export const draft = (name: string, state: RecordedArchetype, fail: Fail): Draft
       requires,
       parts: parts.map((part) => part.data),
       provides: {},
-      loose: state.loose as Loose | undefined,
     },
     parts,
     exposes: isRecord(exposes)
       ? Object.fromEntries(Object.entries(exposes).map(([surface, refs]) => [surface, [refs].flat()]))
       : undefined,
     provides: isRecord(provides) ? provides : {},
-    constraints: constraintsOf(name, state.constraints, fail),
   };
-};
-
-const constraintsOf = (name: string, value: unknown, fail: Fail): unknown => {
-  if (value === undefined) return undefined;
-  const constraints = typeof value === 'function' ? value(partRefs(), { required: requiredRefs() }) : undefined;
-  if (isRecord(constraints)) return constraints;
-  fail(`${name}.constraints: expected a callback returning inline rules by name, (s) => ({ x: mustImport(...) })`);
-  return undefined;
 };
 
 const checkFields = (name: string, state: RecordedArchetype, fail: Fail) => {
   if (state.description !== undefined && typeof state.description !== 'string')
     fail(`${name}.description: expected a string`);
-  if (state.loose !== undefined && !looseValues.includes(state.loose))
-    fail(`${name}.loose: expected 'allow', 'warn' or 'deny'`);
   if (!Array.isArray(state.parts)) fail(`${name}.contains: expected the parts chain, (p) => p.files(...)`);
 };
 
@@ -118,15 +96,22 @@ const draftPart = (archetype: string, part: RecordedPart, fail: Fail): DraftPart
   if (patterns.length === 0 || !patterns.every(isName))
     fail(`${where}: expected a ${part.kind === 'files' ? 'pattern' : 'path'} or a list of them`);
   if (part.kind === 'dir') checkDirPaths(where, patterns, fail);
-  const options = partOptions(where, part.options, fail);
-  const using = typeof options.using === 'function' ? options.using(partRefs()) : (options.using ?? []);
-  if (!Array.isArray(using)) fail(`${where}.using: expected a list of references, or a callback returning one`);
+  const options = partOptions(where, part.kind, part.options, fail);
+  const using = references(where, 'using', options.using, fail);
+  const mustImport = references(where, 'mustImport', options.mustImport, fail);
   const common = { name: name as string, using: [], description: options.description as string | undefined };
   const data: PartData =
     part.kind === 'files'
       ? { kind: part.kind, ...common, patterns }
       : { kind: part.kind, ...common, paths: patterns, archetype: dirArchetype(archetype, part.archetype) };
-  return { data, using: Array.isArray(using) ? using : [] };
+  return { data, using, mustImport };
+};
+
+const references = (where: string, option: string, value: unknown, fail: Fail): unknown[] => {
+  const refs = typeof value === 'function' ? value(partRefs()) : (value ?? []);
+  if (Array.isArray(refs)) return refs;
+  fail(`${where}.${option}: expected a list of references, or a callback returning one`);
+  return [];
 };
 
 const checkDirPaths = (where: string, paths: readonly unknown[], fail: Fail) => {
@@ -137,10 +122,13 @@ const checkDirPaths = (where: string, paths: readonly unknown[], fail: Fail) => 
 const isDirPath = (path: string): boolean =>
   path.split('/').every((segment) => segment !== '.' && segment !== '..' && /^(\{\w+\}|[^{}*]+)$/.test(segment));
 
-const partOptions = (where: string, value: unknown, fail: Fail): Record<string, unknown> => {
-  if (value !== undefined && !isRecord(value)) fail(`${where}: expected options, { using, description }`);
+const optionKeys = { files: ['using', 'mustImport', 'description'], dir: ['using', 'description'] };
+
+const partOptions = (where: string, kind: PartData['kind'], value: unknown, fail: Fail): Record<string, unknown> => {
+  const keys = optionKeys[kind];
+  if (value !== undefined && !isRecord(value)) fail(`${where}: expected options, { ${keys.join(', ')} }`);
   const options = isRecord(value) ? value : {};
-  const unknownKeys = Object.keys(options).filter((key) => !['using', 'description'].includes(key));
+  const unknownKeys = Object.keys(options).filter((key) => !keys.includes(key));
   if (unknownKeys.length > 0) fail(`${where}: unknown option ${unknownKeys.join(', ')}`);
   if (options.description !== undefined && typeof options.description !== 'string')
     fail(`${where}.description: expected a string`);
