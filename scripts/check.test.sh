@@ -7,6 +7,8 @@ make_copy
 run_copy check
 expect_status 0 "check succeeds when every step does"
 expect_vp_literal 'secretlint **/*' "check scans the project for secrets"
+expect_vp 'node scripts/_comments.ts' "check holds every comment to the template"
+expect_vp 'node scripts/_docs.ts' "check checks the docs"
 expect_vp 'check' "check runs vp check from node_modules"
 expect_vp 'tsc -p .*/tsconfig.json' "check type-checks with the pinned tsc"
 if [ "$(grep -c '^pnpm audit --json$' "$VP_LOG")" = 2 ]; then ok "check audits the head and the base"; else no "check audits the head and the base"; fi

@@ -11,6 +11,7 @@ warp checks a TypeScript codebase against a declared model of its modules, to ke
 - [README.md](README.md): what warp does today, its CLI, config and rules.
 - [docs/design/archetypes.md](docs/design/archetypes.md): where the config language is going.
 - [docs/adr/](docs/adr/README.md): why each decision was made. Read the record before changing what it decided.
+- [docs/toolchain.md](docs/toolchain.md): why each tool, CI and dependency setting is there.
 
 ## Running tasks
 
@@ -33,6 +34,25 @@ Tests sit beside the code they test, in three tiers named by suffix:
 
 `./do test --project unit` (or `integration`, `e2e`) runs one tier. `./do acceptance` checks working title at a pinned
 commit against approved findings; it runs nightly in CI, not on pull requests.
+
+## Comments and docs
+
+Code explains itself through names, types and tests. A comment is for something temporary: it says why it is there
+and what ends it, in two lines.
+
+```ts fragment
+// why: type-aware linting runs on the TypeScript Vite+ bundles, older than the 7.1 warp builds with.
+// until: vite-plus bundles typescript@7.1
+```
+
+`until:` names something checkable: an issue or pull request, a URL, a `package@version` or a date. Free text passes
+and is listed for review. A reason that lasts belongs in a name, a test or a doc. Directives such as
+`@ts-expect-error` and `oxlint-disable` carry the same two lines, and in a test `// @ts-expect-error <what>` is an
+assertion that stands alone. `./do comments` checks every file warp keeps.
+
+Each doc page opens with its title, an **Audience:** line and a **Purpose:** line. `./do docs` type-checks each `ts`
+block against warp's API; a block of a user's code is `ts fragment`. Keep pages short and current, changed in the
+same change as the code they describe.
 
 ## How work lands
 
