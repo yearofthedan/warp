@@ -8,7 +8,8 @@ warp checks a TypeScript codebase against a declared model of its modules, to ke
 
 ## Read before changing code
 
-- [README.md](README.md): what warp does today, its CLI, config and rules.
+- [README.md](README.md): what warp does today and its CLI.
+- [docs/config.md](docs/config.md): the config languages, custom rules, rulesets and rules.
 - [docs/design/archetypes.md](docs/design/archetypes.md): where the config language is going.
 - [docs/adr/](docs/adr/README.md): why each decision was made. Read the record before changing what it decided.
 - [docs/toolchain.md](docs/toolchain.md): why each tool, CI and dependency setting is there.

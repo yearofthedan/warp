@@ -1,0 +1,71 @@
+# Agents and CI
+
+**Audience:** anyone wiring warp into a coding agent or a CI pipeline.
+**Purpose:** how `diff` measures a change, and the setups for Claude Code and GitHub code scanning.
+
+An agent sees the findings its edit made new or worse while it still has the code in context, and CI gates the
+same delta on the pull request. Both run `warp diff`, with the reporter for the tool that reads it. For omp, see
+[integrations/omp/README.md](../integrations/omp/README.md).
+
+## Diff
+
+`diff <base>[..<head>]` checks both sides with the working tree's config, so a delta reflects code changes, never
+rule changes. With three dots, `<base>...<head>`, the base is where `<head>` (or the working tree's `HEAD`) left
+`<base>`, as in git. A base commit where the project's tsconfig does not exist yet counts as having no findings.
+
+A ref is checked out into a temporary git worktree that links the project's `node_modules`, and its
+findings are cached under `.git/warp-cache/` by commit, config (with the custom rules it imports) and a digest of
+warp's own code and TypeScript version, so repeated runs against the same base only analyse the head, and a linked
+checkout that edits a built-in rule redoes the base. Each new entry prunes those from other builds of warp and those
+unread for 30 days. Without a head, the head is the working tree.
+
+A finding is new when its key is absent at the base, and worse when its value rose. Findings in a renamed file or
+function count as new. Function findings are keyed by name, and a callback is named after its call and a string first
+argument, such as `<callback to it("saves an order")>`, so a key survives edits elsewhere in the file. Functions that
+still share a name get `#2`, `#3` in order of appearance.
+
+`diff HEAD` measures uncommitted changes, so a commit resets the baseline. To measure the whole branch instead, diff
+against where it left main, `main...`.
+
+## Claude Code
+
+To have Claude Code see the delta after each edit without being blocked, add a `PostToolUse` hook to the project's
+`.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          { "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && warp diff HEAD --ruleset edit --reporter claude-hook", "timeout": 60 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Leave out `--ruleset edit` to check with the default config, or keep it with an `edit` [ruleset](config.md#rulesets)
+in the config. Where `warp` is a dev dependency, use `pnpm exec warp` in the command. A non-empty delta prints a
+`hookSpecificOutput.additionalContext` response, which Claude reads as context for its next step. With
+`--reporter claude-hook`, an error exits 1 rather than 2, which Claude Code would treat as blocking feedback.
+
+## GitHub code scanning
+
+```yaml
+permissions:
+  security-events: write
+steps:
+  - uses: actions/checkout@v4
+    with:
+      fetch-depth: 0
+  - run: warp diff origin/${{ github.base_ref }}... --reporter sarif > warp.sarif
+  - uses: github/codeql-action/upload-sarif@v3
+    with:
+      sarif_file: warp.sarif
+```
+
+Each result's `partialFingerprints` holds the finding's key, so code scanning tracks a finding across commits the
+same way `diff` does.
