@@ -1,5 +1,5 @@
-import type { Delta } from '../rule/diff.ts';
-import type { Finding } from '../rule/rule.ts';
+import type { Delta } from '../rules/diff.ts';
+import type { Finding } from '../rules/rule.ts';
 
 export type Report = { mode: 'check'; findings: Finding[] } | { mode: 'diff'; delta: Delta };
 

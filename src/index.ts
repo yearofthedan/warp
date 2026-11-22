@@ -30,4 +30,4 @@ export {
   type Rule,
   type Setting,
   wholeNumberOptions,
-} from './rule/rule.ts';
+} from './rules/rule.ts';

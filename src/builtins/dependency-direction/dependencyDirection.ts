@@ -3,7 +3,7 @@ import { place } from '../place.ts';
 import type { Refusal, Verdicts } from '../../model/archetype/reach.ts';
 import type { Model } from '../../model/archetype/resolve.ts';
 import type { ImportEdge } from '../../model/facts.ts';
-import { type Finding, noOptions, type ProjectRule } from '../../rule/rule.ts';
+import { type Finding, noOptions, type ProjectRule } from '../../rules/rule.ts';
 
 const id = 'dependency-direction';
 

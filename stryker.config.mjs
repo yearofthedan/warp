@@ -6,7 +6,7 @@ export default {
   vitest: { configFile: 'stryker.vitest.config.ts' },
   mutate: [
     'src/model/**/*.ts',
-    'src/rule/**/*.ts',
+    'src/builtins/**/*.ts',
     'src/rules/**/*.ts',
     'src/reporters/**/*.ts',
     'src/app/{checkModel,diff,load,unclassified}.ts',

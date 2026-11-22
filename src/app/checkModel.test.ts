@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { ImportEdge, Project } from '../model/facts.ts';
 import { type AnyArchetype, archetype, type Ruleset, ruleset } from '../model/archetype/builder.ts';
-import { builtinRules } from '../rules/index.ts';
+import { builtinRules } from '../builtins/index.ts';
 import { checkModel } from './checkModel.ts';
 import { loadConfigData } from './load.ts';
 import { type Folders, resolveModel } from '../model/archetype/resolve.ts';

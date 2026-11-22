@@ -1,4 +1,4 @@
-import type { Finding } from '../rule/rule.ts';
+import type { Finding } from '../rules/rule.ts';
 import { actionable, type ReportContext, type Reporter, ruleDocs } from './reporter.ts';
 
 export const sarifReporter: Reporter = {

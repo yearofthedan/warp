@@ -1,7 +1,7 @@
 import { place } from '../place.ts';
 import type { Model, UnitView } from '../../model/archetype/resolve.ts';
 import type { ImportEdge } from '../../model/facts.ts';
-import { type Finding, noOptions, type ProjectRule } from '../../rule/rule.ts';
+import { type Finding, noOptions, type ProjectRule } from '../../rules/rule.ts';
 
 const id = 'no-cross-unit-reexport';
 

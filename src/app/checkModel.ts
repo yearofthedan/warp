@@ -1,5 +1,5 @@
 import type { Project } from '../model/facts.ts';
-import type { Rule, Finding, ProjectContext } from '../rule/rule.ts';
+import type { Rule, Finding, ProjectContext } from '../rules/rule.ts';
 import type { ConfigData } from '../model/archetype/data.ts';
 import { verdicts } from '../model/archetype/reach.ts';
 import type { Model } from '../model/archetype/resolve.ts';

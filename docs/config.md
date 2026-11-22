@@ -48,7 +48,7 @@ warp model --json    # the same, for tools, with every unit's and part's resolve
 - The most specific part wins: a literal dir segment beats a placeholder, and a literal file path beats any glob,
   then the longer literal suffix after the last `*`, with `**` last. Two equally specific parts are a config error.
 - A file belongs to its deepest unit. One no part matches is loose, and `check` and `diff` report it as
-  [`unclassified`](../src/rules/unclassified/README.md): on the root unit unless a ruleset turns it off, and
+  [`unclassified`](../src/builtins/unclassified/README.md): on the root unit unless a ruleset turns it off, and
   below it where a ruleset turns it on.
 - `tsconfig` takes a list, and warp reads every file of their programs except declaration files. A solution-style
   tsconfig with only `references` is not followed: list the project configs.
@@ -56,7 +56,7 @@ warp model --json    # the same, for tools, with every unit's and part's resolve
 ## Reach
 
 `check` and `diff` judge every import between project files against the importer's reach,
-and report each one outside it as [`dependency-direction`](../src/rules/dependency-direction/README.md):
+and report each one outside it as [`dependency-direction`](../src/builtins/dependency-direction/README.md):
 
 - A file reaches the rest of its own part, what its part's `using` names, and, for a unit's own files, what the
   `using` of the dir part that found the unit names. A `required.x` reference reaches what the nearest provider above
@@ -68,16 +68,16 @@ and report each one outside it as [`dependency-direction`](../src/rules/dependen
   behind it. Type-only imports count.
 
 A package import is judged the same way, against the `pkg()` entries in the file's reach, and one outside it is
-reported as [`unit-externals`](../src/rules/unit-externals/README.md). `pkg('x')` covers the package and its subpaths, and `*` matches
+reported as [`unit-externals`](../src/builtins/unit-externals/README.md). `pkg('x')` covers the package and its subpaths, and `*` matches
 any run of characters: `pkg('node:*')`, `pkg('@aws-sdk/*')`, `pkg('*')`.
 
-[`no-double-export`](../src/rules/no-double-export/README.md) reports a file on a unit's surface that re-exports another file on that
+[`no-double-export`](../src/builtins/no-double-export/README.md) reports a file on a unit's surface that re-exports another file on that
 surface, so there is one way to each name: a barrel over private files, or exposed files with no barrel.
-[`no-cross-unit-reexport`](../src/rules/no-cross-unit-reexport/README.md) reports a file that re-exports
+[`no-cross-unit-reexport`](../src/builtins/no-cross-unit-reexport/README.md) reports a file that re-exports
 another unit's file, other than one nested in its own unit, so a unit doesn't pass on what it uses.
 
-[`unit-cycle`](../src/rules/unit-cycle/README.md) reports each import between sibling units that lies on a loop among them, and
-[`no-cycle`](../src/rules/no-cycle/README.md) each import between files that lies on a loop.
+[`unit-cycle`](../src/builtins/unit-cycle/README.md) reports each import between sibling units that lies on a loop among them, and
+[`no-cycle`](../src/builtins/no-cycle/README.md) each import between files that lies on a loop.
 
 `module-cohesion`, `function-cohesion` and `cognitive-complexity` judge each file's code with the options that resolve
 for that file, so tests and code, or two parts, can have different thresholds.
@@ -208,7 +208,7 @@ export default defineConfig({ root: app, plugins: { wt }, rulesets: { default: b
 
 Analysis extracts the facts once for the whole project: the import graph, with re-exports marked, each module's top-level units and the
 links between them, and each function's statements and complexity. Each rule is its own folder in
-[`src/rules/`](../src/rules), holding its module and its page, and reads those facts without touching
+[`src/builtins/`](../src/builtins), holding its module and its page, and reads those facts without touching
 source, so it stays pure. A rule declares its id, its default options and how to validate them, and a `check` that
 returns findings. Most read one module at a time; a project rule reads the whole project and the model once, and
 looks up its setting for each file or unit. Rules are looked up in a registry, where a project's
@@ -216,21 +216,21 @@ looks up its setting for each file or unit. Rules are looked up in a registry, w
 
 Every finding has a `rule`, a `key` that identifies it across commits, a `value` that `diff` compares, a `message`,
 `details` an agent can act on, and for built-in rules a `docs` link to the rule's page. The rules don't know where
-their pages are published: [`src/builtins.ts`](../src/builtins.ts) attaches the links where the CLI composes them. The
+their pages are published: [`src/builtins/index.ts`](../src/builtins/index.ts) attaches the links where the CLI composes them. The
 agent reporters list each rule's link once after the findings, and SARIF gives it as the rule's `helpUri`.
 
 Each rule's page says why it exists, shows code it reports and code it passes, and lists its options:
 
 | Rule | Reports | Options |
 | --- | --- | --- |
-| [`unclassified`](../src/rules/unclassified/README.md) | A loose file. On at the root unit, off below, unless a ruleset says otherwise. | |
-| [`dependency-direction`](../src/rules/dependency-direction/README.md) | An import outside the importer's reach. | |
-| [`unit-externals`](../src/rules/unit-externals/README.md) | A package import that no `using` in the importer's reach lists. | |
-| [`no-double-export`](../src/rules/no-double-export/README.md) | A re-export, in a file on its unit's surface, of another file on that surface. | |
-| [`unit-cycle`](../src/rules/unit-cycle/README.md) | An import between sibling units that lies on a loop among them. | `types` |
-| [`no-cycle`](../src/rules/no-cycle/README.md) | An import between files that lies on a loop. | `types` |
-| [`no-cross-unit-reexport`](../src/rules/no-cross-unit-reexport/README.md) | A re-export of another unit's file, other than one nested in the re-exporting unit. | |
-| [`module-cohesion`](../src/rules/module-cohesion/README.md) | A module over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
-| [`function-cohesion`](../src/rules/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
-| [`cognitive-complexity`](../src/rules/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |
+| [`unclassified`](../src/builtins/unclassified/README.md) | A loose file. On at the root unit, off below, unless a ruleset says otherwise. | |
+| [`dependency-direction`](../src/builtins/dependency-direction/README.md) | An import outside the importer's reach. | |
+| [`unit-externals`](../src/builtins/unit-externals/README.md) | A package import that no `using` in the importer's reach lists. | |
+| [`no-double-export`](../src/builtins/no-double-export/README.md) | A re-export, in a file on its unit's surface, of another file on that surface. | |
+| [`unit-cycle`](../src/builtins/unit-cycle/README.md) | An import between sibling units that lies on a loop among them. | `types` |
+| [`no-cycle`](../src/builtins/no-cycle/README.md) | An import between files that lies on a loop. | `types` |
+| [`no-cross-unit-reexport`](../src/builtins/no-cross-unit-reexport/README.md) | A re-export of another unit's file, other than one nested in the re-exporting unit. | |
+| [`module-cohesion`](../src/builtins/module-cohesion/README.md) | A module over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
+| [`function-cohesion`](../src/builtins/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
+| [`cognitive-complexity`](../src/builtins/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |
 
