@@ -7,8 +7,7 @@ const layer = archetype('layer')
       .files('index', 'index.ts', { using: (s) => [s.src] })
       .files('test', '**/*.test.ts', { using: (s) => [s.src, pkg('node:*')] }),
   )
-  .exposes((s) => ({ api: s.index }))
-  .rules({ 'no-private-reexport': false });
+  .exposes((s) => ({ api: s.index }));
 
 const component = archetype('component')
   .identify({ marker: '{name}.dom.ts' })

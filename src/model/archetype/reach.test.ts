@@ -3,11 +3,12 @@ import { describe, it } from 'vite-plus/test';
 import type { ExternalImport, ImportEdge, ModuleFacts } from '../facts.ts';
 import { archetype, dir, pkg } from './builder.ts';
 import { checkModel } from './check.ts';
+import { doubleExportFindings } from './doubleExports.ts';
 import type { ConfigData } from './data.ts';
 import { loadConfigData } from './load.ts';
 import { grantText, type Verdict, verdicts } from './reach.ts';
 import { externalFindings } from './externals.ts';
-import { reexportFindings } from './reexports.ts';
+
 import { type Folders, type Model, resolveModel } from './resolve.ts';
 
 const folders = (paths: readonly string[]): Folders => {
@@ -492,78 +493,70 @@ describe('unit-externals', () => {
   });
 });
 
-describe('no-private-reexport', () => {
+describe('no-double-export', () => {
   const check = (modules: ModuleFacts[], docs = {}) =>
-    checkModel(config, model, { modules }, docs).filter((finding) => finding.rule === 'no-private-reexport');
+    checkModel(config, model, { modules }, docs).filter((finding) => finding.rule === 'no-double-export');
   const reExport = (from: string, to: string, extra: Partial<ImportEdge> = {}) =>
     edge(from, to, { reExport: true, ...extra });
 
-  it('reports a file on a surface that re-exports a file its unit keeps private, one finding per pair', () => {
+  it('reports a file on a surface that re-exports another file on it, one finding per pair', () => {
     const edges = [
-      reExport('src/ui/a/a.dom.ts', 'src/ui/a/a.ts', { names: ['label'], line: 2 }),
-      reExport('src/ui/a/a.dom.ts', 'src/ui/a/a.ts', { names: [], line: 3 }),
+      reExport('src/ui/a/a.page.ts', 'src/ui/a/a.dom.ts', { names: ['render'], line: 2 }),
+      reExport('src/ui/a/a.page.ts', 'src/ui/a/a.dom.ts', { names: [], line: 3 }),
     ];
-    assert.deepEqual(check([module('src/ui/a/a.dom.ts', edges)]), [
+    assert.deepEqual(check([module('src/ui/a/a.page.ts', edges)]), [
       {
-        rule: 'no-private-reexport',
-        key: 'no-private-reexport:src/ui/a/a.dom.ts->src/ui/a/a.ts',
-        file: 'src/ui/a/a.dom.ts',
+        rule: 'no-double-export',
+        key: 'no-double-export:src/ui/a/a.page.ts->src/ui/a/a.dom.ts',
+        file: 'src/ui/a/a.page.ts',
         line: 2,
         value: 1,
         message:
-          "src/ui/a/a.dom.ts (dom of card src/ui/a) is on src/ui/a's surface and re-exports src/ui/a/a.ts (logic of card src/ui/a), which src/ui/a keeps private (it exposes render, page). Expose what holds src/ui/a/a.ts from card if other units should reach it, or stop re-exporting it.",
-        details: {
-          unit: 'src/ui/a',
-          to: { unit: 'src/ui/a', part: 'logic' },
-          edges,
-        },
+          'src/ui/a/a.page.ts (page of card src/ui/a) re-exports src/ui/a/a.dom.ts (dom of card src/ui/a), and src/ui/a exposes both, so importers have two ways to the same names. Keep one: stop re-exporting it, or stop exposing it.',
+        details: { unit: 'src/ui/a', to: { unit: 'src/ui/a', part: 'dom' }, edges },
       },
     ]);
   });
 
-  it("counts a child's exposed file as private unless the unit passes it on, judging the file the specifier names", () => {
-    const findings = check([
-      module('src/ui/a/a.dom.ts', [
-        reExport('src/ui/a/a.dom.ts', 'src/ui/a/b/b.dom.ts', { names: ['b', 'c'] }),
-        reExport('src/ui/a/a.dom.ts', 'src/ui/a/b/c/c.ts', { via: 'src/ui/a/a.page.ts' }),
-      ]),
-    ]);
-    assert.deepEqual(
-      findings.map((finding) => [finding.key, finding.value]),
-      [['no-private-reexport:src/ui/a/a.dom.ts->src/ui/a/b/b.dom.ts', 2]],
-    );
-  });
-
-  it('passes plain imports, files off the surface, and targets outside the unit', () => {
+  it("counts a child's file the unit passes on, and judges the file the specifier names", () => {
     assert.deepEqual(
       check([
-        module('src/ui/a/a.dom.ts', [
-          edge('src/ui/a/a.dom.ts', 'src/ui/a/a.ts'),
-          reExport('src/ui/a/a.dom.ts', 'src/domain/order.ts'),
+        module('src/ui/shared.ts', [reExport('src/ui/shared.ts', 'src/ui/a/a.dom.ts', { names: ['a', 'b'] })]),
+        module('src/ui/a/a.page.ts', [
+          reExport('src/ui/a/a.page.ts', 'src/ui/a/a.ts', { via: 'src/ui/a/a.dom.ts' }),
+          reExport('src/ui/a/a.page.ts', 'src/ui/a/a.dom.ts', { via: 'src/ui/a/a.ts' }),
         ]),
-        module('src/ui/a/a.ts', [reExport('src/ui/a/a.ts', 'src/ui/a/b/b.ts')]),
-        module('src/ui/shared.ts', [reExport('src/ui/shared.ts', 'src/ui/a/a.dom.ts')]),
-      ]),
-      [],
+      ]).map((finding) => [finding.key, finding.value]),
+      [
+        ['no-double-export:src/ui/shared.ts->src/ui/a/a.dom.ts', 2],
+        ['no-double-export:src/ui/a/a.page.ts->src/ui/a/a.dom.ts', 1],
+      ],
     );
-    const outside = [
-      module('src/ui/a/a.dom.ts', [reExport('src/ui/a/a.dom.ts', 'elsewhere.ts')]),
-      module('elsewhere.ts', [reExport('elsewhere.ts', 'src/ui/a/a.ts')]),
-    ];
-    assert.deepEqual(reexportFindings(config, model, judge(), { modules: outside }), []);
   });
 
-  it('holds a unit with no .exposes() to its own files and what its units expose', () => {
-    const [finding] = check([module('src/ui/shared.ts', [reExport('src/ui/shared.ts', 'src/ui/a/a.ts')])]);
-    assert.match(
-      finding!.message,
-      /which src\/ui keeps private \(it exposes its own files and what its units expose\)\. Expose what holds src\/ui\/a\/a\.ts from ui /,
+  it("passes a barrel over private files, plain imports, files off the surface, and a child's file kept back", () => {
+    assert.deepEqual(
+      doubleExportFindings(model, judge(), {
+        modules: [
+          module('src/ui/a/a.dom.ts', [
+            reExport('src/ui/a/a.dom.ts', 'src/ui/a/a.ts'),
+            reExport('src/ui/a/a.dom.ts', 'src/ui/a/a.dom.ts'),
+            reExport('src/ui/a/a.dom.ts', 'src/ui/a/b/b.dom.ts'),
+            reExport('src/ui/a/a.dom.ts', 'src/domain/order.ts'),
+            edge('src/ui/a/a.dom.ts', 'src/ui/a/a.page.ts'),
+          ]),
+          module('src/ui/a/a.ts', [reExport('src/ui/a/a.ts', 'src/ui/a/a.dom.ts')]),
+        ],
+      }),
+      [],
     );
+    const outside = [module('elsewhere.ts', [reExport('elsewhere.ts', 'src/ui/a/a.dom.ts')])];
+    assert.deepEqual(doubleExportFindings(model, judge(), { modules: outside }), []);
   });
 
   it('attaches docs when given', () => {
-    const modules = [module('src/ui/a/a.dom.ts', [reExport('src/ui/a/a.dom.ts', 'src/ui/a/a.ts')])];
-    assert.equal(check(modules, { 'no-private-reexport': 'https://docs' })[0]?.docs, 'https://docs');
+    const modules = [module('src/ui/a/a.page.ts', [reExport('src/ui/a/a.page.ts', 'src/ui/a/a.dom.ts')])];
+    assert.equal(check(modules, { 'no-double-export': 'https://docs' })[0]?.docs, 'https://docs');
     assert.ok(!('docs' in check(modules)[0]!));
   });
 });

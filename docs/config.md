@@ -98,9 +98,8 @@ A package import is judged the same way, against the `pkg()` entries in the file
 reported as [`unit-externals`](./unit-externals.md). `pkg('x')` covers the package and its subpaths, and `*` matches
 any run of characters: `pkg('node:*')`, `pkg('@aws-sdk/*')`, `pkg('*')`.
 
-[`no-private-reexport`](./no-private-reexport.md) reports a file on a unit's surface that re-exports a file the unit
-keeps private, so a barrel offers only what `.exposes()` says. An archetype whose surface is a barrel over private
-files turns it off.
+[`no-double-export`](./no-double-export.md) reports a file on a unit's surface that re-exports another file on that
+surface, so there is one way to each name: a barrel over private files, or exposed files with no barrel.
 
 Rule settings go in four places: `defineConfig({ rules })`, `.rules()` on an archetype, and `rules` in a dir or files
 part's options. For a finding on a file, the nearest setting wins: the file's files part, then for its unit and each
@@ -254,7 +253,7 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 | [`unclassified`](./unclassified.md) | A module that matches no kind. From the model, so it cannot be turned off. | |
 | [`dependency-direction`](../src/model/rules/dependency-direction/README.md) | An import from a kind the importer's kind does not list in `dependsOn`, followed through barrels; in an archetype config, an import outside the importer's reach. | |
 | [`unit-externals`](./unit-externals.md) | In an archetype config, a package import that no `using` in the importer's reach lists. | |
-| [`no-private-reexport`](./no-private-reexport.md) | In an archetype config, a re-export, in a file on its unit's surface, of a file the unit keeps private. | |
+| [`no-double-export`](./no-double-export.md) | In an archetype config, a re-export, in a file on its unit's surface, of another file on that surface. | |
 | [`unit-cycle`](./unit-cycle.md) | In an archetype config, an import between sibling units that lies on a loop among them. | `types` |
 | [`no-cycle`](./no-cycle.md) | In an archetype config, an import between files that lies on a loop. | `types` |
 | [`no-cross-kind-reexport`](../src/model/rules/no-cross-kind-reexport/README.md) | A module that re-exports what another kind declares. | `allow` |

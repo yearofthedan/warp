@@ -3,10 +3,10 @@ import type { Finding } from '../rule.ts';
 import { fileCycleFindings, unitCycleFindings } from './cycles.ts';
 import type { ConfigData } from './data.ts';
 import { directionFindings } from './direction.ts';
+import { doubleExportFindings } from './doubleExports.ts';
 import { externalFindings } from './externals.ts';
 import { inlineFindings } from './inline.ts';
 import { verdicts } from './reach.ts';
-import { reexportFindings } from './reexports.ts';
 import type { Model } from './resolve.ts';
 import { settings } from './settings.ts';
 
@@ -14,7 +14,7 @@ export interface CheckDocs {
   unclassified?: string;
   'dependency-direction'?: string;
   'unit-externals'?: string;
-  'no-private-reexport'?: string;
+  'no-double-export'?: string;
   'unit-cycle'?: string;
   'no-cycle'?: string;
 }
@@ -25,7 +25,7 @@ export const checkModel = (config: ConfigData, model: Model, project: Project, d
   const onFiles = [
     ...directionFindings(config, model, judged, project, docs['dependency-direction']),
     ...externalFindings(model, judged, project, docs['unit-externals']),
-    ...reexportFindings(config, model, judged, project, docs['no-private-reexport']),
+    ...doubleExportFindings(model, judged, project, docs['no-double-export']),
     ...inlineFindings(config, model, judged, project),
     ...fileCycleFindings(project, rules, docs['no-cycle']),
   ];
