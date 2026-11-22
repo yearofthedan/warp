@@ -36,6 +36,13 @@ Tests sit beside the code they test, in three tiers named by suffix:
 `./do test --project unit` (or `integration`, `e2e`) runs one tier. `./do acceptance` checks working title at a pinned
 commit against approved findings; it runs nightly in CI, not on pull requests.
 
+## Adding a rule
+
+A built-in rule is a folder in [src/model/rules/](src/model/rules): the rule module, its unit tests, and its page as
+the folder's `README.md`. The archetype config's rules live in [src/model/archetype/](src/model/archetype), with
+their pages in `docs/`. Either way, a new rule's page has the same sections as the others, and gets a row in the rules
+table in [docs/config.md](docs/config.md#rules).
+
 ## Comments and docs
 
 Code explains itself through names, types and tests. A comment is for something temporary: it says why it is there

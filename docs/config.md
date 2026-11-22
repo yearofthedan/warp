@@ -262,6 +262,3 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 | [`function-cohesion`](../src/model/rules/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
 | [`cognitive-complexity`](../src/model/rules/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |
 
-
-Each rule is a folder in [`src/model/rules/`](../src/model/rules): the rule module, its unit tests, and its page as
-the folder's `README.md`. A new rule gets a folder like these, with the same sections in its page, and a row here.
