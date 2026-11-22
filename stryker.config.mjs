@@ -1,18 +1,14 @@
-/** @type {import('@stryker-mutator/core').PartialStrykerOptions} */
 export default {
-  /* shortcut: Stryker searches for plugins inside its own package, where pnpm does not keep this
-     one, so the runner is named here; name it no more once Stryker searches where it is installed. */
+  // why: Stryker looks for plugins inside its own package, where pnpm keeps none.
+  // until: Stryker resolves plugins from the project that installs it
   plugins: ['@stryker-mutator/vitest-runner'],
   testRunner: 'vitest',
   vitest: { configFile: 'stryker.vitest.config.ts' },
-  /* The unit-tested core: the model, its rules and the reporters, which run on in-memory facts.
-     Analysis, config loading, git and the CLI are covered by the integration and e2e tiers, which
-     read the disk and spawn processes, too slow to run once per mutant. */
   mutate: ['src/model/**/*.ts', 'src/reporters/**/*.ts', 'src/app/diff.ts', '!src/**/*.test.ts'],
   incremental: true,
   incrementalFile: 'reports/stryker-incremental.json',
-  /* shortcut: the rules came over with integration tests only, so the unit tier kills 88% of mutants
-     overall and nearly all of src/model/archetype; raise break with each slice that adds unit tests, up to 90. */
+  // why: the rules came over with integration tests only; raise break as slices add unit tests.
+  // until: break reaches 90, the high mark
   thresholds: { high: 90, low: 80, break: 88 },
   reporters: ['clear-text', 'html', 'json'],
   htmlReporter: { fileName: 'reports/mutation/mutation.html' },

@@ -37,7 +37,6 @@ git rev-parse -q --verify "$base^{commit}" >/dev/null ||
     exit 1
   }
 
-# A base without a lockfile, such as the commit before the first dependency, carries no advisory.
 if ! git cat-file -e "$base:pnpm-lock.yaml" 2>/dev/null; then
   echo '{}' >"$work/base.json"
   node "$(dirname "$0")/_audit.mjs" "$work/base.json" "$work/head.json" "$base, which has no lockfile"
@@ -45,7 +44,6 @@ if ! git cat-file -e "$base:pnpm-lock.yaml" 2>/dev/null; then
 fi
 
 mkdir -p "$work/base"
-# A base from before pnpm-workspace.yaml existed is audited without it.
 git show "$base:pnpm-workspace.yaml" >"$work/base/pnpm-workspace.yaml" 2>/dev/null || rm -f "$work/base/pnpm-workspace.yaml"
 for file in package.json pnpm-lock.yaml; do
   git show "$base:$file" >"$work/base/$file" 2>/dev/null ||

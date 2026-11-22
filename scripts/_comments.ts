@@ -147,7 +147,7 @@ const hashComments = (text: string): Comment[] => {
   let previousOwn = -1;
   text.split('\n').forEach((line, index) => {
     const number = index + 1;
-    if (number === 1 && line.startsWith('#!')) return;
+    if (line.startsWith('#!')) return;
     const start = hashStart(line);
     if (start < 0) return;
     const body = line.slice(start + 1).trim();
@@ -206,7 +206,7 @@ const directive =
   /^(@ts-(expect-error|ignore|nocheck|check)|(oxlint|eslint)-(disable|enable)(-next-line|-line)?|prettier-ignore|oxfmt-ignore|biome-ignore|shellcheck |Stryker (disable|restore)|[cv]8 ignore|istanbul ignore|<reference )/;
 
 const softNever =
-  /\b(never|n\/a|tbd|todo|forever|ever|someday|eventually|maybe|perhaps|whenever|if|unless|unknown|always|later|soon|tbc)\b|^(-+|\?+|none|na)$/i;
+  /\b(never|n\/a|tbd|todo|forever|ever|someday|eventually|maybe|perhaps|whenever|if|unless|unknown|always|tbc|needed)\b|^(-+|\?+|none|na|later|soon)$/i;
 
 const checkable = [
   /(^|\s)([\w.-]+\/[\w.-]+)?#\d+\b/,

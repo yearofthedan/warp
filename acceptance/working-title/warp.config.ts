@@ -1,4 +1,3 @@
-// Working title's config from docs/design/archetypes.md, which ./do acceptance resolves.
 import { archetype, defineConfig, dir, files, mustImport, pkg } from 'warp';
 
 const testRunner = archetype('test-runner')
@@ -9,8 +8,8 @@ const testRunner = archetype('test-runner')
   )
   .exposes((s) => ({ contract: s.contract, runner: s.runner }));
 
-// a folder of code whose tests need the runner: domain, application, adapters, lint
 const layer = archetype('layer')
+  .description('A folder of code whose tests need the runner: domain, application, adapters, lint')
   .requires({ testRunner, methods: dir() })
   .contains((p, { required }) =>
     p.files('src', '**').files('test', '**/*.test.ts', {

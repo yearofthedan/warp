@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # The audit compares the lockfile against the base branch's, which a one-commit checkout does not have.
       - run: git fetch --depth=1 origin "$GITHUB_BASE_REF"
         if: github.event_name == 'pull_request'
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
@@ -22,6 +21,5 @@ jobs:
         with:
           node-version-file: .node-version
       - run: pnpm install --frozen-lockfile
-      # On main the audit compares the lockfile with itself, so it only warns about advisories already there.
       - run: ./do check
       - run: pnpm build

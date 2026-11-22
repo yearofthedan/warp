@@ -89,7 +89,7 @@ describe('judge', () => {
   });
 
   it('refuses an until: that names no end', () => {
-    for (const until of ['never', 'n/a', 'TBD', 'forever', 'if one is ever used', 'when needed later', '-']) {
+    for (const until of ['never', 'n/a', 'TBD', 'forever', 'if one is ever used', 'when needed', 'later', '-']) {
       const [verdict] = verdictOn('a.ts', `// why: x\n// until: ${until}\n`);
       assert.deepEqual(verdict?.problems, [`until: names no point it ends: "${until}"`], until);
     }

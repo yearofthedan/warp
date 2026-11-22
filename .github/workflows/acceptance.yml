@@ -1,7 +1,5 @@
 name: Acceptance
 
-# Warp against working title at a pinned commit, compared with the approved findings. Nightly and on
-# demand, not on pull requests: it reaches another repository, and its answer moves with the model.
 on:
   schedule:
     - cron: '17 3 * * *'
