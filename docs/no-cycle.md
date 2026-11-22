@@ -1,5 +1,8 @@
 # no-cycle
 
+**Audience:** anyone reading a `no-cycle` finding, or setting the rule.
+**Purpose:** what `no-cycle` reports, why, and its options.
+
 Report each import between files that lies on a loop, in an archetype config.
 
 ## Why
@@ -15,13 +18,13 @@ edge. An import is followed to the file its specifier names.
 
 Incorrect code:
 
-```ts
+```ts fragment
 // src/order.ts
 import { price } from './price.ts';
 export const order = (id: string) => ({ id, total: price(id) });
 ```
 
-```ts
+```ts fragment
 // src/price.ts
 import { order } from './order.ts';
 export const price = (id: string) => (order(id).id === '' ? 0 : 1);

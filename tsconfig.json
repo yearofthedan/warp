@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src", "integrations", "e2e", "*.ts"]
+  "include": ["src", "integrations", "e2e", "scripts/*.ts", "*.ts"]
 }

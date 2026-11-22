@@ -1,5 +1,8 @@
 # unclassified
 
+**Audience:** anyone reading a `unclassified` finding, or setting the rule.
+**Purpose:** what `unclassified` reports, why, and its options.
+
 Report a module that matches no kind, or in an archetype config, no part where loose files are denied.
 
 ## Why

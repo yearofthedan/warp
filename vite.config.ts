@@ -2,7 +2,7 @@ import { configDefaults, defineConfig } from 'vite-plus';
 
 // The three tiers, by file name (docs/adr/0001-toolchain.md):
 // unit runs in memory, integration reads fixtures/, e2e spawns the CLI.
-const unit = ['src/**/*.test.ts', 'integrations/**/*.test.ts'];
+const unit = ['src/**/*.test.ts', 'integrations/**/*.test.ts', 'scripts/*.test.ts'];
 const integration = ['src/**/*.integration.test.ts'];
 // do.test.ts runs each ./do script's shell suite against a stubbed copy of the repo.
 const e2e = ['e2e/**/*.test.ts', 'do.test.ts'];

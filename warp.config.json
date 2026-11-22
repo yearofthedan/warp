@@ -10,8 +10,8 @@
       }
     },
     "unit-test": {
-      "match": ["src/**/*.test.ts", "integrations/**/*.test.ts"],
-      "dependsOn": ["entry", "app", "reporter", "model", "rules", "integration"],
+      "match": ["src/**/*.test.ts", "integrations/**/*.test.ts", "scripts/*.test.ts"],
+      "dependsOn": ["entry", "app", "reporter", "model", "rules", "integration", "tooling"],
       "rules": {
         "function-cohesion": false
       }
@@ -61,7 +61,7 @@
       "dependsOn": []
     },
     "tooling": {
-      "match": "*.ts",
+      "match": ["*.ts", "scripts/*.ts"],
       "dependsOn": []
     }
   }
