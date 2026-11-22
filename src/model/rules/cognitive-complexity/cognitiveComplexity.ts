@@ -1,9 +1,9 @@
-import { type Rule, wholeNumberOptions } from '../../rule.ts';
+import { type ModuleRule, wholeNumberOptions } from '../../rule.ts';
 import { withOrdinals } from '../shared.ts';
 
 const defaults = { max: 15 };
 
-export const cognitiveComplexity: Rule<typeof defaults> = {
+export const cognitiveComplexity: ModuleRule<typeof defaults> = {
   id: 'cognitive-complexity',
   defaults,
   parseOptions: wholeNumberOptions(defaults),

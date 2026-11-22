@@ -24,8 +24,8 @@ export const defineConfig: {
   (config: WarpConfig): WarpConfig;
 } = <C>(config: C): C => config;
 
-export const registry = (rules: readonly Rule[]): ReadonlyMap<string, Rule> => {
-  const byId = new Map<string, Rule>();
+export const registry = <R extends { id: string }>(rules: readonly R[]): ReadonlyMap<string, R> => {
+  const byId = new Map<string, R>();
   for (const rule of rules) {
     if (byId.has(rule.id)) throw new ConfigError(`rules: two rules have the id ${rule.id}`);
     byId.set(rule.id, rule);

@@ -1,8 +1,8 @@
-import type { ExternalImport, Project } from '../facts.ts';
-import type { Finding } from '../rule.ts';
-import { place } from './direction.ts';
-import type { Grant, Verdicts } from './reach.ts';
-import type { Model } from './resolve.ts';
+import { place } from '../../archetype/place.ts';
+import type { Grant } from '../../archetype/reach.ts';
+import type { Model } from '../../archetype/resolve.ts';
+import type { ExternalImport } from '../../facts.ts';
+import { type Finding, noOptions, type ProjectRule } from '../../rule.ts';
 
 const id = 'unit-externals';
 
@@ -14,19 +14,22 @@ const listsPackage = (pattern: string, external: Pick<ExternalImport, 'package' 
   return matches.test(external.package) || matches.test(external.specifier);
 };
 
-export const externalFindings = (model: Model, verdicts: Verdicts, project: Project, docs?: string): Finding[] =>
-  project.modules.flatMap((module) => {
-    const reach = verdicts.reach(module.file);
-    if (!reach) return [];
-    const packages = reach.filter((grant) => grant.package !== undefined);
-    const byPackage = Map.groupBy(module.externals, (external) => external.package);
-    return [...byPackage].flatMap(([name, edges]) => {
-      const outside = edges.filter((edge) => !packages.some((grant) => listsPackage(grant.package!, edge)));
-      if (outside.length === 0) return [];
-      const finding = refused(model, module.file, name, outside, packages);
-      return [docs ? { ...finding, docs } : finding];
-    });
-  });
+export const unitExternals: ProjectRule = {
+  id,
+  scope: 'project',
+  parseOptions: noOptions,
+  check: ({ model, verdicts, project, atFile }) =>
+    project.modules.flatMap((module) => {
+      const reach = verdicts.reach(module.file);
+      if (!reach || !atFile(module.file).on) return [];
+      const packages = reach.filter((grant) => grant.package !== undefined);
+      const byPackage = Map.groupBy(module.externals, (external) => external.package);
+      return [...byPackage].flatMap(([name, edges]) => {
+        const outside = edges.filter((edge) => !packages.some((grant) => listsPackage(grant.package!, edge)));
+        return outside.length === 0 ? [] : [refused(model, module.file, name, outside, packages)];
+      });
+    }),
+};
 
 const refused = (
   model: Model,

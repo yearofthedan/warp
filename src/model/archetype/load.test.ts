@@ -4,7 +4,7 @@ import { defineConfig } from '../config.ts';
 import { archetype, dir, files, mustImport, pkg, requiredRefs } from './builder.ts';
 import { ConfigError } from '../rule.ts';
 import { loadConfigData } from './load.ts';
-import { modelRules } from './rules.ts';
+import { archetypeLoadOptions } from '../../builtins.ts';
 
 const workingTitleConfig = () => {
   const testRunner = archetype('test-runner')
@@ -455,11 +455,13 @@ describe('loadConfigData', () => {
           .files('test', '*.test.ts', { rules: { 'no-cycle': { types: 'count' }, 'unit-cycle': {} } }),
       )
       .rules({ 'no-cycle': { types: 'count', depth: 1, width: 2 }, 'unit-cycle': { types: 'ignore' } });
-    const options = { ruleIds: Object.keys(modelRules), options: modelRules };
-    assert.deepEqual(failures({ root, rules: { 'dependency-direction': { strict: true } } }, options), [
+    const options = archetypeLoadOptions;
+    const rules = { 'dependency-direction': { strict: true }, 'module-cohesion': { maxLines: 0 } };
+    assert.deepEqual(failures({ root, rules }, options), [
       "root.src.rules.unit-cycle.types: expected 'count' or 'ignore'",
       'root.rules.no-cycle: unknown key depth, width',
       'config.rules.dependency-direction: unknown key strict',
+      'config.rules.module-cohesion.maxLines: expected a whole number of at least 1',
     ]);
     const thrower = {
       options: {

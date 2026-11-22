@@ -6,14 +6,13 @@ import { diskFolders } from './analysis/folders.ts';
 import { typescriptAnalyzer } from './analysis/typescript.ts';
 import { archetypeCheck, kindsCheck, modelProject, type ProjectCheck } from './app/check.ts';
 import { diffProject, parseRange } from './app/diff.ts';
-import { archetypeDocs, builtinRegistry, unclassifiedDocs } from './builtins.ts';
+import { archetypeLoadOptions, archetypeRegistry, builtinRegistry, unclassifiedDocs } from './builtins.ts';
 import { findConfig, loadConfig } from './config/loadConfig.ts';
 import { toolDigest } from './config/toolDigest.ts';
 import { gitDirCache } from './git/cache.ts';
 import { gitRepository, projectPathOf } from './git/repository.ts';
 import type { ConfigData } from './model/archetype/data.ts';
 import { loadConfigData } from './model/archetype/load.ts';
-import { modelRules } from './model/archetype/rules.ts';
 import { type Config, parseConfig } from './model/config.ts';
 import { ConfigError } from './model/rule.ts';
 import { reporters } from './reporters/index.ts';
@@ -85,7 +84,7 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promi
     if (!isArchetypeConfig(raw)) {
       return { shape: 'kinds', root, config: parseConfig(raw, builtinRegistry, { unclassifiedDocs }), digest };
     }
-    const { config, warnings } = loadConfigData(raw, { ruleIds: Object.keys(modelRules), options: modelRules });
+    const { config, warnings } = loadConfigData(raw, archetypeLoadOptions);
     for (const warning of warnings) console.error(`warp config: ${warning}`);
     return { shape: 'archetypes', root, config, digest };
   } catch (error) {
@@ -100,7 +99,7 @@ const isArchetypeConfig = (raw: unknown): boolean => typeof raw === 'object' && 
 const projectCheck = (resolved: Resolved): ProjectCheck =>
   resolved.shape === 'kinds'
     ? kindsCheck(typescriptAnalyzer, resolved.config)
-    : archetypeCheck(adapters, resolved.config, archetypeDocs);
+    : archetypeCheck(adapters, resolved.config, { rules: [...archetypeRegistry.values()], unclassifiedDocs });
 
 const run = async (options: Options, produce: Produce): Promise<number> => {
   const reporter = reporters.get(options.reporter);

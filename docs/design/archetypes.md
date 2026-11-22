@@ -5,7 +5,8 @@
 
 Status: in delivery. The config builders, their load-time checks, finding units (`warp model`), edge verdicts
 (`dependency-direction`), package edges (`unit-externals`), `no-double-export`, rule settings, `mustImport`,
-`unit-cycle` and `no-cycle` are in `src/model/archetype/`.
+`unit-cycle` and `no-cycle` are in, and the built-in rules run on archetype configs through the rule contract's
+module and project scopes.
 
 ## Summary
 

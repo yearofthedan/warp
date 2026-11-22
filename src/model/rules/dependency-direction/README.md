@@ -107,8 +107,8 @@ import { strings } from '../strings/en.ts'; // required.strings, provided by ui
 ```
 
 The message says why: the unit that keeps the target private and what it exposes instead, that the target is above
-the importer, or what the importer's reach does hold. Package imports aren't judged yet, and the rule can't be turned
-off on an archetype or part until archetype rule settings land.
+the importer, or what the importer's reach does hold. Package imports are judged by
+[`unit-externals`](../unit-externals/README.md).
 
 ## Options
 

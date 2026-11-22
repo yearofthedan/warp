@@ -63,7 +63,7 @@ describe('check', () => {
   it('links an unclassified module to the page on kinds', () => {
     assert.equal(
       byKey('unclassified:src/stray.ts')?.docs,
-      'https://github.com/yearofthedan/warp/blob/main/docs/unclassified.md',
+      'https://github.com/yearofthedan/warp/blob/main/src/model/rules/unclassified/README.md',
     );
   });
 

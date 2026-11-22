@@ -349,7 +349,7 @@ describe('a warp.config.ts with archetypes', () => {
         'unit-externals:src/ui/card/card.ts->node:util',
       ],
     );
-    assert.match(findings[2].docs, /docs\/unit-externals\.md$/);
+    assert.match(findings[2].docs, /src\/model\/rules\/unit-externals\/README\.md$/);
     assert.equal(
       findings[1].message,
       'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes, or expose src/domain/order.ts from layer if other units should reach it.',

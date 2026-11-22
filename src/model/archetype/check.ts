@@ -1,39 +1,46 @@
 import type { Project } from '../facts.ts';
-import type { Finding } from '../rule.ts';
-import { fileCycleFindings, unitCycleFindings } from './cycles.ts';
+import type { ArchetypeRule, Finding, ProjectContext } from '../rule.ts';
 import type { ConfigData } from './data.ts';
-import { directionFindings } from './direction.ts';
-import { doubleExportFindings } from './doubleExports.ts';
-import { externalFindings } from './externals.ts';
 import { inlineFindings } from './inline.ts';
 import { verdicts } from './reach.ts';
 import type { Model } from './resolve.ts';
-import { settings } from './settings.ts';
+import { settings, type Settings } from './settings.ts';
 
-export interface CheckDocs {
-  unclassified?: string;
-  'dependency-direction'?: string;
-  'unit-externals'?: string;
-  'no-double-export'?: string;
-  'unit-cycle'?: string;
-  'no-cycle'?: string;
-}
-
-export const checkModel = (config: ConfigData, model: Model, project: Project, docs: CheckDocs = {}): Finding[] => {
-  const rules = settings(config, model);
+export const checkModel = (
+  config: ConfigData,
+  model: Model,
+  project: Project,
+  rules: readonly ArchetypeRule[] = [],
+  unclassifiedDocs?: string,
+): Finding[] => {
+  const settled = settings(config, model);
   const judged = verdicts(config, model);
-  const onFiles = [
-    ...directionFindings(config, model, judged, project, docs['dependency-direction']),
-    ...externalFindings(model, judged, project, docs['unit-externals']),
-    ...doubleExportFindings(model, judged, project, docs['no-double-export']),
-    ...inlineFindings(config, model, judged, project),
-    ...fileCycleFindings(project, rules, docs['no-cycle']),
-  ];
+  const found = rules.flatMap((rule) => {
+    const findings = run(rule, { project, config, model, verdicts: judged }, settled);
+    return rule.docs ? findings.map((finding) => ({ ...finding, docs: rule.docs })) : findings;
+  });
   return [
-    ...unclassifiedFindings(model, docs.unclassified),
-    ...onFiles.filter((finding) => rules.atFile(finding.file, finding.rule).on),
-    ...unitCycleFindings(model, project, rules, docs['unit-cycle']),
+    ...unclassifiedFindings(model, unclassifiedDocs),
+    ...found,
+    ...inlineFindings(config, model, judged, project).filter(
+      (finding) => settled.atFile(finding.file, finding.rule).on,
+    ),
   ];
+};
+
+type Shared = Omit<ProjectContext<object>, 'atFile' | 'atUnit'>;
+
+const run = (rule: ArchetypeRule, shared: Shared, settled: Settings): Finding[] => {
+  if (rule.scope === 'project')
+    return rule.check({
+      ...shared,
+      atFile: (file) => settled.atFile(file, rule.id, rule.defaults),
+      atUnit: (unit) => settled.atUnit(unit, rule.id, rule.defaults),
+    });
+  return shared.project.modules.flatMap((module) => {
+    const { on, options } = settled.atFile(module.file, rule.id, rule.defaults);
+    return on ? rule.check({ module, options }) : [];
+  });
 };
 
 const unclassifiedFindings = (model: Model, docs: string | undefined): Finding[] =>

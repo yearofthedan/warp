@@ -1,10 +1,10 @@
 import { components } from '../../components.ts';
-import { type Rule, wholeNumberOptions } from '../../rule.ts';
+import { type ModuleRule, wholeNumberOptions } from '../../rule.ts';
 import { group, withOrdinals } from '../shared.ts';
 
 const defaults = { maxLines: 40 };
 
-export const functionCohesion: Rule<typeof defaults> = {
+export const functionCohesion: ModuleRule<typeof defaults> = {
   id: 'function-cohesion',
   defaults,
   parseOptions: wholeNumberOptions(defaults),
