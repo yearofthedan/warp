@@ -1,5 +1,6 @@
 import { matchesGlob } from 'node:path';
 import type { ArchetypeConfig } from './archetype/builder.ts';
+import { registry } from './registry.ts';
 import { ConfigError, type EnabledRule, type Kind, noOptions, type Plugin, type Rule } from './rule.ts';
 
 export interface Config {
@@ -23,15 +24,6 @@ export const defineConfig: {
   <const C extends ArchetypeConfig>(config: C): C;
   (config: WarpConfig): WarpConfig;
 } = <C>(config: C): C => config;
-
-export const registry = <R extends { id: string }>(rules: readonly R[]): ReadonlyMap<string, R> => {
-  const byId = new Map<string, R>();
-  for (const rule of rules) {
-    if (byId.has(rule.id)) throw new ConfigError(`rules: two rules have the id ${rule.id}`);
-    byId.set(rule.id, rule);
-  }
-  return byId;
-};
 
 const name = /^[a-z][a-z0-9-]*$/;
 

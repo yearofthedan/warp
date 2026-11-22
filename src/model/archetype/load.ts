@@ -1,4 +1,5 @@
-import { ConfigError } from '../rule.ts';
+import { pluginRules, registry } from '../registry.ts';
+import { type ArchetypeRule, ConfigError, noOptions } from '../rule.ts';
 import { recordedAs } from './builder.ts';
 import type { ArchetypeData, ConfigData } from './data.ts';
 import { collect, draft } from './draft.ts';
@@ -8,15 +9,15 @@ import { defined, type Fail, isName, isRecord } from './shared.ts';
 
 export interface LoadedConfigData {
   config: ConfigData;
+  rules: ArchetypeRule[];
   warnings: string[];
 }
 
 export interface LoadOptions {
-  ruleIds?: Iterable<string>;
-  options?: Readonly<Record<string, (raw: Record<string, unknown>, at: string) => unknown>>;
+  builtins?: readonly ArchetypeRule[];
 }
 
-export const loadConfigData = (raw: unknown, { ruleIds, options }: LoadOptions = {}): LoadedConfigData => {
+export const loadConfigData = (raw: unknown, { builtins }: LoadOptions = {}): LoadedConfigData => {
   const errors: string[] = [];
   const fail: Fail = (message) => {
     if (!errors.includes(message)) errors.push(message);
@@ -30,11 +31,12 @@ export const loadConfigData = (raw: unknown, { ruleIds, options }: LoadOptions =
   const root = recordedAs(raw.root, 'archetype');
   if (!root) throw new ConfigError("config.root: expected an archetype, archetype('name')...");
 
+  const rules = [...registry([...(builtins ?? []), ...pluginRules(plugins(raw.plugins, fail))]).values()];
   const drafts = [...collect(root, fail)].map(([name, state]) => draft(name, state, fail));
   const check: Check = {
     fail,
-    ruleIds: ruleIds && new Set(ruleIds),
-    options: options ?? {},
+    ruleIds: builtins && new Set(rules.map((rule) => rule.id)),
+    options: Object.fromEntries(rules.map((rule) => [rule.id, rule.parseOptions ?? noOptions])),
     surfacesOf: (name) => {
       const exposes = drafts.find((d) => d.data.name === name)?.exposes;
       return exposes && Object.keys(exposes);
@@ -46,13 +48,12 @@ export const loadConfigData = (raw: unknown, { ruleIds, options }: LoadOptions =
     archetypes: Object.fromEntries(drafts.map(({ data }) => [data.name, archetypeData(data)])),
     tsconfig: tsconfigs(raw.tsconfig, fail),
     rules: toRules(check, raw.rules, 'config.rules', undefined),
-    plugins: plugins(raw.plugins, fail),
   });
   for (const d of drafts) checkUnused(d, fail);
   failed();
   const warnings = checkRequirements(config.archetypes, config.root, fail);
   failed();
-  return { config, warnings };
+  return { config, rules, warnings };
 };
 
 const archetypeData = ({
@@ -69,8 +70,10 @@ const archetypeData = ({
   defined({ name, description, identify, requires, parts: parts.map(defined), exposes, provides, loose, rules });
 
 const plugins = (value: unknown, fail: Fail): Record<string, unknown> => {
-  if (value !== undefined && !isRecord(value)) fail('config.plugins: expected plugins by namespace');
-  return (value ?? {}) as Record<string, unknown>;
+  if (value === undefined) return {};
+  if (isRecord(value)) return value;
+  fail('config.plugins: expected plugins by namespace');
+  return {};
 };
 
 const tsconfigs = (value: unknown, fail: Fail): string[] => {

@@ -71,5 +71,4 @@ export interface ConfigData {
   archetypes: Record<string, ArchetypeData>;
   tsconfig: string[];
   rules?: RuleSettingsData;
-  plugins: Record<string, unknown>;
 }

@@ -1,11 +1,11 @@
 import { matchesGlob } from 'node:path';
-import { ConfigError, type Rule } from 'warp';
+import { ConfigError, type ModuleRule } from 'warp';
 
 interface Options {
   ports: string[];
 }
 
-export const noPortsThroughApplication: Rule<Options> = {
+export const noPortsThroughApplication: ModuleRule<Options> = {
   id: 'no-ports-through-application',
   docs: 'https://example.com/rules/no-ports-through-application',
   defaults: { ports: ['src/application/ports/**'] },

@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { defineConfig } from '../config.ts';
 import { archetype, dir, files, mustImport, pkg, requiredRefs } from './builder.ts';
-import { ConfigError } from '../rule.ts';
+import { ConfigError, wholeNumberOptions } from '../rule.ts';
 import { loadConfigData } from './load.ts';
-import { archetypeLoadOptions } from '../../builtins.ts';
+import { archetypeRegistry } from '../../builtins.ts';
+import type { ModuleRule } from '../rule.ts';
 
 const workingTitleConfig = () => {
   const testRunner = archetype('test-runner')
@@ -230,7 +231,6 @@ describe('loadConfigData', () => {
     assert.deepEqual(data, {
       root: 'top',
       tsconfig: ['tsconfig.json', 'tsconfig.test.json'],
-      plugins: {},
       rules: 'off',
       archetypes: {
         top: {
@@ -312,11 +312,9 @@ describe('loadConfigData', () => {
     });
   });
 
-  it('defaults tsconfig to tsconfig.json and keeps plugins as given', () => {
-    const plugins = { mine: { rules: [] } };
-    const { config } = loadConfigData({ root: archetype('a').contains((p) => p.files('src', '**')), plugins });
+  it('defaults tsconfig to tsconfig.json', () => {
+    const { config } = loadConfigData({ root: archetype('a').contains((p) => p.files('src', '**')) });
     assert.deepEqual(config.tsconfig, ['tsconfig.json']);
-    assert.equal(config.plugins, plugins);
     assert.equal(
       loadConfigData({ root: archetype('a'), tsconfig: 'tsconfig.app.json' }).config.tsconfig[0],
       'tsconfig.app.json',
@@ -438,7 +436,7 @@ describe('loadConfigData', () => {
     assert.deepEqual(
       failures(
         { root, rules: { 'cognitive-complexity': { max: 3 } } },
-        { ruleIds: ['module-cohesion', 'cognitive-complexity'] },
+        { builtins: [archetypeRegistry.get('module-cohesion')!, archetypeRegistry.get('cognitive-complexity')!] },
       ),
       [
         'root.test.rules: no rule called no-such-rule',
@@ -455,7 +453,7 @@ describe('loadConfigData', () => {
           .files('test', '*.test.ts', { rules: { 'no-cycle': { types: 'count' }, 'unit-cycle': {} } }),
       )
       .rules({ 'no-cycle': { types: 'count', depth: 1, width: 2 }, 'unit-cycle': { types: 'ignore' } });
-    const options = archetypeLoadOptions;
+    const options = { builtins: [...archetypeRegistry.values()] };
     const rules = { 'dependency-direction': { strict: true }, 'module-cohesion': { maxLines: 0 } };
     assert.deepEqual(failures({ root, rules }, options), [
       "root.src.rules.unit-cycle.types: expected 'count' or 'ignore'",
@@ -464,13 +462,39 @@ describe('loadConfigData', () => {
       'config.rules.module-cohesion.maxLines: expected a whole number of at least 1',
     ]);
     const thrower = {
-      options: {
-        'no-cycle': () => {
-          throw new TypeError('not a config problem');
+      builtins: [
+        {
+          id: 'no-cycle',
+          parseOptions: () => {
+            throw new TypeError('not a config problem');
+          },
+          check: () => [],
         },
-      },
+      ],
     };
     assert.throws(() => loadConfigData({ root }, thrower), TypeError);
+  });
+
+  it("joins plugins' rules to the built-in ones under their namespace, ids and options checked alike", () => {
+    const limit: ModuleRule<{ max: number }> = {
+      id: 'max-imports',
+      defaults: { max: 5 },
+      parseOptions: wholeNumberOptions({ max: 5 }),
+      check: () => [],
+    };
+    const root = archetype('root').contains((p) =>
+      p.files('src', '**', { rules: { 'mine/max-imports': { max: 0 }, 'max-imports': false } }),
+    );
+    const builtins = [archetypeRegistry.get('module-cohesion')!];
+    assert.deepEqual(failures({ root, plugins: { mine: { rules: [limit] } } }, { builtins }), [
+      'root.src.rules.mine/max-imports.max: expected a whole number of at least 1',
+      'root.src.rules: no rule called max-imports',
+    ]);
+    const { rules } = loadConfigData({ root: archetype('r'), plugins: { mine: { rules: [limit] } } }, { builtins });
+    assert.deepEqual(
+      rules.map((rule) => rule.id),
+      ['module-cohesion', 'mine/max-imports'],
+    );
   });
 
   it('refuses rule settings of the wrong shape', () => {
@@ -508,9 +532,9 @@ describe('loadConfigData', () => {
       .contains((p) => p.files('src', '**'));
     assert.deepEqual(failures({ root, kinds: {}, exclude: [], tsconfig: [], plugins: [] }), [
       'config: unknown key kinds, exclude',
+      'config.plugins: expected plugins by namespace',
       'root.requires.x: expected an archetype, dir() or files()',
       'config.tsconfig: expected a path or a list of paths',
-      'config.plugins: expected plugins by namespace',
     ]);
     assert.deepEqual(failures({ root: archetype('r').requires(3 as never) }), [
       'r.requires: expected requirements by name, { testRunner, strings: dir() }',
@@ -648,7 +672,6 @@ describe('loadConfigData', () => {
         },
       },
       tsconfig: ['tsconfig.json'],
-      plugins: {},
     });
   });
 
