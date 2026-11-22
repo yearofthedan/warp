@@ -4,7 +4,7 @@
 **Purpose:** where the config language is going, and the source of truth for it.
 
 Status: in delivery. The config builders, their load-time checks, finding units (`warp model`), edge verdicts
-(`dependency-direction`), package edges (`unit-externals`), `no-private-reexport`, rule settings, `mustImport`,
+(`dependency-direction`), package edges (`unit-externals`), `no-double-export`, rule settings, `mustImport`,
 `unit-cycle` and `no-cycle` are in `src/model/archetype/`.
 
 ## Summary
@@ -318,8 +318,8 @@ A reference reaches only what it names. `s.ui.render` holds the files `ui` puts 
 don't reach each other unless the part lists itself, which declare-before-use doesn't yet allow ([open](#open)).
 
 Type imports are imports: they obey `using` and surfaces like any other. A unit exposes types through a public file,
-a types file in an exposed part, or a barrel (`.exposes((s) => ({ api: s.index }))`). A barrel over private files
-turns `no-private-reexport` off on its archetype, which says the barrel, not its parts, is the surface.
+a types file in an exposed part, or a barrel (`.exposes((s) => ({ api: s.index }))`). A barrel and the files it
+re-exports are not both exposed, so each name has one way in (`no-double-export`).
 
 **Packages** go through `using` like anything else: `pkg('vitest')`, or a glob such as `pkg('node:*')` or
 `pkg('@aws-sdk/*')`. An external edge passes when A's part, or the dir part that matched A's unit, lists a matching
@@ -353,7 +353,7 @@ Each failure is one finding per file pair per rule.
 | B outside A's reach (details say whether B is private or just not in `using`) | `dependency-direction` |
 | an inline rule | its local name |
 | re-exporting another unit's names | `no-cross-unit-reexport` (`allow` takes references) |
-| a file on a surface re-exporting a file its unit keeps private | `no-private-reexport` |
+| a file on a surface re-exporting another file on that surface | `no-double-export` |
 | a package not in the part's `using` | `unit-externals` |
 | a loop between units | `unit-cycle` |
 | a loop between files | `no-cycle` |
