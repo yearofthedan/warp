@@ -100,6 +100,8 @@ any run of characters: `pkg('node:*')`, `pkg('@aws-sdk/*')`, `pkg('*')`.
 
 [`no-double-export`](../src/model/rules/no-double-export/README.md) reports a file on a unit's surface that re-exports another file on that
 surface, so there is one way to each name: a barrel over private files, or exposed files with no barrel.
+[`no-cross-unit-reexport`](../src/model/rules/no-cross-unit-reexport/README.md) reports a file that re-exports
+another unit's file, other than one nested in its own unit, so a unit doesn't pass on what it uses.
 
 Rule settings go in four places: `defineConfig({ rules })`, `.rules()` on an archetype, and `rules` in a dir or files
 part's options. For a finding on a file, the nearest setting wins: the file's files part, then for its unit and each
@@ -261,6 +263,7 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 | [`no-double-export`](../src/model/rules/no-double-export/README.md) | In an archetype config, a re-export, in a file on its unit's surface, of another file on that surface. | |
 | [`unit-cycle`](../src/model/rules/unit-cycle/README.md) | In an archetype config, an import between sibling units that lies on a loop among them. | `types` |
 | [`no-cycle`](../src/model/rules/no-cycle/README.md) | In an archetype config, an import between files that lies on a loop. | `types` |
+| [`no-cross-unit-reexport`](../src/model/rules/no-cross-unit-reexport/README.md) | In an archetype config, a re-export of another unit's file, other than one nested in the re-exporting unit. | |
 | [`no-cross-kind-reexport`](../src/model/rules/no-cross-kind-reexport/README.md) | In a kinds config, a module that re-exports what another kind declares. | `allow` |
 | [`module-cohesion`](../src/model/rules/module-cohesion/README.md) | A module over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
 | [`function-cohesion`](../src/model/rules/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |

@@ -5,6 +5,7 @@ import { dependencyDirection } from './dependency-direction/dependencyDirection.
 import { functionCohesion } from './function-cohesion/functionCohesion.ts';
 import { moduleCohesion } from './module-cohesion/moduleCohesion.ts';
 import { noCrossKindReexport } from './no-cross-kind-reexport/noCrossKindReexport.ts';
+import { noCrossUnitReexport } from './no-cross-unit-reexport/noCrossUnitReexport.ts';
 import { noCycle } from './no-cycle/noCycle.ts';
 import { noDoubleExport } from './no-double-export/noDoubleExport.ts';
 import { unitCycle } from './unit-cycle/unitCycle.ts';
@@ -22,6 +23,7 @@ export const archetypeRules: readonly ArchetypeRule[] = [
   dependencyDirectionByReach,
   unitExternals,
   noDoubleExport,
+  noCrossUnitReexport,
   noCycle,
   unitCycle,
   moduleCohesion,
