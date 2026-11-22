@@ -3,7 +3,7 @@
 **Audience:** anyone reading a `unit-cycle` finding, or setting the rule.
 **Purpose:** what `unit-cycle` reports, why, and its options.
 
-Report each import between sibling units that lies on a loop among them, in an archetype config.
+Report each import between sibling units that lies on a loop among them.
 
 ## Why
 

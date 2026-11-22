@@ -3,7 +3,7 @@
 **Audience:** anyone reading a `no-cross-unit-reexport` finding, or setting the rule.
 **Purpose:** what `no-cross-unit-reexport` reports, why, and its options.
 
-Disallow re-exporting another unit's files, in an archetype config.
+Disallow re-exporting another unit's files.
 
 ## Why
 

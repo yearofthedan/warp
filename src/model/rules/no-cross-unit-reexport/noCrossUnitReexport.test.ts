@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import { type AnyArchetype, archetype, dir, type RuleSettings } from '../../archetype/builder.ts';
+import { type AnyArchetype, archetype, dir, type Ruleset, ruleset } from '../../archetype/builder.ts';
 import { checkModel } from '../../archetype/check.ts';
 import { loadConfigData } from '../../archetype/load.ts';
 import { type Folders, resolveModel } from '../../archetype/resolve.ts';
@@ -50,8 +50,8 @@ const module = (file: string, imports: ImportEdge[] = []): ModuleFacts => ({
 
 const files = ['ports/folder.ts', 'domain/order.ts', 'ui/index.ts', 'ui/view.ts', 'ui/card/card.ts', 'main.ts'];
 
-const check = (root: AnyArchetype, modules: ModuleFacts[]) => {
-  const { config } = loadConfigData({ root });
+const check = (root: AnyArchetype, modules: ModuleFacts[], rules?: Ruleset) => {
+  const { config } = loadConfigData({ root, ...(rules ? { rulesets: { default: rules } } : {}) });
   const all = [
     ...modules,
     ...files.filter((file) => !modules.some((m) => m.file === file)).map((file) => module(file)),
@@ -67,15 +67,16 @@ const keys = (findings: readonly { rule: string; key: string }[]) =>
 
 const card = archetype('card').contains((p) => p.files('src', '*.ts'));
 
-const ui = (rules?: RuleSettings) =>
-  archetype('ui')
-    .requires({ ports: dir() })
-    .contains((p, { required }) =>
-      p
-        .dir('cards', '{name}', card)
-        .files('api', 'index.ts', { using: (s) => [s.cards, required.ports], ...(rules ? { rules } : {}) })
-        .files('src', '*.ts', { using: [required.ports] }),
-    );
+const uiArchetype = archetype('ui')
+  .requires({ ports: dir() })
+  .contains((p, { required }) =>
+    p
+      .dir('cards', '{name}', card)
+      .files('api', 'index.ts', { using: (s) => [s.cards, required.ports] })
+      .files('src', '*.ts', { using: [required.ports] }),
+  );
+
+const ui = () => uiArchetype;
 
 const app = (child: AnyArchetype) =>
   archetype('app')
@@ -149,7 +150,7 @@ describe(rule, () => {
 
   it('reports nothing where the rule is off, and takes no options', () => {
     const modules = [module('ui/index.ts', [reExport('ui/index.ts', 'ports/folder.ts')])];
-    assert.deepEqual(keys(check(app(ui({ [rule]: false })), modules)), []);
+    assert.deepEqual(keys(check(app(ui()), modules, ruleset().on(uiArchetype.api, { [rule]: false }))), []);
     assert.throws(() => noCrossUnitReexport.parseOptions!({ allow: [] }, 'at'), /at: unknown key allow/);
   });
 });

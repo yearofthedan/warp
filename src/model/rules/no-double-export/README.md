@@ -3,7 +3,7 @@
 **Audience:** anyone reading a `no-double-export` finding, or setting the rule.
 **Purpose:** what `no-double-export` reports, why, and its options.
 
-Report each re-export, in a file on its unit's surface, of another file on the same surface, in an archetype config.
+Report each re-export, in a file on its unit's surface, of another file on the same surface.
 
 ## Why
 

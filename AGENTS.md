@@ -22,7 +22,7 @@ resolution brought in first, and whatever warp depends on ships to its users. `t
 dependency; adding a second needs an ADR.
 
 `./do check` is the one local check, and CI runs it. It ends with warp checking itself from source against
-[warp.config.json](warp.config.json).
+[warp.config.ts](warp.config.ts).
 
 ## Tests
 
@@ -39,9 +39,8 @@ commit against approved findings; it runs nightly in CI, not on pull requests.
 ## Adding a rule
 
 A built-in rule is a folder in [src/model/rules/](src/model/rules): the rule module, its unit tests, and its page as
-the folder's `README.md`. [src/model/rules/index.ts](src/model/rules/index.ts) lists it for kinds configs, archetype
-configs, or both. A new rule's page has the same sections as the others, and gets a row in the rules table in
-[docs/config.md](docs/config.md#rules).
+the folder's `README.md`. [src/model/rules/index.ts](src/model/rules/index.ts) lists it. A new rule's page has the
+same sections as the others, and gets a row in the rules table in [docs/config.md](docs/config.md#rules).
 
 ## Comments and docs
 

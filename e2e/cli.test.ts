@@ -38,7 +38,11 @@ describe('warp diff', () => {
     const delta = JSON.parse(run.stdout);
     assert.deepEqual(
       delta.added.map((f: { key: string }) => f.key),
-      ['dependency-direction:src/domain/audit.ts->src/app/handle.ts'],
+      [
+        'dependency-direction:src/domain/audit.ts->src/app/handle.ts',
+        'unit-cycle:src/domain->src/app',
+        'unit-cycle:src/app->src/domain',
+      ],
     );
     assert.deepEqual(
       delta.worsened.map((f: { key: string; was: number; value: number }) => [f.key, f.was, f.value]),
@@ -51,10 +55,10 @@ describe('warp diff', () => {
     git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'head');
     const run = warp('diff', 'HEAD~1..HEAD', '--fail');
     assert.equal(run.status, 1);
-    assert.match(run.stdout, /1 new finding, 1 worsened, 0 resolved\./);
+    assert.match(run.stdout, /3 new findings, 1 worsened, 0 resolved\./);
     assert.match(
       run.stdout,
-      /Domain module src\/domain\/audit.ts imports app src\/app\/handle.ts\. This breaks the dependency direction, so the domain should depend on a port it owns for what it needs \(handle\)/,
+      /src\/domain\/audit.ts \(src of layer src\/domain\) imports src\/app\/handle.ts \(src of layer src\/app\), which is outside src's reach/,
     );
   });
 
@@ -68,7 +72,7 @@ describe('warp diff', () => {
   it('compares from the merge base with three dots', () => {
     const run = warp('diff', 'HEAD~1...HEAD', '--reporter', 'json');
     assert.equal(run.status, 0, run.stderr);
-    assert.equal(JSON.parse(run.stdout).added.length, 1);
+    assert.equal(JSON.parse(run.stdout).added.length, 3);
   });
 
   it('refuses a malformed range', () => {
@@ -80,13 +84,13 @@ describe('warp diff', () => {
   it('resolves the project path when reached through a symlink', () => {
     const link = join(mkdtempSync(join(tmpdir(), 'warp-link-')), 'repo');
     symlinkSync(repo, link);
-    const config = join(link, 'app/warp.config.json');
+    const config = join(link, 'app/warp.config.ts');
     const run = spawnSync(process.execPath, [cli, 'diff', 'HEAD~1..HEAD', '--reporter', 'json', '--config', config], {
       cwd: project,
       encoding: 'utf8',
     });
     assert.equal(run.status, 0, run.stderr);
-    assert.equal(JSON.parse(run.stdout).added.length, 1);
+    assert.equal(JSON.parse(run.stdout).added.length, 3);
   });
 
   it('counts a base from before the project existed as having no findings', () => {
@@ -104,7 +108,7 @@ describe('warp diff', () => {
       encoding: 'utf8',
     });
     assert.equal(diffed.status, 0, diffed.stderr);
-    assert.equal(JSON.parse(diffed.stdout).added.length, 8);
+    assert.equal(JSON.parse(diffed.stdout).added.length, 10);
     assert.equal(run(['worktree', 'list']).trim().split('\n').length, 1);
   });
 
@@ -214,16 +218,16 @@ describe('warp check', () => {
   });
 
   it('reports a config error', () => {
-    writeFileSync(join(project, 'bad.json'), '{"kinds": {"a": {"match": "src/**", "dependsOn": ["b"]}}}');
-    const run = warp('check', '--config', 'bad.json');
+    writeFileSync(join(project, 'bad.config.ts'), 'export default {};\n');
+    const run = warp('check', '--config', 'bad.config.ts');
     assert.equal(run.status, 2);
-    assert.match(run.stderr, /warp config: kinds.a.dependsOn: no kind called b/);
+    assert.match(run.stderr, /warp config: config\.root: expected an archetype/);
   });
 
   it('exits 1 rather than 2 when a claude-hook run fails, so the hook warns without blocking', () => {
-    writeFileSync(join(project, 'bad.json'), '{"kinds": {}}');
+    writeFileSync(join(project, 'bad.config.ts'), 'export default {};\n');
     for (const reporter of ['--reporter=claude-hook', '--reporter claude-hook']) {
-      assert.equal(warp('check', '--config', 'bad.json', ...reporter.split(' ')).status, 1);
+      assert.equal(warp('check', '--config', 'bad.config.ts', ...reporter.split(' ')).status, 1);
     }
   });
 });
@@ -237,15 +241,22 @@ describe('rulesets', () => {
   beforeAll(() => {
     dir = join(mkdtempSync(join(tmpdir(), 'warp-ruleset-')), 'app');
     cpSync(join(import.meta.dirname, '../fixtures/hexagonal-app'), dir, { recursive: true });
-    const base = JSON.parse(readFileSync(join(dir, 'warp.config.json'), 'utf8'));
-    base.kinds.app.rules = { 'cognitive-complexity': false };
     writeFileSync(
       join(dir, 'warp.config.ts'),
-      `const base = ${JSON.stringify(base)};\nexport default base;\n` +
-        'export const edit = [base, { rules: { "module-cohesion": { maxLines: 10 } } }, ' +
-        '{ kinds: { app: { rules: { "cognitive-complexity": true, "function-cohesion": false } } } }];\n' +
-        "export const moved = [base, { kinds: { domain: { rules: {}, dependsOn: ['adapter'] } } }];\n" +
-        'export const helper = 1;\n',
+      readFileSync(join(dir, 'warp.config.ts'), 'utf8')
+        .replace('export default', 'const plain =')
+        .replace(
+          'const base = ruleset().rules({',
+          "const base = ruleset().on(hexagon.app, { 'cognitive-complexity': false }).rules({",
+        )
+        .concat(
+          'const edit = ruleset()\n',
+          '  .extends(base)\n',
+          "  .rules({ 'module-cohesion': { maxLines: 10 } })\n",
+          "  .on(hexagon.app, { 'cognitive-complexity': true, 'function-cohesion': false });\n",
+          "const stray = ruleset().on(archetype('stranger'), { 'no-cycle': false });\n",
+          'export default defineConfig({ ...plain, rulesets: { default: base, edit, stray } });\n',
+        ),
     );
     writeFileSync(join(dir, 'package.json'), '{ "type": "module" }\n');
     commit('init', '--quiet');
@@ -269,33 +280,29 @@ describe('rulesets', () => {
     assert.deepEqual([delta.added, delta.worsened, delta.resolved], [[], [], []]);
   });
 
-  it('prints the resolved config', () => {
-    const printed = JSON.parse(run('--print-config', '--ruleset', 'edit').stdout);
-    assert.deepEqual(printed.kinds.app.rules['module-cohesion'], { maxLines: 10 });
-    assert.deepEqual(printed.kinds.app.rules['cognitive-complexity'], { max: 4 });
-    assert.equal(printed.kinds.app.rules['function-cohesion'], undefined);
-    assert.deepEqual(printed.kinds.domain.rules['function-cohesion'], { maxLines: 6 });
+  it('shows the rules each part resolves to under the ruleset', () => {
+    const { units } = JSON.parse(run('model', '--ruleset', 'edit', '--json').stdout);
+    const rules = (id: string) => units.find((unit: { id: string }) => unit.id === id).rules.parts.src;
+    assert.deepEqual(rules('src/app')['module-cohesion'], { maxLines: 10 });
+    assert.deepEqual(rules('src/app')['cognitive-complexity'], { max: 4 });
+    assert.equal(rules('src/app')['function-cohesion'], false);
+    assert.deepEqual(rules('src/domain')['function-cohesion'], { maxLines: 6 });
+    assert.match(
+      run('model', '--ruleset', 'edit', '--rules').stdout,
+      /src\/app {2}app: layer {2}src: 2\n {4}rules in unit: function-cohesion off\n/,
+    );
   });
 
   it('lists the rulesets when the name is unknown', () => {
     const checked = run('check', '--ruleset', 'pr');
     assert.equal(checked.status, 2);
-    assert.match(checked.stderr, /no ruleset called pr\. Rulesets: edit, moved/);
+    assert.match(checked.stderr, /no ruleset called pr\. Rulesets: default, edit, stray/);
   });
 
-  it('refuses an overlay that changes the architecture', () => {
-    const checked = run('check', '--ruleset', 'moved');
+  it('refuses a ruleset that names an archetype outside the config', () => {
+    const checked = run('check', '--ruleset', 'stray');
     assert.equal(checked.status, 2);
-    assert.match(
-      checked.stderr,
-      /warp config: ruleset moved\[1\]\.kinds\.domain: a ruleset overlay sets rules only, not dependsOn/,
-    );
-  });
-
-  it('refuses a ruleset for a JSON config', () => {
-    const checked = run('check', '--config', 'warp.config.json', '--ruleset', 'edit');
-    assert.equal(checked.status, 2);
-    assert.match(checked.stderr, /a JSON config has no rulesets/);
+    assert.match(checked.stderr, /warp config: rulesets\.stray\.on\(stranger\): stranger is not in the config/);
   });
 });
 
@@ -384,13 +391,15 @@ describe('a warp.config.ts with archetypes', () => {
     assert.match(modelled.stderr, /src\/main\.ts: app's files parts a \('src\/\*\.ts'\) and b \('\*\*\/\*\.ts'\)/);
   });
 
-  it("checks rule ids and each rule's options against the rules an archetype config runs", () => {
+  it("checks a ruleset's rule ids and each rule's options against the rules the config runs", () => {
     writeFileSync(
       join(dir, 'rules.config.ts'),
       [
         "import { archetype, defineConfig } from 'warp';",
-        "const app = archetype('app').contains((p) => p.files('src', '**', { rules: { 'no-such-rule': false } }));",
-        "export default defineConfig({ root: app, rules: { 'unit-cycle': { types: 'always' } } });",
+        "import { ruleset } from 'warp';",
+        "const app = archetype('app').contains((p) => p.files('src', '**'));",
+        "const base = ruleset().rules({ 'unit-cycle': { types: 'always' } }).on(app.src, { 'no-such-rule': false });",
+        'export default defineConfig({ root: app, rulesets: { default: base } });',
         '',
       ].join('\n'),
     );
@@ -398,15 +407,7 @@ describe('a warp.config.ts with archetypes', () => {
     assert.equal(checked.status, 2);
     assert.equal(
       checked.stderr,
-      "warp config: app.src.rules: no rule called no-such-rule\nconfig.rules.unit-cycle.types: expected 'count' or 'ignore'\n",
+      "warp config: rulesets.default.rules.unit-cycle.types: expected 'count' or 'ignore'\nrulesets.default.on(app.src): no rule called no-such-rule\n",
     );
-  });
-
-  it('keeps --print-config and warp model to the config shape each reads', () => {
-    assert.match(run('--print-config').stderr, /warp model shows what an archetype config finds/);
-    const kinds = join(import.meta.dirname, '../fixtures/hexagonal-app/warp.config.json');
-    const modelled = run('model', '--config', kinds);
-    assert.equal(modelled.status, 2);
-    assert.match(modelled.stderr, /warp model reads an archetype config/);
   });
 });

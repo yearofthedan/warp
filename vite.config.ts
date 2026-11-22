@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { configDefaults, defineConfig } from 'vite-plus';
 
 const unit = ['src/**/*.test.ts', 'integrations/**/*.test.ts', 'scripts/*.test.ts'];
@@ -29,7 +30,10 @@ export default defineConfig({
           exclude: [...configDefaults.exclude, ...integration],
         },
       },
-      { test: { name: 'integration', environment: 'node', include: integration } },
+      {
+        resolve: { alias: { warp: fileURLToPath(new URL('src/index.ts', import.meta.url)) } },
+        test: { name: 'integration', environment: 'node', include: integration },
+      },
       { test: { name: 'e2e', environment: 'node', include: e2e, testTimeout: 60_000 } },
     ],
   },

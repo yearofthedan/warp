@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, expectTypeOf, it } from 'vite-plus/test';
-import { defineConfig } from '../config.ts';
 import { ConfigError } from '../rule.ts';
-import { type AnyArchetype, archetype, dir, files, pkg } from './builder.ts';
+import { type AnyArchetype, archetype, defineConfig, dir, files, pkg, ruleset } from './builder.ts';
 import { loadConfigData } from './load.ts';
 
 const testRunner = archetype('test-runner')
@@ -63,7 +62,8 @@ describe('archetype builders', () => {
           .dir('testRunner', 'src/test-helpers', runner, { using: (s) => [s.domain, s.application, s.ui.testPage] }),
       )
       .provides((s) => ({ testRunner: s.testRunner, application: s.application }));
-    const config = defineConfig({ root: app, rules: { 'cognitive-complexity': { max: 15 } } });
+    const base = ruleset().rules({ 'cognitive-complexity': { max: 15 } });
+    const config = defineConfig({ root: app, rulesets: { default: base } });
     assert.deepEqual(loadConfigData(config).warnings, []);
   });
 

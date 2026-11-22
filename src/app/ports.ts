@@ -1,10 +1,9 @@
 import type { Folders } from '../model/archetype/resolve.ts';
-import type { AnalysisScope } from '../model/config.ts';
 import type { Project } from '../model/facts.ts';
 import type { Finding } from '../model/rule.ts';
 
 export interface Analyzer {
-  analyze(root: string, scope: AnalysisScope): Project;
+  analyze(root: string, tsconfig: readonly string[]): Project;
 }
 
 export type FoldersAt = (root: string) => Folders;

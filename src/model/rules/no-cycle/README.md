@@ -3,7 +3,7 @@
 **Audience:** anyone reading a `no-cycle` finding, or setting the rule.
 **Purpose:** what `no-cycle` reports, why, and its options.
 
-Report each import between files that lies on a loop, in an archetype config.
+Report each import between files that lies on a loop.
 
 ## Why
 

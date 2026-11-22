@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { ImportEdge, Project } from '../facts.ts';
-import { type AnyArchetype, archetype, files, mustImport } from './builder.ts';
-import { archetypeRules } from '../rules/index.ts';
+import { type AnyArchetype, archetype, mustImport, type Ruleset, ruleset } from './builder.ts';
+import { builtinRules } from '../rules/index.ts';
 import { checkModel } from './check.ts';
 import { loadConfigData } from './load.ts';
 import { type Folders, resolveModel } from './resolve.ts';
-import { settings } from './settings.ts';
+import { rulesOf, settings } from './settings.ts';
 
 const folders = (paths: readonly string[]): Folders => {
   const dirs = new Set(
@@ -43,44 +43,41 @@ const project = (imports: Record<string, readonly Import[]>): Project => ({
   })),
 });
 
-const modelOf = (root: AnyArchetype, imports: Record<string, readonly Import[]>, rules?: unknown) => {
-  const { config } = loadConfigData({ root, ...(rules === undefined ? {} : { rules }) });
+const modelOf = (root: AnyArchetype, imports: Record<string, readonly Import[]>, rules?: Ruleset) => {
+  const { config } = loadConfigData({ root, ...(rules === undefined ? {} : { rulesets: { default: rules } }) });
   const files = Object.keys(imports);
   return { config, model: resolveModel(config, folders(files), files), project: project(imports) };
 };
 
-const check = (root: AnyArchetype, imports: Record<string, readonly Import[]>, rules?: unknown) => {
+const check = (root: AnyArchetype, imports: Record<string, readonly Import[]>, rules?: Ruleset) => {
   const { config, model, project } = modelOf(root, imports, rules);
-  return checkModel(config, model, project, archetypeRules);
+  return checkModel(config, model, project, builtinRules);
 };
 
 const keys = (findings: readonly { key: string }[]) => findings.map((finding) => finding.key);
 
 describe('rule settings', () => {
-  const leaf = archetype('leaf')
-    .contains((p) =>
-      p
-        .files('quiet', 'quiet.ts', { rules: 'off' })
-        .files('loud', 'loud.ts', { rules: { '*': false, 'no-cycle': { types: 'count' } } })
-        .files('rest', '*.ts'),
-    )
-    .rules({ 'no-cycle': { types: 'ignore', depth: 2 }, 'unit-cycle': false });
-  const mid = archetype('mid')
-    .contains((p) =>
-      p
-        .dir('leaves', '{name}', leaf, { rules: { 'no-cycle': false, 'unit-cycle': true } })
-        .dir('plain', 'plain', { rules: { 'dependency-direction': false } })
-        .files('own', '*.ts'),
-    )
-    .rules({ 'dependency-direction': { x: 1 } });
-  const root = archetype('root').contains((p) =>
-    p.dir('mid', 'mid', mid, { rules: { 'dependency-direction': { y: 2 } } }).files('top', '*.ts'),
+  const leaf = archetype('leaf').contains((p) =>
+    p.files('quiet', 'quiet.ts').files('loud', 'loud.ts').files('rest', '*.ts'),
   );
+  const mid = archetype('mid').contains((p) =>
+    p.dir('leaves', '{name}', leaf).dir('plain', 'plain').files('own', '*.ts'),
+  );
+  const root = archetype('root').contains((p) => p.dir('mid', 'mid', mid).files('top', '*.ts'));
   const paths = ['top.ts', 'mid/own.ts', 'mid/plain/p.ts', 'mid/a/quiet.ts', 'mid/a/loud.ts', 'mid/a/rest.ts'];
-  const { config, model } = modelOf(root, Object.fromEntries(paths.map((file) => [file, []])), {
-    'no-cycle': { types: 'count', z: 3 },
-    'unit-cycle': false,
-  });
+  const { config, model } = modelOf(
+    root,
+    Object.fromEntries(paths.map((file) => [file, []])),
+    ruleset()
+      .rules({ 'no-cycle': { types: 'count', z: 3 }, 'unit-cycle': false })
+      .on(leaf, { 'no-cycle': { types: 'ignore', depth: 2 }, 'unit-cycle': false })
+      .on(leaf.quiet, 'off')
+      .on(leaf.loud, { '*': false, 'no-cycle': { types: 'count' } })
+      .on(mid, { 'dependency-direction': { x: 1 } })
+      .on(mid.leaves, { 'no-cycle': false, 'unit-cycle': true })
+      .on(mid.plain, { 'dependency-direction': false })
+      .on(root.mid, { 'dependency-direction': { y: 2 } }),
+  );
   const rules = settings(config, model);
   const unit = (id: string) => model.units.find((candidate) => candidate.id === id)!;
 
@@ -123,18 +120,30 @@ describe('rule settings', () => {
     assert.deepEqual(rules.atFile('elsewhere.ts', 'no-cycle').options, { types: 'count', z: 3 });
   });
 
+  it("resolves every rule for a unit and for each of its parts, a rule that's off as false", () => {
+    const resolved = rulesOf(config, model, [{ id: 'no-cycle', defaults: { types: 'ignore' } }, { id: 'unit-cycle' }]);
+    assert.deepEqual(resolved.defaults, { 'no-cycle': { types: 'ignore' }, 'unit-cycle': {} });
+    assert.deepEqual(resolved.unit(unit('mid/a')), { 'no-cycle': false, 'unit-cycle': {} });
+    assert.deepEqual(resolved.part(unit('mid/a'), 'loud'), {
+      'no-cycle': { types: 'count', depth: 2, z: 3 },
+      'unit-cycle': false,
+    });
+    assert.deepEqual(rules.atPart(unit('mid/a'), 'quiet', 'no-cycle').on, false);
+  });
+
   it('silences the findings located where a rule is off', () => {
     const app = archetype('app').contains((p) =>
-      p
-        .dir('domain', 'domain')
-        .dir('generated', 'generated', { rules: 'off' })
-        .files('main', 'main.ts', { rules: { 'dependency-direction': false } }),
+      p.dir('domain', 'domain').dir('generated', 'generated').files('main', 'main.ts'),
     );
-    const findings = check(app, {
-      'main.ts': ['domain/order.ts'],
-      'domain/order.ts': ['generated/api.ts'],
-      'generated/api.ts': ['domain/order.ts'],
-    });
+    const findings = check(
+      app,
+      {
+        'main.ts': ['domain/order.ts'],
+        'domain/order.ts': ['generated/api.ts'],
+        'generated/api.ts': ['domain/order.ts'],
+      },
+      ruleset().on(app.generated, 'off').on(app.main, { 'dependency-direction': false }),
+    );
     assert.deepEqual(keys(findings), [
       'dependency-direction:domain/order.ts->generated/api.ts',
       'no-cycle:domain/order.ts->generated/api.ts',
@@ -161,19 +170,18 @@ describe('code measures', () => {
       },
     ],
   });
-  const app = archetype('app')
-    .contains((p) =>
-      p
-        .files('scripts', 'scripts/*.ts', { rules: { 'cognitive-complexity': false } })
-        .files('tests', '*.test.ts', { rules: { 'cognitive-complexity': { max: 30 } } })
-        .files('src', '*.ts'),
-    )
-    .rules({ 'cognitive-complexity': { max: 20 } });
+  const app = archetype('app').contains((p) =>
+    p.files('scripts', 'scripts/*.ts').files('tests', '*.test.ts').files('src', '*.ts'),
+  );
+  const thresholds = ruleset()
+    .on(app, { 'cognitive-complexity': { max: 20 } })
+    .on(app.scripts, { 'cognitive-complexity': false })
+    .on(app.tests, { 'cognitive-complexity': { max: 30 } });
 
   it("judges each file's functions against the threshold nearest to it, and not where the rule is off", () => {
     const modules = [complex('a.ts', 25), complex('b.ts', 18), complex('a.test.ts', 25), complex('scripts/c.ts', 40)];
-    const { config, model } = modelOf(app, Object.fromEntries(modules.map((module) => [module.file, []])));
-    const findings = checkModel(config, model, { modules }, archetypeRules);
+    const { config, model } = modelOf(app, Object.fromEntries(modules.map((module) => [module.file, []])), thresholds);
+    const findings = checkModel(config, model, { modules }, builtinRules);
     assert.deepEqual(
       findings.map((finding) => [finding.key, finding.limit]),
       [['cognitive-complexity:a.ts:run', 20]],
@@ -184,7 +192,7 @@ describe('code measures', () => {
     const plain = archetype('plain').contains((p) => p.files('src', '*.ts'));
     const modules = [complex('a.ts', 16), complex('b.ts', 15)];
     const { config, model } = modelOf(plain, Object.fromEntries(modules.map((module) => [module.file, []])));
-    assert.deepEqual(keys(checkModel(config, model, { modules }, archetypeRules)), ['cognitive-complexity:a.ts:run']);
+    assert.deepEqual(keys(checkModel(config, model, { modules }, builtinRules)), ['cognitive-complexity:a.ts:run']);
   });
 });
 
@@ -200,15 +208,18 @@ describe('mustImport', () => {
         .files('dsl', '*.dsl.ts', { using: (s) => [s.logic, required.runner.contract, required.runner.rest] })
         .files('test', '*.test.ts', { using: (s) => [s.logic, s.dsl] }),
     )
-    .rules((s, { required }) => ({ 'dsl-on-contract': mustImport({ from: s.dsl, to: required.runner.contract }) }));
+    .constraints((s, { required }) => ({
+      'dsl-on-contract': mustImport({ from: s.dsl, to: required.runner.contract }),
+    }));
   const app = archetype('app')
     .contains((p) =>
       p
         .dir('runner', 'runner', runner)
         .dir('features', 'features/{name}', feature)
-        .dir('legacy', 'legacy/{name}', feature, { rules: { 'dsl-on-contract': false } }),
+        .dir('legacy', 'legacy/{name}', feature),
     )
     .provides((s) => ({ runner: s.runner }));
+  const legacyOff = ruleset().on(app.legacy, { 'dsl-on-contract': false });
   const imports = {
     'runner/contract.ts': [],
     'runner/index.ts': [],
@@ -224,11 +235,15 @@ describe('mustImport', () => {
   } satisfies Record<string, Import[]>;
 
   it('reports each file in from with no import of anything in to, through a barrel or not', () => {
-    assert.deepEqual(keys(check(app, imports)), ['dsl-on-contract:features/a/off.dsl.ts']);
+    assert.deepEqual(keys(check(app, imports, legacyOff)), ['dsl-on-contract:features/a/off.dsl.ts']);
+    assert.deepEqual(keys(check(app, imports)), [
+      'dsl-on-contract:features/a/off.dsl.ts',
+      'dsl-on-contract:legacy/b/off.dsl.ts',
+    ]);
   });
 
   it('says which rule asks for the import, where the config declares it, and how to answer it', () => {
-    const [contract] = check(app, imports);
+    const [contract] = check(app, imports, legacyOff);
     assert.deepEqual(contract, {
       rule: 'dsl-on-contract',
       key: 'dsl-on-contract:features/a/off.dsl.ts',
@@ -241,37 +256,20 @@ describe('mustImport', () => {
     });
   });
 
-  it("names a part's inline rule by its archetype and part", () => {
-    const lib = archetype('lib')
-      .requires({ api: files(), impl: files() })
-      .contains((p, { required }) =>
-        p.files('src', '*.ts', {
-          using: [required.api, required.impl],
-          rules: { 'impl-on-api': mustImport({ from: required.impl, to: required.api }) },
-        }),
-      );
-    const host = archetype('host')
-      .contains((p) => p.files('api', 'api.ts').files('impl', 'impl.ts').dir('lib', 'lib', lib))
-      .provides((s) => ({ api: s.api, impl: s.impl }));
-    const [finding] = check(host, { 'api.ts': [], 'impl.ts': [], 'lib/x.ts': [] });
-    assert.equal(finding?.key, 'impl-on-api:impl.ts');
-    assert.match(finding!.message, /which lib\.src's impl-on-api asks of every file in required\.impl \(from \.\)\./);
-  });
-
   it('reports a file once when two units name it, and skips a file outside the program', () => {
     const kid = archetype('kid')
       .contains((p) => p.files('dsl', '*.dsl.ts').files('api', 'api.ts'))
       .exposes((s) => ({ dsl: s.dsl, api: s.api }))
-      .rules((s) => ({ 'dsl-on-api': mustImport({ from: s.dsl, to: s.api }) }));
+      .constraints((s) => ({ 'dsl-on-api': mustImport({ from: s.dsl, to: s.api }) }));
     const parent = archetype('parent')
       .contains((p) => p.dir('kids', '{name}', kid))
-      .rules((s) => ({ 'dsl-on-api': mustImport({ from: s.kids.dsl, to: s.kids.api }) }));
+      .constraints((s) => ({ 'dsl-on-api': mustImport({ from: s.kids.dsl, to: s.kids.api }) }));
     const { config, model, project: facts } = modelOf(parent, { 'a/api.ts': [], 'a/x.dsl.ts': [], 'a/y.dsl.ts': [] });
     const findings = checkModel(
       config,
       model,
       { modules: facts.modules.filter((m) => m.file !== 'a/y.dsl.ts') },
-      archetypeRules,
+      builtinRules,
     );
     assert.deepEqual(keys(findings), ['dsl-on-api:a/x.dsl.ts']);
     assert.deepEqual((findings[0]!.details as { declaredBy: string }).declaredBy, 'parent');
@@ -287,13 +285,11 @@ describe('cycles', () => {
         'features',
         '{name}',
         archetype('feature').contains((q) => q.files('src', '**')),
-        {
-          using: (s) => [s.domain],
-          rules: { 'unit-cycle': false },
-        },
+        { using: (s) => [s.domain] },
       )
       .files('main', 'main.ts', { using: (s) => [s.domain, s.infra, s.features] }),
   );
+  const featuresMayLoop = ruleset().on(app.features, { 'unit-cycle': false });
   const imports = {
     'main.ts': ['domain/u.ts'],
     'domain/u.ts': ['main.ts'],
@@ -317,7 +313,7 @@ describe('cycles', () => {
     'loop/x.ts': ['loop/q.ts'],
     'loop/q.ts': ['loop/r.ts'],
   } satisfies Record<string, Import[]>;
-  const cycles = (rules?: unknown) =>
+  const cycles = (rules = featuresMayLoop) =>
     check(app, imports, rules).filter((finding) => finding.rule !== 'dependency-direction');
 
   it('reports each edge of a loop between files, ignoring type-only imports and imports of the file itself', () => {
@@ -413,15 +409,15 @@ describe('cycles', () => {
   });
 
   it("counts type-only imports where types is 'count'", () => {
-    const counted = cycles({ 'no-cycle': { types: 'count' }, 'unit-cycle': { types: 'count' } });
+    const counted = cycles(featuresMayLoop.rules({ 'no-cycle': { types: 'count' }, 'unit-cycle': { types: 'count' } }));
     assert.ok(keys(counted).includes('no-cycle:domain/t.ts->infra/z.ts'));
     const loop = counted.find((finding) => finding.key === 'unit-cycle:domain->infra')!;
     assert.equal(loop.value, 4);
   });
 
   it("attaches each rule's docs", () => {
-    const { config, model, project: facts } = modelOf(app, imports);
-    const rules = archetypeRules.map((rule) => ({ ...rule, docs: `https://${rule.id}` }));
+    const { config, model, project: facts } = modelOf(app, imports, featuresMayLoop);
+    const rules = builtinRules.map((rule) => ({ ...rule, docs: `https://${rule.id}` }));
     const docs = checkModel(config, model, facts, rules);
     assert.equal(docs.find((finding) => finding.rule === 'no-cycle')?.docs, 'https://no-cycle');
     assert.equal(docs.find((finding) => finding.rule === 'unit-cycle')?.docs, 'https://unit-cycle');

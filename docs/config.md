@@ -1,75 +1,44 @@
 # Config
 
 **Audience:** anyone writing or changing a warp config.
-**Purpose:** the config file, both its languages, custom rules, rulesets, and the rules warp checks.
+**Purpose:** the config's structure and rulesets, custom rules, and the rules warp checks.
 
-warp reads a config in one of two languages. A kinds config, in `warp.config.json` or `warp.config.ts`, sorts
-modules into kinds by glob and says which kinds each may import. An archetype config, in `warp.config.ts`, declares
-the units of the codebase and what each part of a unit may use.
-
-## Kinds
-
-```json
-{
-  "tsconfig": "tsconfig.json",
-  "exclude": ["**/*.test.ts"],
-  "rules": {
-    "no-cross-kind-reexport": { "allow": [] },
-    "module-cohesion": { "maxLines": 200 },
-    "function-cohesion": { "maxLines": 40 },
-    "cognitive-complexity": { "max": 15 }
-  },
-  "kinds": {
-    "domain": { "match": "src/domain/**", "dependsOn": [] },
-    "app": { "match": "src/app/**", "dependsOn": ["domain"] },
-    "adapter": {
-      "match": ["src/adapters/**"],
-      "dependsOn": ["domain", "app"],
-      "rules": { "module-cohesion": { "maxLines": 300 }, "function-cohesion": false }
-    },
-    "utility": { "match": "src/lib/**", "dependsOn": [] }
-  }
-}
-```
-
-- `kinds` are checked in the order written and the first whose `match` glob fits a file wins, so put narrow globs
-  first. A kind may always import from itself.
-- Every rule runs on every kind. `rules` at the top level sets options for all kinds, and a kind's own `rules`
-  overrides them. `false` turns a rule off, and `true` turns it back on for a kind. The options shown are the defaults.
-- Unknown keys, rules and options are refused, so a misspelling fails loudly. Limits are whole numbers of at least 1.
-- `exclude` removes files from the model entirely. Declaration files are always excluded.
-- The files checked are the ones the tsconfig includes. A solution-style tsconfig with only `references` is not
-  followed: point `tsconfig` at a project config.
-
-See [`warp.config.json`](../warp.config.json) for the config this tool checks itself with.
-
-A `warp.config.ts` (or `.mts`, `.js`, `.mjs`) takes the same shape as its default export. `defineConfig` types it:
+The config is the default export of a `warp.config.ts` (or `.mts`, `.js`, `.mjs`) next to the project's tsconfig. Its
+structure declares the units of the codebase and what each part of a unit may use, and its rulesets say which rules
+judge each part, and how strictly. Its language is designed in
+[docs/design/archetypes.md](design/archetypes.md); this page covers what warp checks today. See
+[`warp.config.ts`](../warp.config.ts) for the config this tool checks itself with.
 
 ```ts
-import { defineConfig } from 'warp';
+import { archetype, defineConfig, pkg, ruleset } from 'warp';
 
-export default defineConfig({
-  exclude: ['**/*.test.ts'],
-  kinds: {
-    domain: { match: 'src/domain/**' },
-    app: { match: 'src/app/**', dependsOn: ['domain'] },
-  },
-});
+const app = archetype('app').contains((p) =>
+  p
+    .files('domain', 'src/domain/**')
+    .files('application', 'src/app/**', { using: (s) => [s.domain] })
+    .files('adapters', 'src/adapters/**', { using: (s) => [s.domain, s.application, pkg('*')] }),
+);
+
+const base = ruleset()
+  .rules({ 'cognitive-complexity': { max: 15 } })
+  .on(app.adapters, { 'module-cohesion': { maxLines: 300 } });
+
+export default defineConfig({ root: app, rulesets: { default: base } });
 ```
 
 Node strips the types itself, so there is no build step. `warp` in an import always means the running warp,
 installed in the project or not. The config and its rules load as ES modules: in a project whose `package.json` lacks
 `"type": "module"`, name them `.mts` (Node only warns when `type` is missing, but fails on `"type": "commonjs"`).
+Unknown keys, rules and options are refused, so a misspelling fails loudly.
 
-## Archetypes
+## Units and parts
 
-A `warp.config.ts` whose default export is `defineConfig({ root })` is read as an archetype config. Its language is
-designed in [docs/design/archetypes.md](design/archetypes.md); this section covers what warp checks today.
 `warp model` shows how warp reads the config:
 
 ```sh
 warp model           # the units the config finds, the part each file is in, and the loose files
-warp model --json    # the same, for tools
+warp model --rules   # the same, with the rule settings each unit and part changes
+warp model --json    # the same, for tools, with every unit's and part's resolved rule settings
 ```
 
 - The root unit is the config's folder. A `p.dir` path is folder names and whole-segment placeholders (`src/ui`,
@@ -80,9 +49,12 @@ warp model --json    # the same, for tools
   then the longer literal suffix after the last `*`, with `**` last. Two equally specific parts are a config error.
 - A file belongs to its deepest unit. One no part matches is loose, and `check` and `diff` report it as
   [`unclassified`](../src/model/rules/unclassified/README.md) where the unit's `loose` is `deny`, the root's default.
-- `tsconfig` takes a list, and warp reads every file of their programs.
+- `tsconfig` takes a list, and warp reads every file of their programs except declaration files. A solution-style
+  tsconfig with only `references` is not followed: list the project configs.
 
-`check` and `diff` on an archetype config judge every import between project files against the importer's reach,
+## Reach
+
+`check` and `diff` judge every import between project files against the importer's reach,
 and report each one outside it as [`dependency-direction`](../src/model/rules/dependency-direction/README.md):
 
 - A file reaches the rest of its own part, what its part's `using` names, and, for a unit's own files, what the
@@ -103,32 +75,78 @@ surface, so there is one way to each name: a barrel over private files, or expos
 [`no-cross-unit-reexport`](../src/model/rules/no-cross-unit-reexport/README.md) reports a file that re-exports
 another unit's file, other than one nested in its own unit, so a unit doesn't pass on what it uses.
 
-Rule settings go in four places: `defineConfig({ rules })`, `.rules()` on an archetype, and `rules` in a dir or files
-part's options. For a finding on a file, the nearest setting wins: the file's files part, then for its unit and each
-unit above it the dir part that found it and its archetype, then the global settings. `'off'` turns every rule off at
-that level, and `'*': false` does the same while the rules listed beside it stay on. Options merge nearest first.
-`loose` decides `unclassified`.
+An archetype's `.constraints()` gives inline rules by value under local names. `mustImport({ from, to })` reports each
+file in `from` that imports nothing in `to`, read in each unit of the archetype; its findings carry the local name as
+their rule.
 
-```ts fragment
-.dir('generated', 'src/generated', { rules: 'off' })
-.dir('modules', '{name}', module, { rules: { 'unit-cycle': false } })
+```ts
+import { archetype, files, mustImport } from 'warp';
+
+const feature = archetype('feature')
+  .requires({ contract: files() })
+  .contains((p, { required }) => p.files('logic', '*.ts').files('dsl', '*.dsl.ts', { using: [required.contract] }))
+  .constraints((s, { required }) => ({ 'dsl-on-the-contract': mustImport({ from: s.dsl, to: required.contract }) }));
 ```
-
-An inline rule is given by value under a local name, on an archetype or a part. `mustImport({ from, to })` reports
-each file in `from` that imports nothing in `to`, read in each unit of the archetype that declares it; its findings
-carry the local name as their rule.
 
 [`unit-cycle`](../src/model/rules/unit-cycle/README.md) reports each import between sibling units that lies on a loop among them, and
 [`no-cycle`](../src/model/rules/no-cycle/README.md) each import between files that lies on a loop.
 
-`module-cohesion`, `function-cohesion` and `cognitive-complexity` judge each file's code as they do in a kinds config,
-with the options that resolve for that file, so tests and code, or two parts, can have different thresholds.
+`module-cohesion`, `function-cohesion` and `cognitive-complexity` judge each file's code with the options that resolve
+for that file, so tests and code, or two parts, can have different thresholds.
+
+## Rulesets
+
+Every rule runs everywhere with its defaults until a ruleset says otherwise. A ruleset is a list of lines, each
+setting rules at one place: `.rules()` for the whole config, and `.on()` for an archetype, or one of its parts by the
+handle the archetype gives it after `.contains()`. A misspelt part fails to compile. The config names its rulesets,
+and the one named `default` applies when the command names none.
+
+```ts
+import { archetype, defineConfig, ruleset } from 'warp';
+
+const layer = archetype('layer').contains((p) => p.files('src', '**').files('test', '**/*.test.ts'));
+const app = archetype('app').contains((p) =>
+  p
+    .dir('domain', 'src/domain', layer)
+    .dir('adapters', 'src/adapters', layer, { using: (s) => [s.domain] })
+    .dir('generated', 'src/generated'),
+);
+
+const base = ruleset()
+  .rules({ 'cognitive-complexity': { max: 15 } })
+  .on(layer.test, { 'function-cohesion': false })
+  .on(app.generated, 'off');
+
+const edit = ruleset()
+  .extends(base)
+  .rules({ 'cognitive-complexity': { max: 12 } })
+  .on(app.adapters, { 'module-cohesion': { maxLines: 300 } });
+
+export default defineConfig({ root: app, rulesets: { default: base, edit } });
+```
+
+```sh
+warp diff HEAD --ruleset edit
+warp model --ruleset edit --rules   # what each unit and part changes
+```
+
+- Settings are `true`, `false` or options by rule id, or `'off'` for every rule at that place. `'*': false` turns
+  every rule off there while the rules listed beside it stay on. Plugin rules are `namespace/id`, and an inline rule
+  goes by its local name.
+- A later line merges into an earlier one at the same place: options into options, `false` off, and `true` on with
+  the options kept. `.extends(base)` puts the base's lines first, so a ruleset changes only what differs. A base need
+  not be one of the config's rulesets.
+- An archetype's line reaches every unit of that archetype, and a dir part's line every unit it finds. For a finding
+  on a file, the nearest place wins: the file's files part, then for its unit and each unit above it the dir part
+  that found it and its archetype, then `.rules()`. Options merge nearest first. `loose` decides `unclassified`.
+- `diff` checks both sides with the same ruleset, and each ruleset caches its own findings, so switching rulesets
+  never shows up as new findings. An unknown name fails and lists the rulesets there are.
 
 ## Custom rules
 
-A project adds its own rules in a `warp.config.ts`, as plugins: objects with a `rules` list, imported, never named
-by path. Each plugin gets a namespace, and its rules are `namespace/id` in `rules` and in each kind's `rules`. They
-go through the same option checks as the built-in rules, and two rules with the same id are refused.
+A project adds its own rules as plugins: objects with a `rules` list, imported in the config, never named by path.
+Each plugin gets a namespace, and its rules are `namespace/id` in rulesets. They go through the same
+option checks as the built-in rules, and two rules with the same id are refused.
 
 Working title's application layer re-exports its ports so adapters can implement them, which lets the UI reach a port
 through `application` without breaking `dependency-direction`. A rule for that, in `warp/rules.ts`:
@@ -136,9 +154,9 @@ through `application` without breaking `dependency-direction`. A rule for that, 
 ```ts
 // warp/rules.ts
 import { matchesGlob } from 'node:path';
-import { ConfigError, type Plugin, type Rule } from 'warp';
+import { ConfigError, type ModuleRule, type Plugin } from 'warp';
 
-const noPortsThroughApplication: Rule<{ ports: string[] }> = {
+const noPortsThroughApplication: ModuleRule<{ ports: string[] }> = {
   id: 'no-ports-through-application',
   docs: 'https://example.com/no-ports-through-application.md', // optional, linked from its findings
   defaults: { ports: ['src/application/ports/**'] },
@@ -166,77 +184,37 @@ export default { rules: [noPortsThroughApplication] } satisfies Plugin;
 
 ```ts
 // warp.config.ts
-import { defineConfig } from 'warp';
+import { archetype, defineConfig, ruleset } from 'warp';
 import wt from './warp/rules.ts';
 
-export default defineConfig({
-  plugins: { wt },
-  rules: { 'wt/no-ports-through-application': false },
-  kinds: {
-    domain: { match: 'src/domain/**' },
-    application: { match: 'src/application/**', dependsOn: ['domain'] },
-    ui: { match: 'src/ui/**', dependsOn: ['application', 'domain'], rules: { 'wt/no-ports-through-application': true } },
-  },
-});
+const app = archetype('app').contains((p) =>
+  p
+    .files('domain', 'src/domain/**')
+    .files('application', 'src/application/**', { using: (s) => [s.domain] })
+    .files('ui', 'src/ui/**', { using: (s) => [s.application, s.domain] }),
+);
+
+const base = ruleset()
+  .rules({ 'wt/no-ports-through-application': false })
+  .on(app.ui, { 'wt/no-ports-through-application': true });
+
+export default defineConfig({ root: app, plugins: { wt }, rulesets: { default: base } });
 ```
 
-- A rule reads the same facts as the built-in ones, through `RuleContext`: the module's imports, units and functions,
-  its kind and options, and `kindOf` for any other module. It never reads source.
+- A rule reads the same facts as the built-in ones, and never reads source. A `ModuleRule` reads one module at a
+  time, with the options that resolve for that file: its imports, units and functions.
+- A `ProjectRule`, with `scope: 'project'`, reads the whole project once, with the config, the `model` (each file's
+  unit and part through `unitOf` and `partOf`) and the `verdicts` on reach. It looks up its setting for a file with
+  `atFile`, or for a unit with `atUnit`, and skips where the rule is off.
 - Its findings get the namespaced `rule`, and keys prefixed with the namespace. They link to the rule's `docs` when
   it has one, and to nothing otherwise.
 - `defaults` and `parseOptions` are optional: without them, the rule takes no options. `wholeNumberOptions` and
   `ConfigError` are exported for writing `parseOptions`.
 - Relative imports need their `.ts` extension, and an import of types alone must be `import type`: Node strips types
-  without resolving them, so `import { type Rule }` would still load the module.
+  without resolving them, so `import { type ModuleRule }` would still load the module.
 - For types in the editor, the project needs `warp` in its `node_modules`: `pnpm link warp` after
   `pnpm link --global`, or the dev dependency. Running needs neither.
 - `diff`'s cache key includes the config and every file it imports outside warp, so editing a rule redoes the base.
-
-## Rulesets
-
-A ruleset checks the same architecture with different rules, such as a stricter limit after each edit, while the
-agent still has the code in context, than at the PR gate. It is a named export of `warp.config.ts`: a list of the
-base config and overlays, which warp merges in order.
-
-```ts
-// warp.config.ts
-import { defineConfig, type Ruleset } from 'warp';
-
-const base = defineConfig({
-  rules: { 'cognitive-complexity': { max: 15 } },
-  kinds: {
-    domain: { match: 'src/domain/**' },
-    adapter: { match: 'src/adapters/**', dependsOn: ['domain'], rules: { 'module-cohesion': { maxLines: 300 } } },
-  },
-});
-
-export default base;
-
-export const edit = [
-  base,
-  {
-    rules: { 'cognitive-complexity': { max: 12 } },
-    kinds: { adapter: { rules: { 'module-cohesion': false } } },
-  },
-] satisfies Ruleset;
-```
-
-```sh
-warp diff HEAD --ruleset edit
-warp --print-config --ruleset edit   # the merged result, per kind
-```
-
-- An overlay sets `rules` only: at the top level, merged by rule id, and under `kinds`, merged by kind name and then
-  rule id. Kinds' globs and `dependsOn`, `exclude`, `tsconfig` and `plugins` stay as the base has them, and an overlay
-  that sets them is refused, as is a kind the base doesn't declare.
-- For the same rule, an overlay's options merge into the base's, `false` turns the rule off, and `true` turns it on
-  and keeps the base's options. After merging, the usual layering applies: defaults, then top-level `rules`, then the
-  kind's.
-- Rulesets are the config's named exports that are lists, so it can export other values too. An unknown name fails
-  and lists the rulesets there are. A JSON config has no rulesets.
-- `diff` checks both sides with the same ruleset, and each ruleset caches its own findings, so switching rulesets
-  never shows up as new findings.
-- No `extends` between rulesets yet: each starts from a base. Share overlays as plain constants if two need the same.
 
 ## Rules
 
@@ -244,9 +222,9 @@ Analysis extracts the facts once for the whole project: the import graph, with r
 links between them, and each function's statements and complexity. Each rule is its own folder in
 [`src/model/rules/`](../src/model/rules), holding its module and its page, and reads those facts without touching
 source, so it stays pure. A rule declares its id, its default options and how to validate them, and a `check` that
-returns findings. Most read one module at a time; in an archetype config, a project rule reads the whole project and
-the model once, and looks up its setting for each file or unit. Rules are looked up in a registry, where a project's
-[own rules](#custom-rules) join the built-in ones in a kinds config.
+returns findings. Most read one module at a time; a project rule reads the whole project and the model once, and
+looks up its setting for each file or unit. Rules are looked up in a registry, where a project's
+[own rules](#custom-rules) join the built-in ones.
 
 Every finding has a `rule`, a `key` that identifies it across commits, a `value` that `diff` compares, a `message`,
 `details` an agent can act on, and for built-in rules a `docs` link to the rule's page. The rules don't know where
@@ -257,14 +235,13 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 
 | Rule | Reports | Options |
 | --- | --- | --- |
-| [`unclassified`](../src/model/rules/unclassified/README.md) | A module that matches no kind, or in an archetype config a loose file where `loose` is `deny`. From the model, so it cannot be turned off. | |
-| [`dependency-direction`](../src/model/rules/dependency-direction/README.md) | An import from a kind the importer's kind does not list in `dependsOn`, followed through barrels; in an archetype config, an import outside the importer's reach. | |
-| [`unit-externals`](../src/model/rules/unit-externals/README.md) | In an archetype config, a package import that no `using` in the importer's reach lists. | |
-| [`no-double-export`](../src/model/rules/no-double-export/README.md) | In an archetype config, a re-export, in a file on its unit's surface, of another file on that surface. | |
-| [`unit-cycle`](../src/model/rules/unit-cycle/README.md) | In an archetype config, an import between sibling units that lies on a loop among them. | `types` |
-| [`no-cycle`](../src/model/rules/no-cycle/README.md) | In an archetype config, an import between files that lies on a loop. | `types` |
-| [`no-cross-unit-reexport`](../src/model/rules/no-cross-unit-reexport/README.md) | In an archetype config, a re-export of another unit's file, other than one nested in the re-exporting unit. | |
-| [`no-cross-kind-reexport`](../src/model/rules/no-cross-kind-reexport/README.md) | In a kinds config, a module that re-exports what another kind declares. | `allow` |
+| [`unclassified`](../src/model/rules/unclassified/README.md) | A loose file where `loose` is `deny`. From the model, so it cannot be turned off. | |
+| [`dependency-direction`](../src/model/rules/dependency-direction/README.md) | An import outside the importer's reach. | |
+| [`unit-externals`](../src/model/rules/unit-externals/README.md) | A package import that no `using` in the importer's reach lists. | |
+| [`no-double-export`](../src/model/rules/no-double-export/README.md) | A re-export, in a file on its unit's surface, of another file on that surface. | |
+| [`unit-cycle`](../src/model/rules/unit-cycle/README.md) | An import between sibling units that lies on a loop among them. | `types` |
+| [`no-cycle`](../src/model/rules/no-cycle/README.md) | An import between files that lies on a loop. | `types` |
+| [`no-cross-unit-reexport`](../src/model/rules/no-cross-unit-reexport/README.md) | A re-export of another unit's file, other than one nested in the re-exporting unit. | |
 | [`module-cohesion`](../src/model/rules/module-cohesion/README.md) | A module over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
 | [`function-cohesion`](../src/model/rules/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
 | [`cognitive-complexity`](../src/model/rules/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |

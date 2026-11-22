@@ -1,47 +1,83 @@
+import type { ConfigData } from '../../archetype/data.ts';
+import { place } from '../../archetype/place.ts';
+import type { Refusal, Verdicts } from '../../archetype/reach.ts';
+import type { Model } from '../../archetype/resolve.ts';
 import type { ImportEdge } from '../../facts.ts';
-import { ConfigError, type Finding, type Kind, type Rule } from '../../rule.ts';
-import { title } from '../shared.ts';
+import { type Finding, noOptions, type ProjectRule } from '../../rule.ts';
 
-export const dependencyDirection: Rule = {
-  id: 'dependency-direction',
-  defaults: {},
-  parseOptions: (raw, at) => {
-    if (Object.keys(raw).length > 0)
-      throw new ConfigError(`${at}: takes no options; the kind's dependsOn sets what it allows`);
-    return {};
-  },
-  check: ({ module, kind, kindOf }) => {
-    const crossing = new Map<string, ImportEdge[]>();
-    for (const edge of module.imports) {
-      const target = kindOf(edge.to);
-      if (!target || target.name === kind.name || kind.dependsOn.includes(target.name)) continue;
-      crossing.set(edge.to, [...(crossing.get(edge.to) ?? []), edge]);
-    }
-    return [...crossing].map(([to, edges]) => finding(module.file, kind, kindOf(to) as Kind, to, edges));
-  },
+const id = 'dependency-direction';
+
+export const dependencyDirection: ProjectRule = {
+  id,
+  scope: 'project',
+  parseOptions: noOptions,
+  check: ({ config, model, verdicts, project, atFile }) =>
+    project.modules.flatMap((module) => {
+      if (!atFile(module.file).on) return [];
+      const byTarget = Map.groupBy(module.imports, (edge) => edge.via ?? edge.to);
+      return [...byTarget].flatMap(([to, edges]) => {
+        const verdict = verdicts.verdict(module.file, to);
+        if (verdict === undefined || verdict.allowed) return [];
+        return [refused({ config, model, verdicts }, module.file, to, verdict, edges)];
+      });
+    }),
 };
 
-const finding = (file: string, kind: Kind, target: Kind, to: string, edges: ImportEdge[]): Finding => {
+interface Context {
+  config: ConfigData;
+  model: Model;
+  verdicts: Verdicts;
+}
+
+const refused = (context: Context, from: string, to: string, refusal: Refusal, edges: ImportEdge[]): Finding => {
+  const { model } = context;
+  const source = model.unitOf(from)!;
+  const target = model.unitOf(to)!;
   const names = [...new Set(edges.flatMap((edge) => edge.names))];
-  const needs = names.length > 0 ? ` (${names.join(', ')})` : '';
-  const vias = [...new Set(edges.flatMap((edge) => edge.via ?? []))];
-  const via = vias.length > 0 ? ` through ${vias.join(', ')}` : '';
   const imports = edges.every((edge) => edge.typeOnly) ? 'imports types from' : 'imports';
-  const advice = target.dependsOn.includes(kind.name)
-    ? `This breaks the dependency direction, so the ${kind.name} should depend on a port it owns for what it needs${needs}, and the ${target.name} should implement it.`
-    : `${title(kind.name)} ${allowed(kind)}${needs}, or allow ${kind.name} -> ${target.name} in the config if the dependency is intended.`;
   return {
-    rule: dependencyDirection.id,
-    key: `${dependencyDirection.id}:${file}->${to}`,
-    file,
-    line: edges[0].line,
+    rule: id,
+    key: `${id}:${from}->${to}`,
+    file: from,
+    line: edges[0]!.line,
     value: Math.max(1, names.length),
-    message: `${title(kind.name)} module ${file} ${imports} ${target.name} ${to}${via}. ${advice}`,
-    details: { fromKind: kind.name, toKind: target.name, edges },
+    message: `${from} (${place(model, from, source)}) ${imports} ${to} (${place(model, to, target)}), ${explain(context, from, to, refusal)}`,
+    details: {
+      from: { unit: source.id, part: model.partOf(from) },
+      to: { unit: target.id, part: model.partOf(to) },
+      reason: refusal.reason,
+      ...(refusal.reason === 'private' ? { hiddenBy: refusal.hiddenBy.id } : {}),
+      edges,
+    },
   };
 };
 
-const allowed = (kind: Kind): string =>
-  kind.dependsOn.length > 0
-    ? `may depend on ${kind.dependsOn.join(', ')}, so move what it needs into one of those`
-    : `may depend only on itself, so move what it needs into ${kind.name}`;
+const explain = ({ config, model, verdicts }: Context, from: string, to: string, refusal: Refusal): string => {
+  const source = model.unitOf(from)!;
+  if (refusal.reason === 'private') {
+    const { hiddenBy } = refusal;
+    const exposes = Object.keys(config.archetypes[hiddenBy.archetype!]!.exposes ?? {});
+    return (
+      `which ${hiddenBy.id} keeps private (it exposes ${exposes.join(', ')}). ` +
+      `Import what ${hiddenBy.id} exposes, or expose ${to} from ${hiddenBy.archetype} if other units should reach it.`
+    );
+  }
+  if (refusal.reason === 'above')
+    return (
+      `which is above ${source.id}. A unit reaches up only through what it requires: ` +
+      `require it in ${source.archetype ?? 'the archetype that finds it'} and have an ancestor provide it, or move it below.`
+    );
+  const owner = model.partOf(from) ?? source.id;
+  const uses = Map.groupBy(
+    verdicts.reach(from)!.filter((grant) => grant.ref !== undefined),
+    (grant) => grant.owner,
+  );
+  const reaches =
+    uses.size > 0
+      ? `: ${[...uses].map(([by, grants]) => `${by} uses ${grants.map((grant) => grant.ref).join(', ')}`).join('; ')}`
+      : ', its own files only';
+  return (
+    `which is outside ${owner}'s reach${reaches}. ` +
+    `Add what holds ${to} to a using if the dependency is intended, or move the code.`
+  );
+};

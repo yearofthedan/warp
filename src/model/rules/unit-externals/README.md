@@ -3,7 +3,7 @@
 **Audience:** anyone reading a `unit-externals` finding, or setting the rule.
 **Purpose:** what `unit-externals` reports, why, and its options.
 
-Report each package a file imports that no `using` in its reach lists, in an archetype config.
+Report each package a file imports that no `using` in its reach lists.
 
 ## Why
 

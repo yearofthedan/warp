@@ -23,7 +23,7 @@ export interface MustImportData {
   to: PartRefData | RequiredRefData;
 }
 
-export type RuleSettingsData = 'off' | Record<string, boolean | MustImportData | Record<string, unknown>>;
+export type RuleSettingsData = 'off' | Record<string, boolean | Record<string, unknown>>;
 
 export interface FilesPartData {
   kind: 'files';
@@ -63,6 +63,7 @@ export interface ArchetypeData {
   exposes?: Record<string, RefData[]>;
   provides: Record<string, PartRefData>;
   loose?: Loose;
+  constraints?: Record<string, MustImportData>;
   rules?: RuleSettingsData;
 }
 

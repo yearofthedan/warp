@@ -1,4 +1,4 @@
-import { type ArchetypeRule, ConfigError, type Finding, type ModuleContext, type ProjectContext } from './rule.ts';
+import { type Rule, ConfigError, type Finding, type ModuleContext, type ProjectContext } from './rule.ts';
 
 export const registry = <R extends { id: string }>(rules: readonly R[]): ReadonlyMap<string, R> => {
   const byId = new Map<string, R>();
@@ -11,17 +11,17 @@ export const registry = <R extends { id: string }>(rules: readonly R[]): Readonl
 
 const name = /^[a-z][a-z0-9-]*$/;
 
-export const pluginRules = (plugins: Record<string, unknown>): ArchetypeRule[] =>
+export const pluginRules = (plugins: Record<string, unknown>): Rule[] =>
   Object.entries(plugins).flatMap(([namespace, plugin]) =>
     namespaced(namespace, plugin, `config.plugins.${namespace}`),
   );
 
-const namespaced = (namespace: string, plugin: unknown, at: string): ArchetypeRule[] => {
+const namespaced = (namespace: string, plugin: unknown, at: string): Rule[] => {
   if (!name.test(namespace)) throw new ConfigError(`${at}: a namespace is lowercase letters, digits and dashes`);
   const rules = typeof plugin === 'object' && plugin !== null ? (plugin as { rules?: unknown }).rules : undefined;
   if (!Array.isArray(rules))
     throw new ConfigError(`${at}: expected a plugin, { rules: Rule[] }, imported in a warp.config.ts`);
-  return rules.map((rule: ArchetypeRule, index): ArchetypeRule => {
+  return rules.map((rule: Rule, index): Rule => {
     const where = `${at}.rules[${index}]`;
     if (typeof rule?.id !== 'string' || !name.test(rule.id))
       throw new ConfigError(`${where}: a rule id is lowercase letters, digits and dashes`);

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { ExternalImport, ImportEdge, ModuleFacts } from '../facts.ts';
 import { archetype, dir, pkg } from './builder.ts';
-import { archetypeRules } from '../rules/index.ts';
+import { builtinRules } from '../rules/index.ts';
 import { noDoubleExport } from '../rules/no-double-export/noDoubleExport.ts';
 import { unitExternals } from '../rules/unit-externals/unitExternals.ts';
 import { checkModel } from './check.ts';
@@ -238,7 +238,7 @@ const module = (file: string, imports: ImportEdge[], externals: ExternalImport[]
 });
 
 const documented = (docs: Record<string, string>) =>
-  archetypeRules.map((rule) => (docs[rule.id] ? { ...rule, docs: docs[rule.id] } : rule));
+  builtinRules.map((rule) => (docs[rule.id] ? { ...rule, docs: docs[rule.id] } : rule));
 
 describe('checkModel', () => {
   const check = (modules: ModuleFacts[], docs = {}) => checkModel(config, model, { modules }, documented(docs));

@@ -3,18 +3,6 @@ import type { Verdicts } from './archetype/reach.ts';
 import type { Model, UnitView } from './archetype/resolve.ts';
 import type { ModuleFacts, Project } from './facts.ts';
 
-export interface EnabledRule {
-  rule: Rule;
-  options: object;
-}
-
-export interface Kind {
-  name: string;
-  match: string[];
-  dependsOn: string[];
-  rules: EnabledRule[];
-}
-
 export interface Finding {
   rule: string;
   key: string;
@@ -30,11 +18,6 @@ export interface Finding {
 export interface ModuleContext<Options> {
   module: ModuleFacts;
   options: Options;
-}
-
-export interface RuleContext<Options> extends ModuleContext<Options> {
-  kind: Kind;
-  kindOf: (file: string) => Kind | undefined;
 }
 
 export interface Setting<Options> {
@@ -58,10 +41,6 @@ interface RuleBase<Options extends object> {
   parseOptions?: (raw: Record<string, unknown>, at: string) => Partial<Options>;
 }
 
-export interface Rule<Options extends object = object> extends RuleBase<Options> {
-  check: (context: RuleContext<Options>) => Finding[];
-}
-
 export interface ModuleRule<Options extends object = object> extends RuleBase<Options> {
   scope?: 'module';
   check: (context: ModuleContext<Options>) => Finding[];
@@ -72,10 +51,10 @@ export interface ProjectRule<Options extends object = object> extends RuleBase<O
   check: (context: ProjectContext<Options>) => Finding[];
 }
 
-export type ArchetypeRule = ModuleRule<any> | ProjectRule<any>;
+export type Rule = ModuleRule<any> | ProjectRule<any>;
 
 export interface Plugin {
-  rules: readonly (Rule<any> | ArchetypeRule)[];
+  rules: readonly Rule[];
 }
 
 export class ConfigError extends Error {
