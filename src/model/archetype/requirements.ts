@@ -1,7 +1,3 @@
-/**
- * The last pass of loading: walks the archetype tree from the root and answers each requirement with the nearest
- * provider above, the way a unit will find it.
- */
 import { recordedAs } from './builder.ts';
 import type { ArchetypeData, PartData, RequirementData } from './data.ts';
 import type { Draft } from './draft.ts';
@@ -18,13 +14,10 @@ interface Walk {
   archetypes: Record<string, ArchetypeData>;
   provisions: Provision[];
   fail: Fail;
-  /** Archetype and requirement pairs already reported as missing. */
   missing: Set<string>;
-  /** Archetypes walked under a given set of providers, which give the same answers every time. */
   visited: Set<string>;
 }
 
-/** Requirements that no part lists in `using`. A misspelt surface still counts; its own error says what is wrong. */
 export const checkUnused = ({ data, parts }: Draft, fail: Fail) => {
   const used = new Set(
     parts
@@ -36,10 +29,6 @@ export const checkUnused = ({ data, parts }: Draft, fail: Fail) => {
   }
 };
 
-/**
- * Reports requirements nothing above answers or that the provided part doesn't fit, and returns the provisions
- * nothing below requires. Runs on a config whose references all resolve.
- */
 export const checkRequirements = (archetypes: Record<string, ArchetypeData>, root: string, fail: Fail): string[] => {
   const provisions = Object.values(archetypes).flatMap((archetype) =>
     Object.entries(archetype.provides).map(([name, ref]) => ({

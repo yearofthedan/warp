@@ -1,8 +1,6 @@
-/** The rules an archetype config runs on its model, and how to check their options. */
 import { ConfigError, noOptions } from '../rule.ts';
 
 export interface CycleOptions {
-  /** Whether a type-only edge, which doesn't load at run time, is part of a loop. Default `ignore`. */
   types: 'count' | 'ignore';
 }
 
@@ -14,7 +12,6 @@ const cycleOptions = (raw: Record<string, unknown>, at: string): Partial<CycleOp
   return raw as Partial<CycleOptions>;
 };
 
-/** Each configurable rule's option check, by id. Throws a ConfigError naming `at`. */
 export const modelRules: Readonly<Record<string, (raw: Record<string, unknown>, at: string) => unknown>> = {
   'dependency-direction': noOptions,
   'unit-cycle': cycleOptions,

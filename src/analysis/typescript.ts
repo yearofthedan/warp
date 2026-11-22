@@ -7,7 +7,6 @@ import { importEdges, type Resolver } from './imports.ts';
 import { countLines, readSource } from './source.ts';
 import { functionFacts, moduleUnits } from './units.ts';
 
-/** Builds the project model with the TypeScript 7 compiler API, which runs the native compiler in a child process. */
 export const typescriptAnalyzer: Analyzer = {
   analyze(root: string, scope: AnalysisScope): Project {
     const api = new API({ cwd: root });
@@ -30,7 +29,6 @@ export const typescriptAnalyzer: Analyzer = {
 
 type Configured = NonNullable<ReturnType<ReturnType<API['createSnapshot']>['getConfiguredProject']>>;
 
-/** The facts of a program's files that no earlier program covered. */
 const analyzeProgram = (
   root: string,
   scope: AnalysisScope,

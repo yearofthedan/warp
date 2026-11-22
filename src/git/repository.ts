@@ -4,11 +4,9 @@ import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
 import type { Repository } from '../app/ports.ts';
 
-/** The git repository holding projectRoot. Checkouts are detached worktrees that share the project's node_modules. */
 export const gitRepository = (projectRoot: string): Repository => {
   const git = (...args: string[]) =>
     execFileSync('git', args, { cwd: projectRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
-  // git reports the top level with symlinks resolved, so resolve the project root the same way before comparing.
   const top = realpathSync(git('rev-parse', '--show-toplevel'));
   const project = realpathSync(projectRoot);
   const projectPath = relative(top, project).split(sep).join('/');
@@ -39,7 +37,7 @@ export const gitRepository = (projectRoot: string): Repository => {
         try {
           dispose();
         } catch {
-          // The original failure is the one to report.
+          throw error;
         }
         throw error;
       }
@@ -47,7 +45,6 @@ export const gitRepository = (projectRoot: string): Repository => {
   };
 };
 
-/** The project's path inside its git repository, or empty when it is the root or not in a repository. */
 export const projectPathOf = (projectRoot: string): string => {
   try {
     return gitRepository(projectRoot).projectPath();

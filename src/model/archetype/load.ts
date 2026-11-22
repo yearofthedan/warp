@@ -1,8 +1,3 @@
-/**
- * Turns a config built with builder.ts into plain data, checking what the types leave open: self surfaces, and every
- * reference when the config was written without the types. Then checks requirements against providers down the
- * archetype tree, before any file is read.
- */
 import { ConfigError } from '../rule.ts';
 import { recordedAs } from './builder.ts';
 import type { ArchetypeData, ConfigData } from './data.ts';
@@ -13,21 +8,14 @@ import { defined, type Fail, isName, isRecord } from './shared.ts';
 
 export interface LoadedConfigData {
   config: ConfigData;
-  /** Provisions that nothing below requires. */
   warnings: string[];
 }
 
 export interface LoadOptions {
-  /** Rule ids the config may configure. Given, an unknown id is an error, and so is an inline rule that takes one. */
   ruleIds?: Iterable<string>;
-  /** Option checks by rule id: a rule's options go through its check, which throws a ConfigError naming `at`. */
   options?: Readonly<Record<string, (raw: Record<string, unknown>, at: string) => unknown>>;
 }
 
-/**
- * Checks a config built with `archetype()` and returns it as plain data with its warnings. Throws a ConfigError
- * listing every problem, one per line.
- */
 export const loadConfigData = (raw: unknown, { ruleIds, options }: LoadOptions = {}): LoadedConfigData => {
   const errors: string[] = [];
   const fail: Fail = (message) => {
@@ -52,7 +40,6 @@ export const loadConfigData = (raw: unknown, { ruleIds, options }: LoadOptions =
       return exposes && Object.keys(exposes);
     },
   };
-  // Every archetype's parts and surfaces are known now, so references can be checked against them.
   for (const d of drafts) resolveDraft(check, d);
   const config: ConfigData = defined({
     root: root.name as string,
@@ -68,7 +55,6 @@ export const loadConfigData = (raw: unknown, { ruleIds, options }: LoadOptions =
   return { config, warnings };
 };
 
-/** The archetype's keys in the order the builder chain reads, with absent settings left out. */
 const archetypeData = ({
   name,
   description,

@@ -8,7 +8,6 @@ import { loadConfigData } from './load.ts';
 import { grantText, type Verdict, verdicts } from './reach.ts';
 import { type Folders, type Model, resolveModel } from './resolve.ts';
 
-/** Folders holding `paths`, every one of which exists. */
 const folders = (paths: readonly string[]): Folders => {
   const dirs = new Set(
     paths.flatMap((path) =>
@@ -47,7 +46,6 @@ const card = archetype('card')
   )
   .exposes((s) => ({ render: s.dom, page: s.page }));
 
-// No .exposes(): ui exposes everything, its own files and what its units expose.
 const ui = archetype('ui')
   .contains((p) =>
     p
@@ -96,11 +94,9 @@ const setup = (): { config: ConfigData; model: Model } => {
 };
 
 const { config, model } = setup();
-// Fresh each time, so no answer is remembered from another test.
 const judge = () => verdicts(config, model);
 const unit = (id: string) => model.units.find((candidate) => candidate.id === id)!;
 
-/** A verdict in one line: `allowed: dom uses s.logic`, `private to src/ui/a/b`, `above`, `not-in-using`. */
 const verdict = (from: string, to: string): string | undefined => {
   const found: Verdict | undefined = judge().verdict(from, to);
   if (!found) return undefined;

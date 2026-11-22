@@ -10,7 +10,6 @@ export const group = (units: Unit[]): Group => ({
   lines: [Math.min(...units.map((unit) => unit.line)), Math.max(...units.map((unit) => unit.endLine))],
 });
 
-/** Names functions uniquely within a module, so two functions with the same name keep distinct keys. */
 export const withOrdinals = <T extends { name: string }>(functions: T[]): [T, string][] => {
   const seen = new Map<string, number>();
   return functions.map((fn) => {

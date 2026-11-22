@@ -6,7 +6,6 @@ import { pathToFileURL } from 'node:url';
 import { ConfigError } from '../model/rule.ts';
 import { mergeRuleset } from '../model/ruleset.ts';
 
-/** Looked for in this order when no config is named. */
 export const configNames = [
   'warp.config.ts',
   'warp.config.mts',
@@ -22,22 +21,15 @@ export const findConfig = (dir: string): string => {
 };
 
 export interface LoadedConfig {
-  /** The config as written, for parseConfig to validate. */
   raw: unknown;
-  /**
-   * A digest of the config and every file it imported outside warp, so a cached diff base is redone when a
-   * project's own rule changes.
-   */
   digest: string;
 }
 
-/** The config as written: the default export, or the named `ruleset` export merged onto its base. */
 const selectConfig = (module: Record<string, unknown>, file: string, ruleset?: string): unknown => {
   if (ruleset === undefined) {
     if (module.default === undefined) throw new ConfigError(`${file}: expected the config as its default export`);
     return module.default;
   }
-  // Rulesets are the named exports that are arrays, so a config may export other values beside them.
   const names = Object.keys(module).filter((name) => name !== 'default' && Array.isArray(module[name]));
   if (!names.includes(ruleset)) {
     throw new ConfigError(
@@ -47,14 +39,9 @@ const selectConfig = (module: Record<string, unknown>, file: string, ruleset?: s
   return mergeRuleset(module[ruleset], `ruleset ${ruleset}`);
 };
 
-/** Where `import ... from 'warp'` in a config leads: the running warp, whether or not the project installed it. */
 const entry = new URL(import.meta.url.endsWith('.ts') ? '../index.ts' : '../index.js', import.meta.url).href;
 const ownFiles = new URL('../../', import.meta.url).href;
 
-/**
- * Reads warp.config.json, or imports a JS or TS config and takes its default export, or the named `ruleset` export
- * merged onto its base. Node strips the types, so a TS config and the rules it imports need no build step.
- */
 export const loadConfig = async (file: string, ruleset?: string): Promise<LoadedConfig> => {
   const digest = createHash('sha256');
   if (file.endsWith('.json')) {

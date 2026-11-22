@@ -1,21 +1,13 @@
 import { type WarpConfig, record, type RuleSettings } from './config.ts';
 import { ConfigError } from './rule.ts';
 
-/** What a ruleset changes on top of its base: rules only, never the kinds' globs or dependencies. */
 export interface RulesetOverlay {
   rules?: RuleSettings;
   kinds?: Record<string, { rules: RuleSettings }>;
 }
 
-/** A named export of a warp.config.ts: a base config and the overlays warp merges onto it, in order. */
 export type Ruleset = readonly [WarpConfig, ...RulesetOverlay[]];
 
-/**
- * Merges a ruleset into one config as written. Top-level `rules` merge by rule id, and a kind's `rules` merge by kind
- * name and then rule id. An overlay's options merge into the base's for the same rule, `false` turns the rule off,
- * and `true` turns it on and keeps the base's options. Anything else in an overlay is refused: the architecture is the
- * same in every ruleset, only what is checked against it changes.
- */
 export const mergeRuleset = (ruleset: unknown, at: string): Record<string, unknown> => {
   if (!Array.isArray(ruleset) || ruleset.length === 0)
     throw new ConfigError(`${at}: expected a ruleset, [config, ...overlays]`);
@@ -36,7 +28,6 @@ export const mergeRuleset = (ruleset: unknown, at: string): Record<string, unkno
 
 type Layer = { rules: unknown; at: string };
 
-/** Each scope's rule settings from every overlay, in order: the top level, then each kind by name. */
 const layersOf = (overlays: unknown[], kinds: string[], at: string) => {
   const shared: Layer[] = [];
   const perKind = new Map<string, Layer[]>();
@@ -57,10 +48,6 @@ const layersOf = (overlays: unknown[], kinds: string[], at: string) => {
   return { shared, perKind };
 };
 
-/**
- * Folds the overlays' settings for one scope onto the base's, rule by rule. A rule's options are kept while it is
- * off, so `false` and then `true` brings back the options it had.
- */
 const mergeRules = (base: unknown, baseAt: string, layers: Layer[]): Record<string, unknown> => {
   const isOptions = (value: unknown): value is object => typeof value === 'object' && value !== null;
   const state = new Map<string, { enabled: boolean; options?: object }>();
@@ -69,7 +56,6 @@ const mergeRules = (base: unknown, baseAt: string, layers: Layer[]): Record<stri
       const was = state.get(id);
       if (typeof setting === 'boolean') state.set(id, { ...was, enabled: setting });
       else if (isOptions(setting)) state.set(id, { enabled: true, options: { ...was?.options, ...setting } });
-      // Anything else is passed through for parseConfig to refuse, with its path.
       else state.set(id, { enabled: true, options: setting as object });
     }
   }

@@ -1,4 +1,3 @@
-/** What a warp.config.ts and a project's own rules import from `warp`. */
 export { defineConfig, type WarpConfig, type RuleSettings } from './model/config.ts';
 export {
   archetype,

@@ -3,15 +3,9 @@ import { ConfigError, type Finding, type Kind, type Rule } from '../../rule.ts';
 import { title } from '../shared.ts';
 
 export interface NoCrossKindReexportOptions {
-  /** Kinds this kind may re-export from, such as the kinds a composition root wires together. */
   allow: string[];
 }
 
-/**
- * A module may re-export only what its own kind declares. Passing on another kind's names lets the importers reach
- * that kind through this one, so dependency-direction reports each importer while this rule reports where the leak
- * starts. One finding per module pair; its value counts the names re-exported.
- */
 export const noCrossKindReexport: Rule<NoCrossKindReexportOptions> = {
   id: 'no-cross-kind-reexport',
   defaults: { allow: [] },

@@ -200,6 +200,7 @@ export const commentsIn = (text: string, syntax: Syntax): Comment[] => {
 const markers: [RegExp, RegExp][] = [
   [/^scripts\/[^/.]+$/, /^help: \S/],
   [/^\.github\/workflows\//, /^v\d+(\.\d+)*$/],
+  [/\.test\.ts$/, /^@ts-expect-error \S/],
 ];
 
 const directive =

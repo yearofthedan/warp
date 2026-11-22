@@ -6,31 +6,24 @@ export interface Config {
   tsconfig: string;
   exclude: string[];
   kinds: Kind[];
-  /** A link to the page on `unclassified` findings, which the model reports rather than a rule. */
   unclassifiedDocs?: string;
 }
 
-/** `false` turns a rule off, `true` turns it back on, and an object turns it on with those options. */
 export type RuleSettings = Record<string, boolean | Record<string, unknown>>;
 
-/** A config as written, in warp.config.json or as the default export of a warp.config.ts. */
 export interface WarpConfig {
-  /** The tsconfig whose files are checked, relative to the config. Default `tsconfig.json`. */
   tsconfig?: string;
   exclude?: string | string[];
-  /** A project's own rules by namespace. A rule `x` in plugin `ns` is `ns/x` in `rules`. */
   plugins?: Record<string, Plugin>;
   rules?: RuleSettings;
   kinds: Record<string, { match: string | string[]; dependsOn?: string | string[]; rules?: RuleSettings }>;
 }
 
-/** Types a warp.config.ts, with `root` as an archetype or with `kinds`. It returns the config unchanged. */
 export const defineConfig: {
   <const C extends ArchetypeConfig>(config: C): C;
   (config: WarpConfig): WarpConfig;
 } = <C>(config: C): C => config;
 
-/** Rules by id. Built-in rules come first; a project's own rules join them under namespaced ids. */
 export const registry = (rules: readonly Rule[]): ReadonlyMap<string, Rule> => {
   const byId = new Map<string, Rule>();
   for (const rule of rules) {
@@ -42,10 +35,6 @@ export const registry = (rules: readonly Rule[]): ReadonlyMap<string, Rule> => {
 
 const name = /^[a-z][a-z0-9-]*$/;
 
-/**
- * A plugin's rules under `namespace/`. Their findings get the namespaced rule id, and keys prefixed by the namespace,
- * so they can't collide with a built-in rule's or another plugin's.
- */
 export const namespaced = (namespace: string, plugin: unknown, at: string): Rule[] => {
   if (!name.test(namespace)) throw new ConfigError(`${at}: a namespace is lowercase letters, digits and dashes`);
   const rules = typeof plugin === 'object' && plugin !== null ? (plugin as { rules?: unknown }).rules : undefined;
@@ -69,11 +58,6 @@ export const namespaced = (namespace: string, plugin: unknown, at: string): Rule
 
 export const alwaysExcluded = ['**/*.d.ts'];
 
-/**
- * Validates a raw config against the rules in `registry` and the config's own plugins. Kinds keep their declared
- * order: the first match wins. Every registered rule runs on every kind unless the config turns it off.
- * `unclassifiedDocs` comes from whoever ships the rules, as their own `docs` links do.
- */
 export const parseConfig = (
   raw: unknown,
   builtins: ReadonlyMap<string, Rule>,
@@ -114,7 +98,6 @@ export const parseConfig = (
   };
 };
 
-/** Which files analysis reads: those of the tsconfigs' programs, less the excluded ones. */
 export interface AnalysisScope {
   tsconfig: string | readonly string[];
   exclude: string[];
@@ -143,7 +126,6 @@ const ruleSettings = (value: unknown, at: string, registry: ReadonlyMap<string, 
   return settings;
 };
 
-/** Options layer as defaults, then the shared `rules`, then the kind's `rules`. */
 const resolveRules = (
   registry: ReadonlyMap<string, Rule>,
   shared: Map<string, Setting>,

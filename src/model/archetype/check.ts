@@ -1,8 +1,3 @@
-/**
- * What an archetype config reports on a project: files no part claims where the unit denies loose files, imports
- * outside the importer's reach, files an inline rule asks an import of, and loops between units and between files.
- * Each rule but `unclassified` runs where the rule settings leave it on.
- */
 import type { Project } from '../facts.ts';
 import type { Finding } from '../rule.ts';
 import { fileCycleFindings, unitCycleFindings } from './cycles.ts';
@@ -13,7 +8,6 @@ import { verdicts } from './reach.ts';
 import type { Model } from './resolve.ts';
 import { settings } from './settings.ts';
 
-/** Each finding's docs page, by rule id. */
 export interface CheckDocs {
   unclassified?: string;
   'dependency-direction'?: string;

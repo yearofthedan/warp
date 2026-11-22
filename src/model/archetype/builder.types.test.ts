@@ -1,7 +1,3 @@
-/**
- * Mistakes in a config, each caught twice: by the types (`@ts-expect-error`, checked by `tsc` in `./do check`) and
- * by loadConfigData, for configs written without the types. Self surfaces are the one place only the load catches.
- */
 import assert from 'node:assert/strict';
 import { describe, expectTypeOf, it } from 'vite-plus/test';
 import { defineConfig } from '../config.ts';
@@ -19,7 +15,6 @@ const kid = archetype('kid')
 
 const plainKid = archetype('plain-kid').contains((p) => p.files('src', '**'));
 
-/** Places `child` under a root that provides a test runner and strings, so only its own mistakes show. */
 const errorsIn = (child: AnyArchetype): string[] => {
   const root = archetype('host')
     .contains((p) =>

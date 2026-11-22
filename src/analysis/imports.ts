@@ -24,7 +24,6 @@ import type { Source } from './source.ts';
 export interface Resolver {
   checker: Checker;
   program: Program;
-  /** Maps a compiler path to a project-relative file, or undefined for files outside the project. */
   relative: (pathOrFileName: string) => string | undefined;
 }
 
@@ -34,10 +33,6 @@ interface Binding {
   reExport: boolean;
 }
 
-/**
- * Import and re-export edges of one module, resolved through barrels to the declaring modules. Imported names the
- * module exports again (`export { x }`, `export default x`) get an edge of their own marked as a re-export.
- */
 export const importEdges = (source: Source, resolver: Resolver): ImportEdge[] => {
   const exported = locallyExportedNames(source.sourceFile);
   return source.sourceFile.statements.flatMap((statement) => statementEdges(statement, exported, source, resolver));
@@ -85,7 +80,6 @@ const statementEdges = (
 interface ModuleStatement {
   specifier: StringLiteralLikeNode;
   typeOnly: boolean;
-  /** The statement passes everything it names on, as `export ... from` does. */
   reExport: boolean;
   bindings: Binding[];
 }
@@ -97,7 +91,6 @@ const moduleDeclaration = (statement: Statement, exported: Set<string>): ModuleS
       ? reExportStatement(statement)
       : undefined;
 
-/** Names the module exports without declaring them in the export statement: `export { x }`, `export default x`. */
 const locallyExportedNames = (sourceFile: SourceFile): Set<string> => {
   const names = new Set<string>();
   for (const statement of sourceFile.statements) {
@@ -152,7 +145,6 @@ const reExportStatement = (statement: ExportDeclaration): ModuleStatement | unde
   return { specifier: statement.moduleSpecifier, typeOnly: statement.isTypeOnly, reExport: true, bindings };
 };
 
-/** Follows an imported name through every alias to the project module that declares it. */
 const resolveBinding = (
   binding: Binding,
   source: Source,

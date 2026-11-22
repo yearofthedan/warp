@@ -6,15 +6,12 @@ import type { FindingsCache, Repository } from './ports.ts';
 
 export interface Range {
   base: string;
-  /** Undefined compares against the working tree. */
   head?: string;
-  /** `base...head`: compare from where head left base, as git does. */
   fromMergeBase: boolean;
 }
 
 export class InvalidRange extends Error {}
 
-/** Parses `base`, `base..head` or `base...head`. Refs may contain single dots, as tags like v1.2 do. */
 export const parseRange = (range: string): Range => {
   const match = /^(.+?)(\.\.\.|\.\.)(.*)$/.exec(range);
   const [base, separator, head] = match ? match.slice(1) : [range, '', ''];
@@ -25,17 +22,12 @@ export const parseRange = (range: string): Range => {
 
 export interface DiffRequest {
   range: Range;
-  /** The working tree's project directory. */
   root: string;
-  /** Checks both sides. Its resolved config is part of the cache key, so each ruleset caches apart. */
   project: ProjectCheck;
-  /** Part of the cache key: a digest of the config file and the project's own rules it imports. */
   configDigest?: string;
-  /** Part of the cache key: a digest of the tool's own code, so a changed built-in rule never reuses old findings. */
   toolDigest: string;
 }
 
-/** Checks both sides with the working tree's config, so a delta reflects code changes rather than rule changes. */
 export const diffProject = (
   { range, root, project, configDigest = '', toolDigest }: DiffRequest,
   { repository, cache }: { repository: Repository; cache: FindingsCache },
@@ -52,10 +44,8 @@ export const diffProject = (
     if (cached) return cached;
     const checkout = repository.checkout(commit, project.requiredFile);
     try {
-      // A commit from before the project existed has nothing to report.
       const findings = checkout.projectRoot ? project.check(checkout.projectRoot) : [];
       cache.set(key, findings);
-      // Entries for another build of the tool can never be hit again.
       cache.prune((other) => other.startsWith(`${toolDigest}-`));
       return findings;
     } finally {

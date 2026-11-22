@@ -1,9 +1,5 @@
 import type { Unit, UnitGraph, UnitKind } from './facts.ts';
 
-/**
- * Connected components of a unit graph (LCOM4). Only components holding at least one unit of a `counted` kind
- * are returned: a type or a piece of state nothing uses is not a separate responsibility.
- */
 export const components = (graph: UnitGraph, counted: readonly UnitKind[]): Unit[][] => {
   const parent = graph.units.map((_, index) => index);
   const root = (index: number): number => {

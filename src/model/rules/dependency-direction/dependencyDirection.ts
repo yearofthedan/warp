@@ -2,10 +2,6 @@ import type { ImportEdge } from '../../facts.ts';
 import { ConfigError, type Finding, type Kind, type Rule } from '../../rule.ts';
 import { title } from '../shared.ts';
 
-/**
- * A module may import only from its own kind and the kinds its `dependsOn` lists. One finding per module pair,
- * however many statements cross the boundary. Its value counts the names imported.
- */
 export const dependencyDirection: Rule = {
   id: 'dependency-direction',
   defaults: {},

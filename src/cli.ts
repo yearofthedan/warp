@@ -41,7 +41,6 @@ model   prints the units an archetype config finds, and which part each file is 
 type Options = { config?: string; ruleset?: string; reporter: string; fail: boolean };
 type Produce = (root: string, project: ProjectCheck, digest: string) => Report;
 
-/** A config as loaded: the kinds shape, or archetypes from the builders. */
 type Resolved =
   | { shape: 'kinds'; root: string; config: Config; digest: string }
   | { shape: 'archetypes'; root: string; config: ConfigData; digest: string };
@@ -96,7 +95,6 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promi
   }
 };
 
-/** A config with a root archetype, as `defineConfig({ root })` writes it, rather than kinds. */
 const isArchetypeConfig = (raw: unknown): boolean => typeof raw === 'object' && raw !== null && 'root' in raw;
 
 const projectCheck = (resolved: Resolved): ProjectCheck =>
@@ -119,7 +117,6 @@ const run = async (options: Options, produce: Produce): Promise<number> => {
   }
 };
 
-/** The config after defaults, the ruleset's overlays and each kind's own rules: what each kind is checked with. */
 const printConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promise<number> => {
   const resolved = await resolveConfig(options);
   if (resolved.shape === 'archetypes')
@@ -139,7 +136,6 @@ const printConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promise
   return 0;
 };
 
-/** The units an archetype config finds, as a tree or as JSON. */
 const printModel = async (options: Omit<Options, 'reporter' | 'fail'> & { json: boolean }): Promise<number> => {
   try {
     const resolved = await resolveConfig(options);
@@ -161,7 +157,6 @@ const delta = (range: string, root: string, project: ProjectCheck, configDigest:
 
 const version = (): string => JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
-/** Says why the run failed and returns the exit code: the reporter's when there is one, else 2. */
 const failed = (error: unknown, exitCode = 2): number => {
   console.error(
     error instanceof ConfigError ? `warp config: ${error.message}` : error instanceof Error ? error.message : error,

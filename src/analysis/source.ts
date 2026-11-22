@@ -2,7 +2,6 @@ import type { Identifier, Node, SourceFile } from 'typescript/ast';
 import { isIdentifier } from 'typescript/ast/is';
 import type { Checker, Symbol } from 'typescript/sync';
 
-/** A parsed file with every identifier's symbol resolved in one round trip to the compiler. */
 export interface Source {
   file: string;
   sourceFile: SourceFile;
@@ -29,16 +28,11 @@ export const readSource = (checker: Checker, sourceFile: SourceFile, file: strin
   };
 };
 
-/**
- * Identifies a symbol by its first declaration, which a local and its export symbol share.
- * Undefined for symbols without declarations, such as globals the checker synthesises.
- */
 export const symbolKey = (symbol: Symbol | undefined): string | undefined => {
   const declaration = symbol?.declarations[0];
   return declaration ? `${declaration.path}#${declaration.index}` : undefined;
 };
 
-/** Visits node and its descendants, depth first. Returning false skips a node's children. */
 export const walk = (node: Node, visit: (node: Node) => boolean | void): void => {
   if (visit(node) === false) return;
   node.forEachChild((child) => {

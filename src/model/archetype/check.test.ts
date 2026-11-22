@@ -7,7 +7,6 @@ import { loadConfigData } from './load.ts';
 import { type Folders, resolveModel } from './resolve.ts';
 import { settings } from './settings.ts';
 
-/** Folders holding `paths`, every one of which exists. */
 const folders = (paths: readonly string[]): Folders => {
   const dirs = new Set(
     paths.flatMap((path) =>
@@ -29,7 +28,6 @@ const folders = (paths: readonly string[]): Folders => {
 
 type Import = string | [to: string, extra: Partial<ImportEdge>];
 
-/** A project of the files given, each importing the files listed against it. */
 const project = (imports: Record<string, readonly Import[]>): Project => ({
   modules: Object.entries(imports).map(([file, targets]) => ({
     file,
