@@ -1,43 +1,75 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { API } from 'typescript/sync';
-import type { Analyzer } from '../app/ports.ts';
-import type { ModuleFacts, Project } from '../model/facts.ts';
+import { freshFacts } from '../app/facts.ts';
+import type { Analyzer, CachedFile } from '../app/ports.ts';
+import type { ModuleFacts } from '../model/facts.ts';
 import { moduleEdges, type Resolver } from './imports.ts';
+import { moduleSpecifiers } from './specifiers.ts';
 import { countLines, readSource } from './source.ts';
 import { functionFacts, moduleUnits } from './units.ts';
 
+type Snapshot = ReturnType<API['createSnapshot']>;
+type Configured = NonNullable<ReturnType<Snapshot['getConfiguredProject']>>;
+
 export const typescriptAnalyzer: Analyzer = {
-  analyze(root: string, tsconfig: readonly string[]): Project {
+  analyze(root, tsconfig, store) {
     const api = new API({ cwd: root });
     try {
       const tsconfigs = tsconfig.map((path) => join(root, path));
       const snapshot = api.createSnapshot({ openProjects: tsconfigs });
-      const modules = new Map<string, ModuleFacts>();
-      for (const tsconfig of tsconfigs) {
-        const project = snapshot.getConfiguredProject(tsconfig);
-        if (!project) throw new Error(`could not load ${tsconfig}`);
-        for (const module of analyzeProgram(root, project, modules)) modules.set(module.file, module);
-      }
-      if (modules.size === 0) throw new Error(`${tsconfigs.join(', ')} include no files to check`);
-      return { modules: [...modules.values()] };
+      const projects = tsconfigs.map((path) => {
+        const project = snapshot.getConfiguredProject(path);
+        if (!project) throw new Error(`could not load ${path}`);
+        return { project, files: projectFiles(root, project) };
+      });
+      const hashes = new Map(
+        projects.flatMap(({ files }) => [...files.values()].map((file) => [file, hashOf(root, file)])),
+      );
+      const digest = digestOf(root, tsconfig);
+      const fresh = freshFacts(store?.read(), { digest, hashes });
+      const cached = new Map<string, Omit<CachedFile, 'hash'>>();
+      for (const { project, files } of projects)
+        for (const [file, entry] of analyzeProgram(project, files, fresh, cached)) cached.set(file, entry);
+      const modules = [...cached.values()].flatMap(({ facts }) => (facts ? [facts] : []));
+      if (modules.length === 0) throw new Error(`${tsconfigs.join(', ')} include no files to check`);
+      const files = [...hashes].map(([file, hash]) => [file, { ...cached.get(file), hash }]);
+      store?.write({ digest, files: Object.fromEntries(files) });
+      return { modules };
     } finally {
       api.close();
     }
   },
 };
 
-type Configured = NonNullable<ReturnType<ReturnType<API['createSnapshot']>['getConfiguredProject']>>;
-
-const analyzeProgram = (
-  root: string,
-  { program, checker }: Configured,
-  done: ReadonlyMap<string, ModuleFacts>,
-): ModuleFacts[] => {
+const projectFiles = (root: string, { program }: Configured): Map<string, string> => {
   const files = new Map<string, string>();
   for (const fileName of program.getSourceFileNames()) {
     const file = toRelative(root, fileName);
     if (file && !file.includes('node_modules/')) files.set(fileName, file);
   }
+  return files;
+};
+
+const hashOf = (root: string, file: string): string =>
+  createHash('sha256')
+    .update(readFileSync(join(root, file)))
+    .digest('hex')
+    .slice(0, 16);
+
+const digestOf = (root: string, tsconfig: readonly string[]): string => {
+  const digest = createHash('sha256');
+  for (const path of tsconfig) digest.update(path).update(readFileSync(join(root, path)));
+  return digest.digest('hex').slice(0, 16);
+};
+
+const analyzeProgram = (
+  { program, checker }: Configured,
+  files: ReadonlyMap<string, string>,
+  fresh: ReadonlyMap<string, Omit<CachedFile, 'hash'>>,
+  done: ReadonlyMap<string, unknown>,
+): Map<string, Omit<CachedFile, 'hash'>> => {
   const byPath = new Map(
     [...files].flatMap(([fileName, file]) => [
       [fileName, file],
@@ -49,21 +81,27 @@ const analyzeProgram = (
     checker,
     relative: (path) => byPath.get(path) ?? byPath.get(path.toLowerCase()),
   };
-  const modules: ModuleFacts[] = [];
+  const analyzed = new Map<string, Omit<CachedFile, 'hash'>>();
   for (const [fileName, file] of files) {
     if (done.has(file) || file.endsWith('.d.ts')) continue;
+    const reused = fresh.get(file);
+    if (reused) {
+      analyzed.set(file, reused);
+      continue;
+    }
     const sourceFile = program.getSourceFile(fileName);
     if (!sourceFile) continue;
     const source = readSource(checker, sourceFile, file);
-    modules.push({
+    const facts: ModuleFacts = {
       file,
       lines: countLines(sourceFile.text),
       ...moduleEdges(source, resolver),
       units: moduleUnits(source),
       functions: functionFacts(source),
-    });
+    };
+    analyzed.set(file, { specifiers: moduleSpecifiers(sourceFile), facts });
   }
-  return modules;
+  return analyzed;
 };
 
 const toRelative = (root: string, fileName: string): string | undefined => {

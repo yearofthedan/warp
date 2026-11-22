@@ -4,7 +4,8 @@ import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { diskFolders } from './analysis/folders.ts';
 import { typescriptAnalyzer } from './analysis/typescript.ts';
-import { modelProject, type ProjectCheck, projectCheck } from './app/check.ts';
+import { type Adapters, modelProject, type ProjectCheck, projectCheck } from './app/check.ts';
+import { factsStore } from './app/facts.ts';
 import { diffProject, parseRange } from './app/diff.ts';
 import { builtinRegistry, unclassifiedDocs } from './builtins/index.ts';
 import { findConfig, loadConfig } from './config/loadConfig.ts';
@@ -47,7 +48,14 @@ interface Resolved {
   digest: string;
 }
 
-const adapters = { analyzer: typescriptAnalyzer, foldersAt: diskFolders };
+const adaptersAt = (root: string): Adapters => {
+  const adapters = { analyzer: typescriptAnalyzer, foldersAt: diskFolders };
+  try {
+    return { ...adapters, facts: factsStore(gitDirCache(root), toolDigest(), gitRepository(root).projectPath()) };
+  } catch {
+    return adapters;
+  }
+};
 
 const main = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
@@ -88,8 +96,8 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail'>): Promi
   return { root, config, rules, digest };
 };
 
-const checkOf = ({ config, rules }: Resolved): ProjectCheck =>
-  projectCheck(adapters, config, { rules, unclassifiedDocs });
+const checkOf = ({ root, config, rules }: Resolved): ProjectCheck =>
+  projectCheck(adaptersAt(root), config, { rules, unclassifiedDocs });
 
 const run = async (options: Options, produce: Produce): Promise<number> => {
   const reporter = reporters.get(options.reporter);
@@ -111,7 +119,7 @@ type ModelOptions = Omit<Options, 'reporter' | 'fail'> & { json: boolean; rules:
 const printModel = async (options: ModelOptions): Promise<number> => {
   try {
     const { root, config, rules } = await resolveConfig(options);
-    const { model } = modelProject(adapters, root, config);
+    const { model } = modelProject(adaptersAt(root), root, config);
     const settings = rulesOf(config, model, rules);
     console.log(options.json ? modelJson(model, settings) : modelText(model, options.rules ? settings : undefined));
     return 0;
