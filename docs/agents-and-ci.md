@@ -23,8 +23,9 @@ unread for 30 days. Without a head, the head is the working tree.
 
 Every command reuses the facts it read from each file on its last run, from `.git/warp-cache/`, so a run after an
 edit analyses only the edited files and the files that import them, directly or through others. A file's facts are
-reused while its content, the content of everything it imports, warp's own code and TypeScript version, and the
-project's tsconfig files are unchanged. Adding or removing a file also redoes each file with an import specifier
+reused while its content, the content of everything it imports, warp's own code and TypeScript version, the
+compiler options the tsconfig files resolve to, and the size and modification time of every file the program reads
+from outside the project or from `node_modules` are unchanged. Adding or removing a file also redoes each file with an import specifier
 that names it, and changing a `.d.ts` file in the project redoes every file. Outside a git repository nothing is
 cached. Checkouts for `diff` share the cache, so a base close to the working tree analyses only what differs.
 

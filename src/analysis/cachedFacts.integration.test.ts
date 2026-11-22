@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { appendFileSync, cpSync, mkdtempSync } from 'node:fs';
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, it } from 'vite-plus/test';
@@ -18,6 +18,26 @@ beforeEach(() => {
   saved = undefined;
 });
 
+const reanalyzedAfter = (change: () => void): string[] => {
+  analyze(store);
+  for (const entry of Object.values(saved!.files)) if (entry.facts) entry.facts.lines = 0;
+  change();
+  return analyze(store)
+    .modules.filter((module) => module.lines > 0)
+    .map((module) => module.file)
+    .sort();
+};
+
+const everyFile = [
+  'src/adapters/db/orderRepo.ts',
+  'src/adapters/index.ts',
+  'src/app/handle.ts',
+  'src/app/index.ts',
+  'src/domain/order.ts',
+  'src/domain/pricing.ts',
+  'src/stray.ts',
+];
+
 describe('cached facts', () => {
   it('gives the same facts as an uncached analysis, before and after an edit', () => {
     assert.deepEqual(analyze(store), analyze());
@@ -27,12 +47,38 @@ describe('cached facts', () => {
   });
 
   it('reanalyzes only the edited file and the files that import it', () => {
-    analyze(store);
-    for (const entry of Object.values(saved!.files)) if (entry.facts) entry.facts.lines = 0;
-    appendFileSync(join(root, 'src/app/handle.ts'), '\n');
-    const reanalyzed = analyze(store)
-      .modules.filter((module) => module.lines > 0)
-      .map((module) => module.file);
-    assert.deepEqual(reanalyzed.sort(), ['src/app/handle.ts', 'src/app/index.ts']);
+    const reanalyzed = reanalyzedAfter(() => appendFileSync(join(root, 'src/app/handle.ts'), '\n'));
+    assert.deepEqual(reanalyzed, ['src/app/handle.ts', 'src/app/index.ts']);
+  });
+
+  it('reanalyzes every file when a compiler option changes in a config the tsconfig extends', () => {
+    const base = (strict: boolean) =>
+      writeFileSync(join(root, 'tsconfig.base.json'), JSON.stringify({ compilerOptions: { strict } }));
+    base(true);
+    const tsconfig = {
+      extends: './tsconfig.base.json',
+      compilerOptions: { module: 'nodenext', noEmit: true, allowImportingTsExtensions: true },
+      include: ['src'],
+    };
+    writeFileSync(join(root, 'tsconfig.json'), JSON.stringify(tsconfig));
+    assert.deepEqual(
+      reanalyzedAfter(() => base(false)),
+      everyFile,
+    );
+  });
+
+  it('reanalyzes every file when a package the program reads changes', () => {
+    const types = join(root, 'node_modules/@types/extra');
+    mkdirSync(types, { recursive: true });
+    writeFileSync(join(types, 'index.d.ts'), 'declare const extra: number;\n');
+    const tsconfig = {
+      compilerOptions: { module: 'nodenext', types: ['extra'], noEmit: true, allowImportingTsExtensions: true },
+      include: ['src'],
+    };
+    writeFileSync(join(root, 'tsconfig.json'), JSON.stringify(tsconfig));
+    assert.deepEqual(
+      reanalyzedAfter(() => writeFileSync(join(types, 'index.d.ts'), 'declare const extra: boolean;\n')),
+      everyFile,
+    );
   });
 });
