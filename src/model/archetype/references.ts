@@ -1,50 +1,35 @@
-/**
- * The second pass of loading: checks every reference against the parts, requirements and surfaces it names, and
- * turns references and rule settings into data.
- */
 import { ConfigError } from '../rule.ts';
 import { recordedAs } from './builder.ts';
 import type { ArchetypeData, MustImportData, PartRefData, RefData, RuleSettingsData } from './data.ts';
 import type { Draft } from './draft.ts';
 import { type Fail, isName, isRecord, list, shapeText } from './shared.ts';
 
-/** What the reference checks need from the whole config. */
 export interface Check {
   fail: Fail;
-  /** Rule ids the config may configure, when the caller knows them. */
   ruleIds?: ReadonlySet<string>;
-  /** Option checks by rule id. */
   options: Readonly<Record<string, (raw: Record<string, unknown>, at: string) => unknown>>;
-  /** The surfaces an archetype exposes; undefined when it has no `.exposes()`. */
   surfacesOf: (archetype: string) => string[] | undefined;
 }
 
 type RefKind = RefData['kind'];
 
-/** What a reference may name where it appears. */
 interface Scope {
   archetype: ArchetypeData;
-  /** How many of the archetype's parts it sees: those above a part, or all of them. */
   visible: number;
   kinds: readonly RefKind[];
-  /** Why the other kinds are refused here. */
   refused: string;
-  /** The part whose options hold the reference, which sees the parts above it. */
   part?: string;
-  /** Only a part as a whole, no surface. */
   whole?: boolean;
 }
 
 const packagesInUsing = 'pkg() belongs in using';
 const ruleKinds: readonly RefKind[] = ['part', 'required'];
 
-/** A reference as load errors name it: `part.surface`, `required.name`, `pkg('name')`. */
 export const show = (ref: RefData): string =>
   ref.kind === 'package'
     ? `pkg('${ref.pattern}')`
     : `${ref.kind === 'required' ? `required.${ref.name}` : ref.part}${ref.surface === undefined ? '' : `.${ref.surface}`}`;
 
-/** Fills a draft's data with its checked references and rule settings. */
 export const resolveDraft = (check: Check, { data: archetype, parts, exposes, provides, rules }: Draft) => {
   for (const [index, part] of parts.entries()) {
     const scope: Scope = {
@@ -81,7 +66,6 @@ export const resolveDraft = (check: Check, { data: archetype, parts, exposes, pr
   archetype.rules = toRules(check, rules, `${archetype.name}.rules`, scope);
 };
 
-/** A reference as data. One that fails its check is reported, and loading throws before its data is used. */
 const toRef = (check: Check, value: unknown, where: string, scope: Scope): RefData => {
   const ref = recordedAs(value, 'ref');
   if (!ref) check.fail(`${where} something other than a reference: use s.part, required.name or pkg('name')`);
@@ -92,7 +76,6 @@ const toRef = (check: Check, value: unknown, where: string, scope: Scope): RefDa
   return { ...ref } as RefData;
 };
 
-/** Rule settings as data; inline rules need a scope, so the global settings pass none. */
 export const toRules = (
   check: Check,
   value: unknown,
@@ -149,7 +132,6 @@ const toInline = (
   return undefined;
 };
 
-/** Why a reference is wrong where it appears, or undefined if it is right. */
 const refProblem = (check: Check, ref: RefData, scope: Scope): string | undefined => {
   if (!scope.kinds.includes(ref.kind)) return scope.refused;
   if (ref.kind === 'package') return isName(ref.pattern) ? undefined : 'a package pattern is a non-empty string';
@@ -177,7 +159,6 @@ const partProblem = (check: Check, name: string, surface: string | undefined, sc
   return surfaceProblem(part.archetype, surface, check.surfacesOf(part.archetype));
 };
 
-/** For a part that isn't among those the reference sees: what it does see. */
 const visibilityProblem = (name: string, index: number, { archetype, visible, part }: Scope): string => {
   const above = list(
     archetype.parts.slice(0, visible).map((candidate) => candidate.name),

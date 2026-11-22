@@ -5,7 +5,6 @@ import { type AnyArchetype, archetype, pkg } from './builder.ts';
 import { loadConfigData } from './load.ts';
 import { type Folders, globRegex, type Model, resolveModel, specificity } from './resolve.ts';
 
-/** Folders holding `paths`, with every file among them existing, so markers can be files outside the program. */
 const folders = (paths: readonly string[]): Folders => {
   const children = new Map<string, Set<string>>();
   for (const path of paths) {
@@ -34,7 +33,6 @@ const errors = (root: AnyArchetype, files: readonly string[]): string[] => {
   assert.fail('expected a ConfigError');
 };
 
-/** Each unit as `id part archetype: files by part`, for comparing whole trees. */
 const tree = (model: Model): string[] =>
   model.units.map(
     (unit) =>

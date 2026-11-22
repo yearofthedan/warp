@@ -1,7 +1,3 @@
-/**
- * The first pass of loading: finds every archetype the root reaches, runs its callbacks, and checks everything but
- * its references, which need every archetype's surfaces first.
- */
 import { partRefs, type RecordedArchetype, type RecordedPart, recordedAs, requiredRefs, self } from './builder.ts';
 import type { ArchetypeData, IdentifyData, Loose, PartData, RequirementData } from './data.ts';
 import { type Fail, isName, isRecord } from './shared.ts';
@@ -12,7 +8,6 @@ export interface DraftPart {
   rules: unknown;
 }
 
-/** An archetype as data, with the values its references come from still as the builders recorded them. */
 export interface Draft {
   data: ArchetypeData;
   parts: DraftPart[];
@@ -23,7 +18,6 @@ export interface Draft {
 
 const looseValues: readonly unknown[] = ['allow', 'warn', 'deny'];
 
-/** Every archetype the root reaches through dir parts and requirements, by name. */
 export const collect = (root: RecordedArchetype, fail: Fail): Map<string, RecordedArchetype> => {
   const byName = new Map<string, RecordedArchetype>();
   const pending = [root];
@@ -39,7 +33,6 @@ export const collect = (root: RecordedArchetype, fail: Fail): Map<string, Record
   return byName;
 };
 
-/** The archetypes an archetype's dir parts and requirements name. */
 const reached = (state: RecordedArchetype): RecordedArchetype[] =>
   [
     ...entriesOf(state.parts).map((part) => (part as { archetype?: unknown }).archetype),
@@ -48,10 +41,8 @@ const reached = (state: RecordedArchetype): RecordedArchetype[] =>
 
 const entriesOf = (parts: unknown): readonly RecordedPart[] => (Array.isArray(parts) ? parts : []);
 
-/** What a callback given `s` returns, or undefined when it is no callback. */
 const callback = (value: unknown): unknown => (typeof value === 'function' ? value(partRefs()) : undefined);
 
-/** Runs an archetype's callbacks and checks everything but its references. */
 export const draft = (name: string, state: RecordedArchetype, fail: Fail): Draft => {
   checkFields(name, state, fail);
   const identify = identifyData(name, state.identify, fail);
@@ -126,7 +117,6 @@ const checkDirPaths = (where: string, paths: readonly unknown[], fail: Fail) => 
     fail(`${where}: a dir path is folder names and {placeholders}, a whole segment each, not '${String(path)}'`);
 };
 
-/** Folder names and whole-segment placeholders, relative to the parent unit: `src/ui`, `{name}`, `src/{name}`. */
 const isDirPath = (path: string): boolean =>
   path.split('/').every((segment) => segment !== '.' && segment !== '..' && /^(\{\w+\}|[^{}*]+)$/.test(segment));
 
@@ -140,7 +130,6 @@ const partOptions = (where: string, value: unknown, fail: Fail): Record<string, 
   return options;
 };
 
-/** A dir part's archetype by name: `self` is the archetype that holds the part. */
 const dirArchetype = (holder: string, value: unknown): string | undefined =>
   value === self ? holder : (recordedAs(value, 'archetype')?.name as string | undefined);
 

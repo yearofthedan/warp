@@ -1,4 +1,3 @@
-/** `warp model`: the unit tree a config finds, for people as an indented tree, for tools as JSON. */
 import type { Model, UnitView } from '../model/archetype/resolve.ts';
 
 export const modelText = (model: Model): string => {
@@ -33,7 +32,6 @@ export const modelJson = (model: Model): string =>
     {
       units: model.units.map((unit) => ({
         id: unit.id,
-        // JSON leaves out the root's part and parent, and a plain folder's archetype.
         part: unit.part,
         archetype: unit.archetype,
         captures: unit.captures,

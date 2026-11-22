@@ -7,11 +7,8 @@ import type { Project } from '../model/facts.ts';
 import type { Finding } from '../model/rule.ts';
 import type { Analyzer, FoldersAt } from './ports.ts';
 
-/** How a config checks a project directory: the working tree's, or a commit's checkout. */
 export interface ProjectCheck {
-  /** The config as resolved, part of diff's cache key. */
   config: unknown;
-  /** A file a commit's checkout must have for the project to exist there. */
   requiredFile: string;
   check(root: string): Finding[];
 }
@@ -25,7 +22,6 @@ export const kindsCheck = (analyzer: Analyzer, config: Config): ProjectCheck => 
   check: (root) => checkProject(analyzer, root, config),
 });
 
-/** The units an archetype config finds in a project, with the facts of the files they hold. */
 export const modelProject = (
   { analyzer, foldersAt }: { analyzer: Analyzer; foldersAt: FoldersAt },
   root: string,

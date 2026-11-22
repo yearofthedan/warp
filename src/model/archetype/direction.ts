@@ -1,7 +1,3 @@
-/**
- * `dependency-direction` on an archetype config: one finding per pair of files where the importer's reach doesn't
- * hold the file it imports (docs/design/archetypes.md, Rules that judge the model).
- */
 import type { ImportEdge, Project } from '../facts.ts';
 import type { Finding } from '../rule.ts';
 import type { ConfigData } from './data.ts';
@@ -18,7 +14,6 @@ export const directionFindings = (
   docs?: string,
 ): Finding[] =>
   project.modules.flatMap((module) => {
-    // An import is judged on the file its specifier names, so a barrel on a surface lets importers through it.
     const byTarget = Map.groupBy(module.imports, (edge) => edge.via ?? edge.to);
     return [...byTarget].flatMap(([to, edges]) => {
       const verdict = verdicts.verdict(module.file, to);
@@ -57,7 +52,6 @@ const refused = (context: Context, from: string, to: string, refusal: Refusal, e
   };
 };
 
-/** `dom of component src/ui/card`, or `plain folder src/ui/strings`. */
 export const place = (model: Model, file: string, unit: UnitView = model.unitOf(file)!): string => {
   if (unit.archetype === undefined) return `plain folder ${unit.id}`;
   const part = model.partOf(file);

@@ -6,7 +6,6 @@ import { ConfigError } from '../rule.ts';
 import { loadConfigData } from './load.ts';
 import { modelRules } from './rules.ts';
 
-/** Working title's config from docs/design/archetypes.md, as the spike ran it. */
 const workingTitleConfig = () => {
   const testRunner = archetype('test-runner')
     .contains((p) =>
@@ -16,7 +15,6 @@ const workingTitleConfig = () => {
     )
     .exposes((s) => ({ contract: s.contract, runner: s.runner }));
 
-  // a folder of code whose tests need the runner: domain, application, adapters, lint
   const layer = archetype('layer')
     .requires({ testRunner, methods: dir() })
     .contains((p, { required }) =>
@@ -168,7 +166,6 @@ const workingTitleConfig = () => {
   return defineConfig({ root: workingTitle });
 };
 
-/** `required` from outside any archetype, for configs written without the types. */
 const requiredOf = () => requiredRefs() as Record<string, never>;
 
 const failures = (config: unknown, options?: Parameters<typeof loadConfigData>[1]): string[] => {

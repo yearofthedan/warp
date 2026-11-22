@@ -1,11 +1,8 @@
 import type { Finding } from './rule.ts';
 
 export interface Delta {
-  /** Findings whose key is absent at the base. */
   added: Finding[];
-  /** Findings whose value rose since the base, with the base value. */
   worsened: (Finding & { was: number })[];
-  /** Keys present at the base and gone at the head. */
   resolved: Finding[];
 }
 

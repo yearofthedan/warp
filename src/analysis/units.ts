@@ -34,15 +34,9 @@ import { type Source, symbolKey, walk } from './source.ts';
 interface Declared {
   unit: Unit;
   node: Node;
-  /** Symbol keys of the names this unit declares. */
   keys: string[];
 }
 
-/**
- * Top-level declarations as units, linked when one references another. Functions and classes are the units whose
- * components count; state and types only link the functions that share them. Top-level statements that declare
- * nothing (calls, assignments, default exports of expressions) form one `code` unit.
- */
 export const moduleUnits = (source: Source): UnitGraph => {
   const declared = source.sourceFile.statements.flatMap((statement) => declarations(statement, source));
   const loose = source.sourceFile.statements.filter((statement) => isLooseCode(statement));
@@ -119,7 +113,6 @@ const isLooseCode = (statement: Statement): boolean =>
   !isModuleDeclaration(statement) &&
   !isVariableStatement(statement);
 
-/** Keys of every identifier a name or binding pattern declares. */
 const declaredKeys = (name: Node, source: Source): string[] => {
   const keys: string[] = [];
   walk(name, (node) => {
@@ -131,7 +124,6 @@ const declaredKeys = (name: Node, source: Source): string[] => {
   return keys;
 };
 
-/** Keys of every symbol referenced under node, plus `this.<member>` for member access in classes. */
 const references = (node: Node, source: Source): Set<string> => {
   const keys = new Set<string>();
   walk(node, (child) => {
@@ -146,7 +138,6 @@ const references = (node: Node, source: Source): Set<string> => {
   return keys;
 };
 
-/** Every function in the module with a block body, and the complexity of each outermost one. */
 export const functionFacts = (source: Source): FunctionFacts[] => {
   const facts: FunctionFacts[] = [];
   const visit = (node: Node, outermost: boolean) => {
@@ -175,7 +166,6 @@ export const functionFacts = (source: Source): FunctionFacts[] => {
   return facts;
 };
 
-/** Statements that touch a parameter, a local or a `this` member, linked when they share one. */
 const statementGraph = (fn: Node, statements: readonly Statement[], source: Source): UnitGraph => {
   const locals = localKeys(fn, source);
   const units: Unit[] = [];
@@ -195,7 +185,6 @@ const statementGraph = (fn: Node, statements: readonly Statement[], source: Sour
   return { units, links };
 };
 
-/** Keys of the parameters and every name declared inside fn, nested functions and classes included. */
 const localKeys = (fn: Node, source: Source): Set<string> => {
   const keys = new Set<string>();
   walk(fn, (node) => {
@@ -233,7 +222,6 @@ const functionName = (node: Node, source: Source): string => {
   return isFunctionDeclaration(node) ? 'default' : '<anonymous>';
 };
 
-/** The symbol key of the name a function is declared or assigned under, so calls to it count as recursion. */
 const selfKey = (node: Node, source: Source): string | undefined => {
   const parent = node.parent;
   const name =

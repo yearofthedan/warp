@@ -20,11 +20,6 @@ import {
 import type { Complexity } from '../model/facts.ts';
 import { type Source, symbolKey } from './source.ts';
 
-/**
- * Cognitive complexity (G. Ann Campbell, SonarSource, 2017). Structures that break linear flow add 1 plus their
- * nesting depth; else, else-if, labelled jumps, each run of mixed logical operators and direct recursion add 1.
- * Nested functions add no increment of their own but deepen the nesting of everything inside them.
- */
 export const cognitiveComplexity = (fn: Node, self: string | undefined, source: Source): Complexity => {
   const walker: Walker = { fn, self, source, increments: [] };
   visit(walker, fn, 0);
@@ -36,7 +31,6 @@ export const cognitiveComplexity = (fn: Node, self: string | undefined, source: 
 
 interface Walker {
   fn: Node;
-  /** Symbol key of the function's own name. Calls that resolve to it are recursion. */
   self: string | undefined;
   source: Source;
   increments: Complexity['increments'];
@@ -79,7 +73,6 @@ const visitTernary = (walker: Walker, node: ConditionalExpression, nesting: numb
   visit(walker, node.whenFalse, nesting + 1);
 };
 
-/** Increments that ignore nesting: labelled jumps, runs of logical operators and recursion. */
 const addFlat = (walker: Walker, node: Node) => {
   if (isBreakOrContinueStatement(node) && node.label) {
     add(walker, node, 1, `labelled ${node.kind === SyntaxKind.BreakStatement ? 'break' : 'continue'}`);
@@ -119,7 +112,6 @@ const logicalSequence = (node: Node): SyntaxKind[] =>
     ? [...logicalSequence(node.left), node.operatorToken.kind, ...logicalSequence(node.right)]
     : [];
 
-/** `f()`, `this.f()` and `x.f()` resolve to the symbol behind `f`. */
 const calleeKey = (walker: Walker, callee: Node): string | undefined => {
   const name = isPropertyAccessExpression(callee) ? callee.name : callee;
   return isIdentifier(name) ? symbolKey(walker.source.symbolOf(name)) : undefined;

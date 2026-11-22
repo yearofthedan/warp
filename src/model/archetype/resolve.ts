@@ -1,48 +1,29 @@
-/**
- * Finds a config's units on disk and places each file in its deepest unit and, within it, in one files part: the
- * most specific that matches (docs/design/archetypes.md, Finding units).
- */
 import { ConfigError } from '../rule.ts';
 import type { ArchetypeData, ConfigData, DirPartData, Loose } from './data.ts';
 
-/** The project's folders as resolution reads them. Paths are relative to the project root, '' for the root. */
 export interface Folders {
-  /** The names of the folders directly inside `dir`. */
   folders(dir: string): string[];
-  /** Whether a file or folder exists at `path`, in the program or not, so a marker can be any file. */
   exists(path: string): boolean;
 }
 
-/** A unit found in the code: the root, or a folder a dir part matched. */
 export interface UnitView {
-  /** Its path, '.' for the root. */
   id: string;
-  /** Its folder, '' for the root. */
   dir: string;
-  /** The path of the dir part that found it, through each ancestor's: 'ui.components'. Absent on the root. */
   part?: string;
-  /** Absent on a plain folder, whose files are all its own and all exposed. */
   archetype?: string;
-  /** What its dir path's placeholders captured, plus a `match` function's result. Its own, never its parent's. */
   captures: Record<string, string>;
   parent?: UnitView;
   children: UnitView[];
-  /** The files whose deepest unit this is. */
   ownFiles: string[];
-  /** Own files by files part. */
   parts: Record<string, string[]>;
-  /** What a file no part matches means here. */
   loose: Loose;
-  /** Own files no part matches. */
   looseFiles: string[];
 }
 
 export interface Model {
   root: UnitView;
-  /** Every unit, each before its children. */
   units: UnitView[];
   unitOf(file: string): UnitView | undefined;
-  /** The files part a file belongs to; undefined for a loose file or one in a plain folder. */
   partOf(file: string): string | undefined;
 }
 
@@ -68,18 +49,12 @@ const placeholders = /\{(\w+)\}/g;
 const join = (dir: string, name: string): string => (dir === '' ? name : `${dir}/${name}`);
 const parentDir = (path: string): string => path.slice(0, Math.max(path.lastIndexOf('/'), 0));
 
-/** The pattern with its placeholders filled, or the first placeholder `captures` lacks. */
 const fill = (pattern: string, captures: Record<string, string>): { filled: string } | { missing: string } => {
   const missing = [...pattern.matchAll(placeholders)].find(([, key]) => !Object.hasOwn(captures, key!))?.[1];
   if (missing !== undefined) return { missing };
   return { filled: pattern.replace(placeholders, (_, key: string) => captures[key]!) };
 };
 
-/**
- * Builds the model of a config's units and files. `files` are the program's files, relative to the project root.
- * Throws a ConfigError listing every place the config can't decide: equally specific parts, a placeholder a unit
- * doesn't capture, or a folder two parts claim.
- */
 export const resolveModel = (config: ConfigData, folders: Folders, files: readonly string[]): Model => {
   const resolution: Resolution = { config, folders, units: [], byDir: new Map(), errors: new Set() };
   const root = build(resolution, { dir: '', archetype: config.archetypes[config.root], captures: {} });
@@ -161,7 +136,6 @@ const build = (resolution: Resolution, { dir, archetype, captures, parent, part 
 
 const partPath = (unit: UnitView, part: string): string => (unit.part === undefined ? part : `${unit.part}.${part}`);
 
-/** Each folder the unit's dir parts match, with every part that claims it. */
 const claimsIn = (resolution: Resolution, unit: UnitView, archetype: ArchetypeData): Map<string, Claim[]> => {
   const claims = new Map<string, Claim[]>();
   for (const part of archetype.parts) {
@@ -172,7 +146,6 @@ const claimsIn = (resolution: Resolution, unit: UnitView, archetype: ArchetypeDa
   return claims;
 };
 
-/** The folders one dir part finds in the unit, with what each unit of it captures. */
 const claimsOf = (resolution: Resolution, unit: UnitView, part: DirPartData): Claim[] => {
   const child = part.archetype === undefined ? undefined : resolution.config.archetypes[part.archetype];
   return part.paths.flatMap((path) =>
@@ -183,11 +156,9 @@ const claimsOf = (resolution: Resolution, unit: UnitView, part: DirPartData): Cl
   );
 };
 
-/** Folders under `base` that a dir path matches: a literal segment names a folder, `{x}` captures any one. */
 const matchFolders = (folders: Folders, base: string, path: string) => {
   let found = [{ dir: base, captures: {} as Record<string, string>, rank: [] as number[] }];
   for (const segment of path.split('/')) {
-    // Load checked each segment is a folder name or a whole placeholder.
     const capture = segment.startsWith('{') ? segment.slice(1, -1) : undefined;
     found = found.flatMap(({ dir, captures, rank }) =>
       folders
@@ -203,7 +174,6 @@ const matchFolders = (folders: Folders, base: string, path: string) => {
   return found;
 };
 
-/** The unit's captures if the archetype's `identify` takes the folder, else undefined. */
 const identify = (
   resolution: Resolution,
   archetype: ArchetypeData | undefined,
@@ -227,10 +197,8 @@ const identify = (
   return resolution.folders.exists(join(dir, marker.filled)) ? captures : undefined;
 };
 
-/** The units from the root down to `unit`. */
 const chain = (unit: UnitView): UnitView[] => (unit.parent ? [...chain(unit.parent), unit] : [unit]);
 
-/** A literal segment beats a placeholder, compared from the first segment. */
 const compareRanks = (a: readonly number[], b: readonly number[]): number => {
   const index = a.findIndex((value, at) => value !== b[at]);
   return index < 0 ? 0 : a[index]! - b[index]!;
@@ -248,7 +216,6 @@ const mostSpecific = (resolution: Resolution, archetype: ArchetypeData, dir: str
   return best;
 };
 
-/** The deepest unit whose folder holds the file. */
 const deepest = (byDir: ReadonlyMap<string, UnitView>, file: string): UnitView => {
   for (let dir = parentDir(file); ; dir = parentDir(dir)) {
     const unit = byDir.get(dir);
@@ -256,7 +223,6 @@ const deepest = (byDir: ReadonlyMap<string, UnitView>, file: string): UnitView =
   }
 };
 
-/** The most specific files part matching the file, by its path inside the unit. */
 const filesPart = (resolution: Resolution, unit: UnitView, file: string): string | undefined => {
   const archetype = resolution.config.archetypes[unit.archetype!]!;
   const path = unit.dir === '' ? file : file.slice(unit.dir.length + 1);
@@ -285,7 +251,6 @@ const filesPart = (resolution: Resolution, unit: UnitView, file: string): string
   return best.part;
 };
 
-/** A literal path beats any glob, then the longer literal suffix after the last `*` wins, and `**` loses to all. */
 export const specificity = (pattern: string): number => {
   if (!pattern.includes('*')) return Number.POSITIVE_INFINITY;
   if (pattern === '**') return -1;
@@ -294,7 +259,6 @@ export const specificity = (pattern: string): number => {
 
 const globCache = new Map<string, RegExp>();
 
-/** `**` spans folders, `*` stays within one; everything else is literal. */
 export const globRegex = (pattern: string): RegExp => {
   const cached = globCache.get(pattern);
   if (cached) return cached;

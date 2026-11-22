@@ -4,7 +4,6 @@ import { group, withOrdinals } from '../shared.ts';
 
 const defaults = { maxLines: 40 };
 
-/** LCOM4 over a function's statements, checked once the function passes `maxLines`. */
 export const functionCohesion: Rule<typeof defaults> = {
   id: 'function-cohesion',
   defaults,

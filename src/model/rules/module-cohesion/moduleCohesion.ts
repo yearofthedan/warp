@@ -4,10 +4,6 @@ import { group, type Group } from '../shared.ts';
 
 const defaults = { maxLines: 200 };
 
-/**
- * LCOM4 over a module's top-level code, checked once the module passes `maxLines`. A module whose functions and
- * classes form one connected group passes at any size.
- */
 export const moduleCohesion: Rule<typeof defaults> = {
   id: 'module-cohesion',
   defaults,

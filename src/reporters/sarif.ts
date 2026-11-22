@@ -1,10 +1,6 @@
 import type { Finding } from '../model/rule.ts';
 import { actionable, type ReportContext, type Reporter, ruleDocs } from './reporter.ts';
 
-/**
- * SARIF 2.1.0, the format GitHub code scanning reads to annotate pull requests. Paths are relative to the repository
- * root, and each result's fingerprint is the finding's key, so code scanning tracks it across commits as diff does.
- */
 export const sarifReporter: Reporter = {
   id: 'sarif',
   render: (report, context) => {

@@ -1,7 +1,3 @@
-/**
- * Inline rules: `mustImport({ from, to })` reports each file in `from` with no edge to anything in `to`, read in each
- * unit of the archetype that declares it (docs/design/archetypes.md, Inline rules).
- */
 import type { ModuleFacts, Project } from '../facts.ts';
 import type { Finding } from '../rule.ts';
 import type { ArchetypeData, ConfigData, MustImportData, RuleSettingsData } from './data.ts';
@@ -12,7 +8,6 @@ import type { Model, UnitView } from './resolve.ts';
 interface Declared {
   name: string;
   rule: MustImportData;
-  /** Where the config declares it: the archetype, or `archetype.part` for a part's rules. */
   owner: string;
 }
 
@@ -32,7 +27,6 @@ export const inlineFindings = (config: ConfigData, model: Model, verdicts: Verdi
   const modules = new Map(project.modules.map((module) => [module.file, module]));
   const findings = new Map<string, Finding>();
   for (const unit of model.units) {
-    // A plain folder has no archetype, and so declares nothing.
     const archetype: ArchetypeData | undefined = config.archetypes[unit.archetype as string];
     for (const declared of archetype ? declaredIn(archetype) : []) {
       for (const finding of unitFindings({ model, verdicts, modules }, unit, declared))

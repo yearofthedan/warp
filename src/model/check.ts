@@ -2,10 +2,6 @@ import { classify, type Config } from './config.ts';
 import type { ModuleFacts, Project } from './facts.ts';
 import type { Finding } from './rule.ts';
 
-/**
- * Runs each kind's enabled rules over its modules. A module that matches no kind gets an `unclassified` finding
- * instead: without a kind there is nothing to check it against.
- */
 export const check = (config: Config, project: Project): Finding[] => {
   const { modules } = project;
   const kinds = new Map(modules.map((module) => [module.file, classify(config, module.file)]));
