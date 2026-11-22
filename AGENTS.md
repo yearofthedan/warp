@@ -54,6 +54,9 @@ Each doc page opens with its title, an **Audience:** line and a **Purpose:** lin
 block against warp's API; a block of a user's code is `ts fragment`. Keep pages short and current, changed in the
 same change as the code they describe.
 
+A page describes what warp holds and ships today, in positive terms. Plans live in docs/design/ alone, and removed or
+moved things leave the docs with the change that removes them.
+
 ## How work lands
 
 - Never push to `main`. A change lands by pull request, merged with a merge commit or squash.
