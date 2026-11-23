@@ -420,9 +420,13 @@ describe('checkModel', () => {
     assert.match(runner!.message, /which is outside contract's reach: contract may use nothing\. /);
   });
 
-  it('places a loose target in its module', () => {
+  it('says a loose target is in no module yet, so the fix is giving it one', () => {
     const [finding] = check([facts('src/ui/a/a.ts', [edge('src/ui/a/a.ts', 'src/ui/notes.md')])]);
-    assert.match(finding!.message, /imports src\/ui\/notes\.md \(loose in ui src\/ui\), which is above src\/ui\/a\./);
+    assert.equal(
+      finding!.message,
+      'src/ui/a/a.ts (logic of card src/ui/a) imports src/ui/notes.md (loose in ui src/ui), which is in no module yet. Add a module that holds src/ui/notes.md, then add it to a using if the dependency is intended.',
+    );
+    assert.equal((finding!.details as { reason: string }).reason, 'loose');
   });
 
   it('judges an import on the file its specifier names, so a barrel on a surface lets it through', () => {
