@@ -46,7 +46,7 @@ const refused = (context: Context, from: string, to: string, refusal: Refusal, e
     details: {
       from: source.id,
       to: target.id,
-      reason: refusal.reason,
+      reason: isLoose(model, to) ? 'loose' : refusal.reason,
       ...(refusal.reason === 'private' ? { hiddenBy: refusal.hiddenBy.id } : {}),
       edges,
     },
@@ -55,6 +55,8 @@ const refused = (context: Context, from: string, to: string, refusal: Refusal, e
 
 const explain = ({ config, model, verdicts }: Context, from: string, to: string, refusal: Refusal): string => {
   const source = model.moduleOf(from)!;
+  if (isLoose(model, to))
+    return `which is in no module yet. Add a module that holds ${to}, then add it to a using if the dependency is intended.`;
   if (refusal.reason === 'test')
     return 'a test file. Production code never imports tests: move what both need out of the test file into the module it tests.';
   if (refusal.reason === 'private') {
@@ -85,6 +87,8 @@ const explain = ({ config, model, verdicts }: Context, from: string, to: string,
     `Add what holds ${to} to a using if the dependency is intended, or move the code.`
   );
 };
+
+const isLoose = (model: Model, file: string): boolean => model.moduleOf(file)!.looseFiles.includes(file);
 
 const namedArchetype = (config: ConfigData, name: string): string =>
   config.archetypes[name]!.inline ? namedArchetype(config, name.slice(0, name.lastIndexOf('.'))) : name;

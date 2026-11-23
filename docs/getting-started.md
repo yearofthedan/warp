@@ -80,7 +80,7 @@ pnpm exec warp check
 ```text
 src/index.ts:1 [unclassified] src/index.ts is in no module of . (app), so nothing says what it may import. Add a files module to app that matches it, or move it into a module's folder.
 src/lib/format.ts:1 [unclassified] src/lib/format.ts is in no module of . (app), so nothing says what it may import. Add a files module to app that matches it, or move it into a module's folder.
-src/api/orders.ts:3 [dependency-direction] src/api/orders.ts (app.api src/api) imports src/lib/format.ts (loose in app .), which is above src/api. A module reaches up only through what it requires: require it in app and have an ancestor provide it, or move it below.
+src/api/orders.ts:3 [dependency-direction] src/api/orders.ts (app.api src/api) imports src/lib/format.ts (loose in app .), which is in no module yet. Add a module that holds src/lib/format.ts, then add it to a using if the dependency is intended.
 
 By rule and module:
   unclassified          .        2
