@@ -20,7 +20,7 @@ lists every loose file.
 With this config, `src/stray.ts` is reported:
 
 ```ts
-import { archetype, files } from 'warp';
+import { archetype, files } from '@yearofthedan/warp';
 
 const app = archetype('app').contains((m) => m.module('domain', files('src/domain/**')).module('ui', files('src/ui/**')));
 ```

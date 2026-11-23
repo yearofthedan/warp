@@ -35,12 +35,4 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      # why: warp's npm scope is unsettled, so a release tags and writes the changelog without publishing.
-      # until: package.json drops "private"
-      - name: Publish
-        run: |
-          if [ "$(node -p 'require("./package.json").private === true')" = true ]; then
-            echo "package.json is private, so nothing is published." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          npm publish
+      - run: npm publish

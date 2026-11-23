@@ -9,7 +9,7 @@ Each term gets one line and an example from the project below. The linked pages 
 
 ```ts
 // warp.config.ts
-import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, ruleset, using } from 'warp';
+import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
 
 const component = archetype('component')
   .identify({ marker: '{name}.dom.ts' })

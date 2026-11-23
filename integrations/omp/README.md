@@ -23,19 +23,18 @@ unavailable and why, once until the failure changes or a run succeeds. The event
 
    ```sh
    mkdir -p .omp/extensions
-   ln -s ~/src/warp/integrations/omp/warp.ts .omp/extensions/warp.ts
+   ln -s ../../node_modules/@yearofthedan/warp/integrations/omp/warp.ts .omp/extensions/warp.ts
    ```
 
-   The link points into your clone, so keep it out of git, for example with
-   `echo .omp/extensions/warp.ts >> .git/info/exclude`. Linking it into `~/.omp/agent/extensions/` instead loads
-   it everywhere; in a project without a config, the first edit of each session says warp is unavailable. Environment
-   variables change what it runs, set where you start omp:
+   The link points into the dev dependency, so it can be committed and works wherever `pnpm install` has run.
+   Environment variables change what it runs, set where you start omp:
    - `WARP_BASE=main...` makes a run with no [last run](../../docs/agents-and-ci.md#since-the-last-run) to
      compare with report against where the branch left main, instead of the last commit.
    - `WARP_RULESET=edit` checks with a [ruleset](../../docs/config.md#rulesets) from the config.
-   - `WARP_COMMAND="pnpm exec warp"` runs a project dev dependency instead of the linked command.
+   - `WARP_COMMAND="pnpm exec warp"` runs the project's dev dependency. Without it, the extension runs `warp` from
+     the `PATH`.
 
-4. **Confirm it works.** With a clean tree, `warp diff HEAD --reporter omp` prints nothing. Add an import that
+4. **Confirm it works.** With a clean tree, `pnpm exec warp diff HEAD --reporter omp` prints nothing. Add an import that
    no `using` allows, such as a domain module importing an adapter, and run it again: it prints
    `{"additionalContext": ...}` naming the import. Revert it, start a new omp session (extensions load at session
    start), and ask omp to make the same edit. Its next reply should take the finding into account.

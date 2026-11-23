@@ -59,10 +59,10 @@ describe('fragmentProblems', () => {
   });
 
   it("refuses a fragment that uses warp's API, outside a design doc", () => {
-    assert.deepEqual(fragmentProblems('README.md', "import { dir } from 'warp';\nconst a = archetype('a');", api), [
-      "imports from 'warp', so it is a ts example",
-      'calls archetype, so it is a ts example',
-    ]);
+    assert.deepEqual(
+      fragmentProblems('README.md', "import { dir } from '@yearofthedan/warp';\nconst a = archetype('a');", api),
+      ["imports from '@yearofthedan/warp', so it is a ts example", 'calls archetype, so it is a ts example'],
+    );
     assert.deepEqual(fragmentProblems('docs/design/a.md', "const a = archetype('a');", api), []);
   });
 

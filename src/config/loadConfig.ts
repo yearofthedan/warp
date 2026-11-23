@@ -25,7 +25,7 @@ export const loadConfig = async (file: string): Promise<LoadedConfig> => {
   const digest = createHash('sha256');
   const hooks = registerHooks({
     resolve: (specifier, context, nextResolve) =>
-      specifier === 'warp' ? { url: entry, shortCircuit: true } : nextResolve(specifier, context),
+      specifier === '@yearofthedan/warp' ? { url: entry, shortCircuit: true } : nextResolve(specifier, context),
     load: (url, context, nextLoad) => {
       const loaded = nextLoad(url, context);
       if (url.startsWith('file:') && !url.startsWith(ownFiles)) digest.update(url).update(String(loaded.source ?? ''));

@@ -1,5 +1,5 @@
 import { matchesGlob } from 'node:path';
-import { ConfigError, type FileRule } from 'warp';
+import { ConfigError, type FileRule } from '@yearofthedan/warp';
 
 interface Options {
   ports: string[];

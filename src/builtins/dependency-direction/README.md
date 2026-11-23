@@ -24,7 +24,7 @@ lets importers through. The barrel's own re-exports are judged as its imports.
 With this config:
 
 ```ts
-import { archetype, dir, files, using } from 'warp';
+import { archetype, dir, files, using } from '@yearofthedan/warp';
 
 const card = archetype('card')
   .identify({ marker: '{name}.dom.ts' })

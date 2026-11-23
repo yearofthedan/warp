@@ -452,7 +452,7 @@ describe('a warp.config.ts with archetypes', () => {
     writeFileSync(
       join(dir, 'tied.config.ts'),
       [
-        "import { archetype, defineConfig, files } from 'warp';",
+        "import { archetype, defineConfig, files } from '@yearofthedan/warp';",
         "export default defineConfig({ root: archetype('app').contains((m) => m.module('a', files('src/*.ts')).module('b', files('**/*.ts'))) });",
         '',
       ].join('\n'),
@@ -466,8 +466,8 @@ describe('a warp.config.ts with archetypes', () => {
     writeFileSync(
       join(dir, 'rules.config.ts'),
       [
-        "import { archetype, defineConfig, files } from 'warp';",
-        "import { ruleset } from 'warp';",
+        "import { archetype, defineConfig, files } from '@yearofthedan/warp';",
+        "import { ruleset } from '@yearofthedan/warp';",
         "const app = archetype('app').contains((m) => m.module('src', files('**')));",
         "const base = ruleset().rules({ 'module-cycle': { types: 'always' } }).on(app.modules.src, { 'no-such-rule': false });",
         'export default defineConfig({ root: app, rulesets: { default: base } });',

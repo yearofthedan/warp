@@ -27,7 +27,7 @@ a module is worse.
 With this config, `domain` and `infra` loop when `src/domain/order.ts` imports `src/infra/db.ts`:
 
 ```ts
-import { all, archetype, dir, exposes, using } from 'warp';
+import { all, archetype, dir, exposes, using } from '@yearofthedan/warp';
 
 const app = archetype('app').contains((m) =>
   m.module('domain', dir('src/domain'), exposes(all())).module('infra', dir('src/infra'), using((m) => [m.domain])),

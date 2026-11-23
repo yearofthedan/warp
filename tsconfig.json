@@ -10,7 +10,7 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "types": ["node"],
-    "paths": { "warp": ["./src/index.ts"] }
+    "paths": { "@yearofthedan/warp": ["./src/index.ts"] }
   },
   "include": ["src", "integrations", "e2e", "scripts/*.ts", "*.ts"]
 }

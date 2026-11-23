@@ -3,6 +3,20 @@
 **Audience:** anyone changing warp's tasks, CI or dependency settings.
 **Purpose:** why each setting in the tool configs is there, so a config file holds settings and this page holds reasons.
 
+## Running a clone
+
+To try a change on another project, link the CLI from a clone. Run `pnpm setup` first if pnpm has no global bin
+directory, and `pnpm build` again after each pull, since the linked command runs the built `dist/`:
+
+```sh
+cd ~/src/warp   # wherever the clone is
+pnpm install
+pnpm build
+pnpm link --global   # puts `warp` on your PATH
+```
+
+Or link it into one project as its dev dependency: `pnpm add -D link:~/src/warp`.
+
 ## Dependencies
 
 `pnpm-workspace.yaml` holds the supply-chain settings:
@@ -20,7 +34,7 @@
 ## Tests and mutation
 
 `vite.config.ts` sets the three test tiers by file name: unit `*.test.ts`, integration `*.integration.test.ts`, and e2e
-`e2e/` with `do.test.ts`. The integration tier resolves `warp` to `src/index.ts`, as the config loader does, so it can
+`e2e/` with `do.test.ts`. The integration tier resolves `@yearofthedan/warp` to `src/index.ts`, as the config loader does, so it can
 load the fixtures' configs; `tsconfig.json` maps it the same way for `warp.config.ts`.
 `do.test.ts` runs each `./do` script's shell suite against a stubbed copy of the repo, in the e2e tier.
 

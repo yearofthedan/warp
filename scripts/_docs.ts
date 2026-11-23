@@ -51,7 +51,8 @@ const sketches = /^docs\/design\//;
 export const fragmentProblems = (doc: string, code: string, api: string[]): string[] => {
   const problems: string[] = [];
   if (sketches.test(doc)) return problems;
-  if (/from\s+['"]warp['"]/.test(code)) problems.push("imports from 'warp', so it is a ts example");
+  if (/from\s+['"]@yearofthedan\/warp['"]/.test(code))
+    problems.push("imports from '@yearofthedan/warp', so it is a ts example");
   for (const name of api) {
     if (new RegExp(`(?<![.\\w])${name}\\s*[(<]`).test(code)) problems.push(`calls ${name}, so it is a ts example`);
   }
@@ -108,7 +109,7 @@ const main = async () => {
   mkdirSync(out, { recursive: true });
   const tsconfig = {
     extends: '../../../tsconfig.json',
-    compilerOptions: { paths: { warp: [resolve('src/index.ts')] } },
+    compilerOptions: { paths: { '@yearofthedan/warp': [resolve('src/index.ts')] } },
   };
   writeFileSync(`${out}/tsconfig.json`, JSON.stringify({ ...tsconfig, include: ['**/*.ts'] }));
   const run = spawnSync('tsc', ['-p', 'tsconfig.json', '--pretty', 'false'], { cwd: out, encoding: 'utf8' });

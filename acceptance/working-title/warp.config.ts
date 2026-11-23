@@ -1,4 +1,4 @@
-import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, using } from 'warp';
+import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
 
 const layer = archetype('layer')
   .description('A folder of code whose tests need the runner: domain, application, adapters, lint')

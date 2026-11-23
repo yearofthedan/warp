@@ -11,30 +11,20 @@ re-exports, cycles, cohesion and cognitive complexity.
 
 ## Run it
 
-Needs Node 26 or later. Install the CLI from a clone of this repo (run `pnpm setup` first if pnpm has no global bin
-directory), and run `pnpm build` again after each pull, since the linked command runs the built `dist/`:
+Needs Node 26 or later. Add warp to the project as a dev dependency:
 
 ```sh
-cd ~/src/warp   # wherever the clone is
-pnpm install
-pnpm build
-pnpm link --global   # puts `warp` on your PATH
+pnpm add -D @yearofthedan/warp
 ```
 
-Or add it to one project as a dev dependency, and run it there with `pnpm exec warp`:
+Add a `warp.config.ts` next to the project's `tsconfig.json`, then:
 
 ```sh
-pnpm add -D link:~/src/warp
-```
-
-In the project to check, add a `warp.config.ts` next to its `tsconfig.json`, then:
-
-```sh
-warp check                 # every finding in the working tree
-warp diff HEAD             # new or worse findings in the working tree since HEAD
-warp diff main..feature    # new or worse findings between two refs
-warp diff main...          # new or worse findings since the working tree's branch left main
-warp model                 # the modules the config finds, and the module each file is in
+pnpm exec warp check                 # every finding in the working tree
+pnpm exec warp diff HEAD             # new or worse findings in the working tree since HEAD
+pnpm exec warp diff main..feature    # new or worse findings between two refs
+pnpm exec warp diff main...          # new or worse findings since the working tree's branch left main
+pnpm exec warp model                 # the modules the config finds, and the module each file is in
 ```
 
 | Flag | Effect |
@@ -63,7 +53,7 @@ A starter for a hexagonal layout, to adjust to the project's folders:
 
 ```ts
 // warp.config.ts
-import { all, archetype, defineConfig, exposes, files, pkg, ruleset, using } from 'warp';
+import { all, archetype, defineConfig, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
 
 const app = archetype('app')
   .contains((m) =>

@@ -26,7 +26,7 @@ import of it. Its value is the number of names imported.
 With this config, `src/domain/order.ts` may not import `pg`:
 
 ```ts
-import { archetype, dir, pkg, using } from 'warp';
+import { archetype, dir, pkg, using } from '@yearofthedan/warp';
 
 const app = archetype('app').contains((m) =>
   m.module('domain', dir('src/domain')).module('adapters', dir('src/adapters'), using((m) => [m.domain, pkg('pg')])),

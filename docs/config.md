@@ -9,7 +9,7 @@ each module, and how strictly. [concepts.md](concepts.md) defines its terms. See
 [`warp.config.ts`](../warp.config.ts) for the config this tool checks itself with.
 
 ```ts
-import { all, archetype, defineConfig, exposes, files, pkg, ruleset, using } from 'warp';
+import { all, archetype, defineConfig, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
 
 const app = archetype('app').contains((m) =>
   m
@@ -35,7 +35,7 @@ Unknown keys, rules and options are refused, so a misspelling fails loudly.
 Every boundary the config declares is a module, made by `.module(name, selector, archetype?)` inside `.contains()`:
 
 ```ts
-import { all, archetype, defineConfig, dir, exposes, files, pkg, using } from 'warp';
+import { all, archetype, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
 
 const layer = archetype('layer')
   .contains((m) => m.module('src', files('**'), exposes(all())).module('generated', files('**/*.gen.ts')))
@@ -81,7 +81,7 @@ warp model --json    # the same, for tools, with every module's resolved rule se
 ## Requires, provides, identify and self
 
 ```ts
-import { all, archetype, defineConfig, dir, exposes, files, using } from 'warp';
+import { all, archetype, defineConfig, dir, exposes, files, using } from '@yearofthedan/warp';
 
 const component = archetype('component')
   .identify({ marker: '{name}.dom.ts' })
@@ -145,7 +145,7 @@ and report each one outside it as [`dependency-direction`](../src/builtins/depen
   modules expose, so it can re-export them. An archetype has an entry or exposes, never both.
 
 ```ts
-import { all, archetype, defineConfig, dir, exposes, files, using } from 'warp';
+import { all, archetype, defineConfig, dir, exposes, files, using } from '@yearofthedan/warp';
 
 const lib = archetype('lib')
   .contains((m) => m.module('core', dir('core'), exposes(all())).module('cli', files('cli.ts'), using((m) => [m.core])))
@@ -186,7 +186,7 @@ for that file, so tests and code, or two modules, can have different thresholds.
 The config names its test entry files, and each one belongs to the folder module that holds it:
 
 ```ts
-import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, using } from 'warp';
+import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
 
 const page = archetype('page')
   .identify({ marker: '{name}.dom.ts' })
@@ -240,7 +240,7 @@ handle the archetype gives it after `.contains()`, `app.modules.adapters`, or it
 and the one named `default` applies when the command names none.
 
 ```ts
-import { all, archetype, defineConfig, dir, files, pkg, ruleset, using } from 'warp';
+import { all, archetype, defineConfig, dir, files, pkg, ruleset, using } from '@yearofthedan/warp';
 
 const layer = archetype('layer')
   .contains((m) => m.module('src', files('**')))
@@ -296,7 +296,7 @@ through `application` without breaking `dependency-direction`. A rule for that, 
 ```ts
 // warp/rules.ts
 import { matchesGlob } from 'node:path';
-import { ConfigError, dir, type FileRule, files, type Plugin } from 'warp';
+import { ConfigError, dir, type FileRule, files, type Plugin } from '@yearofthedan/warp';
 
 const noPortsThroughApplication: FileRule<{ ports: string[] }> = {
   id: 'no-ports-through-application',
@@ -326,7 +326,7 @@ export default { rules: [noPortsThroughApplication] } satisfies Plugin;
 
 ```ts
 // warp.config.ts
-import { all, archetype, defineConfig, exposes, files, ruleset, using } from 'warp';
+import { all, archetype, defineConfig, exposes, files, ruleset, using } from '@yearofthedan/warp';
 import wt from './warp/rules.ts';
 
 const app = archetype('app').contains((m) =>
@@ -354,8 +354,7 @@ export default defineConfig({ root: app, plugins: { wt }, rulesets: { default: b
   `ConfigError` are exported for writing `parseOptions`.
 - Relative imports need their `.ts` extension, and an import of types alone must be `import type`: Node strips types
   without resolving them, so `import { type FileRule }` would still load the module.
-- For types in the editor, the project needs `warp` in its `node_modules`: `pnpm link warp` after
-  `pnpm link --global`, or the dev dependency. Running needs neither.
+- Types in the editor come from the `@yearofthedan/warp` dev dependency.
 - `diff`'s cache key includes the config and every file it imports outside warp, so editing a rule redoes the base.
 
 ## Rules

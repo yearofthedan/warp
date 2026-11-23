@@ -31,7 +31,7 @@ export default defineConfig({
         },
       },
       {
-        resolve: { alias: { warp: fileURLToPath(new URL('src/index.ts', import.meta.url)) } },
+        resolve: { alias: { '@yearofthedan/warp': fileURLToPath(new URL('src/index.ts', import.meta.url)) } },
         test: { name: 'integration', environment: 'node', include: integration },
       },
       { test: { name: 'e2e', environment: 'node', include: e2e, testTimeout: 60_000 } },

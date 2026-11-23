@@ -1,4 +1,4 @@
-import { all, archetype, defineConfig, dir, exposes, files, pkg, ruleset, using } from 'warp';
+import { all, archetype, defineConfig, dir, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
 
 const rules = archetype('rules')
   .description('The rules API: what a rule implements, how rules are registered, and how findings compare')

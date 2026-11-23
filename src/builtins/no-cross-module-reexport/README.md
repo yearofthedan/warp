@@ -24,7 +24,7 @@ that holds what it re-exports. A re-export of a sibling's, an ancestor's or a pr
 With this archetype:
 
 ```ts
-import { archetype, dir, using } from 'warp';
+import { archetype, dir, using } from '@yearofthedan/warp';
 
 const app = archetype('app').contains((m) =>
   m
