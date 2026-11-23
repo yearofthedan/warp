@@ -10,6 +10,8 @@ import { type Folders, resolveModel } from './resolve.ts';
 import { settings } from './settings.ts';
 import { modelText } from '../../reporters/model.ts';
 
+const importRules = builtinRules.filter((rule) => rule.id !== 'unused-declaration');
+
 const folders = (paths: readonly string[]): Folders => {
   const dirs = new Set(
     paths.flatMap((path) =>
@@ -119,7 +121,7 @@ describe('test entry files', () => {
       config,
       model,
       { files: [facts('src/a/a.ts', [edge('src/a/a.ts', 'src/a/a.test.ts')])] },
-      builtinRules,
+      importRules,
     );
     assert.deepEqual(
       findings.map((finding) => finding.message),
@@ -139,7 +141,7 @@ describe('test entry files', () => {
           facts('src/domain/order.test.ts', [edge('src/domain/order.test.ts', 'src/main.ts')]),
         ],
       },
-      builtinRules,
+      importRules,
     );
     assert.deepEqual(
       findings.map((finding) => finding.key),
@@ -309,7 +311,7 @@ describe('test layer rules', () => {
         tests: files('**/*.test.ts'),
         rulesets: { default: ruleset().on(target as never, { 'function-cohesion': false }) },
       },
-      { builtins: builtinRules },
+      { builtins: importRules },
     ).config;
 
   const cohesionOff = (target: unknown) => {

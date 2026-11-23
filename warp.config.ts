@@ -83,14 +83,14 @@ const pkgArchetype = archetype('package')
         dir('config'),
         exposes(all())
           .description('Loading a warp.config.ts file')
-          .using((m) => [m.app, m.model, pkg('node:*'), pkg('typescript')]),
+          .using((m) => [m.model, pkg('node:*')]),
       )
       .module(
         'git',
         dir('git'),
         exposes(all())
           .description('Git: the facts cache and the files at a commit')
-          .using((m) => [m.app, m.model, pkg('node:*')]),
+          .using((m) => [m.app, pkg('node:*')]),
       )
       .module(
         'cli',
@@ -112,7 +112,7 @@ const warp = archetype('warp')
       .module(
         'integration',
         dir('integrations'),
-        exposes(all())
+        archetype()
           .description('Extensions that run warp from agent harnesses after each edit')
           .using([pkg('node:*')]),
       )

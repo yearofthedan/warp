@@ -12,6 +12,8 @@ import { grantText, type Verdict, verdicts } from './reach.ts';
 
 import { type Folders, type Model, resolveModel } from './resolve.ts';
 
+const importRules = builtinRules.filter((rule) => rule.id !== 'unused-declaration');
+
 const folders = (paths: readonly string[]): Folders => {
   const dirs = new Set(
     paths.flatMap((path) =>
@@ -322,7 +324,7 @@ const facts = (path: string, imports: ImportEdge[], externals: ExternalImport[] 
 });
 
 const documented = (docs: Record<string, string>) =>
-  builtinRules.map((rule) => (docs[rule.id] ? { ...rule, docs: docs[rule.id] } : rule));
+  importRules.map((rule) => (docs[rule.id] ? { ...rule, docs: docs[rule.id] } : rule));
 
 describe('checkModel', () => {
   const check = (files: FileFacts[], docs = {}) => checkModel(config, model, { files }, documented(docs));
