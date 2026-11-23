@@ -61,3 +61,13 @@ function-cohesion:src/ui/project/project.component.test.ts:<callback to describe
 function-cohesion:src/ui/project/project.dsl.test.ts:<callback to describe("the app language")>
 function-cohesion:src/ui/your-projects/project-list/start-a-project/start-a-project.component.test.ts:<callback to describe("starting a project")>
 no-cross-module-reexport:src/application/project.ts->src/ports/projects-folder.ts
+unused-declaration:empty:working-title.shell
+unused-declaration:empty:working-title.styles
+unused-declaration:grant:component.dom->required.ports
+unused-declaration:grant:component.tests->pkg('@playwright/*')
+unused-declaration:grant:component.tests->required.ports
+unused-declaration:grant:working-title.app->shell
+unused-declaration:grant:working-title.app->styles
+unused-declaration:grant:working-title.tests->shell
+unused-declaration:grant:working-title.ui->application
+unused-declaration:surface:ui.tests:exposes(all())

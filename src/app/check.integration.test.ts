@@ -39,6 +39,7 @@ describe('check', () => {
       'no-double-export:src/adapters/index.ts->src/adapters/db/orderRepo.ts',
       'no-double-export:src/app/index.ts->src/app/handle.ts',
       'unclassified:src/stray.ts',
+      'unused-declaration:grant:hexagon.adapters->app',
     ]);
   });
 

@@ -108,7 +108,7 @@ describe('warp diff', () => {
       encoding: 'utf8',
     });
     assert.equal(diffed.status, 0, diffed.stderr);
-    assert.equal(JSON.parse(diffed.stdout).added.length, 15);
+    assert.equal(JSON.parse(diffed.stdout).added.length, 16);
     assert.equal(run(['worktree', 'list']).trim().split('\n').length, 1);
   });
 
@@ -405,6 +405,9 @@ describe('a warp.config.ts with archetypes', () => {
         'dependency-direction:src/ui/card/card.ts->src/domain/order.ts',
         'module-externals:src/ui/card/card.ts->node:util',
         'no-cross-module-reexport:src/domain/index.ts->src/domain/order.ts',
+        'unused-declaration:grant:app.ui->domain',
+        'unused-declaration:grant:component.dom->subcomponent.render',
+        'unused-declaration:empty:component.subcomponent',
       ],
     );
     assert.match(findings[2].docs, /src\/builtins\/module-externals\/README\.md$/);
@@ -424,7 +427,11 @@ describe('a warp.config.ts with archetypes', () => {
     const delta = JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout);
     assert.deepEqual(
       delta.added.map((finding: { key: string }) => finding.key),
-      ['unclassified:src/loose.ts', 'dependency-direction:src/domain/order.test.ts->src/main.ts'],
+      [
+        'unclassified:src/loose.ts',
+        'dependency-direction:src/domain/order.test.ts->src/main.ts',
+        "unused-declaration:grant:app.tests->pkg('node:*')",
+      ],
     );
   });
 

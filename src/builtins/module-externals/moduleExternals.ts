@@ -1,3 +1,4 @@
+import { listsPackage } from '../packages.ts';
 import { place } from '../place.ts';
 import type { Grant } from '../../model/archetype/reach.ts';
 import type { Model } from '../../model/archetype/resolve.ts';
@@ -5,14 +6,6 @@ import type { ExternalImport } from '../../model/facts.ts';
 import { type Finding, noOptions, type ProjectRule } from '../../rules/rule.ts';
 
 const id = 'module-externals';
-
-const glob = (pattern: string): RegExp =>
-  new RegExp(`^${pattern.replaceAll(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '.*')}$`);
-
-const listsPackage = (pattern: string, external: Pick<ExternalImport, 'package' | 'specifier'>): boolean => {
-  const matches = glob(pattern);
-  return matches.test(external.package) || matches.test(external.specifier);
-};
 
 export const moduleExternals: ProjectRule = {
   id,

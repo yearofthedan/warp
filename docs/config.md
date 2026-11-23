@@ -387,4 +387,5 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 | [`file-cohesion`](../src/builtins/file-cohesion/README.md) | A file over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
 | [`function-cohesion`](../src/builtins/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
 | [`cognitive-complexity`](../src/builtins/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |
+| [`unused-declaration`](../src/builtins/unused-declaration/README.md) | A `using` entry, a surface or a module the code doesn't use. | |
 

@@ -19,9 +19,13 @@ export interface LoadedConfigData {
 export interface LoadOptions {
   builtins?: readonly Rule[];
   ruleset?: string;
+  file?: string;
 }
 
-export const loadConfigData = (raw: unknown, { builtins, ruleset }: LoadOptions = {}): LoadedConfigData => {
+export const loadConfigData = (
+  raw: unknown,
+  { builtins, ruleset, file = 'warp.config.ts' }: LoadOptions = {},
+): LoadedConfigData => {
   const errors: string[] = [];
   const fail: Fail = (message) => {
     if (!errors.includes(message)) errors.push(message);
@@ -47,6 +51,7 @@ export const loadConfigData = (raw: unknown, { builtins, ruleset }: LoadOptions 
   };
   for (const d of drafts) resolveDraft(check, d);
   const structure: ConfigData = {
+    file,
     root: root.definition.name as string,
     archetypes: Object.fromEntries(drafts.map(({ data }) => [data.name, archetypeData(data)])),
     tsconfig: tsconfigs(raw.tsconfig, fail),

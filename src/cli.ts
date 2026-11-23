@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync, realpathSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { diskFolders } from './analysis/folders.ts';
 import { typescriptAnalyzer } from './analysis/typescript.ts';
@@ -97,7 +97,11 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail' | 'since
   const root = dirname(configFile);
   const { raw, digest } = await loadConfig(configFile);
   const builtins = [...builtinRegistry.values()];
-  const { config, rules, warnings } = loadConfigData(raw, { builtins, ruleset: options.ruleset });
+  const { config, rules, warnings } = loadConfigData(raw, {
+    builtins,
+    ruleset: options.ruleset,
+    file: basename(configFile),
+  });
   for (const warning of warnings) console.error(`warp config: ${warning}`);
   return { root, config, rules, digest };
 };

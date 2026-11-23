@@ -80,6 +80,7 @@ export interface ArchetypeData {
 }
 
 export interface ConfigData {
+  file: string;
   root: string;
   archetypes: Record<string, ArchetypeData>;
   tsconfig: string[];

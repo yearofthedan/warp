@@ -328,6 +328,7 @@ describe('loadConfigData', () => {
     const { config: data, warnings } = loadConfigData(config);
     assert.deepEqual(warnings, ['root provides strings, which nothing below requires']);
     assert.deepEqual(data, {
+      file: 'warp.config.ts',
       root: 'top',
       archetypes: {
         top: {
@@ -806,6 +807,7 @@ describe('loadConfigData', () => {
 
   it('leaves out of the data what the config leaves out', () => {
     assert.deepEqual(loadConfigData({ root: archetype('r').contains((m) => m.module('src', files('**'))) }).config, {
+      file: 'warp.config.ts',
       root: 'r',
       archetypes: {
         r: {
