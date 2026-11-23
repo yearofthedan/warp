@@ -105,6 +105,7 @@ describe('modelJson', () => {
       children: ['src/strings', 'lib/orders/list', 'src/card', 'src/empty', '.:main'],
       files: ['src/stray.ts'],
       looseFiles: ['src/stray.ts'],
+      tests: [],
     });
     assert.deepEqual(modules[5], {
       id: 'src/card:dom',
@@ -115,6 +116,7 @@ describe('modelJson', () => {
       children: [],
       files: ['src/card/card.dom.ts'],
       looseFiles: [],
+      tests: [],
     });
   });
 });

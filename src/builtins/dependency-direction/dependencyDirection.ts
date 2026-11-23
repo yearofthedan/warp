@@ -55,6 +55,8 @@ const refused = (context: Context, from: string, to: string, refusal: Refusal, e
 
 const explain = ({ config, model, verdicts }: Context, from: string, to: string, refusal: Refusal): string => {
   const source = model.moduleOf(from)!;
+  if (refusal.reason === 'test')
+    return 'a test file. Production code never imports tests: move what both need out of the test file into the module it tests.';
   if (refusal.reason === 'private') {
     const { hiddenBy } = refusal;
     return (

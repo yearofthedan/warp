@@ -17,12 +17,14 @@ export interface ModuleView {
   children: ModuleView[];
   files: string[];
   looseFiles: string[];
+  tests: string[];
 }
 
 export interface Model {
   root: ModuleView;
   modules: ModuleView[];
   moduleOf(file: string): ModuleView | undefined;
+  isTest(file: string): boolean;
 }
 
 export const declarationOf = (config: ConfigData, module: ModuleView): ModuleData | undefined =>
@@ -64,15 +66,33 @@ export const resolveModel = (config: ConfigData, folders: Folders, files: readon
   const resolution: Resolution = { config, folders, byDir: new Map(), errors: new Set() };
   const root = build(resolution, { dir: '', archetype: config.archetypes[config.root]!, captures: {} });
   const moduleOf = new Map<string, ModuleView>();
+  const tests = new Set<string>();
+  const isTest = testMatcher(config.tests);
   for (const file of [...files].sort()) {
     const folder = deepest(resolution.byDir, file);
+    if (isTest(file)) {
+      tests.add(file);
+      folder.tests.push(file);
+      moduleOf.set(file, folder);
+      continue;
+    }
     const module = place(resolution, folder, file);
     moduleOf.set(file, module);
     module.files.push(file);
   }
   if (resolution.errors.size > 0) throw new ConfigError([...resolution.errors].join('\n'));
   order(config, root);
-  return { root, modules: [...walk(root)], moduleOf: (file) => moduleOf.get(file) };
+  return {
+    root,
+    modules: [...walk(root)],
+    moduleOf: (file) => moduleOf.get(file),
+    isTest: (file) => tests.has(file),
+  };
+};
+
+const testMatcher = (patterns: readonly string[] = []) => {
+  const regexes = patterns.map(globRegex);
+  return (file: string): boolean => regexes.some((regex) => regex.test(file));
 };
 
 const walk = function* (module: ModuleView): Generator<ModuleView> {
@@ -108,6 +128,7 @@ const place = (resolution: Resolution, folder: ModuleView, file: string): Module
       children: [],
       files: [],
       looseFiles: [],
+      tests: [],
     };
     folder.children.push(module);
   }
@@ -137,6 +158,7 @@ const build = (resolution: Resolution, { dir, archetype, captures, parent, name 
     children: [],
     files: [],
     looseFiles: [],
+    tests: [],
   };
   resolution.byDir.set(dir, module);
   for (const [childDir, claims] of [...claimsIn(resolution, module, archetype)].sort(([a], [b]) =>

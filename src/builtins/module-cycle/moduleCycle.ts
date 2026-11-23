@@ -40,6 +40,7 @@ export const moduleCycle: ProjectRule<CycleOptions> = {
     const modules = new Map(model.modules.map((module) => [module.id, module]));
     const graph: Graph<FileLink> = new Map();
     for (const { path: file, imports } of project.files) {
+      if (model.isTest(file)) continue;
       for (const [to, edges] of importsByTarget(file, imports)) {
         const crossed = files.has(to) ? siblings(model, file, to) : undefined;
         if (crossed && counts(edges, atModule(crossed[0]).options))

@@ -16,7 +16,9 @@ export const modelText = (model: Model, rules?: RulesOf): string => {
   visit(model.root, 0);
   const files = model.modules.reduce((sum, module) => sum + module.files.length, 0);
   const loose = model.modules.reduce((sum, module) => sum + module.looseFiles.length, 0);
-  lines.push('', `${model.modules.length} modules, ${files} files, ${loose} loose.`);
+  const tests = model.modules.reduce((sum, module) => sum + module.tests.length, 0);
+  const tested = tests > 0 ? `, ${count(tests, 'test')}` : '';
+  lines.push('', `${model.modules.length} modules, ${files} files${tested}, ${loose} loose.`);
   return lines.join('\n');
 };
 
@@ -29,7 +31,7 @@ const changedRules = (module: ModuleView, rules: RulesOf): string => {
     .join(', ');
 };
 
-const count = (files: number): string => `${files} ${files === 1 ? 'file' : 'files'}`;
+const count = (n: number, noun = 'file'): string => `${n} ${noun}${n === 1 ? '' : 's'}`;
 
 const heading = (module: ModuleView): string => {
   const owned = module.files.length - module.looseFiles.length;
@@ -37,7 +39,11 @@ const heading = (module: ModuleView): string => {
   const captures = Object.entries(module.captures)
     .map(([key, value]) => ` {${key}=${value}}`)
     .join('');
-  return `${module.name ?? 'root'}: ${module.archetype}${captures}${owned > 0 ? `, ${count(owned)}` : ''}`;
+  const contents = [
+    ...(owned > 0 ? [count(owned)] : []),
+    ...(module.tests.length > 0 ? [count(module.tests.length, 'test')] : []),
+  ];
+  return `${module.name ?? 'root'}: ${module.archetype}${captures}${contents.map((part) => `, ${part}`).join('')}`;
 };
 
 export const modelJson = (model: Model, rules?: RulesOf): string =>
@@ -53,6 +59,7 @@ export const modelJson = (model: Model, rules?: RulesOf): string =>
         children: module.children.map((child) => child.id),
         files: module.files,
         looseFiles: module.looseFiles,
+        tests: module.tests,
         ...(rules ? { rules: rules.module(module) } : {}),
       })),
     },
