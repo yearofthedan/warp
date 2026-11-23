@@ -2,20 +2,20 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { beforeAll, describe, it } from 'vite-plus/test';
 import { typescriptAnalyzer } from '../analysis/typescript.ts';
-import type { ModuleFacts } from '../model/facts.ts';
+import type { FileFacts } from '../model/facts.ts';
 
 const root = join(import.meta.dirname, '../../fixtures/facts');
-let modules: Map<string, ModuleFacts>;
+let files: Map<string, FileFacts>;
 
 beforeAll(() => {
-  modules = new Map(typescriptAnalyzer.analyze(root, ['tsconfig.json']).modules.map((module) => [module.file, module]));
+  files = new Map(typescriptAnalyzer.analyze(root, ['tsconfig.json']).files.map((file) => [file.path, file]));
 });
 
-const fn = (name: string) => modules.get('src/complexity.ts')?.functions.find((f) => f.name === name);
+const fn = (name: string) => files.get('src/complexity.ts')?.functions.find((f) => f.name === name);
 
 describe('import graph', () => {
-  it('resolves named imports through a barrel to the declaring module', () => {
-    const edges = modules.get('src/complexity.ts')?.imports ?? [];
+  it('resolves named imports through a barrel to the declaring file', () => {
+    const edges = files.get('src/complexity.ts')?.imports ?? [];
     const named = edges.find((edge) => edge.line === 3);
     assert.deepEqual(named, {
       from: 'src/complexity.ts',
@@ -28,8 +28,8 @@ describe('import graph', () => {
     });
   });
 
-  it('points side-effect and namespace imports at the module the specifier resolves to', () => {
-    const edges = modules.get('src/complexity.ts')?.imports ?? [];
+  it('points side-effect and namespace imports at the file the specifier resolves to', () => {
+    const edges = files.get('src/complexity.ts')?.imports ?? [];
     assert.deepEqual(
       edges.filter((edge) => edge.line < 3).map((edge) => [edge.to, edge.names]),
       [
@@ -40,7 +40,7 @@ describe('import graph', () => {
   });
 
   it('records re-exports as edges from the barrel', () => {
-    const edges = modules.get('src/lib/index.ts')?.imports ?? [];
+    const edges = files.get('src/lib/index.ts')?.imports ?? [];
     assert.deepEqual(
       edges.map((edge) => [edge.to, edge.names, edge.reExport]),
       [
@@ -50,8 +50,8 @@ describe('import graph', () => {
     );
   });
 
-  it('splits imported names the module exports again from the ones it only uses', () => {
-    const edges = modules.get('src/relay.ts')?.imports ?? [];
+  it('splits imported names the file exports again from the ones it only uses', () => {
+    const edges = files.get('src/relay.ts')?.imports ?? [];
     assert.deepEqual(
       edges.map((edge) => [edge.to, edge.names, edge.typeOnly, edge.reExport ?? false]),
       [
@@ -63,9 +63,9 @@ describe('import graph', () => {
   });
 
   it('keeps an import of a package apart, by package name, whether or not it resolves', () => {
-    const module = modules.get('src/externals.ts')!;
+    const file = files.get('src/externals.ts')!;
     assert.deepEqual(
-      module.externals.map(({ package: name, specifier, names, typeOnly, reExport, line }) => [
+      file.externals.map(({ package: name, specifier, names, typeOnly, reExport, line }) => [
         name,
         specifier,
         names,
@@ -83,7 +83,7 @@ describe('import graph', () => {
       ],
     );
     assert.deepEqual(
-      module.imports.map((edge) => edge.specifier),
+      file.imports.map((edge) => edge.specifier),
       ['./lib/index.ts'],
     );
   });
@@ -92,7 +92,7 @@ describe('import graph', () => {
     const hexagonalApp = join(import.meta.dirname, '../../fixtures/hexagonal-app');
     const order = typescriptAnalyzer
       .analyze(hexagonalApp, ['tsconfig.json'])
-      .modules.find((module) => module.file === 'src/domain/order.ts');
+      .files.find((file) => file.path === 'src/domain/order.ts');
     assert.deepEqual(
       order?.imports.map((edge) => [edge.names, edge.typeOnly]),
       [
@@ -125,10 +125,10 @@ describe('cognitive complexity', () => {
 
 describe('function names', () => {
   it('name a callback by its call and a string first argument', () => {
-    const names = [...modules.values()].flatMap((m) => m.functions.map((f) => f.name));
+    const names = [...files.values()].flatMap((m) => m.functions.map((f) => f.name));
     assert.ok(names.includes('<callback to [1, 2].map>'));
     assert.deepEqual(
-      modules
+      files
         .get('src/callbacks.ts')
         ?.functions.map((f) => f.name)
         .slice(1),

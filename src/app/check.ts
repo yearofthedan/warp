@@ -23,7 +23,7 @@ export const modelProject = (
   config: ConfigData,
 ): { model: Model; project: Project } => {
   const project = analyzer.analyze(root, config.tsconfig, facts);
-  const files = project.modules.map((module) => module.file);
+  const files = project.files.map((file) => file.path);
   return { model: resolveModel(config, foldersAt(root), files), project };
 };
 

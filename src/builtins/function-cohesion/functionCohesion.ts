@@ -1,28 +1,28 @@
 import { components } from '../components.ts';
-import { type ModuleRule, wholeNumberOptions } from '../../rules/rule.ts';
+import { type FileRule, wholeNumberOptions } from '../../rules/rule.ts';
 import { group, withOrdinals } from '../shared.ts';
 
 const defaults = { maxLines: 40 };
 
-export const functionCohesion: ModuleRule<typeof defaults> = {
+export const functionCohesion: FileRule<typeof defaults> = {
   id: 'function-cohesion',
   defaults,
   parseOptions: wholeNumberOptions(defaults),
-  check: ({ module, options }) =>
-    withOrdinals(module.functions).flatMap(([fn, name]) => {
+  check: ({ file, options }) =>
+    withOrdinals(file.functions).flatMap(([fn, name]) => {
       if (fn.lines <= options.maxLines) return [];
       const groups = components(fn.statements, ['code']).map(group);
       if (groups.length <= 1) return [];
       return [
         {
           rule: 'function-cohesion',
-          key: `function-cohesion:${module.file}:${name}`,
-          file: module.file,
+          key: `function-cohesion:${file.path}:${name}`,
+          file: file.path,
           line: fn.line,
           value: groups.length,
           limit: 1,
           message:
-            `Function ${fn.name} in ${module.file}:${fn.line} is ${fn.lines} lines (tripwire ${options.maxLines}) and its statements fall into ` +
+            `Function ${fn.name} in ${file.path}:${fn.line} is ${fn.lines} lines (tripwire ${options.maxLines}) and its statements fall into ` +
             `${groups.length} groups that share no locals: ${groups.map((g) => `lines ${g.lines[0]}-${g.lines[1]}`).join('; ')}. ` +
             'Each group can become its own function.',
           details: { lines: fn.lines, tripwire: options.maxLines, groups },

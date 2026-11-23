@@ -2,7 +2,7 @@ import { ConfigError } from '../model/configError.ts';
 import type { ConfigData } from '../model/archetype/data.ts';
 import type { Verdicts } from '../model/archetype/reach.ts';
 import type { Model, UnitView } from '../model/archetype/resolve.ts';
-import type { ModuleFacts, Project } from '../model/facts.ts';
+import type { FileFacts, Project } from '../model/facts.ts';
 
 export interface Finding {
   rule: string;
@@ -16,8 +16,8 @@ export interface Finding {
   details?: unknown;
 }
 
-export interface ModuleContext<Options> {
-  module: ModuleFacts;
+export interface FileContext<Options> {
+  file: FileFacts;
   options: Options;
 }
 
@@ -42,9 +42,9 @@ interface RuleBase<Options extends object> {
   parseOptions?: (raw: Record<string, unknown>, at: string) => Partial<Options>;
 }
 
-export interface ModuleRule<Options extends object = object> extends RuleBase<Options> {
-  scope?: 'module';
-  check: (context: ModuleContext<Options>) => Finding[];
+export interface FileRule<Options extends object = object> extends RuleBase<Options> {
+  scope?: 'file';
+  check: (context: FileContext<Options>) => Finding[];
 }
 
 export interface ProjectRule<Options extends object = object> extends RuleBase<Options> {
@@ -52,7 +52,7 @@ export interface ProjectRule<Options extends object = object> extends RuleBase<O
   check: (context: ProjectContext<Options>) => Finding[];
 }
 
-export type Rule = ModuleRule<any> | ProjectRule<any>;
+export type Rule = FileRule<any> | ProjectRule<any>;
 
 export interface Plugin {
   rules: readonly Rule[];

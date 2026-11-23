@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import type { ImportEdge, Project } from '../model/facts.ts';
+import type { FileFacts, ImportEdge, Project } from '../model/facts.ts';
 import { type AnyArchetype, archetype, type Ruleset, ruleset } from '../model/archetype/builder.ts';
 import { builtinRules } from '../builtins/index.ts';
 import { checkModel } from './checkModel.ts';
@@ -30,15 +30,15 @@ const folders = (paths: readonly string[]): Folders => {
 type Import = string | [to: string, extra: Partial<ImportEdge>];
 
 const project = (imports: Record<string, readonly Import[]>): Project => ({
-  modules: Object.entries(imports).map(([file, targets]) => ({
-    file,
+  files: Object.entries(imports).map(([file, targets]) => ({
+    path: file,
     lines: 10,
     imports: targets.map((target) => {
       const [to, extra] = typeof target === 'string' ? [target, {}] : target;
       return { from: file, to, specifier: `./${to}`, names: ['x'], typeOnly: false, line: 2, ...extra };
     }),
     externals: [],
-    units: { units: [], links: [] },
+    members: { members: [], links: [] },
     functions: [],
   })),
 });
@@ -112,7 +112,7 @@ describe('rule settings', () => {
       on: true,
       options: { types: 'count', w: 4, z: 3 },
     });
-    assert.deepEqual(rules.atFile('top.ts', 'module-cohesion', { maxLines: 300 }), {
+    assert.deepEqual(rules.atFile('top.ts', 'file-cohesion', { maxLines: 300 }), {
       on: true,
       options: { maxLines: 300 },
     });
@@ -153,19 +153,19 @@ describe('rule settings', () => {
 });
 
 describe('code measures', () => {
-  const complex = (file: string, total: number): Project['modules'][number] => ({
-    file,
+  const complex = (file: string, total: number): FileFacts => ({
+    path: file,
     lines: 10,
     imports: [],
     externals: [],
-    units: { units: [], links: [] },
+    members: { members: [], links: [] },
     functions: [
       {
         name: 'run',
         line: 1,
         endLine: 9,
         lines: 9,
-        statements: { units: [], links: [] },
+        statements: { members: [], links: [] },
         complexity: { total, increments: [{ line: 2, amount: total, reason: 'if' }] },
       },
     ],
@@ -179,9 +179,9 @@ describe('code measures', () => {
     .on(app.tests, { 'cognitive-complexity': { max: 30 } });
 
   it("judges each file's functions against the threshold nearest to it, and not where the rule is off", () => {
-    const modules = [complex('a.ts', 25), complex('b.ts', 18), complex('a.test.ts', 25), complex('scripts/c.ts', 40)];
-    const { config, model } = modelOf(app, Object.fromEntries(modules.map((module) => [module.file, []])), thresholds);
-    const findings = checkModel(config, model, { modules }, builtinRules);
+    const files = [complex('a.ts', 25), complex('b.ts', 18), complex('a.test.ts', 25), complex('scripts/c.ts', 40)];
+    const { config, model } = modelOf(app, Object.fromEntries(files.map((file) => [file.path, []])), thresholds);
+    const findings = checkModel(config, model, { files }, builtinRules);
     assert.deepEqual(
       findings.map((finding) => [finding.key, finding.limit]),
       [['cognitive-complexity:a.ts:run', 20]],
@@ -190,9 +190,9 @@ describe('code measures', () => {
 
   it("falls back to the rule's defaults", () => {
     const plain = archetype('plain').contains((p) => p.files('src', '*.ts'));
-    const modules = [complex('a.ts', 16), complex('b.ts', 15)];
-    const { config, model } = modelOf(plain, Object.fromEntries(modules.map((module) => [module.file, []])));
-    assert.deepEqual(keys(checkModel(config, model, { modules }, builtinRules)), ['cognitive-complexity:a.ts:run']);
+    const files = [complex('a.ts', 16), complex('b.ts', 15)];
+    const { config, model } = modelOf(plain, Object.fromEntries(files.map((file) => [file.path, []])));
+    assert.deepEqual(keys(checkModel(config, model, { files }, builtinRules)), ['cognitive-complexity:a.ts:run']);
   });
 });
 

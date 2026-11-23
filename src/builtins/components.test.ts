@@ -3,16 +3,16 @@ import { describe, it } from 'vite-plus/test';
 import { components } from './components.ts';
 
 describe('components', () => {
-  const unit = (name: string, kind: 'function' | 'type') => ({ name, kind, line: 1, endLine: 1 });
+  const member = (name: string, kind: 'function' | 'type') => ({ name, kind, line: 1, endLine: 1 });
 
-  it('joins functions through a shared type and drops groups without a counted unit', () => {
+  it('joins functions through a shared type and drops groups without a counted member', () => {
     const graph = {
-      units: [
-        unit('a', 'function'),
-        unit('T', 'type'),
-        unit('b', 'function'),
-        unit('c', 'function'),
-        unit('Unused', 'type'),
+      members: [
+        member('a', 'function'),
+        member('T', 'type'),
+        member('b', 'function'),
+        member('c', 'function'),
+        member('Unused', 'type'),
       ],
       links: [
         [0, 1],

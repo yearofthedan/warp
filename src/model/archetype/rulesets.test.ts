@@ -11,7 +11,7 @@ const builtins = [...builtinRegistry.values()];
 
 const base = ruleset()
   .rules({ 'cognitive-complexity': { max: 15 }, 'unit-cycle': false })
-  .on(leaf, { 'module-cohesion': { maxLines: 300 } })
+  .on(leaf, { 'file-cohesion': { maxLines: 300 } })
   .on(leaf.test, 'off');
 
 const load = (rulesets: Record<string, unknown> | undefined, name?: string) =>
@@ -31,7 +31,7 @@ describe('rulesets', () => {
   it('apply the default ruleset at each level its lines name: global, an archetype, a part', () => {
     const config = load({ default: base });
     assert.deepEqual(config.rules, { 'cognitive-complexity': { max: 15 }, 'unit-cycle': false });
-    assert.deepEqual(config.archetypes.leaf!.rules, { 'module-cohesion': { maxLines: 300 } });
+    assert.deepEqual(config.archetypes.leaf!.rules, { 'file-cohesion': { maxLines: 300 } });
     assert.deepEqual(
       config.archetypes.leaf!.parts.map((part) => part.rules),
       [undefined, 'off'],
@@ -43,7 +43,7 @@ describe('rulesets', () => {
     const config = load({ edit: base });
     assert.equal(config.rules, undefined);
     assert.equal(config.archetypes.leaf!.rules, undefined);
-    assert.deepEqual(load({ edit: base }, 'edit').archetypes.leaf!.rules, { 'module-cohesion': { maxLines: 300 } });
+    assert.deepEqual(load({ edit: base }, 'edit').archetypes.leaf!.rules, { 'file-cohesion': { maxLines: 300 } });
     assert.equal(load(undefined).rules, undefined);
   });
 
@@ -51,8 +51,8 @@ describe('rulesets', () => {
     const edit = ruleset()
       .extends(base)
       .rules({ 'cognitive-complexity': { max: 12 }, 'unit-cycle': true, 'no-cycle': false })
-      .rules({ 'cognitive-complexity': true, 'module-cohesion': { maxLines: 100 } })
-      .on(leaf, { 'module-cohesion': false })
+      .rules({ 'cognitive-complexity': true, 'file-cohesion': { maxLines: 100 } })
+      .on(leaf, { 'file-cohesion': false })
       .on(leaf.test, { 'no-cycle': true })
       .on(root.leaves, 'off');
     const config = load({ default: base, edit }, 'edit');
@@ -60,9 +60,9 @@ describe('rulesets', () => {
       'cognitive-complexity': { max: 12 },
       'unit-cycle': true,
       'no-cycle': false,
-      'module-cohesion': { maxLines: 100 },
+      'file-cohesion': { maxLines: 100 },
     });
-    assert.deepEqual(config.archetypes.leaf!.rules, { 'module-cohesion': false });
+    assert.deepEqual(config.archetypes.leaf!.rules, { 'file-cohesion': false });
     assert.deepEqual(config.archetypes.leaf!.parts[1]!.rules, { '*': false, 'no-cycle': true });
     assert.equal(config.archetypes.root!.parts[0]!.rules, 'off');
   });

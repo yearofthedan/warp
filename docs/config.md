@@ -21,7 +21,7 @@ const app = archetype('app').contains((p) =>
 
 const base = ruleset()
   .rules({ 'cognitive-complexity': { max: 15 } })
-  .on(app.adapters, { 'module-cohesion': { maxLines: 300 } });
+  .on(app.adapters, { 'file-cohesion': { maxLines: 300 } });
 
 export default defineConfig({ root: app, rulesets: { default: base } });
 ```
@@ -79,7 +79,7 @@ another unit's file, other than one nested in its own unit, so a unit doesn't pa
 [`unit-cycle`](../src/builtins/unit-cycle/README.md) reports each import between sibling units that lies on a loop among them, and
 [`no-cycle`](../src/builtins/no-cycle/README.md) each import between files that lies on a loop.
 
-`module-cohesion`, `function-cohesion` and `cognitive-complexity` judge each file's code with the options that resolve
+`file-cohesion`, `function-cohesion` and `cognitive-complexity` judge each file's code with the options that resolve
 for that file, so tests and code, or two parts, can have different thresholds.
 
 ## Rulesets
@@ -108,7 +108,7 @@ const base = ruleset()
 const edit = ruleset()
   .extends(base)
   .rules({ 'cognitive-complexity': { max: 12 } })
-  .on(app.adapters, { 'module-cohesion': { maxLines: 300 } });
+  .on(app.adapters, { 'file-cohesion': { maxLines: 300 } });
 
 export default defineConfig({ root: app, rulesets: { default: base, edit } });
 ```
@@ -142,9 +142,9 @@ through `application` without breaking `dependency-direction`. A rule for that, 
 ```ts
 // warp/rules.ts
 import { matchesGlob } from 'node:path';
-import { ConfigError, type ModuleRule, type Plugin } from 'warp';
+import { ConfigError, type FileRule, type Plugin } from 'warp';
 
-const noPortsThroughApplication: ModuleRule<{ ports: string[] }> = {
+const noPortsThroughApplication: FileRule<{ ports: string[] }> = {
   id: 'no-ports-through-application',
   docs: 'https://example.com/no-ports-through-application.md', // optional, linked from its findings
   defaults: { ports: ['src/application/ports/**'] },
@@ -154,16 +154,16 @@ const noPortsThroughApplication: ModuleRule<{ ports: string[] }> = {
     if (!Array.isArray(ports) || !ports.every((glob) => typeof glob === 'string')) throw new ConfigError(`${at}.ports: expected globs`);
     return { ports };
   },
-  check: ({ module, options }) =>
-    module.imports
+  check: ({ file, options }) =>
+    file.imports
       .filter((edge) => edge.via && options.ports.some((glob) => matchesGlob(edge.to, glob)))
       .map((edge) => ({
         rule: 'no-ports-through-application',
-        key: `no-ports-through-application:${module.file}->${edge.to}`,
-        file: module.file,
+        key: `no-ports-through-application:${file.path}->${edge.to}`,
+        file: file.path,
         line: edge.line,
         value: edge.names.length,
-        message: `${module.file} reaches the port ${edge.to} through ${edge.via}. Call a use case instead.`,
+        message: `${file.path} reaches the port ${edge.to} through ${edge.via}. Call a use case instead.`,
       })),
 };
 
@@ -189,8 +189,8 @@ const base = ruleset()
 export default defineConfig({ root: app, plugins: { wt }, rulesets: { default: base } });
 ```
 
-- A rule reads the same facts as the built-in ones, and never reads source. A `ModuleRule` reads one module at a
-  time, with the options that resolve for that file: its imports, units and functions.
+- A rule reads the same facts as the built-in ones, and never reads source. A `FileRule` reads one file at a
+  time, with the options that resolve for that file: its imports, members and functions.
 - A `ProjectRule`, with `scope: 'project'`, reads the whole project once, with the config, the `model` (each file's
   unit and part through `unitOf` and `partOf`) and the `verdicts` on reach. It looks up its setting for a file with
   `atFile`, or for a unit with `atUnit`, and skips where the rule is off.
@@ -199,18 +199,18 @@ export default defineConfig({ root: app, plugins: { wt }, rulesets: { default: b
 - `defaults` and `parseOptions` are optional: without them, the rule takes no options. `wholeNumberOptions` and
   `ConfigError` are exported for writing `parseOptions`.
 - Relative imports need their `.ts` extension, and an import of types alone must be `import type`: Node strips types
-  without resolving them, so `import { type ModuleRule }` would still load the module.
+  without resolving them, so `import { type FileRule }` would still load the module.
 - For types in the editor, the project needs `warp` in its `node_modules`: `pnpm link warp` after
   `pnpm link --global`, or the dev dependency. Running needs neither.
 - `diff`'s cache key includes the config and every file it imports outside warp, so editing a rule redoes the base.
 
 ## Rules
 
-Analysis extracts the facts once for the whole project: the import graph, with re-exports marked, each module's top-level units and the
+Analysis extracts the facts once for the whole project: the import graph, with re-exports marked, each file's top-level members and the
 links between them, and each function's statements and complexity. Each rule is its own folder in
-[`src/builtins/`](../src/builtins), holding its module and its page, and reads those facts without touching
+[`src/builtins/`](../src/builtins), holding its rule and its page, and reads those facts without touching
 source, so it stays pure. A rule declares its id, its default options and how to validate them, and a `check` that
-returns findings. Most read one module at a time; a project rule reads the whole project and the model once, and
+returns findings. Most read one file at a time; a project rule reads the whole project and the model once, and
 looks up its setting for each file or unit. Rules are looked up in a registry, where a project's
 [own rules](#custom-rules) join the built-in ones.
 
@@ -230,7 +230,7 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 | [`unit-cycle`](../src/builtins/unit-cycle/README.md) | An import between sibling units that lies on a loop among them. | `types` |
 | [`no-cycle`](../src/builtins/no-cycle/README.md) | An import between files that lies on a loop. | `types` |
 | [`no-cross-unit-reexport`](../src/builtins/no-cross-unit-reexport/README.md) | A re-export of another unit's file, other than one nested in the re-exporting unit. | |
-| [`module-cohesion`](../src/builtins/module-cohesion/README.md) | A module over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
+| [`file-cohesion`](../src/builtins/file-cohesion/README.md) | A file over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
 | [`function-cohesion`](../src/builtins/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
 | [`cognitive-complexity`](../src/builtins/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |
 

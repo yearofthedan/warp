@@ -187,8 +187,8 @@ describe('warp diff from a linked checkout', () => {
     writeFileSync(
       rule,
       readFileSync(rule, 'utf8').replace(
-        'key: `cognitive-complexity:${module.file}:${name}`',
-        'key: `cognitive-complexity:${module.file}#${name}`',
+        'key: `cognitive-complexity:${file.path}:${name}`',
+        'key: `cognitive-complexity:${file.path}#${name}`',
       ),
     );
     const delta = JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout);
@@ -235,7 +235,7 @@ describe('a warp.config.ts with a plugin', () => {
   it("redoes a cached base when the plugin's code changes", () => {
     assert.deepEqual(JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout).added, []);
     const rule = join(dir, 'rules/noPortsThroughApplication.ts');
-    writeFileSync(rule, readFileSync(rule, 'utf8').replace('${module.file}->${edge.to}', '${module.file}=>${edge.to}'));
+    writeFileSync(rule, readFileSync(rule, 'utf8').replace('${file.path}->${edge.to}', '${file.path}=>${edge.to}'));
     const delta = JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout);
     assert.deepEqual([delta.added, delta.resolved], [[], []]);
   });
@@ -294,7 +294,7 @@ describe('rulesets', () => {
         .concat(
           'const edit = ruleset()\n',
           '  .extends(base)\n',
-          "  .rules({ 'module-cohesion': { maxLines: 10 } })\n",
+          "  .rules({ 'file-cohesion': { maxLines: 10 } })\n",
           "  .on(hexagon.app, { 'cognitive-complexity': true, 'function-cohesion': false });\n",
           "const stray = ruleset().on(archetype('stranger'), { 'no-cycle': false });\n",
           'export default defineConfig({ ...plain, rulesets: { default: base, edit, stray } });\n',
@@ -325,7 +325,7 @@ describe('rulesets', () => {
   it('shows the rules each part resolves to under the ruleset', () => {
     const { units } = JSON.parse(run('model', '--ruleset', 'edit', '--json').stdout);
     const rules = (id: string) => units.find((unit: { id: string }) => unit.id === id).rules.parts.src;
-    assert.deepEqual(rules('src/app')['module-cohesion'], { maxLines: 10 });
+    assert.deepEqual(rules('src/app')['file-cohesion'], { maxLines: 10 });
     assert.deepEqual(rules('src/app')['cognitive-complexity'], { max: 4 });
     assert.equal(rules('src/app')['function-cohesion'], false);
     assert.deepEqual(rules('src/domain')['function-cohesion'], { maxLines: 6 });

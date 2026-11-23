@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import type { ExternalImport, ImportEdge, ModuleFacts } from '../facts.ts';
+import type { ExternalImport, ImportEdge, FileFacts } from '../facts.ts';
 import { archetype, dir, pkg, ruleset } from './builder.ts';
 import { builtinRules } from '../../builtins/index.ts';
 import { noDoubleExport } from '../../builtins/no-double-export/noDoubleExport.ts';
@@ -228,12 +228,12 @@ const external = (from: string, specifier: string, extra: Partial<ExternalImport
   ...extra,
 });
 
-const module = (file: string, imports: ImportEdge[], externals: ExternalImport[] = []): ModuleFacts => ({
-  file,
+const facts = (path: string, imports: ImportEdge[], externals: ExternalImport[] = []): FileFacts => ({
+  path,
   lines: 10,
   imports,
   externals,
-  units: { units: [], links: [] },
+  members: { members: [], links: [] },
   functions: [],
 });
 
@@ -241,11 +241,11 @@ const documented = (docs: Record<string, string>) =>
   builtinRules.map((rule) => (docs[rule.id] ? { ...rule, docs: docs[rule.id] } : rule));
 
 describe('checkModel', () => {
-  const check = (modules: ModuleFacts[], docs = {}) => checkModel(config, model, { modules }, documented(docs));
+  const check = (files: FileFacts[], docs = {}) => checkModel(config, model, { files }, documented(docs));
 
   it('reports one dependency-direction finding per file pair outside reach, valued by the names imported', () => {
     const findings = check([
-      module('src/ui/a/a.ts', [
+      facts('src/ui/a/a.ts', [
         edge('src/ui/a/a.ts', 'src/ui/a/a.dom.ts', { names: ['render'], line: 3, typeOnly: true }),
         edge('src/ui/a/a.ts', 'src/ui/a/a.dom.ts', { names: ['render', 'mount'], line: 4 }),
         edge('src/ui/a/a.ts', 'src/ui/strings/en.ts'),
@@ -275,7 +275,7 @@ describe('checkModel', () => {
 
   it('says which unit keeps a file private, and what it exposes instead', () => {
     const [finding] = check([
-      module('src/main.ts', [edge('src/main.ts', 'src/ui/a/a.ts', { names: [], typeOnly: true })]),
+      facts('src/main.ts', [edge('src/main.ts', 'src/ui/a/a.ts', { names: [], typeOnly: true })]),
     ]);
     assert.equal(finding?.value, 1);
     assert.equal(
@@ -293,8 +293,8 @@ describe('checkModel', () => {
 
   it('tells a unit that reaches above itself to require what it needs', () => {
     const [domain, card] = check([
-      module('src/domain/order.ts', [edge('src/domain/order.ts', 'src/main.ts')]),
-      module('src/ui/a/a.dom.ts', [edge('src/ui/a/a.dom.ts', 'src/ui/shared.ts', { typeOnly: true })]),
+      facts('src/domain/order.ts', [edge('src/domain/order.ts', 'src/main.ts')]),
+      facts('src/ui/a/a.dom.ts', [edge('src/ui/a/a.dom.ts', 'src/ui/shared.ts', { typeOnly: true })]),
     ]);
     assert.equal(
       domain?.message,
@@ -308,9 +308,9 @@ describe('checkModel', () => {
 
   it('names every using that grants reach, by the part that holds it, or says there are none', () => {
     const [shared, test, runner] = check([
-      module('src/ui/shared.ts', [edge('src/ui/shared.ts', 'src/runner/driver.ts')]),
-      module('src/ui/a/a.test.ts', [edge('src/ui/a/a.test.ts', 'src/runner/driver.ts')]),
-      module('src/runner/contract.ts', [edge('src/runner/contract.ts', 'src/runner/driver.ts')]),
+      facts('src/ui/shared.ts', [edge('src/ui/shared.ts', 'src/runner/driver.ts')]),
+      facts('src/ui/a/a.test.ts', [edge('src/ui/a/a.test.ts', 'src/runner/driver.ts')]),
+      facts('src/runner/contract.ts', [edge('src/runner/contract.ts', 'src/runner/driver.ts')]),
     ]);
     assert.equal(
       shared!.message,
@@ -324,13 +324,13 @@ describe('checkModel', () => {
   });
 
   it('places a loose target in its unit', () => {
-    const [finding] = check([module('src/ui/a/a.ts', [edge('src/ui/a/a.ts', 'src/ui/notes.md')])]);
+    const [finding] = check([facts('src/ui/a/a.ts', [edge('src/ui/a/a.ts', 'src/ui/notes.md')])]);
     assert.match(finding!.message, /imports src\/ui\/notes\.md \(loose in ui src\/ui\), which is above src\/ui\/a\./);
   });
 
   it('judges an import on the file its specifier names, so a barrel on a surface lets it through', () => {
     const findings = check([
-      module('src/main.ts', [
+      facts('src/main.ts', [
         edge('src/main.ts', 'src/ui/a/a.ts', { via: 'src/ui/a/a.dom.ts' }),
         edge('src/main.ts', 'src/ui/a/b/b.dom.ts', { via: 'src/ui/a/b/b.ts' }),
       ]),
@@ -344,16 +344,16 @@ describe('checkModel', () => {
   it("skips a loose file's imports, a file's imports of its own part, and files outside the model", () => {
     assert.deepEqual(
       check([
-        module('src/ui/notes.md', [edge('src/ui/notes.md', 'src/ui/a/a.ts')]),
-        module('src/ui/a/a.ts', [edge('src/ui/a/a.ts', 'src/ui/a/a.ts'), edge('src/ui/a/a.ts', 'elsewhere.ts')]),
-        module('src/ui/a/b/b.ts', [edge('src/ui/a/b/b.ts', 'src/ui/a/b/b.ts', { via: 'src/ui/a/b/b.dom.ts' })]),
+        facts('src/ui/notes.md', [edge('src/ui/notes.md', 'src/ui/a/a.ts')]),
+        facts('src/ui/a/a.ts', [edge('src/ui/a/a.ts', 'src/ui/a/a.ts'), edge('src/ui/a/a.ts', 'elsewhere.ts')]),
+        facts('src/ui/a/b/b.ts', [edge('src/ui/a/b/b.ts', 'src/ui/a/b/b.ts', { via: 'src/ui/a/b/b.dom.ts' })]),
       ]).map((finding) => finding.key),
       ['dependency-direction:src/ui/a/b/b.ts->src/ui/a/b/b.dom.ts'],
     );
   });
 
   it("attaches each rule's docs when given, and leaves the key out otherwise", () => {
-    const imports = [module('src/ui/a/a.ts', [edge('src/ui/a/a.ts', 'src/ui/a/a.dom.ts')])];
+    const imports = [facts('src/ui/a/a.ts', [edge('src/ui/a/a.ts', 'src/ui/a/a.dom.ts')])];
     assert.equal(check(imports, { 'dependency-direction': 'https://docs' })[0]?.docs, 'https://docs');
     assert.ok(!('docs' in check(imports)[0]!));
   });
@@ -366,7 +366,7 @@ describe('checkModel', () => {
     const paths = ['stray.ts', 'quiet/a.css', 'denied/c.css', 'denied/d.ts'];
     const data = loadConfigData({ root, rulesets: { default: base } }, { ruleset: 'default' }).config;
     const looseModel = resolveModel(data, folders(paths), paths);
-    assert.deepEqual(checkModel(data, looseModel, { modules: [] }, [], 'https://docs'), [
+    assert.deepEqual(checkModel(data, looseModel, { files: [] }, [], 'https://docs'), [
       {
         rule: 'unclassified',
         key: 'unclassified:stray.ts',
@@ -388,7 +388,7 @@ describe('checkModel', () => {
         docs: 'https://docs',
       },
     ]);
-    assert.ok(!('docs' in checkModel(data, looseModel, { modules: [] })[0]!));
+    assert.ok(!('docs' in checkModel(data, looseModel, { files: [] })[0]!));
   });
 
   it("turns unclassified off for a unit and the units below it from the unit's archetype", () => {
@@ -397,24 +397,24 @@ describe('checkModel', () => {
     const everywhere = ruleset().rules({ unclassified: true }).on(root, { unclassified: false });
     const paths = ['stray.ts', 'leaf/a.css'];
     const data = loadConfigData({ root, rulesets: { default: everywhere } }, { ruleset: 'default' }).config;
-    assert.deepEqual(checkModel(data, resolveModel(data, folders(paths), paths), { modules: [] }), []);
+    assert.deepEqual(checkModel(data, resolveModel(data, folders(paths), paths), { files: [] }), []);
   });
 });
 
 describe('unit-externals', () => {
-  const check = (modules: ModuleFacts[], docs = {}) =>
-    checkModel(config, model, { modules }, documented(docs)).filter((finding) => finding.rule === 'unit-externals');
-  const keys = (modules: ModuleFacts[]) => check(modules).map((finding) => finding.key);
+  const check = (files: FileFacts[], docs = {}) =>
+    checkModel(config, model, { files }, documented(docs)).filter((finding) => finding.rule === 'unit-externals');
+  const keys = (files: FileFacts[]) => check(files).map((finding) => finding.key);
 
   it('passes a package a using in reach lists, by name or by specifier, and its subpaths', () => {
     assert.deepEqual(
       keys([
-        module(
+        facts(
           'src/ui/a/a.test.ts',
           [],
           [external('src/ui/a/a.test.ts', 'vitest'), external('src/ui/a/a.test.ts', 'vitest/config')],
         ),
-        module(
+        facts(
           'src/domain/order.ts',
           [],
           [
@@ -432,7 +432,7 @@ describe('unit-externals', () => {
       external('src/ui/a/a.test.ts', 'react', { names: ['useState'], line: 2, typeOnly: true }),
       external('src/ui/a/a.test.ts', 'react/jsx-runtime', { package: 'react', names: ['jsx', 'useState'], line: 3 }),
     ];
-    assert.deepEqual(check([module('src/ui/a/a.test.ts', [], [external('src/ui/a/a.test.ts', 'vitest'), ...edges])]), [
+    assert.deepEqual(check([facts('src/ui/a/a.test.ts', [], [external('src/ui/a/a.test.ts', 'vitest'), ...edges])]), [
       {
         rule: 'unit-externals',
         key: 'unit-externals:src/ui/a/a.test.ts->react',
@@ -448,8 +448,8 @@ describe('unit-externals', () => {
 
   it("grants a dir part's packages to its units' own files, and says when no using lists one", () => {
     const [logic, domain] = check([
-      module('src/ui/a/a.ts', [], [external('src/ui/a/a.ts', 'node:fs', { names: [], typeOnly: true })]),
-      module('src/domain/order.ts', [], [external('src/domain/order.ts', 'lodashxget')]),
+      facts('src/ui/a/a.ts', [], [external('src/ui/a/a.ts', 'node:fs', { names: [], typeOnly: true })]),
+      facts('src/domain/order.ts', [], [external('src/domain/order.ts', 'lodashxget')]),
     ]);
     assert.equal(
       logic?.message,
@@ -469,7 +469,7 @@ describe('unit-externals', () => {
     const paths = ['leaf/a.ts'];
     const edges = [external('leaf/a.ts', 'vite-plus/test'), external('leaf/a.ts', 'vite-plus', { line: 2 })];
     const leafModel = resolveModel(data, folders(paths), paths);
-    const [finding] = checkModel(data, leafModel, { modules: [module('leaf/a.ts', [], edges)] }, [unitExternals]);
+    const [finding] = checkModel(data, leafModel, { files: [facts('leaf/a.ts', [], edges)] }, [unitExternals]);
     assert.deepEqual(finding?.details, {
       from: { unit: 'leaf', part: 'src' },
       package: 'vite-plus',
@@ -484,7 +484,7 @@ describe('unit-externals', () => {
         config,
         model,
         {
-          modules: [module('src/ui/a/a.test.ts', [], [external('src/ui/a/a.test.ts', 'vitest')])],
+          files: [facts('src/ui/a/a.test.ts', [], [external('src/ui/a/a.test.ts', 'vitest')])],
         },
         [unitExternals],
       ),
@@ -492,20 +492,20 @@ describe('unit-externals', () => {
     );
     assert.deepEqual(
       keys([
-        module('src/ui/notes.md', [], [external('src/ui/notes.md', 'react')]),
-        module('elsewhere.ts', [], [external('elsewhere.ts', 'react')]),
+        facts('src/ui/notes.md', [], [external('src/ui/notes.md', 'react')]),
+        facts('elsewhere.ts', [], [external('elsewhere.ts', 'react')]),
       ]),
       [],
     );
-    const modules = [module('src/main.ts', [], [external('src/main.ts', 'react')])];
-    assert.equal(check(modules, { 'unit-externals': 'https://docs' })[0]?.docs, 'https://docs');
-    assert.ok(!('docs' in check(modules)[0]!));
+    const files = [facts('src/main.ts', [], [external('src/main.ts', 'react')])];
+    assert.equal(check(files, { 'unit-externals': 'https://docs' })[0]?.docs, 'https://docs');
+    assert.ok(!('docs' in check(files)[0]!));
   });
 });
 
 describe('no-double-export', () => {
-  const check = (modules: ModuleFacts[], docs = {}) =>
-    checkModel(config, model, { modules }, documented(docs)).filter((finding) => finding.rule === 'no-double-export');
+  const check = (files: FileFacts[], docs = {}) =>
+    checkModel(config, model, { files }, documented(docs)).filter((finding) => finding.rule === 'no-double-export');
   const reExport = (from: string, to: string, extra: Partial<ImportEdge> = {}) =>
     edge(from, to, { reExport: true, ...extra });
 
@@ -514,7 +514,7 @@ describe('no-double-export', () => {
       reExport('src/ui/a/a.page.ts', 'src/ui/a/a.dom.ts', { names: ['render'], line: 2 }),
       reExport('src/ui/a/a.page.ts', 'src/ui/a/a.dom.ts', { names: [], line: 3 }),
     ];
-    assert.deepEqual(check([module('src/ui/a/a.page.ts', edges)]), [
+    assert.deepEqual(check([facts('src/ui/a/a.page.ts', edges)]), [
       {
         rule: 'no-double-export',
         key: 'no-double-export:src/ui/a/a.page.ts->src/ui/a/a.dom.ts',
@@ -531,8 +531,8 @@ describe('no-double-export', () => {
   it("counts a child's file the unit passes on, and judges the file the specifier names", () => {
     assert.deepEqual(
       check([
-        module('src/ui/shared.ts', [reExport('src/ui/shared.ts', 'src/ui/a/a.dom.ts', { names: ['a', 'b'] })]),
-        module('src/ui/a/a.page.ts', [
+        facts('src/ui/shared.ts', [reExport('src/ui/shared.ts', 'src/ui/a/a.dom.ts', { names: ['a', 'b'] })]),
+        facts('src/ui/a/a.page.ts', [
           reExport('src/ui/a/a.page.ts', 'src/ui/a/a.ts', { via: 'src/ui/a/a.dom.ts' }),
           reExport('src/ui/a/a.page.ts', 'src/ui/a/a.dom.ts', { via: 'src/ui/a/a.ts' }),
         ]),
@@ -550,28 +550,28 @@ describe('no-double-export', () => {
         config,
         model,
         {
-          modules: [
-            module('src/ui/a/a.dom.ts', [
+          files: [
+            facts('src/ui/a/a.dom.ts', [
               reExport('src/ui/a/a.dom.ts', 'src/ui/a/a.ts'),
               reExport('src/ui/a/a.dom.ts', 'src/ui/a/a.dom.ts'),
               reExport('src/ui/a/a.dom.ts', 'src/ui/a/b/b.dom.ts'),
               reExport('src/ui/a/a.dom.ts', 'src/domain/order.ts'),
               edge('src/ui/a/a.dom.ts', 'src/ui/a/a.page.ts'),
             ]),
-            module('src/ui/a/a.ts', [reExport('src/ui/a/a.ts', 'src/ui/a/a.dom.ts')]),
+            facts('src/ui/a/a.ts', [reExport('src/ui/a/a.ts', 'src/ui/a/a.dom.ts')]),
           ],
         },
         [noDoubleExport],
       ),
       [],
     );
-    const outside = [module('elsewhere.ts', [reExport('elsewhere.ts', 'src/ui/a/a.dom.ts')])];
-    assert.deepEqual(checkModel(config, model, { modules: outside }, [noDoubleExport]), []);
+    const outside = [facts('elsewhere.ts', [reExport('elsewhere.ts', 'src/ui/a/a.dom.ts')])];
+    assert.deepEqual(checkModel(config, model, { files: outside }, [noDoubleExport]), []);
   });
 
   it('attaches docs when given', () => {
-    const modules = [module('src/ui/a/a.page.ts', [reExport('src/ui/a/a.page.ts', 'src/ui/a/a.dom.ts')])];
-    assert.equal(check(modules, { 'no-double-export': 'https://docs' })[0]?.docs, 'https://docs');
-    assert.ok(!('docs' in check(modules)[0]!));
+    const files = [facts('src/ui/a/a.page.ts', [reExport('src/ui/a/a.page.ts', 'src/ui/a/a.dom.ts')])];
+    assert.equal(check(files, { 'no-double-export': 'https://docs' })[0]?.docs, 'https://docs');
+    assert.ok(!('docs' in check(files)[0]!));
   });
 });

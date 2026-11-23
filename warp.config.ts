@@ -27,12 +27,12 @@ const rules = archetype('rules')
   .exposes((s) => ({ rule: s.rule, registry: s.registry, findings: s.findings }));
 
 const builtins = archetype('builtins')
-  .description("warp's own rules: one folder per rule, holding its module, its tests and its page")
+  .description("warp's own rules: one folder per rule, holding its rule, its tests and its page")
   .requires({ model: files(), rules, app: files() })
   .contains((p, { required }) =>
     p
       .files('code', '**', {
-        description: 'Each rule module, the list of built-ins with their docs links, and the helpers rules share',
+        description: 'Each rule, the list of built-ins with their docs links, and the helpers rules share',
         using: [required.rules, required.model],
       })
       .files('test', '**/*.test.ts', {

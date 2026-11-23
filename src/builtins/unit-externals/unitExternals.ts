@@ -19,14 +19,14 @@ export const unitExternals: ProjectRule = {
   scope: 'project',
   parseOptions: noOptions,
   check: ({ model, verdicts, project, atFile }) =>
-    project.modules.flatMap((module) => {
-      const reach = verdicts.reach(module.file);
-      if (!reach || !atFile(module.file).on) return [];
+    project.files.flatMap((file) => {
+      const reach = verdicts.reach(file.path);
+      if (!reach || !atFile(file.path).on) return [];
       const packages = reach.filter((grant) => grant.package !== undefined);
-      const byPackage = Map.groupBy(module.externals, (external) => external.package);
+      const byPackage = Map.groupBy(file.externals, (external) => external.package);
       return [...byPackage].flatMap(([name, edges]) => {
         const outside = edges.filter((edge) => !packages.some((grant) => listsPackage(grant.package!, edge)));
-        return outside.length === 0 ? [] : [refused(model, module.file, name, outside, packages)];
+        return outside.length === 0 ? [] : [refused(model, file.path, name, outside, packages)];
       });
     }),
 };

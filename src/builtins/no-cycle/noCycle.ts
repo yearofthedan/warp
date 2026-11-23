@@ -19,9 +19,9 @@ export const noCycle: ProjectRule<CycleOptions> = {
   defaults: cycleDefaults,
   parseOptions: cycleOptions,
   check: ({ project, atFile }) => {
-    const files = new Set(project.modules.map((module) => module.file));
+    const files = new Set(project.files.map((file) => file.path));
     const graph: Graph<ImportEdge> = new Map();
-    for (const { file, imports } of project.modules) {
+    for (const { path: file, imports } of project.files) {
       const { options } = atFile(file);
       for (const [to, edges] of importsByTarget(file, imports))
         if (files.has(to) && counts(edges, options)) link(graph, file, to, edges);

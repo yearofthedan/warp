@@ -59,8 +59,8 @@ function-cohesion:src/ui/project/project.component.test.ts:<callback to describe
 function-cohesion:src/ui/project/project.component.test.ts:<callback to describe("what the app keeps")>
 function-cohesion:src/ui/project/project.dsl.test.ts:<callback to describe("the app language")>
 function-cohesion:src/ui/your-projects/project-list/start-a-project/start-a-project.component.test.ts:<callback to describe("starting a project")>
-module-cohesion:src/test-helpers/driver.ts
-module-cohesion:src/ui/project/graph/graph.dsl.ts
+file-cohesion:src/test-helpers/driver.ts
+file-cohesion:src/ui/project/graph/graph.dsl.ts
 no-cross-unit-reexport:src/application/project.ts->src/ports/projects-folder.ts
 no-double-export:src/test-helpers/driver.ts->src/test-helpers/narrowing.ts
 unit-cycle:src/adapters->src/domain

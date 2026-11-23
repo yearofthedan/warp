@@ -13,8 +13,8 @@ seam, so this rule reports where it is.
 
 ## Rule details
 
-The same LCOM4 measure as [`module-cohesion`](../module-cohesion/README.md), inside a function. The units are the body's
-statements, linked when they share a parameter, a local or a `this.<member>`. Parameters count as shared, so guard
+The same LCOM4 measure as [`file-cohesion`](../file-cohesion/README.md), inside a function. It groups the body's
+statements, linking two when they share a parameter, a local or a `this.<member>`. Parameters count as shared, so guard
 clauses stay attached to the code they guard. Statements that touch none of these are left out. A function is checked
 only once it is over `maxLines`.
 

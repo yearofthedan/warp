@@ -36,10 +36,10 @@ export const unitCycle: ProjectRule<CycleOptions> = {
   defaults: cycleDefaults,
   parseOptions: cycleOptions,
   check: ({ model, project, atUnit }) => {
-    const files = new Set(project.modules.map((module) => module.file));
+    const files = new Set(project.files.map((file) => file.path));
     const units = new Map(model.units.map((unit) => [unit.id, unit]));
     const graph: Graph<FileLink> = new Map();
-    for (const { file, imports } of project.modules) {
+    for (const { path: file, imports } of project.files) {
       for (const [to, edges] of importsByTarget(file, imports)) {
         const crossed = files.has(to) ? siblings(model, file, to) : undefined;
         if (crossed && counts(edges, atUnit(crossed[0]).options))

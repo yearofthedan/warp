@@ -1,13 +1,13 @@
-import type { Unit } from '../model/facts.ts';
+import type { Member } from '../model/facts.ts';
 
 export interface Group {
   names: string[];
   lines: [number, number];
 }
 
-export const group = (units: Unit[]): Group => ({
-  names: units.map((unit) => unit.name),
-  lines: [Math.min(...units.map((unit) => unit.line)), Math.max(...units.map((unit) => unit.endLine))],
+export const group = (members: Member[]): Group => ({
+  names: members.map((member) => member.name),
+  lines: [Math.min(...members.map((member) => member.line)), Math.max(...members.map((member) => member.endLine))],
 });
 
 export const withOrdinals = <T extends { name: string }>(functions: T[]): [T, string][] => {

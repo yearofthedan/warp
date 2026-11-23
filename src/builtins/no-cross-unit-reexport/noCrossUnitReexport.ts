@@ -10,10 +10,10 @@ export const noCrossUnitReexport: ProjectRule = {
   scope: 'project',
   parseOptions: noOptions,
   check: ({ model, project, atFile }) =>
-    project.modules.flatMap((module) => {
-      const unit = model.unitOf(module.file);
-      if (!unit || !atFile(module.file).on) return [];
-      const reExports = module.imports.filter((edge) => edge.reExport);
+    project.files.flatMap((file) => {
+      const unit = model.unitOf(file.path);
+      if (!unit || !atFile(file.path).on) return [];
+      const reExports = file.imports.filter((edge) => edge.reExport);
       return [...Map.groupBy(reExports, (edge) => edge.via ?? edge.to)].flatMap(([to, edges]) => {
         const target = model.unitOf(to);
         if (!target || owns(unit, target)) return [];
