@@ -4,7 +4,7 @@
 **Purpose:** the config's structure and rulesets, custom rules, and the rules warp checks.
 
 The config is the default export of a `warp.config.ts` (or `.mts`, `.js`, `.mjs`) next to the project's tsconfig. Its
-structure declares the units of the codebase and what each part of a unit may use, and its rulesets say which rules
+structure declares the modules of the codebase and what each part of a module may use, and its rulesets say which rules
 judge each part, and how strictly. Its language is designed in
 [docs/design/archetypes.md](design/archetypes.md); this page covers what warp checks today. See
 [`warp.config.ts`](../warp.config.ts) for the config this tool checks itself with.
@@ -31,24 +31,24 @@ installed in the project or not. The config and its rules load as ES modules: in
 `"type": "module"`, name them `.mts` (Node only warns when `type` is missing, but fails on `"type": "commonjs"`).
 Unknown keys, rules and options are refused, so a misspelling fails loudly.
 
-## Units and parts
+## Modules and parts
 
 `warp model` shows how warp reads the config:
 
 ```sh
-warp model           # the units the config finds, the part each file is in, and the loose files
-warp model --rules   # the same, with the rule settings each unit and part changes
-warp model --json    # the same, for tools, with every unit's and part's resolved rule settings
+warp model           # the modules the config finds, the part each file is in, and the loose files
+warp model --rules   # the same, with the rule settings each module and part changes
+warp model --json    # the same, for tools, with every module's and part's resolved rule settings
 ```
 
-- The root unit is the config's folder. A `p.dir` path is folder names and whole-segment placeholders (`src/ui`,
-  `{name}`, `src/{name}`), relative to its unit; a marker or `match` decides which matching folders count.
-- In a files pattern, `**` spans folders, `*` stays within one, `{name}` is the unit's own capture, and the rest is
+- The root module is the config's folder. A `p.dir` path is folder names and whole-segment placeholders (`src/ui`,
+  `{name}`, `src/{name}`), relative to its module; a marker or `match` decides which matching folders count.
+- In a files pattern, `**` spans folders, `*` stays within one, `{name}` is the module's own capture, and the rest is
   literal.
 - The most specific part wins: a literal dir segment beats a placeholder, and a literal file path beats any glob,
   then the longer literal suffix after the last `*`, with `**` last. Two equally specific parts are a config error.
-- A file belongs to its deepest unit. One no part matches is loose, and `check` and `diff` report it as
-  [`unclassified`](../src/builtins/unclassified/README.md): on the root unit unless a ruleset turns it off, and
+- A file belongs to its deepest module. One no part matches is loose, and `check` and `diff` report it as
+  [`unclassified`](../src/builtins/unclassified/README.md): on the root module unless a ruleset turns it off, and
   below it where a ruleset turns it on.
 - `tsconfig` takes a list, and warp reads every file of their programs except declaration files. A solution-style
   tsconfig with only `references` is not followed: list the project configs.
@@ -58,25 +58,25 @@ warp model --json    # the same, for tools, with every unit's and part's resolve
 `check` and `diff` judge every import between project files against the importer's reach,
 and report each one outside it as [`dependency-direction`](../src/builtins/dependency-direction/README.md):
 
-- A file reaches the rest of its own part, what its part's `using` names, and, for a unit's own files, what the
-  `using` of the dir part that found the unit names. A `required.x` reference reaches what the nearest provider above
+- A file reaches the rest of its own part, what its part's `using` names, and, for a module's own files, what the
+  `using` of the dir part that found the module names. A `required.x` reference reaches what the nearest provider above
   offers.
-- `s.x` on a dir part reaches what its units expose: one surface with `s.x.render`, all of them without. A unit
+- `s.x` on a dir part reaches what its modules expose: one surface with `s.x.render`, all of them without. A module
   exposes its `.exposes()` surfaces, a plain folder all its files, and an archetype with no `.exposes()` its own files
-  and what its units expose.
+  and what its modules expose.
 - An import is judged on the file its specifier names, so a barrel on a surface lets importers through to the files
   behind it. Type-only imports count.
 
 A package import is judged the same way, against the `pkg()` entries in the file's reach, and one outside it is
-reported as [`unit-externals`](../src/builtins/unit-externals/README.md). `pkg('x')` covers the package and its subpaths, and `*` matches
+reported as [`module-externals`](../src/builtins/module-externals/README.md). `pkg('x')` covers the package and its subpaths, and `*` matches
 any run of characters: `pkg('node:*')`, `pkg('@aws-sdk/*')`, `pkg('*')`.
 
-[`no-double-export`](../src/builtins/no-double-export/README.md) reports a file on a unit's surface that re-exports another file on that
+[`no-double-export`](../src/builtins/no-double-export/README.md) reports a file on a module's surface that re-exports another file on that
 surface, so there is one way to each name: a barrel over private files, or exposed files with no barrel.
-[`no-cross-unit-reexport`](../src/builtins/no-cross-unit-reexport/README.md) reports a file that re-exports
-another unit's file, other than one nested in its own unit, so a unit doesn't pass on what it uses.
+[`no-cross-module-reexport`](../src/builtins/no-cross-module-reexport/README.md) reports a file that re-exports
+another module's file, other than one nested in its own module, so a module doesn't pass on what it uses.
 
-[`unit-cycle`](../src/builtins/unit-cycle/README.md) reports each import between sibling units that lies on a loop among them, and
+[`module-cycle`](../src/builtins/module-cycle/README.md) reports each import between sibling modules that lies on a loop among them, and
 [`no-cycle`](../src/builtins/no-cycle/README.md) each import between files that lies on a loop.
 
 `file-cohesion`, `function-cohesion` and `cognitive-complexity` judge each file's code with the options that resolve
@@ -115,7 +115,7 @@ export default defineConfig({ root: app, rulesets: { default: base, edit } });
 
 ```sh
 warp diff HEAD --ruleset edit
-warp model --ruleset edit --rules   # what each unit and part changes
+warp model --ruleset edit --rules   # what each module and part changes
 ```
 
 - Settings are `true`, `false` or options by rule id, or `'off'` for every rule at that place. `'*': false` turns
@@ -123,10 +123,10 @@ warp model --ruleset edit --rules   # what each unit and part changes
 - A later line merges into an earlier one at the same place: options into options, `false` off, and `true` on with
   the options kept. `.extends(base)` puts the base's lines first, so a ruleset changes only what differs. A base need
   not be one of the config's rulesets.
-- An archetype's line reaches every unit of that archetype, and a dir part's line every unit it finds. For a finding
-  on a file, the nearest place wins: the file's files part, then for its unit and each unit above it the dir part
+- An archetype's line reaches every module of that archetype, and a dir part's line every module it finds. For a finding
+  on a file, the nearest place wins: the file's files part, then for its module and each module above it the dir part
   that found it and its archetype, then `.rules()`. Options merge nearest first. Where no line
-  sets `unclassified`, it is on at the root unit and off below.
+  sets `unclassified`, it is on at the root module and off below.
 - `diff` checks both sides with the same ruleset, and each ruleset caches its own findings, so switching rulesets
   never shows up as new findings. An unknown name fails and lists the rulesets there are.
 
@@ -192,8 +192,8 @@ export default defineConfig({ root: app, plugins: { wt }, rulesets: { default: b
 - A rule reads the same facts as the built-in ones, and never reads source. A `FileRule` reads one file at a
   time, with the options that resolve for that file: its imports, members and functions.
 - A `ProjectRule`, with `scope: 'project'`, reads the whole project once, with the config, the `model` (each file's
-  unit and part through `unitOf` and `partOf`) and the `verdicts` on reach. It looks up its setting for a file with
-  `atFile`, or for a unit with `atUnit`, and skips where the rule is off.
+  module and part through `moduleOf` and `partOf`) and the `verdicts` on reach. It looks up its setting for a file with
+  `atFile`, or for a module with `atModule`, and skips where the rule is off.
 - Its findings get the namespaced `rule`, and keys prefixed with the namespace. They link to the rule's `docs` when
   it has one, and to nothing otherwise.
 - `defaults` and `parseOptions` are optional: without them, the rule takes no options. `wholeNumberOptions` and
@@ -211,7 +211,7 @@ links between them, and each function's statements and complexity. Each rule is 
 [`src/builtins/`](../src/builtins), holding its rule and its page, and reads those facts without touching
 source, so it stays pure. A rule declares its id, its default options and how to validate them, and a `check` that
 returns findings. Most read one file at a time; a project rule reads the whole project and the model once, and
-looks up its setting for each file or unit. Rules are looked up in a registry, where a project's
+looks up its setting for each file or module. Rules are looked up in a registry, where a project's
 [own rules](#custom-rules) join the built-in ones.
 
 Every finding has a `rule`, a `key` that identifies it across commits, a `value` that `diff` compares, a `message`,
@@ -223,13 +223,13 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 
 | Rule | Reports | Options |
 | --- | --- | --- |
-| [`unclassified`](../src/builtins/unclassified/README.md) | A loose file. On at the root unit, off below, unless a ruleset says otherwise. | |
+| [`unclassified`](../src/builtins/unclassified/README.md) | A loose file. On at the root module, off below, unless a ruleset says otherwise. | |
 | [`dependency-direction`](../src/builtins/dependency-direction/README.md) | An import outside the importer's reach. | |
-| [`unit-externals`](../src/builtins/unit-externals/README.md) | A package import that no `using` in the importer's reach lists. | |
-| [`no-double-export`](../src/builtins/no-double-export/README.md) | A re-export, in a file on its unit's surface, of another file on that surface. | |
-| [`unit-cycle`](../src/builtins/unit-cycle/README.md) | An import between sibling units that lies on a loop among them. | `types` |
+| [`module-externals`](../src/builtins/module-externals/README.md) | A package import that no `using` in the importer's reach lists. | |
+| [`no-double-export`](../src/builtins/no-double-export/README.md) | A re-export, in a file on its module's surface, of another file on that surface. | |
+| [`module-cycle`](../src/builtins/module-cycle/README.md) | An import between sibling modules that lies on a loop among them. | `types` |
 | [`no-cycle`](../src/builtins/no-cycle/README.md) | An import between files that lies on a loop. | `types` |
-| [`no-cross-unit-reexport`](../src/builtins/no-cross-unit-reexport/README.md) | A re-export of another unit's file, other than one nested in the re-exporting unit. | |
+| [`no-cross-module-reexport`](../src/builtins/no-cross-module-reexport/README.md) | A re-export of another module's file, other than one nested in the re-exporting module. | |
 | [`file-cohesion`](../src/builtins/file-cohesion/README.md) | A file over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
 | [`function-cohesion`](../src/builtins/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
 | [`cognitive-complexity`](../src/builtins/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |

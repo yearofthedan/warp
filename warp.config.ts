@@ -47,7 +47,7 @@ const warp = archetype('warp')
     p
       .files('model', 'src/model/**', {
         description:
-          'The declared model: the archetype builder, config data, resolving files to units and parts, and reach',
+          'The declared model: the archetype builder, config data, resolving files to modules and parts, and reach',
       })
       .dir('rules', 'src/rules', rules)
       .dir('builtins', 'src/builtins', builtins)

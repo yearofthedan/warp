@@ -23,10 +23,10 @@ node -e '
 
 (cd "$work" && node "$root/src/cli.ts" model --config warp.config.ts --json) >"$work/model.json"
 node -e '
-  const { units } = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
-  const lines = units.flatMap((unit) => {
-    const parts = new Map(Object.entries(unit.parts).flatMap(([part, files]) => files.map((file) => [file, part])));
-    return unit.ownFiles.map((file) => `${file} ${unit.id} ${parts.get(file) ?? (unit.archetype ? "-" : "(plain)")}`);
+  const { modules } = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+  const lines = modules.flatMap((module) => {
+    const parts = new Map(Object.entries(module.parts).flatMap(([part, files]) => files.map((file) => [file, part])));
+    return module.ownFiles.map((file) => `${file} ${module.id} ${parts.get(file) ?? (module.archetype ? "-" : "(plain)")}`);
   });
   console.log(lines.sort().join("\n"));
 ' "$work/model.json" >"$work/model.txt"

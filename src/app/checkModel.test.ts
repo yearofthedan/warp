@@ -69,17 +69,17 @@ describe('rule settings', () => {
     root,
     Object.fromEntries(paths.map((file) => [file, []])),
     ruleset()
-      .rules({ 'no-cycle': { types: 'count', z: 3 }, 'unit-cycle': false })
-      .on(leaf, { 'no-cycle': { types: 'ignore', depth: 2 }, 'unit-cycle': false })
+      .rules({ 'no-cycle': { types: 'count', z: 3 }, 'module-cycle': false })
+      .on(leaf, { 'no-cycle': { types: 'ignore', depth: 2 }, 'module-cycle': false })
       .on(leaf.quiet, 'off')
       .on(leaf.loud, { '*': false, 'no-cycle': { types: 'count' } })
       .on(mid, { 'dependency-direction': { x: 1 } })
-      .on(mid.leaves, { 'no-cycle': false, 'unit-cycle': true })
+      .on(mid.leaves, { 'no-cycle': false, 'module-cycle': true })
       .on(mid.plain, { 'dependency-direction': false })
       .on(root.mid, { 'dependency-direction': { y: 2 } }),
   );
   const rules = settings(config, model);
-  const unit = (id: string) => model.units.find((candidate) => candidate.id === id)!;
+  const module = (id: string) => model.modules.find((candidate) => candidate.id === id)!;
 
   it("turns a rule off in a files part with 'off', and '*': false leaves on only the rules listed beside it", () => {
     assert.equal(rules.atFile('mid/a/quiet.ts', 'no-cycle').on, false);
@@ -91,7 +91,7 @@ describe('rule settings', () => {
     assert.equal(rules.atFile('mid/a/loud.ts', 'dependency-direction').on, false);
   });
 
-  it('decides on the nearest level that names the rule: files part, dir part, archetype, then each unit above', () => {
+  it('decides on the nearest level that names the rule: files part, dir part, archetype, then each module above', () => {
     assert.deepEqual(rules.atFile('mid/a/rest.ts', 'no-cycle'), {
       on: false,
       options: { types: 'ignore', depth: 2, z: 3 },
@@ -101,10 +101,10 @@ describe('rule settings', () => {
     assert.equal(rules.atFile('mid/own.ts', 'dependency-direction').on, true);
   });
 
-  it("places a unit by its dir part, then its archetype, then its parent's", () => {
-    assert.equal(rules.atUnit(unit('mid/a'), 'unit-cycle').on, true);
-    assert.equal(rules.atUnit(unit('mid'), 'unit-cycle').on, false);
-    assert.equal(rules.atUnit(unit('mid/plain'), 'no-cycle').on, true);
+  it("places a module by its dir part, then its archetype, then its parent's", () => {
+    assert.equal(rules.atModule(module('mid/a'), 'module-cycle').on, true);
+    assert.equal(rules.atModule(module('mid'), 'module-cycle').on, false);
+    assert.equal(rules.atModule(module('mid/plain'), 'no-cycle').on, true);
   });
 
   it("takes the global settings last, then the rule's defaults, and leaves a rule nobody names on", () => {
@@ -116,19 +116,22 @@ describe('rule settings', () => {
       on: true,
       options: { maxLines: 300 },
     });
-    assert.equal(rules.atFile('elsewhere.ts', 'unit-cycle').on, false);
+    assert.equal(rules.atFile('elsewhere.ts', 'module-cycle').on, false);
     assert.deepEqual(rules.atFile('elsewhere.ts', 'no-cycle').options, { types: 'count', z: 3 });
   });
 
-  it("resolves every rule for a unit and for each of its parts, a rule that's off as false", () => {
-    const resolved = rulesOf(config, model, [{ id: 'no-cycle', defaults: { types: 'ignore' } }, { id: 'unit-cycle' }]);
-    assert.deepEqual(resolved.defaults, { 'no-cycle': { types: 'ignore' }, 'unit-cycle': {} });
-    assert.deepEqual(resolved.unit(unit('mid/a')), { 'no-cycle': false, 'unit-cycle': {} });
-    assert.deepEqual(resolved.part(unit('mid/a'), 'loud'), {
+  it("resolves every rule for a module and for each of its parts, a rule that's off as false", () => {
+    const resolved = rulesOf(config, model, [
+      { id: 'no-cycle', defaults: { types: 'ignore' } },
+      { id: 'module-cycle' },
+    ]);
+    assert.deepEqual(resolved.defaults, { 'no-cycle': { types: 'ignore' }, 'module-cycle': {} });
+    assert.deepEqual(resolved.module(module('mid/a')), { 'no-cycle': false, 'module-cycle': {} });
+    assert.deepEqual(resolved.part(module('mid/a'), 'loud'), {
       'no-cycle': { types: 'count', depth: 2, z: 3 },
-      'unit-cycle': false,
+      'module-cycle': false,
     });
-    assert.deepEqual(rules.atPart(unit('mid/a'), 'quiet', 'no-cycle').on, false);
+    assert.deepEqual(rules.atPart(module('mid/a'), 'quiet', 'no-cycle').on, false);
   });
 
   it('silences the findings located where a rule is off', () => {
@@ -147,7 +150,7 @@ describe('rule settings', () => {
     assert.deepEqual(keys(findings), [
       'dependency-direction:domain/order.ts->generated/api.ts',
       'no-cycle:domain/order.ts->generated/api.ts',
-      'unit-cycle:domain->generated',
+      'module-cycle:domain->generated',
     ]);
   });
 });
@@ -209,7 +212,7 @@ describe('cycles', () => {
       )
       .files('main', 'main.ts', { using: (s) => [s.domain, s.infra, s.features] }),
   );
-  const featuresMayLoop = ruleset().on(app.features, { 'unit-cycle': false });
+  const featuresMayLoop = ruleset().on(app.features, { 'module-cycle': false });
   const imports = {
     'main.ts': ['domain/u.ts'],
     'domain/u.ts': ['main.ts'],
@@ -294,30 +297,30 @@ describe('cycles', () => {
     ]);
   });
 
-  it('reports each edge of a loop between sibling units, skipping a unit and its own files', () => {
-    const units = cycles().filter((finding) => finding.rule === 'unit-cycle');
+  it('reports each edge of a loop between sibling modules, skipping a module and its own files', () => {
+    const modules = cycles().filter((finding) => finding.rule === 'module-cycle');
     assert.deepEqual(
-      units.map(({ key, file, line, value }) => [key, file, line, value]),
+      modules.map(({ key, file, line, value }) => [key, file, line, value]),
       [
-        ['unit-cycle:domain->infra', 'domain/m.ts', 2, 4],
-        ['unit-cycle:infra->domain', 'infra/w.ts', 7, 3],
+        ['module-cycle:domain->infra', 'domain/m.ts', 2, 4],
+        ['module-cycle:infra->domain', 'infra/w.ts', 7, 3],
       ],
     );
     assert.equal(
-      units[0]!.message,
-      'domain imports infra (domain/m.ts imports infra/v.ts), and the units of . loop: domain -> infra -> domain. Break the loop: move what both need into a unit they both use, or turn unit-cycle off on the dir part if its units are meant to use each other.',
+      modules[0]!.message,
+      'domain imports infra (domain/m.ts imports infra/v.ts), and the modules of . loop: domain -> infra -> domain. Break the loop: move what both need into a module they both use, or turn module-cycle off on the dir part if its modules are meant to use each other.',
     );
     const {
-      unit,
+      module,
       loop,
       imports: crossing,
-    } = units[0]!.details as {
-      unit: string;
+    } = modules[0]!.details as {
+      module: string;
       loop: string[];
       imports: { from: string; to: string; edges: unknown[] }[];
     };
     assert.deepEqual(
-      [unit, loop, crossing.map(({ from, to, edges }) => [from, to, edges.length])],
+      [module, loop, crossing.map(({ from, to, edges }) => [from, to, edges.length])],
       [
         '.',
         ['domain', 'infra', 'domain'],
@@ -333,10 +336,10 @@ describe('cycles', () => {
 
   it("leaves type-only imports out where types is 'ignore'", () => {
     const ignored = cycles(
-      featuresMayLoop.rules({ 'no-cycle': { types: 'ignore' }, 'unit-cycle': { types: 'ignore' } }),
+      featuresMayLoop.rules({ 'no-cycle': { types: 'ignore' }, 'module-cycle': { types: 'ignore' } }),
     );
     assert.ok(!keys(ignored).includes('no-cycle:domain/t.ts->infra/z.ts'));
-    const loop = ignored.find((finding) => finding.key === 'unit-cycle:domain->infra')!;
+    const loop = ignored.find((finding) => finding.key === 'module-cycle:domain->infra')!;
     assert.equal(loop.value, 3);
   });
 
@@ -345,7 +348,7 @@ describe('cycles', () => {
     const rules = builtinRules.map((rule) => ({ ...rule, docs: `https://${rule.id}` }));
     const docs = checkModel(config, model, facts, rules);
     assert.equal(docs.find((finding) => finding.rule === 'no-cycle')?.docs, 'https://no-cycle');
-    assert.equal(docs.find((finding) => finding.rule === 'unit-cycle')?.docs, 'https://unit-cycle');
+    assert.equal(docs.find((finding) => finding.rule === 'module-cycle')?.docs, 'https://module-cycle');
     assert.ok(cycles().every((finding) => !('docs' in finding)));
   });
 });

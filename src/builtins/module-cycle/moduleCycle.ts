@@ -1,4 +1,4 @@
-import type { Model, UnitView } from '../../model/archetype/resolve.ts';
+import type { Model, ModuleView } from '../../model/archetype/resolve.ts';
 import type { ImportEdge } from '../../model/facts.ts';
 import type { Finding, ProjectRule } from '../../rules/rule.ts';
 import {
@@ -12,7 +12,7 @@ import {
   loopEdges,
 } from '../loops.ts';
 
-const id = 'unit-cycle';
+const id = 'module-cycle';
 
 interface FileLink {
   file: string;
@@ -20,35 +20,35 @@ interface FileLink {
   edges: ImportEdge[];
 }
 
-const chain = (unit: UnitView): UnitView[] => (unit.parent ? [...chain(unit.parent), unit] : [unit]);
+const chain = (module: ModuleView): ModuleView[] => (module.parent ? [...chain(module.parent), module] : [module]);
 
-const siblings = (model: Model, from: string, to: string): [UnitView, UnitView] | undefined => {
-  const source = chain(model.unitOf(from)!);
-  const target = chain(model.unitOf(to)!);
-  const split = source.findIndex((unit, at) => unit !== target[at]);
+const siblings = (model: Model, from: string, to: string): [ModuleView, ModuleView] | undefined => {
+  const source = chain(model.moduleOf(from)!);
+  const target = chain(model.moduleOf(to)!);
+  const split = source.findIndex((module, at) => module !== target[at]);
   const [importer, imported] = [source[split], target[split]];
   return importer && imported ? [importer, imported] : undefined;
 };
 
-export const unitCycle: ProjectRule<CycleOptions> = {
+export const moduleCycle: ProjectRule<CycleOptions> = {
   id,
   scope: 'project',
   defaults: cycleDefaults,
   parseOptions: cycleOptions,
-  check: ({ model, project, atUnit }) => {
+  check: ({ model, project, atModule }) => {
     const files = new Set(project.files.map((file) => file.path));
-    const units = new Map(model.units.map((unit) => [unit.id, unit]));
+    const modules = new Map(model.modules.map((module) => [module.id, module]));
     const graph: Graph<FileLink> = new Map();
     for (const { path: file, imports } of project.files) {
       for (const [to, edges] of importsByTarget(file, imports)) {
         const crossed = files.has(to) ? siblings(model, file, to) : undefined;
-        if (crossed && counts(edges, atUnit(crossed[0]).options))
+        if (crossed && counts(edges, atModule(crossed[0]).options))
           link(graph, crossed[0].id, crossed[1].id, [{ file, to, edges }]);
       }
     }
     return loopEdges(graph).flatMap(({ from, to, links, loop }): Finding[] => {
-      const unit = units.get(from)!;
-      if (!atUnit(unit).on) return [];
+      const module = modules.get(from)!;
+      if (!atModule(module).on) return [];
       const [first] = links.toSorted((a, b) => a.file.localeCompare(b.file) || a.to.localeCompare(b.to));
       return [
         {
@@ -58,11 +58,11 @@ export const unitCycle: ProjectRule<CycleOptions> = {
           line: first!.edges[0]!.line,
           value: links.length,
           message:
-            `${from} imports ${to} (${first!.file} imports ${first!.to}), and the units of ${unit.parent!.id} loop: ` +
-            `${loop.join(' -> ')}. Break the loop: move what both need into a unit they both use, or turn unit-cycle ` +
-            'off on the dir part if its units are meant to use each other.',
+            `${from} imports ${to} (${first!.file} imports ${first!.to}), and the modules of ${module.parent!.id} loop: ` +
+            `${loop.join(' -> ')}. Break the loop: move what both need into a module they both use, or turn module-cycle ` +
+            'off on the dir part if its modules are meant to use each other.',
           details: {
-            unit: unit.parent!.id,
+            module: module.parent!.id,
             loop,
             imports: links.map(({ file, to, edges }) => ({ from: file, to, edges })),
           },

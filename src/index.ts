@@ -25,7 +25,7 @@ export type {
   MemberGraph,
   MemberKind,
 } from './model/facts.ts';
-export type { Model, UnitView } from './model/archetype/resolve.ts';
+export type { Model, ModuleView } from './model/archetype/resolve.ts';
 export type { Grant, Refusal, Verdict, Verdicts } from './model/archetype/reach.ts';
 export { ConfigError } from './model/configError.ts';
 export {

@@ -34,13 +34,13 @@ const errors = (root: AnyArchetype, files: readonly string[]): string[] => {
 };
 
 const tree = (model: Model): string[] =>
-  model.units.map(
-    (unit) =>
-      `${unit.id} ${unit.part ?? '-'} ${unit.archetype ?? 'plain'}: ${JSON.stringify(unit.archetype ? unit.parts : unit.ownFiles)}`,
+  model.modules.map(
+    (module) =>
+      `${module.id} ${module.part ?? '-'} ${module.archetype ?? 'plain'}: ${JSON.stringify(module.archetype ? module.parts : module.ownFiles)}`,
   );
 
 describe('resolveModel', () => {
-  it("places the project's files in the root unit's files parts", () => {
+  it("places the project's files in the root module's files parts", () => {
     const model = resolve(
       archetype('app').contains((p) => p.files('main', 'main.ts').files('rest', '**')),
       ['main.ts', 'src/a.ts', 'src/b/c.ts'],
@@ -54,8 +54,8 @@ describe('resolveModel', () => {
     assert.deepEqual(model.root.parts, { main: ['main.ts'], rest: ['src/a.ts', 'src/b/c.ts'] });
     assert.deepEqual(model.root.ownFiles, ['main.ts', 'src/a.ts', 'src/b/c.ts']);
     assert.equal(model.partOf('src/b/c.ts'), 'rest');
-    assert.equal(model.unitOf('main.ts'), model.root);
-    assert.equal(model.unitOf('elsewhere.ts'), undefined);
+    assert.equal(model.moduleOf('main.ts'), model.root);
+    assert.equal(model.moduleOf('elsewhere.ts'), undefined);
     assert.equal(model.partOf('elsewhere.ts'), undefined);
   });
 
@@ -70,13 +70,13 @@ describe('resolveModel', () => {
     ]);
     const [domain] = model.root.children;
     assert.equal(domain?.parent, model.root);
-    assert.equal(model.unitOf('src/domain/deep/price.ts'), domain);
+    assert.equal(model.moduleOf('src/domain/deep/price.ts'), domain);
     assert.equal(model.partOf('src/domain/order.ts'), undefined);
     assert.deepEqual(domain?.looseFiles, []);
     assert.ok(!('archetype' in domain!));
   });
 
-  it('finds a unit per folder a placeholder matches, each with its own captures, down a recursive archetype', () => {
+  it('finds a module per folder a placeholder matches, each with its own captures, down a recursive archetype', () => {
     const component = archetype('component')
       .identify({ marker: '{name}.dom.ts' })
       .contains((p, { self }) =>
@@ -106,11 +106,11 @@ describe('resolveModel', () => {
       'src/ui/strings ui.strings plain: ["src/ui/strings/en.ts"]',
     ]);
     assert.deepEqual(
-      model.units.map((unit) => unit.captures),
+      model.modules.map((module) => module.captures),
       [{}, {}, { name: 'project' }, { name: 'graph' }, { name: 'card' }, {}],
     );
     assert.deepEqual(
-      model.unitOf('src/ui/project/graph/card/card.dom.ts')?.parent?.parent?.children.map((unit) => unit.id),
+      model.moduleOf('src/ui/project/graph/card/card.dom.ts')?.parent?.parent?.children.map((module) => module.id),
       ['src/ui/project/graph'],
     );
   });
@@ -122,7 +122,7 @@ describe('resolveModel', () => {
     const root = archetype('app').contains((p) => p.dir('widgets', 'src/{name}', widget));
     const model = resolve(root, ['src/a/a.ts', 'src/b/b.ts', 'src/c/c.ts'], ['src/a/a.json', 'src/c/a.json']);
     assert.deepEqual(
-      model.units.map((unit) => unit.id),
+      model.modules.map((module) => module.id),
       ['.', 'src/a'],
     );
     assert.deepEqual(model.root.looseFiles, ['src/b/b.ts', 'src/c/c.ts']);
@@ -133,7 +133,7 @@ describe('resolveModel', () => {
     const feature = archetype('feature')
       .identify({
         match: (folder, chain) => {
-          seen.push([folder, (chain as { id: string }[]).map((unit) => unit.id)]);
+          seen.push([folder, (chain as { id: string }[]).map((module) => module.id)]);
           return folder.endsWith('-feature') ? { slug: folder.split('/').pop()! } : false;
         },
       })
@@ -150,8 +150,8 @@ describe('resolveModel', () => {
       ['src/area/a-feature', ['.', 'src/area']],
       ['src/area/other', ['.', 'src/area']],
     ]);
-    assert.deepEqual(model.unitOf('src/area/a-feature/x.ts')?.captures, { name: 'a-feature', slug: 'a-feature' });
-    assert.deepEqual(model.unitOf('src/area/other/y.ts')?.looseFiles, ['src/area/other/y.ts']);
+    assert.deepEqual(model.moduleOf('src/area/a-feature/x.ts')?.captures, { name: 'a-feature', slug: 'a-feature' });
+    assert.deepEqual(model.moduleOf('src/area/other/y.ts')?.looseFiles, ['src/area/other/y.ts']);
   });
 
   it('gives a folder to the most specific dir part: a literal segment beats a placeholder', () => {
@@ -160,7 +160,7 @@ describe('resolveModel', () => {
     );
     const model = resolve(root, ['src/strings/en.ts', 'src/card/card.ts', 'lib/x/x.ts']);
     assert.deepEqual(
-      model.units.map((unit) => [unit.id, unit.part]),
+      model.modules.map((module) => [module.id, module.part]),
       [
         ['.', undefined],
         ['lib/x', 'anywhere'],
@@ -173,7 +173,7 @@ describe('resolveModel', () => {
   it('lets one dir part match a folder through two of its paths', () => {
     const root = archetype('app').contains((p) => p.dir('code', ['src/a', 'src/{name}']));
     assert.deepEqual(
-      resolve(root, ['src/a/x.ts', 'src/b/y.ts']).units.map((unit) => [unit.id, unit.part, unit.captures]),
+      resolve(root, ['src/a/x.ts', 'src/b/y.ts']).modules.map((module) => [module.id, module.part, module.captures]),
       [
         ['.', undefined, {}],
         ['src/a', 'code', {}],
@@ -189,20 +189,20 @@ describe('resolveModel', () => {
     ]);
   });
 
-  it('refuses a folder that two units claim from different levels', () => {
+  it('refuses a folder that two modules claim from different levels', () => {
     const inner = archetype('inner').contains((p) => p.dir('deep', 'deep'));
     const root = archetype('app').contains((p) => p.dir('outer', 'src', inner).dir('direct', 'src/deep'));
     assert.deepEqual(errors(root, ['src/deep/x.ts']), [
-      'src/deep: found as a unit of direct and of outer.deep; one folder is one unit',
+      'src/deep: found as a module of direct and of outer.deep; one folder is one module',
     ]);
   });
 
-  it('places a file in its deepest unit, whichever part found it', () => {
+  it('places a file in its deepest module, whichever part found it', () => {
     const root = archetype('app').contains((p) => p.dir('src', 'src').dir('domain', 'src/domain'));
     const model = resolve(root, ['src/a.ts', 'src/domain/b.ts']);
-    assert.equal(model.unitOf('src/a.ts')?.id, 'src');
-    assert.equal(model.unitOf('src/domain/b.ts')?.id, 'src/domain');
-    assert.deepEqual(model.unitOf('src/a.ts')?.ownFiles, ['src/a.ts']);
+    assert.equal(model.moduleOf('src/a.ts')?.id, 'src');
+    assert.equal(model.moduleOf('src/domain/b.ts')?.id, 'src/domain');
+    assert.deepEqual(model.moduleOf('src/a.ts')?.ownFiles, ['src/a.ts']);
   });
 
   it('gives a file to the most specific files part, whatever their order', () => {
@@ -226,11 +226,11 @@ describe('resolveModel', () => {
     });
   });
 
-  it("fills a files pattern's placeholders from the unit's captures", () => {
+  it("fills a files pattern's placeholders from the module's captures", () => {
     const component = archetype('component').contains((p) => p.files('logic', '*.ts').files('dom', '{name}.dom.ts'));
     const root = archetype('app').contains((p) => p.dir('components', '{name}', component));
     const model = resolve(root, ['card/card.dom.ts', 'card/other.dom.ts']);
-    assert.deepEqual(model.unitOf('card/card.dom.ts')?.parts, {
+    assert.deepEqual(model.moduleOf('card/card.dom.ts')?.parts, {
       logic: ['card/other.dom.ts'],
       dom: ['card/card.dom.ts'],
     });
@@ -245,7 +245,7 @@ describe('resolveModel', () => {
     ]);
   });
 
-  it('refuses a placeholder that the unit does not capture, in a files pattern or a marker', () => {
+  it('refuses a placeholder that the module does not capture, in a files pattern or a marker', () => {
     const component = archetype('component')
       .identify({ marker: '{id}.dom.ts' })
       .contains((p) => p.files('dom', '*.dom.ts'));
@@ -256,20 +256,20 @@ describe('resolveModel', () => {
     ]);
   });
 
-  it('keeps the files no part matches as loose in their unit', () => {
+  it('keeps the files no part matches as loose in their module', () => {
     const quiet = archetype('quiet').contains((p) => p.files('src', '*.ts'));
     const strict = archetype('strict').contains((p) => p.files('src', '*.ts'));
     const root = archetype('app').contains((p) => p.dir('quiet', 'quiet', quiet).dir('strict', 'strict', strict));
     const model = resolve(root, ['stray.ts', 'quiet/a.ts', 'quiet/a.css', 'strict/b.css']);
     assert.deepEqual(
-      model.units.map((unit) => [unit.id, unit.looseFiles]),
+      model.modules.map((module) => [module.id, module.looseFiles]),
       [
         ['.', ['stray.ts']],
         ['quiet', ['quiet/a.css']],
         ['strict', ['strict/b.css']],
       ],
     );
-    assert.deepEqual(model.unitOf('quiet/a.css')?.ownFiles, ['quiet/a.css', 'quiet/a.ts']);
+    assert.deepEqual(model.moduleOf('quiet/a.css')?.ownFiles, ['quiet/a.css', 'quiet/a.ts']);
   });
 
   it("resolves working title's shape: layers, plain folders, a provided runner and nested components", () => {

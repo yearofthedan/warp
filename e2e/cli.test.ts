@@ -40,8 +40,8 @@ describe('warp diff', () => {
       delta.added.map((f: { key: string }) => f.key),
       [
         'dependency-direction:src/domain/audit.ts->src/app/handle.ts',
-        'unit-cycle:src/domain->src/app',
-        'unit-cycle:src/app->src/domain',
+        'module-cycle:src/domain->src/app',
+        'module-cycle:src/app->src/domain',
       ],
     );
     assert.deepEqual(
@@ -323,15 +323,15 @@ describe('rulesets', () => {
   });
 
   it('shows the rules each part resolves to under the ruleset', () => {
-    const { units } = JSON.parse(run('model', '--ruleset', 'edit', '--json').stdout);
-    const rules = (id: string) => units.find((unit: { id: string }) => unit.id === id).rules.parts.src;
+    const { modules } = JSON.parse(run('model', '--ruleset', 'edit', '--json').stdout);
+    const rules = (id: string) => modules.find((module: { id: string }) => module.id === id).rules.parts.src;
     assert.deepEqual(rules('src/app')['file-cohesion'], { maxLines: 10 });
     assert.deepEqual(rules('src/app')['cognitive-complexity'], { max: 4 });
     assert.equal(rules('src/app')['function-cohesion'], false);
     assert.deepEqual(rules('src/domain')['function-cohesion'], { maxLines: 6 });
     assert.match(
       run('model', '--ruleset', 'edit', '--rules').stdout,
-      /src\/app {2}app: layer {2}src: 2\n {4}rules in unit: function-cohesion off\n/,
+      /src\/app {2}app: layer {2}src: 2\n {4}rules in module: function-cohesion off\n/,
     );
   });
 
@@ -361,7 +361,7 @@ describe('a warp.config.ts with archetypes', () => {
     commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
   });
 
-  it('prints the units it finds, with the files of both tsconfigs in their parts', () => {
+  it('prints the modules it finds, with the files of both tsconfigs in their parts', () => {
     const modelled = run('model');
     assert.equal(modelled.status, 0, modelled.stderr);
     assert.equal(
@@ -374,12 +374,12 @@ describe('a warp.config.ts with archetypes', () => {
         '    src/ui/card  ui.components: component {name=card}  logic: 1, dom: 1',
         '    src/ui/strings  ui.strings: plain folder  1 files',
         '',
-        '5 units, 8 files, 1 loose.',
+        '5 modules, 8 files, 1 loose.',
         '',
       ].join('\n'),
     );
-    const { units } = JSON.parse(run('model', '--json').stdout);
-    assert.deepEqual(units[1].parts, {
+    const { modules } = JSON.parse(run('model', '--json').stdout);
+    assert.deepEqual(modules[1].parts, {
       src: ['src/domain/order.ts'],
       index: ['src/domain/index.ts'],
       test: ['src/domain/order.test.ts'],
@@ -395,13 +395,13 @@ describe('a warp.config.ts with archetypes', () => {
       [
         'unclassified:src/stray.ts',
         'dependency-direction:src/ui/card/card.ts->src/domain/order.ts',
-        'unit-externals:src/ui/card/card.ts->node:util',
+        'module-externals:src/ui/card/card.ts->node:util',
       ],
     );
-    assert.match(findings[2].docs, /src\/builtins\/unit-externals\/README\.md$/);
+    assert.match(findings[2].docs, /src\/builtins\/module-externals\/README\.md$/);
     assert.equal(
       findings[1].message,
-      'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes, or expose src/domain/order.ts from layer if other units should reach it.',
+      'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes, or expose src/domain/order.ts from layer if other modules should reach it.',
     );
     assert.match(findings[1].docs, /src\/builtins\/dependency-direction\/README\.md$/);
   });
@@ -440,7 +440,7 @@ describe('a warp.config.ts with archetypes', () => {
         "import { archetype, defineConfig } from 'warp';",
         "import { ruleset } from 'warp';",
         "const app = archetype('app').contains((p) => p.files('src', '**'));",
-        "const base = ruleset().rules({ 'unit-cycle': { types: 'always' } }).on(app.src, { 'no-such-rule': false });",
+        "const base = ruleset().rules({ 'module-cycle': { types: 'always' } }).on(app.src, { 'no-such-rule': false });",
         'export default defineConfig({ root: app, rulesets: { default: base } });',
         '',
       ].join('\n'),
@@ -449,7 +449,7 @@ describe('a warp.config.ts with archetypes', () => {
     assert.equal(checked.status, 2);
     assert.equal(
       checked.stderr,
-      "warp config: rulesets.default.rules.unit-cycle.types: expected 'count' or 'ignore'\nrulesets.default.on(app.src): no rule called no-such-rule\n",
+      "warp config: rulesets.default.rules.module-cycle.types: expected 'count' or 'ignore'\nrulesets.default.on(app.src): no rule called no-such-rule\n",
     );
   });
 });

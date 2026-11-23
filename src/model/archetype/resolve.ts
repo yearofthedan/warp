@@ -6,23 +6,23 @@ export interface Folders {
   exists(path: string): boolean;
 }
 
-export interface UnitView {
+export interface ModuleView {
   id: string;
   dir: string;
   part?: string;
   archetype?: string;
   captures: Record<string, string>;
-  parent?: UnitView;
-  children: UnitView[];
+  parent?: ModuleView;
+  children: ModuleView[];
   ownFiles: string[];
   parts: Record<string, string[]>;
   looseFiles: string[];
 }
 
 export interface Model {
-  root: UnitView;
-  units: UnitView[];
-  unitOf(file: string): UnitView | undefined;
+  root: ModuleView;
+  modules: ModuleView[];
+  moduleOf(file: string): ModuleView | undefined;
   partOf(file: string): string | undefined;
 }
 
@@ -38,8 +38,8 @@ interface Claim {
 interface Resolution {
   config: ConfigData;
   folders: Folders;
-  units: UnitView[];
-  byDir: Map<string, UnitView>;
+  modules: ModuleView[];
+  byDir: Map<string, ModuleView>;
   errors: Set<string>;
 }
 
@@ -55,34 +55,35 @@ const fill = (pattern: string, captures: Record<string, string>): { filled: stri
 };
 
 export const resolveModel = (config: ConfigData, folders: Folders, files: readonly string[]): Model => {
-  const resolution: Resolution = { config, folders, units: [], byDir: new Map(), errors: new Set() };
+  const resolution: Resolution = { config, folders, modules: [], byDir: new Map(), errors: new Set() };
   const root = build(resolution, { dir: '', archetype: config.archetypes[config.root], captures: {} });
-  const unitOf = new Map<string, UnitView>();
+  const moduleOf = new Map<string, ModuleView>();
   const partOf = new Map<string, string>();
   for (const file of [...files].sort()) {
-    const unit = deepest(resolution.byDir, file);
-    unitOf.set(file, unit);
-    unit.ownFiles.push(file);
-    const part = unit.archetype === undefined ? undefined : filesPart(resolution, unit, file);
+    const module = deepest(resolution.byDir, file);
+    moduleOf.set(file, module);
+    module.ownFiles.push(file);
+    const part = module.archetype === undefined ? undefined : filesPart(resolution, module, file);
     if (part !== undefined) {
-      (unit.parts[part] ??= []).push(file);
+      (module.parts[part] ??= []).push(file);
       partOf.set(file, part);
-    } else if (unit.archetype !== undefined) unit.looseFiles.push(file);
+    } else if (module.archetype !== undefined) module.looseFiles.push(file);
   }
   if (resolution.errors.size > 0) throw new ConfigError([...resolution.errors].join('\n'));
-  for (const unit of resolution.units) if (unit.archetype !== undefined) unit.parts = inDeclarationOrder(config, unit);
+  for (const module of resolution.modules)
+    if (module.archetype !== undefined) module.parts = inDeclarationOrder(config, module);
   return {
     root,
-    units: resolution.units,
-    unitOf: (file) => unitOf.get(file),
+    modules: resolution.modules,
+    moduleOf: (file) => moduleOf.get(file),
     partOf: (file) => partOf.get(file),
   };
 };
 
-const inDeclarationOrder = (config: ConfigData, unit: UnitView): Record<string, string[]> =>
+const inDeclarationOrder = (config: ConfigData, module: ModuleView): Record<string, string[]> =>
   Object.fromEntries(
-    config.archetypes[unit.archetype!]!.parts.flatMap((part) =>
-      unit.parts[part.name] ? [[part.name, unit.parts[part.name]!]] : [],
+    config.archetypes[module.archetype!]!.parts.flatMap((part) =>
+      module.parts[part.name] ? [[part.name, module.parts[part.name]!]] : [],
     ),
   );
 
@@ -90,12 +91,12 @@ interface Found {
   dir: string;
   archetype?: ArchetypeData;
   captures: Record<string, string>;
-  parent?: UnitView;
+  parent?: ModuleView;
   part?: string;
 }
 
-const build = (resolution: Resolution, { dir, archetype, captures, parent, part }: Found): UnitView => {
-  const unit: UnitView = {
+const build = (resolution: Resolution, { dir, archetype, captures, parent, part }: Found): ModuleView => {
+  const module: ModuleView = {
     id: dir === '' ? '.' : dir,
     dir,
     ...(part === undefined ? {} : { part }),
@@ -107,48 +108,51 @@ const build = (resolution: Resolution, { dir, archetype, captures, parent, part 
     parts: {},
     looseFiles: [],
   };
-  resolution.units.push(unit);
-  resolution.byDir.set(dir, unit);
-  if (archetype === undefined) return unit;
-  for (const [childDir, claims] of [...claimsIn(resolution, unit, archetype)].sort(([a], [b]) => a.localeCompare(b))) {
+  resolution.modules.push(module);
+  resolution.byDir.set(dir, module);
+  if (archetype === undefined) return module;
+  for (const [childDir, claims] of [...claimsIn(resolution, module, archetype)].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
     const winner = mostSpecific(resolution, archetype, childDir, claims);
     const existing = resolution.byDir.get(childDir);
     if (existing) {
       resolution.errors.add(
-        `${childDir}: found as a unit of ${partPath(unit, winner.part.name)} and of ${existing.part}; one folder is one unit`,
+        `${childDir}: found as a module of ${partPath(module, winner.part.name)} and of ${existing.part}; one folder is one module`,
       );
       continue;
     }
-    unit.children.push(
+    module.children.push(
       build(resolution, {
         dir: childDir,
         archetype: winner.archetype,
         captures: winner.captures,
-        parent: unit,
-        part: partPath(unit, winner.part.name),
+        parent: module,
+        part: partPath(module, winner.part.name),
       }),
     );
   }
-  return unit;
+  return module;
 };
 
-const partPath = (unit: UnitView, part: string): string => (unit.part === undefined ? part : `${unit.part}.${part}`);
+const partPath = (module: ModuleView, part: string): string =>
+  module.part === undefined ? part : `${module.part}.${part}`;
 
-const claimsIn = (resolution: Resolution, unit: UnitView, archetype: ArchetypeData): Map<string, Claim[]> => {
+const claimsIn = (resolution: Resolution, module: ModuleView, archetype: ArchetypeData): Map<string, Claim[]> => {
   const claims = new Map<string, Claim[]>();
   for (const part of archetype.parts) {
     if (part.kind !== 'dir') continue;
-    for (const claim of claimsOf(resolution, unit, part))
+    for (const claim of claimsOf(resolution, module, part))
       claims.set(claim.dir, [...(claims.get(claim.dir) ?? []), claim]);
   }
   return claims;
 };
 
-const claimsOf = (resolution: Resolution, unit: UnitView, part: DirPartData): Claim[] => {
+const claimsOf = (resolution: Resolution, module: ModuleView, part: DirPartData): Claim[] => {
   const child = part.archetype === undefined ? undefined : resolution.config.archetypes[part.archetype];
   return part.paths.flatMap((path) =>
-    matchFolders(resolution.folders, unit.dir, path).flatMap((match) => {
-      const captures = identify(resolution, child, match.dir, match.captures, unit);
+    matchFolders(resolution.folders, module.dir, path).flatMap((match) => {
+      const captures = identify(resolution, child, match.dir, match.captures, module);
       return captures ? [{ part, path, ...(child ? { archetype: child } : {}), ...match, captures }] : [];
     }),
   );
@@ -177,7 +181,7 @@ const identify = (
   archetype: ArchetypeData | undefined,
   dir: string,
   captures: Record<string, string>,
-  parent: UnitView,
+  parent: ModuleView,
 ): Record<string, string> | undefined => {
   const how = archetype?.identify;
   if (how === undefined) return captures;
@@ -195,7 +199,7 @@ const identify = (
   return resolution.folders.exists(join(dir, marker.filled)) ? captures : undefined;
 };
 
-const chain = (unit: UnitView): UnitView[] => (unit.parent ? [...chain(unit.parent), unit] : [unit]);
+const chain = (module: ModuleView): ModuleView[] => (module.parent ? [...chain(module.parent), module] : [module]);
 
 const compareRanks = (a: readonly number[], b: readonly number[]): number => {
   const index = a.findIndex((value, at) => value !== b[at]);
@@ -214,24 +218,24 @@ const mostSpecific = (resolution: Resolution, archetype: ArchetypeData, dir: str
   return best;
 };
 
-const deepest = (byDir: ReadonlyMap<string, UnitView>, file: string): UnitView => {
+const deepest = (byDir: ReadonlyMap<string, ModuleView>, file: string): ModuleView => {
   for (let dir = parentDir(file); ; dir = parentDir(dir)) {
-    const unit = byDir.get(dir);
-    if (unit) return unit;
+    const module = byDir.get(dir);
+    if (module) return module;
   }
 };
 
-const filesPart = (resolution: Resolution, unit: UnitView, file: string): string | undefined => {
-  const archetype = resolution.config.archetypes[unit.archetype!]!;
-  const path = unit.dir === '' ? file : file.slice(unit.dir.length + 1);
+const filesPart = (resolution: Resolution, module: ModuleView, file: string): string | undefined => {
+  const archetype = resolution.config.archetypes[module.archetype!]!;
+  const path = module.dir === '' ? file : file.slice(module.dir.length + 1);
   const matches: { part: string; pattern: string; score: number }[] = [];
   for (const part of archetype.parts) {
     if (part.kind !== 'files') continue;
     for (const pattern of part.patterns) {
-      const filled = fill(pattern, unit.captures);
+      const filled = fill(pattern, module.captures);
       if ('missing' in filled) {
         resolution.errors.add(
-          `${unit.id}: ${archetype.name}.${part.name} '${pattern}' names {${filled.missing}}, which ${unit.id} doesn't capture`,
+          `${module.id}: ${archetype.name}.${part.name} '${pattern}' names {${filled.missing}}, which ${module.id} doesn't capture`,
         );
       } else if (globRegex(filled.filled).test(path))
         matches.push({ part: part.name, pattern, score: specificity(filled.filled) });

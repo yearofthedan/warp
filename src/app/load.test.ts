@@ -369,7 +369,7 @@ describe('loadConfigData', () => {
       )
       .provides((s) => ({ application: s.application, strings: s.strings, transition: s.transition }));
     assert.deepEqual(failures({ root }), [
-      'child (child) requires application as units of layer; root provides application from application, units of other',
+      'child (child) requires application as modules of layer; root provides application from application, modules of other',
       'child (child) requires strings as a plain folder (dir()); root provides strings from strings, a files part',
       'child (child) requires transition as a files part (files()); root provides transition from transition, a plain folder',
     ]);
@@ -429,15 +429,15 @@ describe('loadConfigData', () => {
     const root = archetype('root').contains((p) => p.files('src', '**').files('test', '*.test.ts'));
     const rules = ruleset()
       .rules({ 'dependency-direction': { strict: true }, 'file-cohesion': { maxLines: 0 } })
-      .on(root, { 'no-cycle': { types: 'count', depth: 1, width: 2 }, 'unit-cycle': { types: 'ignore' } })
-      .on(root.src, { 'unit-cycle': { types: 'sometimes' } })
-      .on(root.test, { 'no-cycle': { types: 'count' }, 'unit-cycle': {} });
+      .on(root, { 'no-cycle': { types: 'count', depth: 1, width: 2 }, 'module-cycle': { types: 'ignore' } })
+      .on(root.src, { 'module-cycle': { types: 'sometimes' } })
+      .on(root.test, { 'no-cycle': { types: 'count' }, 'module-cycle': {} });
     const options = { builtins: [...builtinRegistry.values()] };
     assert.deepEqual(failures({ root, rulesets: { default: rules } }, options), [
       'rulesets.default.rules.dependency-direction: unknown key strict',
       'rulesets.default.rules.file-cohesion.maxLines: expected a whole number of at least 1',
       'rulesets.default.on(root).no-cycle: unknown key depth, width',
-      "rulesets.default.on(root.src).unit-cycle.types: expected 'count' or 'ignore'",
+      "rulesets.default.on(root.src).module-cycle.types: expected 'count' or 'ignore'",
     ]);
     const thrower = {
       builtins: [
@@ -671,7 +671,7 @@ describe('loadConfigData', () => {
       .contains((p) => p.dir('strings', 'strings', layer).dir('middle', 'middle', middle).dir('child', 'child', child))
       .provides((s) => ({ strings: s.strings }));
     assert.deepEqual(failures({ root }), [
-      'child (child) requires strings as a plain folder (dir()); root provides strings from strings, units of layer',
+      'child (child) requires strings as a plain folder (dir()); root provides strings from strings, modules of layer',
     ]);
   });
 

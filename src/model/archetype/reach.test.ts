@@ -4,7 +4,7 @@ import type { ExternalImport, ImportEdge, FileFacts } from '../facts.ts';
 import { archetype, dir, pkg, ruleset } from './builder.ts';
 import { builtinRules } from '../../builtins/index.ts';
 import { noDoubleExport } from '../../builtins/no-double-export/noDoubleExport.ts';
-import { unitExternals } from '../../builtins/unit-externals/unitExternals.ts';
+import { moduleExternals } from '../../builtins/module-externals/moduleExternals.ts';
 import { checkModel } from '../../app/checkModel.ts';
 import type { ConfigData } from './data.ts';
 import { loadConfigData } from '../../app/load.ts';
@@ -99,7 +99,7 @@ const setup = (): { config: ConfigData; model: Model } => {
 
 const { config, model } = setup();
 const judge = () => verdicts(config, model);
-const unit = (id: string) => model.units.find((candidate) => candidate.id === id)!;
+const module = (id: string) => model.modules.find((candidate) => candidate.id === id)!;
 
 const verdict = (from: string, to: string): string | undefined => {
   const found: Verdict | undefined = judge().verdict(from, to);
@@ -109,7 +109,7 @@ const verdict = (from: string, to: string): string | undefined => {
 };
 
 describe('verdicts', () => {
-  it("lets a file reach the rest of its own part, and refuses another part of its unit that its using doesn't list", () => {
+  it("lets a file reach the rest of its own part, and refuses another part of its module that its using doesn't list", () => {
     assert.equal(verdict('src/runner/driver.ts', 'src/runner/driver.ts'), 'allowed: own part rest');
     assert.equal(verdict('src/domain/order.ts', 'src/domain/price.ts'), 'allowed: own folder src/domain');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/a.ts'), 'allowed: dom uses s.logic');
@@ -117,7 +117,7 @@ describe('verdicts', () => {
     assert.equal(verdict('src/ui/a/a.ts', 'src/ui/a/b/b.dom.ts'), 'not-in-using');
   });
 
-  it('reaches a child through what it exposes, and finds the unit that keeps a deeper file private', () => {
+  it('reaches a child through what it exposes, and finds the module that keeps a deeper file private', () => {
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/b/b.dom.ts'), 'allowed: dom uses s.sub.render');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/b/b.ts'), 'private to src/ui/a/b');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/b/c/c.dom.ts'), 'private to src/ui/a/b');
@@ -125,7 +125,7 @@ describe('verdicts', () => {
     assert.equal(verdict('src/ui/a/a.page.ts', 'src/ui/a/b/c/c.page.ts'), 'private to src/ui/a/b');
   });
 
-  it("refuses units of one dir part each other, and a file anywhere above the importer's unit", () => {
+  it("refuses modules of one dir part each other, and a file anywhere above the importer's module", () => {
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/d/d.dom.ts'), 'not-in-using');
     assert.equal(verdict('src/ui/a/b/b.dom.ts', 'src/ui/d/d.dom.ts'), 'not-in-using');
     assert.equal(verdict('src/ui/a/b/b.dom.ts', 'src/ui/a/a.dom.ts'), 'above');
@@ -151,12 +151,12 @@ describe('verdicts', () => {
     assert.equal(verdict('src/ui/a/a.test.ts', 'src/runner/driver.ts'), 'not-in-using');
   });
 
-  it("grants a dir part's using to its units' own files and to nothing nested in them", () => {
+  it("grants a dir part's using to its modules' own files and to nothing nested in them", () => {
     assert.equal(verdict('src/ui/shared.ts', 'src/domain/order.ts'), 'allowed: app.ui uses s.domain');
     assert.equal(verdict('src/ui/a/a.ts', 'src/domain/order.ts'), 'not-in-using');
   });
 
-  it('lets a part that names a unit with no .exposes() reach its own files and what its units expose', () => {
+  it('lets a part that names a module with no .exposes() reach its own files and what its modules expose', () => {
     assert.equal(verdict('src/main.ts', 'src/ui/shared.ts'), 'allowed: main uses s.ui');
     assert.equal(verdict('src/main.ts', 'src/ui/notes.md'), 'allowed: main uses s.ui');
     assert.equal(verdict('src/main.ts', 'src/ui/strings/en.ts'), 'allowed: main uses s.ui');
@@ -197,14 +197,14 @@ describe('verdicts', () => {
     ]);
   });
 
-  it('gives each surface of a unit, or all of them', () => {
-    assert.deepEqual([...judge().surface(unit('src/ui/a'), 'page')], ['src/ui/a/a.page.ts']);
-    assert.deepEqual([...judge().surface(unit('src/ui/a'))].sort(), ['src/ui/a/a.dom.ts', 'src/ui/a/a.page.ts']);
-    assert.deepEqual([...judge().surface(unit('src/ui/a'), 'nothing')], []);
-    assert.deepEqual([...judge().surface(unit('src/domain'))], ['src/domain/order.ts', 'src/domain/price.ts']);
+  it('gives each surface of a module, or all of them', () => {
+    assert.deepEqual([...judge().surface(module('src/ui/a'), 'page')], ['src/ui/a/a.page.ts']);
+    assert.deepEqual([...judge().surface(module('src/ui/a'))].sort(), ['src/ui/a/a.dom.ts', 'src/ui/a/a.page.ts']);
+    assert.deepEqual([...judge().surface(module('src/ui/a'), 'nothing')], []);
+    assert.deepEqual([...judge().surface(module('src/domain'))], ['src/domain/order.ts', 'src/domain/price.ts']);
     const once = judge();
-    assert.equal(once.surface(unit('src/ui/a')), once.surface(unit('src/ui/a')));
-    assert.notEqual(once.surface(unit('src/ui/a')), once.surface(unit('src/ui/a'), 'page'));
+    assert.equal(once.surface(module('src/ui/a')), once.surface(module('src/ui/a')));
+    assert.notEqual(once.surface(module('src/ui/a')), once.surface(module('src/ui/a'), 'page'));
   });
 });
 
@@ -261,8 +261,8 @@ describe('checkModel', () => {
         message:
           "src/ui/a/a.ts (logic of card src/ui/a) imports src/ui/a/a.dom.ts (dom of card src/ui/a), which is outside logic's reach: logic uses required.strings (from src/ui). Add what holds src/ui/a/a.dom.ts to a using if the dependency is intended, or move the code.",
         details: {
-          from: { unit: 'src/ui/a', part: 'logic' },
-          to: { unit: 'src/ui/a', part: 'dom' },
+          from: { module: 'src/ui/a', part: 'logic' },
+          to: { module: 'src/ui/a', part: 'dom' },
           reason: 'not-in-using',
           edges: [
             edge('src/ui/a/a.ts', 'src/ui/a/a.dom.ts', { names: ['render'], line: 3, typeOnly: true }),
@@ -273,36 +273,36 @@ describe('checkModel', () => {
     ]);
   });
 
-  it('says which unit keeps a file private, and what it exposes instead', () => {
+  it('says which module keeps a file private, and what it exposes instead', () => {
     const [finding] = check([
       facts('src/main.ts', [edge('src/main.ts', 'src/ui/a/a.ts', { names: [], typeOnly: true })]),
     ]);
     assert.equal(finding?.value, 1);
     assert.equal(
       finding?.message,
-      'src/main.ts (main of app .) imports types from src/ui/a/a.ts (logic of card src/ui/a), which src/ui/a keeps private (it exposes render, page). Import what src/ui/a exposes, or expose src/ui/a/a.ts from card if other units should reach it.',
+      'src/main.ts (main of app .) imports types from src/ui/a/a.ts (logic of card src/ui/a), which src/ui/a keeps private (it exposes render, page). Import what src/ui/a exposes, or expose src/ui/a/a.ts from card if other modules should reach it.',
     );
     assert.deepEqual(finding?.details, {
-      from: { unit: '.', part: 'main' },
-      to: { unit: 'src/ui/a', part: 'logic' },
+      from: { module: '.', part: 'main' },
+      to: { module: 'src/ui/a', part: 'logic' },
       reason: 'private',
       hiddenBy: 'src/ui/a',
       edges: [edge('src/main.ts', 'src/ui/a/a.ts', { names: [], typeOnly: true })],
     });
   });
 
-  it('tells a unit that reaches above itself to require what it needs', () => {
+  it('tells a module that reaches above itself to require what it needs', () => {
     const [domain, card] = check([
       facts('src/domain/order.ts', [edge('src/domain/order.ts', 'src/main.ts')]),
       facts('src/ui/a/a.dom.ts', [edge('src/ui/a/a.dom.ts', 'src/ui/shared.ts', { typeOnly: true })]),
     ]);
     assert.equal(
       domain?.message,
-      'src/domain/order.ts (plain folder src/domain) imports src/main.ts (main of app .), which is above src/domain. A unit reaches up only through what it requires: require it in the archetype that finds it and have an ancestor provide it, or move it below.',
+      'src/domain/order.ts (plain folder src/domain) imports src/main.ts (main of app .), which is above src/domain. A module reaches up only through what it requires: require it in the archetype that finds it and have an ancestor provide it, or move it below.',
     );
     assert.equal(
       card?.message,
-      'src/ui/a/a.dom.ts (dom of card src/ui/a) imports types from src/ui/shared.ts (shared of ui src/ui), which is above src/ui/a. A unit reaches up only through what it requires: require it in card and have an ancestor provide it, or move it below.',
+      'src/ui/a/a.dom.ts (dom of card src/ui/a) imports types from src/ui/shared.ts (shared of ui src/ui), which is above src/ui/a. A module reaches up only through what it requires: require it in card and have an ancestor provide it, or move it below.',
     );
   });
 
@@ -323,7 +323,7 @@ describe('checkModel', () => {
     assert.match(runner!.message, /which is outside contract's reach, its own files only\. /);
   });
 
-  it('places a loose target in its unit', () => {
+  it('places a loose target in its module', () => {
     const [finding] = check([facts('src/ui/a/a.ts', [edge('src/ui/a/a.ts', 'src/ui/notes.md')])]);
     assert.match(finding!.message, /imports src\/ui\/notes\.md \(loose in ui src\/ui\), which is above src\/ui\/a\./);
   });
@@ -391,7 +391,7 @@ describe('checkModel', () => {
     assert.ok(!('docs' in checkModel(data, looseModel, { files: [] })[0]!));
   });
 
-  it("turns unclassified off for a unit and the units below it from the unit's archetype", () => {
+  it("turns unclassified off for a module and the modules below it from the module's archetype", () => {
     const leaf = archetype('leaf').contains((p) => p.files('src', '*.ts'));
     const root = archetype('app').contains((p) => p.dir('leaf', 'leaf', leaf));
     const everywhere = ruleset().rules({ unclassified: true }).on(root, { unclassified: false });
@@ -401,9 +401,9 @@ describe('checkModel', () => {
   });
 });
 
-describe('unit-externals', () => {
+describe('module-externals', () => {
   const check = (files: FileFacts[], docs = {}) =>
-    checkModel(config, model, { files }, documented(docs)).filter((finding) => finding.rule === 'unit-externals');
+    checkModel(config, model, { files }, documented(docs)).filter((finding) => finding.rule === 'module-externals');
   const keys = (files: FileFacts[]) => check(files).map((finding) => finding.key);
 
   it('passes a package a using in reach lists, by name or by specifier, and its subpaths', () => {
@@ -434,19 +434,19 @@ describe('unit-externals', () => {
     ];
     assert.deepEqual(check([facts('src/ui/a/a.test.ts', [], [external('src/ui/a/a.test.ts', 'vitest'), ...edges])]), [
       {
-        rule: 'unit-externals',
-        key: 'unit-externals:src/ui/a/a.test.ts->react',
+        rule: 'module-externals',
+        key: 'module-externals:src/ui/a/a.test.ts->react',
         file: 'src/ui/a/a.test.ts',
         line: 2,
         value: 2,
         message:
           "src/ui/a/a.test.ts (test of card src/ui/a) imports react, react/jsx-runtime, a package outside test's reach: test uses pkg('vitest'). Add pkg('react') to a using if the dependency is intended, or move the code.",
-        details: { from: { unit: 'src/ui/a', part: 'test' }, package: 'react', edges },
+        details: { from: { module: 'src/ui/a', part: 'test' }, package: 'react', edges },
       },
     ]);
   });
 
-  it("grants a dir part's packages to its units' own files, and says when no using lists one", () => {
+  it("grants a dir part's packages to its modules' own files, and says when no using lists one", () => {
     const [logic, domain] = check([
       facts('src/ui/a/a.ts', [], [external('src/ui/a/a.ts', 'node:fs', { names: [], typeOnly: true })]),
       facts('src/domain/order.ts', [], [external('src/domain/order.ts', 'lodashxget')]),
@@ -469,9 +469,9 @@ describe('unit-externals', () => {
     const paths = ['leaf/a.ts'];
     const edges = [external('leaf/a.ts', 'vite-plus/test'), external('leaf/a.ts', 'vite-plus', { line: 2 })];
     const leafModel = resolveModel(data, folders(paths), paths);
-    const [finding] = checkModel(data, leafModel, { files: [facts('leaf/a.ts', [], edges)] }, [unitExternals]);
+    const [finding] = checkModel(data, leafModel, { files: [facts('leaf/a.ts', [], edges)] }, [moduleExternals]);
     assert.deepEqual(finding?.details, {
-      from: { unit: 'leaf', part: 'src' },
+      from: { module: 'leaf', part: 'src' },
       package: 'vite-plus',
       edges: [edges[1]],
     });
@@ -486,7 +486,7 @@ describe('unit-externals', () => {
         {
           files: [facts('src/ui/a/a.test.ts', [], [external('src/ui/a/a.test.ts', 'vitest')])],
         },
-        [unitExternals],
+        [moduleExternals],
       ),
       [],
     );
@@ -498,7 +498,7 @@ describe('unit-externals', () => {
       [],
     );
     const files = [facts('src/main.ts', [], [external('src/main.ts', 'react')])];
-    assert.equal(check(files, { 'unit-externals': 'https://docs' })[0]?.docs, 'https://docs');
+    assert.equal(check(files, { 'module-externals': 'https://docs' })[0]?.docs, 'https://docs');
     assert.ok(!('docs' in check(files)[0]!));
   });
 });
@@ -523,12 +523,12 @@ describe('no-double-export', () => {
         value: 1,
         message:
           'src/ui/a/a.page.ts (page of card src/ui/a) re-exports src/ui/a/a.dom.ts (dom of card src/ui/a), and src/ui/a exposes both, so importers have two ways to the same names. Keep one: stop re-exporting it, or stop exposing it.',
-        details: { unit: 'src/ui/a', to: { unit: 'src/ui/a', part: 'dom' }, edges },
+        details: { module: 'src/ui/a', to: { module: 'src/ui/a', part: 'dom' }, edges },
       },
     ]);
   });
 
-  it("counts a child's file the unit passes on, and judges the file the specifier names", () => {
+  it("counts a child's file the module passes on, and judges the file the specifier names", () => {
     assert.deepEqual(
       check([
         facts('src/ui/shared.ts', [reExport('src/ui/shared.ts', 'src/ui/a/a.dom.ts', { names: ['a', 'b'] })]),

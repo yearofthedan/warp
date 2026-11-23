@@ -1,7 +1,7 @@
-import type { Model, UnitView } from '../model/archetype/resolve.ts';
+import type { Model, ModuleView } from '../model/archetype/resolve.ts';
 
-export const place = (model: Model, file: string, unit: UnitView = model.unitOf(file)!): string => {
-  if (unit.archetype === undefined) return `plain folder ${unit.id}`;
+export const place = (model: Model, file: string, module: ModuleView = model.moduleOf(file)!): string => {
+  if (module.archetype === undefined) return `plain folder ${module.id}`;
   const part = model.partOf(file);
-  return `${part === undefined ? 'loose in' : `${part} of`} ${unit.archetype} ${unit.id}`;
+  return `${part === undefined ? 'loose in' : `${part} of`} ${module.archetype} ${module.id}`;
 };
