@@ -23,14 +23,36 @@ covers `vitest/config`, `pkg('node:*')` every built-in, and `pkg('*')` everythin
 The rule reports one finding per file and package, keyed `module-externals:src/domain/order.ts->pg`, on the first
 import of it. Its value is the number of names imported.
 
-With this config, `src/domain/order.ts` may not import `pg`:
+With this config, only `adapters` may import `pg`:
 
 ```ts
-import { archetype, dir, pkg, using } from '@yearofthedan/warp';
+import { all, archetype, defineConfig, dir, exposes, pkg, using } from '@yearofthedan/warp';
 
 const app = archetype('app').contains((m) =>
-  m.module('domain', dir('src/domain')).module('adapters', dir('src/adapters'), using((m) => [m.domain, pkg('pg')])),
+  m
+    .module('domain', dir('src/domain'), exposes(all()))
+    .module('adapters', dir('src/adapters'), using((m) => [m.domain, pkg('pg')])),
 );
+
+export default defineConfig({ root: app });
+```
+
+Incorrect code:
+
+```ts fragment
+// src/domain/order.ts
+import { Pool } from 'pg';
+```
+
+```
+src/domain/order.ts:1 [module-externals] src/domain/order.ts (app.domain src/domain) imports pg, a package outside domain's reach: no using in its reach lists a package. Add pkg('pg') to a using if the dependency is intended, or move the code.
+```
+
+Correct code:
+
+```ts fragment
+// src/adapters/db.ts
+import { Pool } from 'pg';
 ```
 
 Fix it by moving the code that needs the package into a module that lists it, or by adding the package to the module's

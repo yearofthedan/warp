@@ -30,15 +30,15 @@ check   reports every finding in the working tree.
 diff    reports findings that are new or worse at <head> than at <base>. Without <head>, compares the working tree.
         <base>...<head> compares from where <head> left <base>, as git does.
         With --since-last-run, compares the working tree with the last such run, or with <base> if there is none.
-model   prints the modules the config finds, and which part each file is in.
+model   prints the modules the config finds, and which module each file is in.
 
 --config          path to the config file (default: the first of warp.config.ts, .mts, .js, .mjs)
 --ruleset         one of the config's rulesets (default: the one named default, if any)
 --reporter        ${[...reporters.keys()].join(', ')} (default: text)
 --since-last-run  with diff, compare with the last diff run that had this flag
 --fail            exit 1 when there are findings (check) or new or worse findings (diff)
---rules           with model, list each module's and part's rule settings that differ from the defaults
---json            print the model as JSON, with every module's and part's resolved rule settings`;
+--rules           with model, list each module's rule settings that differ from the defaults
+--json            print the model as JSON, with every module's resolved rule settings`;
 
 type Options = { config?: string; ruleset?: string; reporter: string; fail: boolean; 'since-last-run': boolean };
 type Produce = (root: string, project: ProjectCheck, digest: string) => Report;

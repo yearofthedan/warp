@@ -66,6 +66,9 @@ const docProblems = (doc: string, text: string, api: string[]) => [
   ...headerProblems(doc, text).map((problem) => `${doc}:1: ${problem}`),
   ...linkProblems(doc, text).map((problem) => `${doc}: ${problem}`),
   ...examplesIn(text)
+    .filter((example) => !example.fragment)
+    .flatMap((example) => configProblems(example.code).map((problem) => `${doc}:${example.line}: ${problem}`)),
+  ...examplesIn(text)
     .filter((example) => example.fragment)
     .flatMap((example) =>
       fragmentProblems(doc, example.code, api).map((problem) => `${doc}:${example.line}: ${problem}`),
@@ -84,10 +87,43 @@ export const plan = (docs: { doc: string; text: string }[], api: string[]) => {
   return { files, problems: docs.flatMap(({ doc, text }) => docProblems(doc, text, api)) };
 };
 
+export const isConfig = (code: string): boolean => /^export default defineConfig\(/m.test(code);
+
+export const configProblems = (code: string): string[] =>
+  /(?<![.\w])archetype\s*\(/.test(code) && !isConfig(code)
+    ? ['builds an archetype, so it is a whole config: end it with export default defineConfig(...)']
+    : [];
+
 export const located = (diagnostic: string, files: Map<string, Planned>): string => {
   const match = /^(\S+\.ts)\((\d+),\d+\): (.*)$/.exec(diagnostic);
   const source = match && files.get(match[1]);
   return source ? `${source.doc}:${source.line + Number(match[2]) - 1}: ${match[3]}` : diagnostic;
+};
+
+const loadProblems = async (files: Map<string, Planned>): Promise<string[]> => {
+  const { mkdirSync, mkdtempSync, rmSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { dirname, join } = await import('node:path');
+  const { loadConfig } = await import('../src/config/loadConfig.ts');
+  const { loadConfigData } = await import('../src/app/load.ts');
+  const { builtinRegistry } = await import('../src/builtins/index.ts');
+  const builtins = [...builtinRegistry.values()];
+  const out = mkdtempSync(join(tmpdir(), 'warp-doc-configs-'));
+  for (const [file, { code }] of files) {
+    mkdirSync(dirname(join(out, file)), { recursive: true });
+    writeFileSync(join(out, file), code);
+  }
+  const problems: string[] = [];
+  for (const [file, { code, doc, line }] of files) {
+    if (!isConfig(code)) continue;
+    try {
+      loadConfigData((await loadConfig(join(out, file))).raw, { builtins });
+    } catch (error) {
+      for (const message of String((error as Error).message).split('\n')) problems.push(`${doc}:${line}: ${message}`);
+    }
+  }
+  rmSync(out, { recursive: true, force: true });
+  return problems;
 };
 
 const main = async () => {
@@ -117,8 +153,11 @@ const main = async () => {
   const diagnostics =
     run.status === 0 ? [] : `${run.stdout}${run.stderr}`.split('\n').filter((line) => line.trim() !== '');
   const failures = [...problems, ...diagnostics.map((line) => located(line, files))];
+  if (diagnostics.length === 0) failures.push(...(await loadProblems(files)));
   for (const failure of failures) console.error(failure);
-  console.log(`${docs.length} docs, ${files.size} ts examples type-checked, ${failures.length} problems.`);
+  console.log(
+    `${docs.length} docs, ${files.size} ts examples type-checked and configs loaded, ${failures.length} problems.`,
+  );
   process.exitCode = failures.length > 0 ? 1 : 0;
 };
 

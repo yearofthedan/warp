@@ -3,7 +3,9 @@
 **Audience:** anyone who needs to know why warp is the way it is, before changing it.
 **Purpose:** records why each decision was chosen over its alternatives, one record per decision.
 
-How to decide whether a decision needs a record, and how to write one: [the writing-adrs skill](https://github.com/yearofthedan/snippets/blob/main/plugins/dev-skills/skills/writing-adrs/SKILL.md).
+A decision gets a record when it is costly to reverse or likely to be questioned again. A record is numbered, dated and
+has a status, then four sections: Context, Options considered, Decision and Consequences. Once Accepted, it stays as
+written, and a later decision supersedes it with a new record.
 
 | # | Decision | Status |
 | --- | --- | --- |

@@ -24,41 +24,36 @@ lets importers through. The barrel's own re-exports are judged as its imports.
 With this config:
 
 ```ts
-import { archetype, dir, files, using } from '@yearofthedan/warp';
+import { all, archetype, defineConfig, dir, exposes, files, using } from '@yearofthedan/warp';
 
-const card = archetype('card')
-  .identify({ marker: '{name}.dom.ts' })
-  .requires({ strings: dir() })
-  .contains((m, { required, self }) =>
-    m
-      .module('subcomponent', dir('{name}'), self)
-      .module('logic', files('*.ts'))
-      .module('dom', files('{name}.dom.ts'), using((m) => [m.logic, m.subcomponent.render, required.strings])),
-  )
-  .exposes((m) => ({ render: m.dom }));
+const app = archetype('app').contains((m) =>
+  m
+    .module('domain', dir('src/domain'), exposes(files('order.ts')))
+    .module('db', dir('src/db'), exposes(all()).using((m) => [m.domain]))
+    .module('api', dir('src/api'), using((m) => [m.domain])),
+);
+
+export default defineConfig({ root: app });
 ```
 
 Incorrect code:
 
 ```ts fragment
-// src/ui/project/project.dom.ts
-import { cardLooks } from './card/card.ts'; // private: card exposes only render
-import { renderBadge } from './card/badge/badge.dom.ts'; // private: card doesn't pass badge's render on
-import { title } from '../../model/shell.ts'; // above: a module reaches up only through what it requires
+// src/api/orders.ts
+import { price } from '../domain/pricing.ts'; // domain exposes only order.ts
+import { save } from '../db/orders.ts'; // api's using lists only domain
 ```
 
-```ts fragment
-// src/ui/project/project.ts
-import { renderCard } from './card/card.dom.ts'; // not in using: logic doesn't use the subcomponents
+```
+src/api/orders.ts:2 [dependency-direction] src/api/orders.ts (app.api src/api) imports src/domain/pricing.ts (app.domain src/domain), which src/domain keeps private (it exposes files('order.ts')). Import what src/domain exposes, or expose src/domain/pricing.ts from app.domain if other modules should reach it.
+src/api/orders.ts:3 [dependency-direction] src/api/orders.ts (app.api src/api) imports src/db/orders.ts (app.db src/db), which is outside api's reach: app.api uses m.domain. Add what holds src/db/orders.ts to a using if the dependency is intended, or move the code.
 ```
 
 Correct code:
 
 ```ts fragment
-// src/ui/project/project.dom.ts
-import { project } from './project.ts';
-import { renderCard } from './card/card.dom.ts';
-import { strings } from '../strings/en.ts'; // required.strings, provided by ui
+// src/api/orders.ts
+import { order } from '../domain/order.ts';
 ```
 
 The message says why: the module that keeps the target private and what it exposes instead, that the target is above

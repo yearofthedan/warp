@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import {
+  configProblems,
   examplePath,
   examplesIn,
   fragmentProblems,
@@ -55,6 +56,19 @@ describe('examplePath', () => {
       'src/domain/order.ts',
     );
     assert.equal(examplePath({ line: 1, code: 'const a = 1;', fragment: false }), undefined);
+  });
+});
+
+describe('configProblems', () => {
+  it('passes a whole config, and code that builds no archetype', () => {
+    assert.deepEqual(configProblems("const a = archetype('a');\nexport default defineConfig({ root: a });"), []);
+    assert.deepEqual(configProblems('const a = 1;'), []);
+  });
+
+  it('refuses an archetype that is never loaded as a config', () => {
+    assert.deepEqual(configProblems("const a = archetype('a');"), [
+      'builds an archetype, so it is a whole config: end it with export default defineConfig(...)',
+    ]);
   });
 });
 

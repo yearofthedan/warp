@@ -27,11 +27,29 @@ a module is worse.
 With this config, `domain` and `infra` loop when `src/domain/order.ts` imports `src/infra/db.ts`:
 
 ```ts
-import { all, archetype, dir, exposes, using } from '@yearofthedan/warp';
+import { all, archetype, defineConfig, dir, exposes, using } from '@yearofthedan/warp';
 
 const app = archetype('app').contains((m) =>
   m.module('domain', dir('src/domain'), exposes(all())).module('infra', dir('src/infra'), using((m) => [m.domain])),
 );
+
+export default defineConfig({ root: app });
+```
+
+Incorrect code:
+
+```ts fragment
+// src/domain/order.ts
+import { connect } from '../infra/db.ts';
+```
+
+```ts fragment
+// src/infra/db.ts
+import { order } from '../domain/order.ts';
+```
+
+```
+src/domain/order.ts:1 [module-cycle] src/domain and src/infra import each other in a loop: src/domain -> src/infra (src/domain/order.ts:1 imports src/infra/db.ts), src/infra -> src/domain (src/infra/db.ts:1 imports src/domain/order.ts). Break it at one of these imports: move what both sides need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.
 ```
 
 Fix it by moving what both need into a module they both use, or by having the inner module own an interface the outer one
