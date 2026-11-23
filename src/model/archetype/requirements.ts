@@ -85,12 +85,12 @@ const answer = (
 
 const partText = (part: PartData): string => {
   const archetype = archetypeOf(part);
-  return archetype !== undefined ? `units of ${archetype}` : shapeText(part.kind);
+  return archetype !== undefined ? `modules of ${archetype}` : shapeText(part.kind);
 };
 
 const requirementText = (requirement: RequirementData): string =>
   requirement.kind === 'archetype'
-    ? `units of ${requirement.archetype}`
+    ? `modules of ${requirement.archetype}`
     : `${shapeText(requirement.kind)} (${requirement.kind}())`;
 
 const fits = (requirement: RequirementData, part: PartData): boolean =>

@@ -10,7 +10,7 @@ const root = archetype('root').contains((p) => p.dir('leaves', '{name}', leaf));
 const builtins = [...builtinRegistry.values()];
 
 const base = ruleset()
-  .rules({ 'cognitive-complexity': { max: 15 }, 'unit-cycle': false })
+  .rules({ 'cognitive-complexity': { max: 15 }, 'module-cycle': false })
   .on(leaf, { 'file-cohesion': { maxLines: 300 } })
   .on(leaf.test, 'off');
 
@@ -30,7 +30,7 @@ const failures = (rulesets: Record<string, unknown>, name?: string): string[] =>
 describe('rulesets', () => {
   it('apply the default ruleset at each level its lines name: global, an archetype, a part', () => {
     const config = load({ default: base });
-    assert.deepEqual(config.rules, { 'cognitive-complexity': { max: 15 }, 'unit-cycle': false });
+    assert.deepEqual(config.rules, { 'cognitive-complexity': { max: 15 }, 'module-cycle': false });
     assert.deepEqual(config.archetypes.leaf!.rules, { 'file-cohesion': { maxLines: 300 } });
     assert.deepEqual(
       config.archetypes.leaf!.parts.map((part) => part.rules),
@@ -50,7 +50,7 @@ describe('rulesets', () => {
   it('merge an extending ruleset after its base: options into options, false off, true on with the options kept', () => {
     const edit = ruleset()
       .extends(base)
-      .rules({ 'cognitive-complexity': { max: 12 }, 'unit-cycle': true, 'no-cycle': false })
+      .rules({ 'cognitive-complexity': { max: 12 }, 'module-cycle': true, 'no-cycle': false })
       .rules({ 'cognitive-complexity': true, 'file-cohesion': { maxLines: 100 } })
       .on(leaf, { 'file-cohesion': false })
       .on(leaf.test, { 'no-cycle': true })
@@ -58,7 +58,7 @@ describe('rulesets', () => {
     const config = load({ default: base, edit }, 'edit');
     assert.deepEqual(config.rules, {
       'cognitive-complexity': { max: 12 },
-      'unit-cycle': true,
+      'module-cycle': true,
       'no-cycle': false,
       'file-cohesion': { maxLines: 100 },
     });

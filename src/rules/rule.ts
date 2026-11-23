@@ -1,7 +1,7 @@
 import { ConfigError } from '../model/configError.ts';
 import type { ConfigData } from '../model/archetype/data.ts';
 import type { Verdicts } from '../model/archetype/reach.ts';
-import type { Model, UnitView } from '../model/archetype/resolve.ts';
+import type { Model, ModuleView } from '../model/archetype/resolve.ts';
 import type { FileFacts, Project } from '../model/facts.ts';
 
 export interface Finding {
@@ -32,7 +32,7 @@ export interface ProjectContext<Options> {
   model: Model;
   verdicts: Verdicts;
   atFile: (file: string) => Setting<Options>;
-  atUnit: (unit: UnitView) => Setting<Options>;
+  atModule: (module: ModuleView) => Setting<Options>;
 }
 
 interface RuleBase<Options extends object> {

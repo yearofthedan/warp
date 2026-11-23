@@ -41,7 +41,7 @@ export type AnyArchetype = Archetype<string, any>;
 export type SurfaceRefs<E> = Reference & { readonly [K in keyof E]: Reference };
 type AnySurface = Reference & { readonly [surface: string]: Reference };
 
-type UnitsRef<A> = A extends Self ? AnySurface : A extends Archetype<string, infer E> ? SurfaceRefs<E> : Reference;
+type ModulesRef<A> = A extends Self ? AnySurface : A extends Archetype<string, infer E> ? SurfaceRefs<E> : Reference;
 
 export type Using<C> = readonly (Reference | Package)[] | ((s: C) => readonly (Reference | Package)[]);
 
@@ -82,7 +82,7 @@ export interface Parts<C> {
     path: string | readonly string[],
     archetype: A,
     options?: PartOptions<C>,
-  ): Parts<C & { readonly [k in K]: UnitsRef<A> }>;
+  ): Parts<C & { readonly [k in K]: ModulesRef<A> }>;
 }
 
 export interface ContainsContext<R> {
@@ -100,7 +100,7 @@ export interface ArchetypeMethods<N extends string, C, R, E> extends Archetype<N
   identify(identify: Identify): ArchetypeBuilder<N, C, R, E>;
   requires<const R2 extends Record<string, AnyArchetype | Shape>>(
     requires: R2,
-  ): ArchetypeBuilder<N, C, { readonly [K in keyof R2]: UnitsRef<R2[K]> }, E>;
+  ): ArchetypeBuilder<N, C, { readonly [K in keyof R2]: ModulesRef<R2[K]> }, E>;
   contains<C2>(parts: (p: Parts<{}>, context: ContainsContext<R>) => Parts<C2>): ArchetypeBuilder<N, C2, R, E>;
   exposes<const E2 extends Record<string, Reference | readonly Reference[]>>(
     exposes: (s: C) => E2,

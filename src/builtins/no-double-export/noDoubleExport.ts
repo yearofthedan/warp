@@ -1,5 +1,5 @@
 import { place } from '../place.ts';
-import type { Model, UnitView } from '../../model/archetype/resolve.ts';
+import type { Model, ModuleView } from '../../model/archetype/resolve.ts';
 import type { ImportEdge } from '../../model/facts.ts';
 import { type Finding, noOptions, type ProjectRule } from '../../rules/rule.ts';
 
@@ -11,18 +11,18 @@ export const noDoubleExport: ProjectRule = {
   parseOptions: noOptions,
   check: ({ model, verdicts, project, atFile }) =>
     project.files.flatMap((file) => {
-      const unit = model.unitOf(file.path);
-      if (!unit || !atFile(file.path).on) return [];
-      const surface = verdicts.surface(unit);
+      const module = model.moduleOf(file.path);
+      if (!module || !atFile(file.path).on) return [];
+      const surface = verdicts.surface(module);
       if (!surface.has(file.path)) return [];
       const reExports = file.imports.filter((edge) => edge.reExport);
       return [...Map.groupBy(reExports, (edge) => edge.via ?? edge.to)].flatMap(([to, edges]) =>
-        to === file.path || !surface.has(to) ? [] : [doubled(model, unit, to, edges)],
+        to === file.path || !surface.has(to) ? [] : [doubled(model, module, to, edges)],
       );
     }),
 };
 
-const doubled = (model: Model, unit: UnitView, to: string, edges: ImportEdge[]): Finding => {
+const doubled = (model: Model, module: ModuleView, to: string, edges: ImportEdge[]): Finding => {
   const from = edges[0]!.from;
   const names = [...new Set(edges.flatMap((edge) => edge.names))];
   return {
@@ -32,8 +32,8 @@ const doubled = (model: Model, unit: UnitView, to: string, edges: ImportEdge[]):
     line: edges[0]!.line,
     value: Math.max(1, names.length),
     message:
-      `${from} (${place(model, from, unit)}) re-exports ${to} (${place(model, to)}), and ${unit.id} exposes both, ` +
+      `${from} (${place(model, from, module)}) re-exports ${to} (${place(model, to)}), and ${module.id} exposes both, ` +
       `so importers have two ways to the same names. Keep one: stop re-exporting it, or stop exposing it.`,
-    details: { unit: unit.id, to: { unit: model.unitOf(to)!.id, part: model.partOf(to) }, edges },
+    details: { module: module.id, to: { module: model.moduleOf(to)!.id, part: model.partOf(to) }, edges },
   };
 };

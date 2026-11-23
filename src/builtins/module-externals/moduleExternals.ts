@@ -4,7 +4,7 @@ import type { Model } from '../../model/archetype/resolve.ts';
 import type { ExternalImport } from '../../model/facts.ts';
 import { type Finding, noOptions, type ProjectRule } from '../../rules/rule.ts';
 
-const id = 'unit-externals';
+const id = 'module-externals';
 
 const glob = (pattern: string): RegExp =>
   new RegExp(`^${pattern.replaceAll(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '.*')}$`);
@@ -14,7 +14,7 @@ const listsPackage = (pattern: string, external: Pick<ExternalImport, 'package' 
   return matches.test(external.package) || matches.test(external.specifier);
 };
 
-export const unitExternals: ProjectRule = {
+export const moduleExternals: ProjectRule = {
   id,
   scope: 'project',
   parseOptions: noOptions,
@@ -38,8 +38,8 @@ const refused = (
   edges: ExternalImport[],
   packages: readonly Grant[],
 ): Finding => {
-  const unit = model.unitOf(from)!;
-  const owner = model.partOf(from) ?? unit.id;
+  const module = model.moduleOf(from)!;
+  const owner = model.partOf(from) ?? module.id;
   const names = [...new Set(edges.flatMap((edge) => edge.names))];
   const specifiers = [...new Set(edges.map((edge) => edge.specifier))];
   const imports = edges.every((edge) => edge.typeOnly) ? 'imports types from' : 'imports';
@@ -55,8 +55,8 @@ const refused = (
     line: edges[0]!.line,
     value: Math.max(1, names.length),
     message:
-      `${from} (${place(model, from, unit)}) ${imports} ${specifiers.join(', ')}, a package outside ${owner}'s reach${lists}. ` +
+      `${from} (${place(model, from, module)}) ${imports} ${specifiers.join(', ')}, a package outside ${owner}'s reach${lists}. ` +
       `Add pkg('${name}') to a using if the dependency is intended, or move the code.`,
-    details: { from: { unit: unit.id, part: model.partOf(from) }, package: name, edges },
+    details: { from: { module: module.id, part: model.partOf(from) }, package: name, edges },
   };
 };

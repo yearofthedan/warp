@@ -3,16 +3,16 @@
 **Audience:** anyone changing warp's config language.
 **Purpose:** where the config language is going, and the source of truth for it.
 
-Status: in delivery. The config builders, their load-time checks, finding units (`warp model`), edge verdicts
-(`dependency-direction`), package edges (`unit-externals`), `no-double-export`, `no-cross-unit-reexport`, rulesets,
-`unit-cycle` and `no-cycle` are in, and the built-in rules and plugins run through the rule contract's
-module and project scopes. Kinds are gone.
+Status: in delivery. The config builders, their load-time checks, finding modules (`warp model`), edge verdicts
+(`dependency-direction`), package edges (`module-externals`), `no-double-export`, `no-cross-module-reexport`, rulesets,
+`module-cycle` and `no-cycle` are in, and the built-in rules and plugins run through the rule contract's
+file and project scopes. Kinds are gone.
 
 ## Summary
 
 Warp (renamed from fitness) classified files with `kinds`: a flat list of globs, the first match wins. This
-design replaced them with **archetypes**: unit types that nest, so a config describes the codebase as a tree of
-modules rather than a list of folders. It also widens the rule contract so rules can see whole units and the whole
+design replaced them with **archetypes**: module types that nest, so a config describes the codebase as a tree of
+modules rather than a list of folders. It also widens the rule contract so rules can see whole modules and the whole
 graph, not one file at a time.
 
 The result is one model of the codebase's modules. Lint checks code against it, and agents query it before writing
@@ -23,18 +23,18 @@ code.
 Warp is a declared model of a codebase's modules, used to keep it modular. It has four parts, with the model at
 the core:
 
-- **The model:** the units, the parts inside them, what each part uses, and what each unit exposes.
+- **The model:** the modules, the parts inside them, what each part uses, and what each module exposes.
 - **Architecture boundaries:** direction, surfaces, re-exports, cycles, external packages.
-- **Modularity:** measures of a unit, such as cohesion, size, fan-in, and export surface and use.
+- **Modularity:** measures of a module, such as cohesion, size, fan-in, and export surface and use.
 - **Code quality:** the complexity and cohesion checks that exist today. They stay.
 
 What's in:
 
 - Every file in the tsconfig's program, tests included. Test code is modelled like any other code
   ([Tests](#tests)).
-- Cycles between units and between files.
-- The external packages a unit may import.
-- Non-TS files that code imports (CSS, JSON, SVG), as members of units that edges can point at.
+- Cycles between modules and between files.
+- The external packages a module may import.
+- Non-TS files that code imports (CSS, JSON, SVG), as members of modules that edges can point at.
 
 What's out:
 
@@ -56,7 +56,7 @@ A flat list of globs can't say:
 - `dom` files hold no logic, and that rule belongs to components, not to a global list;
 - the same shape repeats across projects, so it should be reusable.
 
-And the rule contract hands a rule one module at a time (`RuleContext.module`), so rules that need the whole graph,
+And the rule contract hands a rule one file at a time (`RuleContext.module`), so rules that need the whole graph,
 such as fan-in, export use, export surface and repeated call sequences, can't be written.
 
 ## The model
@@ -65,12 +65,12 @@ Seven terms, in the order they depend on each other:
 
 | Term | What it is | Example |
 | --- | --- | --- |
-| **Archetype** | A reusable unit type. It says how its instances are found, which parts they contain, what they expose to their parent, and what they require from above or provide below. | `component`, `layer` |
-| **Part** | A named piece of an archetype: a group of the unit's own files (`p.files`) or child folders of another archetype (`p.dir`). Every file belongs to one part. A part's `using` lists what its files may import. | `dom`, `test`, `components` |
-| **Unit** | An instance of an archetype in the code: the root, or a folder a `dir` part matched. Its id is its path. | `src/ui/project/graph` |
-| **Surface** | What a unit exposes to its parent: named groups of its parts. A file on no surface is private to its unit. | `render`, `testPage` |
-| **Edge** | One import between two files, as analysis resolved it. The rule contract calls a file a module. | `graph.ts` → `card.dom.ts` |
-| **Rule** | A check over files, units or the whole graph, against the model. It reports findings. | `dependency-direction` |
+| **Archetype** | A reusable module type. It says how its instances are found, which parts they contain, what they expose to their parent, and what they require from above or provide below. | `component`, `layer` |
+| **Part** | A named piece of an archetype: a group of the module's own files (`p.files`) or child folders of another archetype (`p.dir`). Every file belongs to one part. A part's `using` lists what its files may import. | `dom`, `test`, `components` |
+| **Module** | An instance of an archetype in the code: the root, or a folder a `dir` part matched. Its id is its path. | `src/ui/project/graph` |
+| **Surface** | What a module exposes to its parent: named groups of its parts. A file on no surface is private to its module. | `render`, `testPage` |
+| **Edge** | One import between two files, as analysis resolved it. | `graph.ts` → `card.dom.ts` |
+| **Rule** | A check over files, modules or the whole graph, against the model. It reports findings. | `dependency-direction` |
 | **Query** | A question asked of the model rather than of the code's findings. | `warp where <file>` |
 
 How they relate:
@@ -78,12 +78,12 @@ How they relate:
 ```
 config                                   code
 ──────                                   ────
-archetype ──contains──► parts ──match──► units and files
+archetype ──contains──► parts ──match──► modules and files
     │                     │                     │
     ├── exposes            └── using             ▼
     ├── provides / requires              edges between files
     │                                           │
-rules judge edges and units against the parts ──► findings
+rules judge edges and modules against the parts ──► findings
 queries read the same model ──► answers for agents
 ```
 
@@ -151,14 +151,14 @@ names before it sees the return, so a misspelt `s.domian` compiles. Declaring pa
 typed from the ones before it.
 
 **Parts.** Inside `.contains((p, { required, self }) => p ...)`, the kind of part is the method and its name comes
-first. `p.files(name, pattern, options?)` is a group of the unit's own files. `p.dir(name, path, archetype?,
-options?)` is a child unit per matching folder; without an archetype (`p.dir('ports', 'src/ports')`), the folder is
-a plain unit whose files are all exposed. A catch-all part is named for what it holds, such as `.files('src', '**')`.
+first. `p.files(name, pattern, options?)` is a group of the module's own files. `p.dir(name, path, archetype?,
+options?)` is a child module per matching folder; without an archetype (`p.dir('ports', 'src/ports')`), the folder is
+a plain module whose files are all exposed. A catch-all part is named for what it holds, such as `.files('src', '**')`.
 
 **Order is dependency order.** A part sees only the parts declared above it, so `subcomponent` comes before `dom`, and
 layers before the ui that uses them. Two sibling parts can't use each other, so sibling parts can't form a cycle.
 
-**References.** `s.x` is a part declared above: for a files part, its files; for a dir part, everything its units
+**References.** `s.x` is a part declared above: for a files part, its files; for a dir part, everything its modules
 expose, and `s.x.render` for one named surface. `required.x` is a requirement, and `required.x.name` one of its
 surfaces. `self` is the archetype being defined, for recursion. `using` is a callback, `(s) => [...]`, when it names
 sibling parts, and a plain array otherwise.
@@ -172,23 +172,23 @@ component.dom uses subcomponent.rendr; component exposes render, testPage
 ```
 
 **`using` is the only permission.** A file may import the other files of its own part, and whatever its part lists
-in `using`. Parts of one unit reach each other only through `using`. A parent reaches a child only through what the
+in `using`. Parts of one module reach each other only through `using`. A parent reaches a child only through what the
 child exposes. A child never reaches its parent: an archetype is used in many places, so it can't name one. What a
 child needs from above, it requires.
 
-`using` on a `dir` part is exact: it applies to the files of the units that part matches, and not to the units
+`using` on a `dir` part is exact: it applies to the files of the modules that part matches, and not to the modules
 nested inside them. `p.dir('application', 'src/application', { using: (s) => [s.domain] })` lets the application's files
 import the domain. Anything deeper that needs access requires it, and an ancestor provides it, so a component reaches
 the application because it requires it, not because `ui` was given it.
 
-**Surfaces.** `.exposes()` names what a unit offers its parent, as references to its own parts or to its children's
+**Surfaces.** `.exposes()` names what a module offers its parent, as references to its own parts or to its children's
 surfaces: `render: s.components.render` passes the components' render files on. A file in no exposed part is private.
 An archetype with no `.exposes()` exposes everything. Surface names aren't declared up front; `.exposes()` is where
 they come from.
 
 The words are `exposes` and `requires`, not `exports` and `imports`, because users already write `export` and
 `import` in their files, and the config doesn't follow them. Exporting more from `card.ts` doesn't widen what other
-units may import, and a finding that said "card doesn't export cardLooks" would look false when `card.ts` plainly
+modules may import, and a finding that said "card doesn't export cardLooks" would look false when `card.ts` plainly
 exports it. "card doesn't expose card.ts" states the architecture.
 
 **Requires and provides.** `.requires()` is an archetype's external interface, typed by archetype: `{ testRunner,
@@ -196,13 +196,13 @@ strings: dir() }`, where `dir()` and `files()` stand for a part with no archetyp
 to anything below that requires it by that name. The nearest provider wins, and archetypes in between say nothing, so
 `ui` passes nothing down for the test runner the root provides. Config errors, before any file is read:
 
-- a requirement with no provider above some unit that has it;
+- a requirement with no provider above some module that has it;
 - a requirement that no part lists in `using`;
 - a provider whose part doesn't match the required archetype.
 
 A provision that nothing below requires is a warning.
 
-**Loose files.** A unit's own files that no part matches are loose. `unclassified` reports them on the root unit,
+**Loose files.** A module's own files that no part matches are loose. `unclassified` reports them on the root module,
 and below it where a ruleset turns it on.
 
 **Structure and rules are separate.** The archetypes say what the codebase is: parts, `using`, surfaces and
@@ -210,14 +210,14 @@ requirements. Which rules judge it, and how strictly, lives in
 [rulesets](#rulesets), so the structure reads the same whatever the thresholds, and tuning a rule never touches it.
 
 **Plain data.** The builders return data, and references become part paths once resolved. `warp model --json` prints
-the resolved model with every unit's and part's rules; `match` functions and plugin rules are the only code left in
+the resolved model with every module's and part's rules; `match` functions and plugin rules are the only code left in
 the data. Finding keys and the diff cache hash that data.
 
 ### Types
 
 ```ts fragment
 archetype(name: string)                 // each step returns the builder; order: as listed
-  .identify({ marker: string } | { match: (dir: string, chain: UnitView[]) => false | Record<string, string> })
+  .identify({ marker: string } | { match: (dir: string, chain: ModuleView[]) => false | Record<string, string> })
   .requires(Record<string, Archetype | Shape>)       // Shape: dir() or files(), a part with no archetype
   .contains((p, { required, self }) => p.files(...).dir(...))
   .exposes((s) => Record<string, Ref | Ref[]>)       // unset: everything is exposed
@@ -253,17 +253,17 @@ interface WarpConfig {
 }
 ```
 
-A `p.dir` path is relative to the parent unit, and its placeholders always capture afresh. Without a placeholder it
-is one unit; with one (`'{name}'`), a unit per match; a list of paths is a unit per entry. The archetype's
+A `p.dir` path is relative to the parent module, and its placeholders always capture afresh. Without a placeholder it
+is one module; with one (`'{name}'`), a module per match; a list of paths is a module per entry. The archetype's
 `identify`, if it has one, says which matching folders count: `p.dir('components', '{name}', component)` with `marker:
 '{name}.dom.ts'` takes only folders that hold their own `.dom.ts`.
 
-## Finding units
+## Finding modules
 
-1. The root unit is the config's folder.
-2. For each unit, each `p.dir` part finds its units among the unit's own folders. A marker matches the shallowest
-   folder. Deeper matches are found when Warp looks inside that unit, if its archetype has a part that finds them.
-3. A file belongs to its deepest unit, and within it to exactly one files part: the most specific that matches.
+1. The root module is the config's folder.
+2. For each module, each `p.dir` part finds its modules among the module's own folders. A marker matches the shallowest
+   folder. Deeper matches are found when Warp looks inside that module, if its archetype has a part that finds them.
+3. A file belongs to its deepest module, and within it to exactly one files part: the most specific that matches.
 4. A file no part matches is loose, and `unclassified` reports it where it is on.
 
 **Most specific wins.** Line order in the config never matters.
@@ -273,13 +273,13 @@ is one unit; with one (`'{name}'`), a unit per match; a list of paths is a unit 
 - Files parts: the longer literal suffix wins. `*.test-page.ts` beats `*.ts`, and `{name}.dom.ts` beats `*.ts`.
   A catch-all (`**`) loses to everything.
 - Equal specificity is a config error that names both candidates and suggests narrowing a pattern. `*.test.ts`
-  against `**/*.test.ts` is one, for a test file directly in the unit.
+  against `**/*.test.ts` is one, for a test file directly in the module.
 
-Finding units reads the file system, so a marker can be a file outside the TS program, such as `component.json`.
+Finding modules reads the file system, so a marker can be a file outside the TS program, such as `component.json`.
 
 **Captures.** `{name}` matches one path segment. An archetype's templates (`marker`, file patterns) see only the
-unit's own captures, so nested components each have their own `{name}`. A `match` function gets the whole chain for
-anything else. Unit ids are full paths, so queries identify units without captures.
+module's own captures, so nested components each have their own `{name}`. A `match` function gets the whole chain for
+anything else. Module ids are full paths, so queries identify modules without captures.
 
 **What counts as a file.** The tsconfig's program: TS, JS with `allowJs`, and Vue, Svelte, Astro or MDX through
 TypeScript 7.1's `contentMappers`, which a project opts into because they run external code. A plain asset that
@@ -288,7 +288,7 @@ apply to it, but nothing is analysed inside it. Facts come from fact sources (to
 source, such as CSS's own `@import`s, can add edges later without touching rules.
 
 **Generated files.** Generated code is a part whose rules a ruleset turns off: `.on(app.generated, 'off')`, or
-`.on(app.generated, { '*': false, 'unit-cycle': true })` to keep a few. It stays a normal node: its importers are judged by
+`.on(app.generated, { '*': false, 'module-cycle': true })` to keep a few. It stays a normal node: its importers are judged by
 their own `using`, and it counts in fan-in, cycles and queries. Only findings located in it are
 silenced.
 
@@ -309,18 +309,18 @@ reach. A's reach is:
 - **its own part:** the other files in it;
 - **its part's `using`:** the parts and surfaces listed, with each `required.x` resolved to what the nearest
   provider above offers;
-- **the `using` of the dir part that matched A's unit,** which covers that unit's own files only.
+- **the `using` of the dir part that matched A's module,** which covers that module's own files only.
 
 A reference reaches only what it names. `s.ui.render` holds the files `ui` puts in `render`, and through
-`s.components.render` the components' render files, but nothing private to any of them. Two units of one dir part
+`s.components.render` the components' render files, but nothing private to any of them. Two modules of one dir part
 don't reach each other unless the part lists itself, which declare-before-use doesn't yet allow ([open](#open)).
 
-Type imports are imports: they obey `using` and surfaces like any other. A unit exposes types through a public file,
+Type imports are imports: they obey `using` and surfaces like any other. A module exposes types through a public file,
 a types file in an exposed part, or a barrel (`.exposes((s) => ({ api: s.index }))`). A barrel and the files it
 re-exports are not both exposed, so each name has one way in (`no-double-export`).
 
 **Packages** go through `using` like anything else: `pkg('vitest')`, or a glob such as `pkg('node:*')` or
-`pkg('@aws-sdk/*')`. An external edge passes when A's part, or the dir part that matched A's unit, lists a matching
+`pkg('@aws-sdk/*')`. An external edge passes when A's part, or the dir part that matched A's module, lists a matching
 package, so a part with none may import none. The canonical case is a hexagon where only `adapters` lists packages,
 and a `test` part lists its runner while the code beside it lists nothing.
 
@@ -335,11 +335,11 @@ utilities.
 `types: 'count' | 'ignore'`: a type-only edge couples two files as much as a value does, so it counts by default,
 and `'ignore'` keeps the loops that matter at run time. Re-exports have their own rule.
 
-**Cycles.** `unit-cycle` builds, for each unit, the graph of edges between its child units, and reports each loop,
+**Cycles.** `module-cycle` builds, for each module, the graph of edges between its child modules, and reports each loop,
 so two layers that import each other are a cycle even when no pair of files is. `no-cycle` does the same over files.
-Each reports one finding per edge in a loop, keyed `unit-cycle:src/ui->src/application` or `no-cycle:a.ts->b.ts`,
-so a loop that grows only adds findings. Type-only edges count by default. A known loop among a dir part's units is
-tolerated by turning the rule off on that part, `.on(app.features, { 'unit-cycle': false })`, and `where` shows it as
+Each reports one finding per edge in a loop, keyed `module-cycle:src/ui->src/application` or `no-cycle:a.ts->b.ts`,
+so a loop that grows only adds findings. Type-only edges count by default. A known loop among a dir part's modules is
+tolerated by turning the rule off on that part, `.on(app.features, { 'module-cycle': false })`, and `where` shows it as
 off.
 
 ### Rules that judge the model
@@ -349,20 +349,20 @@ Each failure is one finding per file pair per rule.
 | Check | Rule id |
 | --- | --- |
 | B outside A's reach (details say whether B is private or just not in `using`) | `dependency-direction` |
-| re-exporting a file of a unit outside the re-exporting unit and the units nested in it | `no-cross-unit-reexport` |
+| re-exporting a file of a module outside the re-exporting module and the modules nested in it | `no-cross-module-reexport` |
 | a file on a surface re-exporting another file on that surface | `no-double-export` |
-| a package not in the part's `using` | `unit-externals` |
-| a loop between units | `unit-cycle` |
+| a package not in the part's `using` | `module-externals` |
+| a loop between modules | `module-cycle` |
 | a loop between files | `no-cycle` |
-| a loose file, on the root unit or where a ruleset turns it on | `unclassified` |
+| a loose file, on the root module or where a ruleset turns it on | `unclassified` |
 
 ## Tests
 
 Test code is code, and the model treats it that way: test files belong to parts, and obey `using` like everything
 else.
 
-- A test file sits in the unit it tests, in a `test` part whose `using` names what it tests, including private
-  parts. That's how it reaches the unit's internals.
+- A test file sits in the module it tests, in a `test` part whose `using` names what it tests, including private
+  parts. That's how it reaches the module's internals.
 - A component's test-facing files are parts it exposes (`testPage`, `dsl`), beside `render`. A parent's tests reach
   them through its children's surfaces.
 - The test runner is required by the archetypes whose tests need it and provided by the root. App code can't reach
@@ -380,31 +380,31 @@ interface Rule<O extends object = object> {
   docs?: string;
   defaults?: O;
   parseOptions?: (raw: Record<string, unknown>, at: string) => Partial<O>;
-  scope?: 'module' | 'unit' | 'project';   // default 'module'
+  scope?: 'file' | 'module' | 'project';   // default 'file'
   phase?: 'edit' | 'commit';              // default 'edit'
-  check(context: ModuleContext<O> | UnitContext<O> | ProjectContext<O>): Finding[];   // narrowed by scope
+  check(context: FileContext<O> | ModuleContext<O> | ProjectContext<O>): Finding[];   // narrowed by scope
 }
 
-interface ModuleContext<O> { module: ModuleFacts; unit: UnitView; part: string; options: O; model: ModelView }
-interface UnitContext<O>   { unit: UnitView; modules: ModuleFacts[]; options: O; model: ModelView }
+interface FileContext<O>   { file: FileFacts; module: ModuleView; part: string; options: O; model: ModelView }
+interface ModuleContext<O>   { module: ModuleView; files: FileFacts[]; options: O; model: ModelView }
 interface ProjectContext<O> { project: Project; model: ModelView; optionsFor(file: string): O | undefined }
 
 interface ModelView {
-  units(): UnitView[];
-  unitOf(file: string): UnitView | undefined;
+  modules(): ModuleView[];
+  moduleOf(file: string): ModuleView | undefined;
   partOf(file: string): string | undefined;   // the files part, by name
   verdict(edge: ImportEdge): Verdict;     // the structure decision, so custom rules can reuse it
   importersOf(file: string): ImportEdge[];  // reverse index, built once
   exportsOf(file: string): ExportFacts[];
 }
 
-interface UnitView {
+interface ModuleView {
   id: string;                 // its path: 'src/ui/project/graph'
   part: string;               // part path: 'ui.components'
   archetype: string;
   captures: Record<string, string>;
-  parent?: UnitView;
-  children: UnitView[];
+  parent?: ModuleView;
+  children: ModuleView[];
   ownFiles: string[];
   parts: Record<string, string[]>;      // own files per files part
   surfaces: Record<string, string[]>;   // resolved files per exposed surface
@@ -418,8 +418,8 @@ interface UnitView {
 
 | Fact | For |
 | --- | --- |
-| `ModuleFacts.externals` | `unit-externals` |
-| `ModuleFacts.exports: { name, line, typeOnly, from? }[]`, `from` for re-exports | export surface (#5), export use (#6) |
+| `FileFacts.externals` | `module-externals` |
+| `FileFacts.exports: { name, line, typeOnly, from? }[]`, `from` for re-exports | export surface (#5), export use (#6) |
 | `FunctionFacts.calls: { callee, line }[]`, in order, the callee as the checker's symbol key | chained use (#4a), repeated call sequences (#4b) |
 
 **Phase.** A rule declares the earliest point at which its findings mean something. An export with no importers is
@@ -432,13 +432,13 @@ what the rule knows about itself; rulesets stay the project's tuning.
 
 Diff matches findings by key, so a key must survive edits that don't change the finding.
 
-- The form is `rule:subject[->object]`. A subject or object is a path, `path#symbol`, `path#Class.method`, or a unit
+- The form is `rule:subject[->object]`. A subject or object is a path, `path#symbol`, `path#Class.method`, or a module
   id.
-- Keys hold only paths, symbols and unit ids. Part and archetype names, line numbers, declaration positions and
+- Keys hold only paths, symbols and module ids. Part and archetype names, line numbers, declaration positions and
   option values stay out, so renaming a part or moving code within a file leaves keys alone.
 - An anonymous function is named by the function around it and the call it's passed to, `src/a.ts#load>then(0)`,
   with a `#n` suffix only when two such names are identical.
-- Unit findings key on the unit id (`module-count:src/ui/project/graph`), and project findings on their subject
+- Module findings key on the module id (`module-count:src/ui/project/graph`), and project findings on their subject
   (`export-use:src/x.ts#foo`).
 - Before comparing, `diff` maps base keys through git's renames (`git diff -M --name-status`), so a moved file's
   findings carry over instead of showing as resolved and added.
@@ -456,15 +456,15 @@ const base = ruleset()
 export const edit = ruleset()
   .extends(base)
   .rules({ 'cognitive-complexity': { max: 12 } })
-  .on(ui.components, { 'module-cohesion': false });
+  .on(ui.components, { 'file-cohesion': false });
 
 export default defineConfig({ root: app, rulesets: { default: base, edit } });
 ```
 
-An archetype's line reaches every unit of that archetype at any depth, since recursive components share one
-archetype, and a dir part's line every unit it finds. `default` applies without `--ruleset`. Boundary rules
+An archetype's line reaches every module of that archetype at any depth, since recursive components share one
+archetype, and a dir part's line every module it finds. `default` applies without `--ruleset`. Boundary rules
 (`dependency-direction`, the cycle and re-export rules, `unclassified`) are on everywhere until a ruleset turns them
-off. `warp model --rules` shows what each unit and part changes.
+off. `warp model --rules` shows what each module and part changes.
 
 ## Queries
 
@@ -472,8 +472,8 @@ The model answers "where does this file sit, and what may it import?" before cod
 with `--json`; the same functions can back an MCP tool later.
 
 ```sh
-warp model                                         # the unit tree, with every unit found
-warp where src/ui/project/graph/graph.test.ts      # a file's unit, part and surfaces, and what it may reach
+warp model                                         # the module tree, with every module found
+warp where src/ui/project/graph/graph.test.ts      # a file's module, part and surfaces, and what it may reach
 warp may src/ui/project/graph/graph.ts src/domain/project.ts
 ```
 
@@ -483,7 +483,7 @@ comes from the file's part, the dir parts above it and its requirements, so `whe
 ```json
 {
   "file": "src/ui/project/graph/graph.test.ts",
-  "unit": { "id": "src/ui/project/graph", "part": "ui.components.subcomponent", "archetype": "component", "captures": { "name": "graph" } },
+  "module": { "id": "src/ui/project/graph", "part": "ui.components.subcomponent", "archetype": "component", "captures": { "name": "graph" } },
   "part": "test",
   "chain": [".", "src/ui", "src/ui/project", "src/ui/project/graph"],
   "surfaces": [],
@@ -505,7 +505,7 @@ choose where new code goes.
 
 ## Extending the model
 
-The model has to stay open to an act layer: codemods that add a unit, move a file or introduce a port, reading the
+The model has to stay open to an act layer: codemods that add a module, move a file or introduce a port, reading the
 same archetypes to decide what to write and gating on `diff`. What keeps it possible:
 archetypes are plain data with names, `ModelView.verdict` answers for an edge that doesn't exist yet, and the model
 is built separately from rules. New fact sources add edges without touching rules, and a shorthand for
@@ -513,7 +513,7 @@ is built separately from rules. New fact sources add edges without touching rule
 
 ## Performance
 
-- **Unit resolution is cached.** Finding units walks the file system for markers. The result is cached and rebuilt
+- **Finding modules is cached.** It walks the file system for markers. The result is cached and rebuilt
   only when a file is added, removed or renamed.
 - **Whole-graph rules can run less often.** Only fan-in and cycles need the whole project. Edge checks need only
   the changed files and the surfaces of what they import; a change on the target side finds its importers through
@@ -528,19 +528,19 @@ is built separately from rules. New fact sources add edges without touching rule
 
 | | [Sheriff] | [eslint-plugin-boundaries] | [dependency-cruiser] | [Nx enforce-module-boundaries] | Warp (this design) |
 | --- | --- | --- | --- | --- | --- |
-| Units | path tree with `<placeholder>` tags | flat list, glob and capture | a regex per rule | projects, tagged in project config | tree of archetypes, recursive |
-| Nesting | through the path tree | parent, child and sibling relationships | no | no: a project is the smallest unit | `contains`, recursive |
+| Modules | path tree with `<placeholder>` tags | flat list, glob and capture | a regex per rule | projects, tagged in project config | tree of archetypes, recursive |
+| Nesting | through the path tree | parent, child and sibling relationships | no | no: a project is the smallest module | `contains`, recursive |
 | Surface | barrel `index.ts`, or an `internal/` folder | entry-point rule | no | the project's entry point, imported by its scope | named surfaces in `exposes` |
 | File categories | no | yes | regex | no | files parts, each with its own `using` |
 | Type and value edges | no | yes | yes | no | recorded; cycle rules can ignore type-only edges |
 | Re-export chains | no | no | no | no | resolved to the declarer |
 | Required imports | no | no | yes | no | no ([decided](#decided)) |
-| Cycles | no | no | files | projects | files and units |
+| Cycles | no | no | files | projects | files and modules |
 | External packages | no | yes | yes | per tag | per part |
-| Unit measures | no | no | no | no | yes |
+| Module measures | no | no | no | no | yes |
 | Queries | no | no | no | project graph (`nx graph`) | yes |
 
-Borrowed: from boundaries, file categories apart from units, and parent, child and sibling relationships; from
+Borrowed: from boundaries, file categories apart from modules, and parent, child and sibling relationships; from
 Sheriff, the placeholder syntax and its barrel and internal-folder surfaces, which here are just files parts
 (`p.files('index', 'index.ts')`); from Vue's provide and inject, the nearest provider answering a requirement. `index.ts` is
 one possible marker or surface among others.
@@ -659,7 +659,7 @@ How some edges come out (all 13 matched in the spike):
 | `project/graph/graph.dom.ts` → `project/panel/panel.dom.ts` | ❌ | siblings: `subcomponent` doesn't list itself |
 | `project/graph/card/card.dom.ts` → `icons/open-beside.dom.ts` | ✅ | `dom` uses `required.icons`, which `ui` provides |
 | `project/graph/card/card.ts` → `icons/open-beside.dom.ts` | ❌ | `logic` doesn't use icons |
-| `project/graph/card/card.ts` → `project/graph/card/card.dom.ts` | ❌ | same unit, but `logic` doesn't use `dom` |
+| `project/graph/card/card.ts` → `project/graph/card/card.dom.ts` | ❌ | same module, but `logic` doesn't use `dom` |
 | `project/graph/card/card.dsl.ts` → `test-helpers/playwright.driver.ts` | ❌ | `dsl` uses only the runner's `contract` |
 | `project/graph/graph.component.test.ts` → `project/graph/card/card.test-page.ts` | ✅ | `test` uses `s.subcomponent.testPage` |
 | `src/app.ts` → `project/project.dom.ts` | ✅ | `app` uses `ui.render`, which holds the top-level components |
@@ -668,7 +668,7 @@ How some edges come out (all 13 matched in the spike):
 | `project/project.dom.ts` → `src/shell.ts` (type only) | ❌ | a child never reaches its parent |
 | `domain/project.ts` → `test-helpers/staging.ts` | ❌ | domain's code uses nothing; only its tests use the runner |
 
-**Spike results.** All 147 files land in exactly one unit and part, with no ties and nothing unclaimed. The config
+**Spike results.** All 147 files land in exactly one module and part, with no ties and nothing unclaimed. The config
 gives 17 findings on 481 edges. 13 were known, and 4 are new:
 
 | Group | Findings | |
@@ -722,7 +722,7 @@ What doesn't fit well, and what it says about the structure:
   requires the app's shell is the smell. The shell's contract belongs below both, in `ports` or the application.
 - The runner's own tests sit in `runner`, which is exposed as `runner`, so components may import them. Tests inside a
   provided archetype leak through its surface unless the archetype gives them their own part.
-- Test parts carry long `using` lists (`component.test` has 11 entries), mostly "everything in my unit plus the
+- Test parts carry long `using` lists (`component.test` has 11 entries), mostly "everything in my module plus the
   runner".
 - Every folder whose tests use the runner needs an archetype with a `test` part, which is what `layer` is for.
 
@@ -773,8 +773,8 @@ const weaver = archetype('weaver')
     testHelpers: s.testHelpers, domain: s.domain, ports: s.ports, utils: s.utils, engines: s.engines,
   }));
 
-// engines' two units use each other, and so do daemon's; see below and Open
-const base = ruleset().on(weaver.engines, { 'unit-cycle': false }).on(weaver.daemon, { 'unit-cycle': false });
+// engines' two modules use each other, and so do daemon's; see below and Open
+const base = ruleset().on(weaver.engines, { 'module-cycle': false }).on(weaver.daemon, { 'module-cycle': false });
 
 export default defineConfig({ root: weaver, tsconfig: ['tsconfig.json', 'tsconfig.test.json'], rulesets: { default: base } });
 ```
@@ -786,12 +786,12 @@ What doesn't, mostly design smells the model brings out rather than gaps in it:
 
 - `operations/types.ts` is a contract the engines and plugins import, and `adapters/schema.ts` is one the daemon
   imports. So `ts-engine` and `operations` use each other, as do `daemon` and `adapters`. Declare-before-use can't
-  express two sibling parts that use each other, so each pair becomes one part of two units with `unit-cycle` off
-  (how two units of one part reach each other is [open](#open)). That loses the `node:path` limit on operations (`operations-purity.test.ts` stays) and hides the
+  express two sibling parts that use each other, so each pair becomes one part of two modules with `module-cycle` off
+  (how two modules of one part reach each other is [open](#open)). That loses the `node:path` limit on operations (`operations-purity.test.ts` stays) and hides the
   direction inside each pair. The loops go once those contracts move to their own part.
 - `ports/` holds `NodeFileSystem` and `InMemoryFileSystem` beside the `FileSystem` interface, and `filesystem.ts`
   re-exports the Node one. Saying "ports hold contracts" would need contract and implementation parts inside
-  `ports`, and the re-export would become a `no-cross-unit-reexport` finding.
+  `ports`, and the re-export would become a `no-cross-module-reexport` finding.
 - `operations` imports `safe-regex2`. That needs a decision, not a config change.
 - The plugins sit two levels down, so `weaver` provides four tiers and `plugin` requires them directly; `plugins` in
   between says nothing. That's still a long interface, and it's the plumbing exact `using` costs.
@@ -839,14 +839,14 @@ const warp = archetype('warp')
     .dir('integrations', 'integrations')
     .files('tests', 'test/*.ts', {
       using: (s) => [s.model, s.app, s.reporters, s.adapters, s.entry, s.api, s.integrations, pkg('node:*')],
-      description: 'Tests against the public units',
+      description: 'Tests against the public modules',
     }));
 
 export default defineConfig({ root: warp });
 ```
 
 What fits, and says more than today's kinds: the model's core can't import the rules nested inside it, rules can't
-import each other (only `shared.ts`), and the three adapter folders are separate units that may not import each
+import each other (only `shared.ts`), and the three adapter folders are separate modules that may not import each
 other. That's true today but not enforced. Each rule's tests reach its private files; the tests in `test/` are their
 own part, since they live apart from the code.
 
@@ -893,16 +893,16 @@ const nestApp = archetype('nest-app')
   .provides((s) => ({ common: s.common }));
 ```
 
-What fits: a module is a unit found by its marker, and `api` stands in for its `exports`, so a module reaches
+What fits: a Nest module is a module found by its marker, and `api` stands in for its `exports`, so a module reaches
 another's service and DTOs but never its controller or repository. Controllers go through services, because
 `controller` doesn't list `repository`. The order reads as Nest's own layering, entities up to the module file.
-Modules that import each other (Nest's `forwardRef`) are a `unit-cycle`.
+Modules that import each other (Nest's `forwardRef`) are a `module-cycle`.
 
 What doesn't: every Nest part lists `@nestjs/*`, which a shared const keeps short but not out of sight. `modules` using
 `s.modules.api` names the part from inside itself, which declare-before-use doesn't allow yet ([open](#open)). Nest's real boundary is the `@Module` metadata, which Warp doesn't
 read: a module that imports a service's class but doesn't list its module in `imports` passes here and fails at run
 time. Apps laid out by type (`controllers/`, `services/`) need a different config, with parts doing the work of
-units.
+modules.
 
 ### Shared component library
 
@@ -934,17 +934,17 @@ What doesn't:
 - A library component only one app component uses still sits in the library. Export use (#6) can show that as a
   fan-in of one, but nothing in the structure flags it.
 
-Folders holding several components side by side stay out of scope: they would need units made of file groups.
+Folders holding several components side by side stay out of scope: they would need modules made of file groups.
 
 ## Delivery
 
-1. Model: archetype types, finding units on the file system, `unclassified`, specificity and its errors,
-   `warp model`. Existing rules run on `unit` through a shim.
+1. Model: archetype types, finding modules on the file system, `unclassified`, specificity and its errors,
+   `warp model`. Existing rules run on `module` through a shim.
 2. Rule contract: scopes, `ModelView`, phase and `--phase`. Port the built-in rules.
-3. Structure: parts, surfaces, `using`, requires and provides with their checks, `no-cross-unit-reexport`, `unit-cycle`, `no-cycle`. Working title's config lands here, reporting beside depcruise.
+3. Structure: parts, surfaces, `using`, requires and provides with their checks, `no-cross-module-reexport`, `module-cycle`, `no-cycle`. Working title's config lands here, reporting beside depcruise.
 4. Queries: `where` and `may`. Try them from omp on working title before going further, so a real consumer shapes
    what follows.
-5. Facts: assets. External imports and `unit-externals` are in.
+5. Facts: assets. External imports and `module-externals` are in.
 6. Facts: exports, then export use (#6) and export surface (#5).
 7. Facts: calls, then #4a and #4b. Naming anonymous callbacks by their call lands with this.
 
@@ -954,21 +954,21 @@ Folders holding several components side by side stay out of scope: they would ne
    child needs from above, it requires, and an ancestor provides.
 2. **Phase and rulesets both stay.** `phase` is the rule's default, and rulesets are the project's override.
 3. **Per-function rules stay per function.** `cognitive-complexity` and `function-cohesion` take thresholds per part.
-   Whether they roll up into unit measures is decided later, with working title's data.
+   Whether they roll up into module measures is decided later, with working title's data.
 4. **No severity.** The project decides what fails, and the diff ratchet covers the rest.
 5. **No oxlint or Biome adapter.** A Warp language server is a possible later path for editor feedback, whatever
    the linter.
 6. **Architectures not laid out in folders are a known limit,** such as a boundary that exists only in a DI container
-   or a package's `exports` map. Files parts cover naming inside units, and `match` covers folders a marker can't.
-   Folders holding several components side by side are out of scope too, since they would need units made of file
+   or a package's `exports` map. Files parts cover naming inside modules, and `match` covers folders a marker can't.
+   Folders holding several components side by side are out of scope too, since they would need modules made of file
    groups. The [NestJS](#nestjs) and [shared component library](#shared-component-library) cases test how far the
    model goes.
-7. **Type imports are imports.** They obey `using` and surfaces. A unit exposes types through a public file, a types
+7. **Type imports are imports.** They obey `using` and surfaces. A module exposes types through a public file, a types
    file in an exposed part, or a barrel. The type/value distinction stays only in the cycle rules' `types` option.
 8. **Parts replace roles.** Every file belongs to one part, and each part says what it uses. A folder that is all
    test code (`e2e/`) is an archetype whose parts are all test code.
-9. **`using` is the only permission, and it is exact.** On a dir part it covers that unit's own files, not the units
-   inside it. Parts of one unit meet only through `using`, a parent reaches a child only through what it exposes, and requirements are typed by archetype and checked against providers before any file
+9. **`using` is the only permission, and it is exact.** On a dir part it covers that module's own files, not the modules
+   inside it. Parts of one module meet only through `using`, a parent reaches a child only through what it exposes, and requirements are typed by archetype and checked against providers before any file
    is read.
 
 10. **The config is a chain.** `archetype(name).requires().contains((p) => p.files(...).dir(...)).exposes().provides()`,
@@ -982,32 +982,32 @@ Folders holding several components side by side stay out of scope: they would ne
 13. **No required edges until a project needs one.** `using` keeps a part off what it mustn't reach, so a rule that a
     file must import something only adds a check that never fired on working title. Forbidding an edge is leaving it
     out of `using`.
-14. **A unit may re-export only what it owns:** its own files and the surfaces of the units nested in it.
-    `no-cross-unit-reexport` has no `allow`: a meant pass-through is structure (consumers use the other unit, the
-    unit wraps it in its own type, or the other unit moves inside it), and the escape is turning the rule off.
+14. **A module may re-export only what it owns:** its own files and the surfaces of the modules nested in it.
+    `no-cross-module-reexport` has no `allow`: a meant pass-through is structure (consumers use the other module, the
+    module wraps it in its own type, or the other module moves inside it), and the escape is turning the rule off.
 
 ## Open
 
 1. **Should sibling parts be allowed to use each other?** Declare-before-use rules it out. Weaver's two contract
    cycles and the test runner's contract needed restructuring because of it, which may be the point.
-2. **How do two units of one dir part reach each other?** Nest modules import each other's `api`, and that needs
+2. **How do two modules of one dir part reach each other?** Nest modules import each other's `api`, and that needs
    the part to name itself, which declare-before-use doesn't allow.
 3. **The test runner as one surface** (proposed). Every consumer of the runner listed both `contract` and `runner`,
    for one rule: languages kept off the drivers. One surface, `required.testRunner`, drops the second entry
    everywhere and gives up that rule.
 4. **References in rule options.** No built-in rule's options name a part yet. If one does, a part's `rules` could
-   take a callback over the parts above it, as its `using` does, with each reference resolved in the unit whose
-   archetype declares it, so an inherited option names the same files in every unit below.
+   take a callback over the parts above it, as its `using` does, with each reference resolved in the module whose
+   archetype declares it, so an inherited option names the same files in every module below.
 
 ## Noted concerns
 
 - **Tests repeat in every archetype that holds them.** Without roles, a cross-cutting concern is a part in each
   archetype (`layer`, `component`, `ui`). Overlays could add a part to every archetype at once.
-- **Requires and provides are plumbing.** With exact `using`, anything a nested unit needs from outside its parent
+- **Requires and provides are plumbing.** With exact `using`, anything a nested module needs from outside its parent
   goes through a requirement and a provider: three edits in two archetypes for each shared thing. On working title
   that came to 4 provides, 4 requires and about 20 `using` entries.
-- **Long `using` lists on test parts.** `component.test` lists 11 things, most of them "everything in my unit plus
-  the runner". A shorthand such as `s.$unit` would cut most of them.
+- **Long `using` lists on test parts.** `component.test` lists 11 things, most of them "everything in my module plus
+  the runner". A shorthand such as `s.$module` would cut most of them.
 - **Self surfaces are checked late.** `s.subcomponent.<anything>` compiles and offers no completions; a typo shows
   up when the config loads, not in the editor.
 - **Callbacks mean the config is data only after it runs.** `warp model --json` shows the result, but the source can't

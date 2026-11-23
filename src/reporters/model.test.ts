@@ -40,7 +40,7 @@ const model = resolveModel(
 );
 
 describe('modelText', () => {
-  it('prints the unit tree with each unit part, archetype, captures and files, and the loose files', () => {
+  it('prints the module tree with each module part, archetype, captures and files, and the loose files', () => {
     assert.equal(
       modelText(model),
       [
@@ -51,48 +51,48 @@ describe('modelText', () => {
         '  src/empty  components: component {name=empty}  no files',
         '  src/strings  strings: plain folder  1 files',
         '',
-        '5 units, 6 files, 1 loose.',
+        '5 modules, 6 files, 1 loose.',
       ].join('\n'),
     );
   });
 });
 
 describe('modelText with rules', () => {
-  it('lists what each unit changes from the one above, and each part from its unit', () => {
+  it('lists what each module changes from the one above, and each part from its module', () => {
     const rules = rulesOf(config, model, [{ id: 'max-lines', defaults: { max: 100 } }, { id: 'no-cycle' }]);
     assert.equal(
       modelText(model, rules),
       [
         '.  root: app  main: 1',
-        '  rules in unit: max-lines {"max":200}',
+        '  rules in module: max-lines {"max":200}',
         '  loose: src/stray.ts',
         '  lib/orders/list  features: plain folder {area=orders} {name=list}  1 files',
         '  src/card  components: component {name=card}  logic: 1, dom: 1',
-        '    rules in unit: max-lines {"max":300}',
+        '    rules in module: max-lines {"max":300}',
         '    rules in dom: no-cycle off',
         '  src/empty  components: component {name=empty}  no files',
-        '    rules in unit: max-lines {"max":300}',
+        '    rules in module: max-lines {"max":300}',
         '  src/strings  strings: plain folder  1 files',
         '',
-        '5 units, 6 files, 1 loose.',
+        '5 modules, 6 files, 1 loose.',
       ].join('\n'),
     );
   });
 });
 
 describe('modelJson', () => {
-  it("gives each unit's and part's resolved rules when asked", () => {
+  it("gives each module's and part's resolved rules when asked", () => {
     const rules = rulesOf(config, model, [{ id: 'no-cycle' }]);
-    const card = JSON.parse(modelJson(model, rules)).units.find((unit: { id: string }) => unit.id === 'src/card');
+    const card = JSON.parse(modelJson(model, rules)).modules.find((module: { id: string }) => module.id === 'src/card');
     assert.deepEqual(card.rules, {
-      unit: { 'no-cycle': {} },
+      module: { 'no-cycle': {} },
       parts: { logic: { 'no-cycle': {} }, dom: { 'no-cycle': false } },
     });
   });
 
-  it('lists every unit with its parent and children by id', () => {
-    const { units } = JSON.parse(modelJson(model));
-    assert.deepEqual(units[0], {
+  it('lists every module with its parent and children by id', () => {
+    const { modules } = JSON.parse(modelJson(model));
+    assert.deepEqual(modules[0], {
       id: '.',
       archetype: 'app',
       captures: {},
@@ -101,7 +101,7 @@ describe('modelJson', () => {
       parts: { main: ['src/main.ts'] },
       looseFiles: ['src/stray.ts'],
     });
-    assert.deepEqual(units[4], {
+    assert.deepEqual(modules[4], {
       id: 'src/strings',
       part: 'strings',
       captures: {},

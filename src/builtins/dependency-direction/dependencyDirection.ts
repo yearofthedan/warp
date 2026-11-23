@@ -31,8 +31,8 @@ interface Context {
 
 const refused = (context: Context, from: string, to: string, refusal: Refusal, edges: ImportEdge[]): Finding => {
   const { model } = context;
-  const source = model.unitOf(from)!;
-  const target = model.unitOf(to)!;
+  const source = model.moduleOf(from)!;
+  const target = model.moduleOf(to)!;
   const names = [...new Set(edges.flatMap((edge) => edge.names))];
   const imports = edges.every((edge) => edge.typeOnly) ? 'imports types from' : 'imports';
   return {
@@ -43,8 +43,8 @@ const refused = (context: Context, from: string, to: string, refusal: Refusal, e
     value: Math.max(1, names.length),
     message: `${from} (${place(model, from, source)}) ${imports} ${to} (${place(model, to, target)}), ${explain(context, from, to, refusal)}`,
     details: {
-      from: { unit: source.id, part: model.partOf(from) },
-      to: { unit: target.id, part: model.partOf(to) },
+      from: { module: source.id, part: model.partOf(from) },
+      to: { module: target.id, part: model.partOf(to) },
       reason: refusal.reason,
       ...(refusal.reason === 'private' ? { hiddenBy: refusal.hiddenBy.id } : {}),
       edges,
@@ -53,18 +53,18 @@ const refused = (context: Context, from: string, to: string, refusal: Refusal, e
 };
 
 const explain = ({ config, model, verdicts }: Context, from: string, to: string, refusal: Refusal): string => {
-  const source = model.unitOf(from)!;
+  const source = model.moduleOf(from)!;
   if (refusal.reason === 'private') {
     const { hiddenBy } = refusal;
     const exposes = Object.keys(config.archetypes[hiddenBy.archetype!]!.exposes ?? {});
     return (
       `which ${hiddenBy.id} keeps private (it exposes ${exposes.join(', ')}). ` +
-      `Import what ${hiddenBy.id} exposes, or expose ${to} from ${hiddenBy.archetype} if other units should reach it.`
+      `Import what ${hiddenBy.id} exposes, or expose ${to} from ${hiddenBy.archetype} if other modules should reach it.`
     );
   }
   if (refusal.reason === 'above')
     return (
-      `which is above ${source.id}. A unit reaches up only through what it requires: ` +
+      `which is above ${source.id}. A module reaches up only through what it requires: ` +
       `require it in ${source.archetype ?? 'the archetype that finds it'} and have an ancestor provide it, or move it below.`
     );
   const owner = model.partOf(from) ?? source.id;

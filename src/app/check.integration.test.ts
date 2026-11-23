@@ -27,25 +27,25 @@ describe('check', () => {
       'cognitive-complexity:src/app/handle.ts:grade',
       'dependency-direction:src/domain/order.ts->src/adapters/index.ts',
       'dependency-direction:src/domain/pricing.ts->src/adapters/db/orderRepo.ts',
-      'function-cohesion:src/app/handle.ts:handle',
       'file-cohesion:src/app/handle.ts',
       'file-cohesion:src/domain/pricing.ts',
-      'no-cross-unit-reexport:src/app/index.ts->src/domain/order.ts',
+      'function-cohesion:src/app/handle.ts:handle',
+      'module-cycle:src/adapters->src/domain',
+      'module-cycle:src/domain->src/adapters',
+      'no-cross-module-reexport:src/app/index.ts->src/domain/order.ts',
       'no-cycle:src/adapters/db/orderRepo.ts->src/domain/order.ts',
       'no-cycle:src/adapters/index.ts->src/adapters/db/orderRepo.ts',
       'no-cycle:src/domain/order.ts->src/adapters/index.ts',
       'no-double-export:src/adapters/index.ts->src/adapters/db/orderRepo.ts',
       'no-double-export:src/app/index.ts->src/app/handle.ts',
       'unclassified:src/stray.ts',
-      'unit-cycle:src/adapters->src/domain',
-      'unit-cycle:src/domain->src/adapters',
     ]);
   });
 
   it('links each finding to its rule page', () => {
     assert.equal(
-      byKey('no-cross-unit-reexport:src/app/index.ts->src/domain/order.ts')?.docs,
-      'https://github.com/yearofthedan/warp/blob/main/src/builtins/no-cross-unit-reexport/README.md',
+      byKey('no-cross-module-reexport:src/app/index.ts->src/domain/order.ts')?.docs,
+      'https://github.com/yearofthedan/warp/blob/main/src/builtins/no-cross-module-reexport/README.md',
     );
   });
 
@@ -56,7 +56,7 @@ describe('check', () => {
     );
   });
 
-  it('reports the groups a module splits into', () => {
+  it('reports the groups a file splits into', () => {
     assert.deepEqual(byKey('file-cohesion:src/domain/pricing.ts')?.details, {
       lines: 17,
       tripwire: 15,
@@ -75,7 +75,7 @@ describe('check', () => {
     ]);
   });
 
-  it('passes a module over the tripwire whose code is one group', () => {
+  it('passes a file over the tripwire whose code is one group', () => {
     assert.equal(byKey('file-cohesion:src/adapters/db/orderRepo.ts'), undefined);
   });
 });

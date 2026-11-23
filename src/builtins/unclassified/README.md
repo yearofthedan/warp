@@ -3,7 +3,7 @@
 **Audience:** anyone reading a `unclassified` finding, or setting the rule.
 **Purpose:** what `unclassified` reports, why, and its options.
 
-Report a loose file, one no part of its unit matches.
+Report a loose file, one no part of its module matches.
 
 ## Why
 
@@ -13,8 +13,8 @@ for code a decision.
 
 ## Rule details
 
-The rule judges the root unit's loose files unless a ruleset turns it off, and a nested unit's only where a ruleset
-turns it on, for the unit's archetype, the dir part that found it, a unit above it, or the whole config. `warp model`
+The rule judges the root module's loose files unless a ruleset turns it off, and a nested module's only where a ruleset
+turns it on, for the module's archetype, the dir part that found it, a module above it, or the whole config. `warp model`
 lists every loose file.
 
 With this config, `src/stray.ts` is reported:

@@ -70,8 +70,8 @@ describe('pluginRules', () => {
     );
     assert.equal(refused({ mine: { rules: [{ id: 'r' }] } }), `${at}.mine.rules[0]: r has no check function`);
     assert.equal(
-      refused({ mine: { rules: [{ id: 'r', scope: 'unit', check: () => [] }] } }),
-      `${at}.mine.rules[0]: r has scope unit; a scope is file or project`,
+      refused({ mine: { rules: [{ id: 'r', scope: 'module', check: () => [] }] } }),
+      `${at}.mine.rules[0]: r has scope module; a scope is file or project`,
     );
     assert.deepEqual(
       pluginRules({ mine: { rules: [{ id: 'r', scope: 'file', check: () => [] }] } }).map((rule) => rule.id),

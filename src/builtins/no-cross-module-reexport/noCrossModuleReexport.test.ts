@@ -5,9 +5,9 @@ import { checkModel } from '../../app/checkModel.ts';
 import { loadConfigData } from '../../app/load.ts';
 import { type Folders, resolveModel } from '../../model/archetype/resolve.ts';
 import type { ImportEdge, FileFacts } from '../../model/facts.ts';
-import { noCrossUnitReexport } from './noCrossUnitReexport.ts';
+import { noCrossModuleReexport } from './noCrossModuleReexport.ts';
 
-const rule = 'no-cross-unit-reexport';
+const rule = 'no-cross-module-reexport';
 
 const folders = (paths: readonly string[]): Folders => {
   const dirs = new Set(
@@ -57,7 +57,7 @@ const check = (root: AnyArchetype, analyzed: FileFacts[], rules?: Ruleset) => {
     ...files.filter((file) => !analyzed.some((m) => m.path === file)).map((file) => facts(file)),
   ];
   const model = resolveModel(config, folders(files), files);
-  return checkModel(config, model, { files: all }, [noCrossUnitReexport]).filter(
+  return checkModel(config, model, { files: all }, [noCrossModuleReexport]).filter(
     (finding) => finding.rule !== 'unclassified',
   );
 };
@@ -90,7 +90,7 @@ const app = (child: AnyArchetype) =>
     .provides((s) => ({ ports: s.ports }));
 
 describe(rule, () => {
-  it('flags a re-export of another unit, even one the unit may use', () => {
+  it('flags a re-export of another module, even one the module may use', () => {
     const edges = [
       reExport('ui/index.ts', 'ports/folder.ts', { names: ['Folder', 'Chooser'] }),
       reExport('ui/index.ts', 'ports/folder.ts', { names: [], line: 3 }),
@@ -107,8 +107,8 @@ describe(rule, () => {
           'reach ports through ui. Have importers that need it use ports directly, give ui its own type that ' +
           'hides it, or move it into ui if ui owns it.',
         details: {
-          from: { unit: 'ui', part: 'api' },
-          to: { unit: 'ports', part: undefined },
+          from: { module: 'ui', part: 'api' },
+          to: { module: 'ports', part: undefined },
           names: ['Folder', 'Chooser'],
           edges,
         },
@@ -126,7 +126,7 @@ describe(rule, () => {
     );
   });
 
-  it('passes a re-export within the unit or from a unit nested in it, and plain imports', () => {
+  it('passes a re-export within the module or from a module nested in it, and plain imports', () => {
     const plain = { ...reExport('ui/view.ts', 'ports/folder.ts'), reExport: undefined };
     assert.deepEqual(
       keys(
@@ -142,7 +142,7 @@ describe(rule, () => {
     );
   });
 
-  it("flags a nested unit re-exporting its parent's files", () => {
+  it("flags a nested module re-exporting its parent's files", () => {
     assert.deepEqual(keys(check(app(ui()), [facts('ui/card/card.ts', [reExport('ui/card/card.ts', 'ui/view.ts')])])), [
       `${rule}:ui/card/card.ts->ui/view.ts`,
     ]);
@@ -151,6 +151,6 @@ describe(rule, () => {
   it('reports nothing where the rule is off, and takes no options', () => {
     const analyzed = [facts('ui/index.ts', [reExport('ui/index.ts', 'ports/folder.ts')])];
     assert.deepEqual(keys(check(app(ui()), analyzed, ruleset().on(uiArchetype.api, { [rule]: false }))), []);
-    assert.throws(() => noCrossUnitReexport.parseOptions!({ allow: [] }, 'at'), /at: unknown key allow/);
+    assert.throws(() => noCrossModuleReexport.parseOptions!({ allow: [] }, 'at'), /at: unknown key allow/);
   });
 });

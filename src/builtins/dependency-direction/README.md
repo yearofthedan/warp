@@ -14,11 +14,11 @@ cheap to keep and expensive to recover, so it is checked on every import.
 ## Rule details
 
 `using` is the only permission. A file may import the rest of its own part, what its part's `using` names, and, for a
-unit's own files, what the `using` of the dir part that found the unit names. Anything else is a finding, one per
+module's own files, what the `using` of the dir part that found the module names. Anything else is a finding, one per
 pair of files. Its value is the number of names imported, so importing more across the same boundary counts as
 worse. Type-only imports count too.
 
-An import is judged on the file its specifier names, not the file that declares the names, so a barrel a unit exposes
+An import is judged on the file its specifier names, not the file that declares the names, so a barrel a module exposes
 lets importers through. The barrel's own re-exports are judged as its imports.
 
 With this config:
@@ -44,7 +44,7 @@ Incorrect code:
 // src/ui/project/project.dom.ts
 import { cardLooks } from './card/card.ts'; // private: card exposes only render
 import { renderBadge } from './card/badge/badge.dom.ts'; // private: card doesn't pass badge's render on
-import { title } from '../../model/shell.ts'; // above: a unit reaches up only through what it requires
+import { title } from '../../model/shell.ts'; // above: a module reaches up only through what it requires
 ```
 
 ```ts fragment
@@ -61,9 +61,9 @@ import { renderCard } from './card/card.dom.ts';
 import { strings } from '../strings/en.ts'; // required.strings, provided by ui
 ```
 
-The message says why: the unit that keeps the target private and what it exposes instead, that the target is above
+The message says why: the module that keeps the target private and what it exposes instead, that the target is above
 the importer, or what the importer's reach does hold. Package imports are judged by
-[`unit-externals`](../unit-externals/README.md).
+[`module-externals`](../module-externals/README.md).
 
 ## Options
 
@@ -74,5 +74,5 @@ None. The config's `using` sets what it allows.
 For code with no direction to keep, such as scripts. Give its part a `using` that lists what it may reach, or turn
 the rule off for that part.
 
-See also [`no-cross-unit-reexport`](../no-cross-unit-reexport/README.md), which reports the file that re-exports
-another unit's file, where this rule reports each importer.
+See also [`no-cross-module-reexport`](../no-cross-module-reexport/README.md), which reports the file that re-exports
+another module's file, where this rule reports each importer.
