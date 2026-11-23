@@ -15,25 +15,28 @@ import {
 } from './builder.ts';
 import { loadConfigData } from '../../app/load.ts';
 
-const testRunner = archetype('test-runner')
-  .contains((m) =>
-    m.module('contract', files('driver.ts'), exposes(all())).module(
-      'runner',
-      files('**'),
-      exposes(all()).using((m) => [m.contract]),
-    ),
-  )
-  .exposes((m) => ({ contract: m.contract, runner: m.runner }));
+const archetypes = () => {
+  const testRunner = archetype('test-runner')
+    .contains((m) =>
+      m.module('contract', files('driver.ts'), exposes(all())).module(
+        'runner',
+        files('**'),
+        exposes(all()).using((m) => [m.contract]),
+      ),
+    )
+    .exposes((m) => ({ contract: m.contract, runner: m.runner }));
 
-const kid = archetype('kid')
-  .contains((m) =>
-    m.module('dom', files('*.dom.ts'), exposes(all())).module('page', files('*.page.ts'), exposes(all())),
-  )
-  .exposes((m) => ({ render: m.dom, pages: m.page }));
+  const kid = archetype('kid')
+    .contains((m) =>
+      m.module('dom', files('*.dom.ts'), exposes(all())).module('page', files('*.page.ts'), exposes(all())),
+    )
+    .exposes((m) => ({ render: m.dom, pages: m.page }));
 
-const plainKid = archetype('plain-kid').contains((m) => m.module('src', files('**')));
+  const plainKid = archetype('plain-kid').contains((m) => m.module('src', files('**')));
+  return { testRunner, kid, plainKid };
+};
 
-const errorsIn = (child: AnyArchetype): string[] => {
+const errorsIn = (child: AnyArchetype, testRunner: AnyArchetype = archetypes().testRunner): string[] => {
   const root = archetype('host')
     .contains((m) =>
       m
@@ -123,6 +126,7 @@ describe('archetype builders', () => {
   });
 
   it('offer the modules above, the requirements and the surfaces as completions', () => {
+    const { testRunner, kid } = archetypes();
     archetype('c')
       .requires({ testRunner, strings: dir(), transition: files() })
       .contains((m, { required, self }) => {
@@ -188,16 +192,18 @@ describe('archetype builders', () => {
   });
 
   it('refuse a requirement the archetype does not declare', () => {
+    const { testRunner } = archetypes();
     const child = archetype('c')
       .requires({ testRunner })
       .contains((m, { required }) =>
         // @ts-expect-error undeclared requirement
         m.module('a', files('a.ts'), using([required.testRunner, required.icons])),
       );
-    assert.deepEqual(errorsIn(child), ['c.a uses required.icons; c requires testRunner']);
+    assert.deepEqual(errorsIn(child, testRunner), ['c.a uses required.icons; c requires testRunner']);
   });
 
   it("refuse a misspelt surface of a requirement or a child's archetype", () => {
+    const { testRunner, kid } = archetypes();
     const child = archetype('c')
       .requires({ testRunner })
       .contains((m, { required }) =>
@@ -212,7 +218,7 @@ describe('archetype builders', () => {
             using((m) => [m.kids.rendr]),
           ),
       );
-    assert.deepEqual(errorsIn(child), [
+    assert.deepEqual(errorsIn(child, testRunner), [
       'c.c uses required.testRunner.runer; required.testRunner (test-runner) exposes contract, runner',
       'c.e uses kids.rendr; kids (kid) exposes render, pages',
     ]);
@@ -238,6 +244,7 @@ describe('archetype builders', () => {
   });
 
   it('refuse a surface on a module or requirement that has none', () => {
+    const { plainKid } = archetypes();
     const child = archetype('c')
       .requires({ strings: dir() })
       .contains((m, { required }) =>
@@ -285,6 +292,7 @@ describe('archetype builders', () => {
   });
 
   it('keep s typed in both dir overloads', () => {
+    const { kid } = archetypes();
     const child = archetype('c').contains((m) =>
       m
         .module('domain', dir('src/domain'), exposes(all()))
@@ -318,6 +326,7 @@ describe('archetype builders', () => {
   });
 
   it('refuse what exposes and provides cannot name', () => {
+    const { kid } = archetypes();
     const child = archetype('c')
       .contains((m) => m.module('dom', files('*.dom.ts')).module('kids', dir('{name}'), kid))
       // @ts-expect-error a surface names modules, not packages

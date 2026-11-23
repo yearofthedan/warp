@@ -1,18 +1,29 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'vite-plus/test';
+import { beforeEach, describe, it } from 'vite-plus/test';
 import { builtinRegistry } from '../../builtins/index.ts';
 import { ConfigError } from '../configError.ts';
 import { archetype, dir, files, ruleset } from './builder.ts';
 import { loadConfigData } from '../../app/load.ts';
 
-const leaf = archetype('leaf').contains((m) => m.module('src', files('*.ts')).module('test', files('*.test.ts')));
-const root = archetype('root').contains((m) => m.module('leaves', dir('{name}'), leaf));
 const builtins = [...builtinRegistry.values()];
 
-const base = ruleset()
-  .rules({ 'cognitive-complexity': { max: 15 }, 'module-cycle': false })
-  .on(leaf, { 'file-cohesion': { maxLines: 300 } })
-  .on(leaf.modules.test, 'off');
+const tree = () => {
+  const leaf = archetype('leaf').contains((m) => m.module('src', files('*.ts')).module('test', files('*.test.ts')));
+  const root = archetype('root').contains((m) => m.module('leaves', dir('{name}'), leaf));
+  const base = ruleset()
+    .rules({ 'cognitive-complexity': { max: 15 }, 'module-cycle': false })
+    .on(leaf, { 'file-cohesion': { maxLines: 300 } })
+    .on(leaf.modules.test, 'off');
+  return { leaf, root, base };
+};
+
+type Tree = ReturnType<typeof tree>;
+let leaf: Tree['leaf'];
+let root: Tree['root'];
+let base: Tree['base'];
+beforeEach(() => {
+  ({ leaf, root, base } = tree());
+});
 
 const load = (rulesets: Record<string, unknown> | undefined, name?: string) =>
   loadConfigData({ root, ...(rulesets ? { rulesets } : {}) }, { builtins, ...(name ? { ruleset: name } : {}) }).config;

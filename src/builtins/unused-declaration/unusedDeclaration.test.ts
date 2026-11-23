@@ -62,16 +62,18 @@ const facts = (path: string, imports: string[] = [], packages: string[] = []): F
   functions: [],
 });
 
-const card = archetype('card')
-  .contains((m) => m.module('src', files('*.ts'), exposes(all()).using([pkg('lit')])))
-  .exposes(all());
+const card = () =>
+  archetype('card')
+    .contains((m) => m.module('src', files('*.ts'), exposes(all()).using([pkg('lit')])))
+    .exposes(all());
 
-const ui = archetype('ui')
-  .contains((m) => m.module('cards', dir('{name}'), card).module('view', files('view.ts'), exposes(all())))
-  .exposes((m) => ({ cards: m.cards, view: m.view }))
-  .tests(contains((t) => t.module('driver', files('*.driver.ts'))).exposes(all()));
+const ui = (cards: AnyArchetype = card()) =>
+  archetype('ui')
+    .contains((m) => m.module('cards', dir('{name}'), cards).module('view', files('view.ts'), exposes(all())))
+    .exposes((m) => ({ cards: m.cards, view: m.view }))
+    .tests(contains((t) => t.module('driver', files('*.driver.ts'))).exposes(all()));
 
-const app = (extra: (m: any) => any = (m) => m, uiArchetype: AnyArchetype = ui) =>
+const app = (extra: (m: any) => any = (m) => m, uiArchetype: AnyArchetype = ui()) =>
   archetype('app')
     .contains((m) =>
       extra(
@@ -326,10 +328,12 @@ describe(rule, () => {
   it('is off where a ruleset turns it off', () => {
     const analyzed = [...without('ui/card/card.ts'), facts('ui/list/list.ts')];
     const options = { files: paths.filter((path) => path !== 'ui/card/card.ts') };
-    const keyed = (rules?: Ruleset) => keys(check(app(), analyzed, { ...options, ...(rules ? { rules } : {}) }));
+    const cards = card();
+    const keyed = (rules?: Ruleset) =>
+      keys(check(app(undefined, ui(cards)), analyzed, { ...options, ...(rules ? { rules } : {}) }));
     assert.ok(keyed().includes(`${rule}:grant:card.src->pkg('lit')`));
     assert.deepEqual(
-      keyed(ruleset().on(card, { [rule]: false })),
+      keyed(ruleset().on(cards, { [rule]: false })),
       keyed().filter((key) => !key.includes(':card')),
     );
   });

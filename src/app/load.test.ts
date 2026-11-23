@@ -250,11 +250,12 @@ const failures = (config: unknown, options?: Parameters<typeof loadConfigData>[1
   assert.fail('expected a ConfigError');
 };
 
-const kid = archetype('kid')
-  .contains((m) =>
-    m.module('dom', files('*.dom.ts'), exposes(all())).module('page', files('*.page.ts'), exposes(all())),
-  )
-  .exposes((m) => ({ render: m.dom, pages: [m.page, m.dom] }));
+const kid = () =>
+  archetype('kid')
+    .contains((m) =>
+      m.module('dom', files('*.dom.ts'), exposes(all())).module('page', files('*.page.ts'), exposes(all())),
+    )
+    .exposes((m) => ({ render: m.dom, pages: [m.page, m.dom] }));
 
 describe('loadConfigData', () => {
   it("loads a config shaped like working title's", () => {
@@ -285,7 +286,7 @@ describe('loadConfigData', () => {
           .module(
             'kids',
             dir('kids/{name}', 'more/{name}'),
-            kid.using((m) => [m.strings, pkg('lit')]),
+            kid().using((m) => [m.strings, pkg('lit')]),
           )
           .module(
             'main',
