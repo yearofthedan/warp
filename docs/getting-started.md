@@ -184,6 +184,9 @@ export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rules
 
 - `tests: files('src/**/*.test.ts')` names the test files, and `.tests(using([pkg('vitest')]))` lets every test
   import vitest.
+- [Test layers](concepts.md#test-layer) nest: a module's tests get what its ancestors' test layers use, plus their
+  own. With `exposes(all()).tests(using([pkg('testcontainers')]))` on `db`, the tests in `src/db` import vitest and
+  testcontainers, and the tests in `src/api` import vitest alone.
 - The ruleset turns `function-cohesion` off for tests, since a `describe` callback holds `it` calls that share no
   locals, which that rule would report as a function to split.
 

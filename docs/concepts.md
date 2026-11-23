@@ -135,8 +135,9 @@ it, `src/api`, and sees all of that module's files. A production file that impor
 
 ### Test layer
 
-What an archetype adds for its tests with `.tests()`: a `using`, test modules and test surfaces. `app`'s layer uses
-`vitest`, and a layer's `using` reaches every test below it. See [config.md](config.md#tests).
+What an archetype adds for its tests with `.tests()`: a `using`, test modules and test surfaces. Layers nest: a
+layer's `using` reaches every test below it, and a module's own layer adds to what it inherits. `app`'s layer uses
+`vitest`, so every test may import it. See [config.md](config.md#tests).
 
 ### Test module
 
