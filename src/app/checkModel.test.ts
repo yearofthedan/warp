@@ -344,6 +344,8 @@ describe('cycles', () => {
         ],
       },
     });
+    const three = cycles().find((candidate) => candidate.key.startsWith('no-cycle:domain/p.ts'))!;
+    assert.match(three.message, /^domain\/p.ts, domain\/q.ts and domain\/r.ts import each other/);
     const large = cycles().find((candidate) => candidate.key.startsWith('no-cycle:loop/'))!;
     assert.match(
       large.message,
@@ -403,6 +405,20 @@ describe('cycles', () => {
         ],
       ],
     );
+  });
+
+  it('leaves out the imports of a file where no-cycle is off, and the loop when all of them are', () => {
+    const app = archetype('app').contains((m) => m.module('a', dir('a'), exposes(all())).module('b', dir('b')));
+    const looping = { 'a/a.ts': ['b/b.ts'], 'b/b.ts': ['a/a.ts'] };
+    const fileCycles = (rules: Ruleset) =>
+      check(
+        app,
+        looping,
+        rules.on(app, { 'module-cycle': false, 'dependency-direction': false, 'unused-declaration': false }),
+      );
+    const [loop] = fileCycles(ruleset().on(app.modules.a, { 'no-cycle': false }));
+    assert.deepEqual([loop!.file, loop!.value, loop!.parts], ['b/b.ts', 1, ['b/b.ts->a/a.ts']]);
+    assert.deepEqual(fileCycles(ruleset().on(app, { 'no-cycle': false })), []);
   });
 
   it('leaves out the imports of a module where the rule is off, and the loop when all of them are', () => {

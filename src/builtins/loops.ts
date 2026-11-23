@@ -61,22 +61,19 @@ export interface Loop<T> {
 
 export const loops = <T>(graph: Graph<T>): Loop<T>[] => {
   const component = components(graph);
-  const found = new Map<number, Loop<T>>();
+  const found = new Map<number, Loop<T>['edges']>();
   for (const [from, targets] of graph)
     for (const [to, links] of targets) {
-      if (component.get(to) !== component.get(from)) continue;
-      const loop = found.get(component.get(from)!) ?? { members: [], edges: [] };
-      found.set(component.get(from)!, loop);
-      loop.edges.push({ from, to, links });
+      const at = component.get(from)!;
+      if (component.get(to) === at) found.set(at, [...(found.get(at) ?? []), { from, to, links }]);
     }
-  return [...found.values()].map(({ edges }) => ({
+  return [...found.values()].map((edges) => ({
     members: [...new Set(edges.map(({ from }) => from))].sort(),
     edges: edges.toSorted((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to)),
   }));
 };
 
-export const named = (items: readonly string[]): string =>
-  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+export const named = (items: readonly string[]): string => `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
 
 export const uniqueSites = <S extends { file: string; line: number }>(sites: readonly S[]): S[] => [
   ...new Map(sites.map((site) => [`${site.file}:${site.line}`, site])).values(),

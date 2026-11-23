@@ -11,22 +11,22 @@ const partKey = (rule: string, part: string) => `${rule}\0${part}`;
 export const diff = (base: Finding[], head: Finding[]): Delta => {
   const byKey = new Map(base.map((finding) => [finding.key, finding]));
   const byPart = new Map(
-    base.flatMap((finding) => (finding.parts ?? []).map((part) => [partKey(finding.rule, part), finding] as const)),
+    base.flatMap((finding) => finding.parts?.map((part) => [partKey(finding.rule, part), finding] as const) ?? []),
   );
   const matched = new Set<Finding>();
-  const delta: Delta = { added: [], worsened: [], resolved: [] };
+  const added: Finding[] = [];
+  const worsened: Delta['worsened'] = [];
   for (const finding of head) {
     const was =
       byKey.get(finding.key) ??
       finding.parts?.map((part) => byPart.get(partKey(finding.rule, part))).find((match) => match !== undefined);
-    if (!was) delta.added.push(finding);
+    if (!was) added.push(finding);
     else {
       matched.add(was);
-      if (finding.value > was.value) delta.worsened.push({ ...finding, was: was.value });
+      if (finding.value > was.value) worsened.push({ ...finding, was: was.value });
     }
   }
-  delta.resolved = base.filter((finding) => !matched.has(finding));
-  return delta;
+  return { added, worsened, resolved: base.filter((finding) => !matched.has(finding)) };
 };
 
 export const anchorAtChange = (delta: Delta, changed: () => (site: Site) => boolean): Delta => {

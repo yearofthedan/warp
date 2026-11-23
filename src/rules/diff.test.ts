@@ -32,7 +32,7 @@ describe('diff by parts', () => {
 
   it('matches a finding whose key changed to the base finding it shares a part with', () => {
     const two = loop('module-cycle:a+b', 2, ['a->b', 'b->a']);
-    const three = loop('module-cycle:a+b+c', 4, ['a->b', 'b->c', 'c->a', 'b->a']);
+    const three = loop('module-cycle:a+b+c', 4, ['b->c', 'c->a', 'a->b', 'b->a']);
     const grown = diff([two], [three]);
     assert.deepEqual(
       [grown.added, grown.worsened.map((f) => [f.key, f.was]), grown.resolved],
@@ -71,7 +71,11 @@ describe('anchorAtChange', () => {
   it('moves a new or worse finding to its first changed site, and leaves the rest', () => {
     const delta = anchorAtChange(
       {
-        added: [loop, { ...loop, key: 'untouched', sites: [{ file: 'infra/db.ts', line: 9 }] }],
+        added: [
+          { ...loop, key: 'plain', sites: undefined },
+          loop,
+          { ...loop, key: 'untouched', sites: [{ file: 'infra/db.ts', line: 9 }] },
+        ],
         worsened: [{ ...loop, key: 'worse', was: 1 }],
         resolved: [loop],
       },
@@ -80,6 +84,7 @@ describe('anchorAtChange', () => {
           ['domain/probe.ts', 'domain/order.ts'].includes(file),
     );
     assert.deepEqual(delta.added.map(at), [
+      ['plain', 'infra/db.ts', 9],
       ['module-cycle:domain+infra', 'domain/order.ts', 1],
       ['untouched', 'infra/db.ts', 9],
     ]);
