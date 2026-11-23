@@ -41,6 +41,7 @@ describe('diffProject on the working tree', () => {
       projectPath: () => 'app',
       commit: (ref) => (ref === 'HEAD' ? `sha-${head}` : `sha-${ref}`),
       mergeBase: () => 'sha-merge-base',
+      changedLines: () => [],
       checkout: () => ({ projectRoot: '/checkout', dispose: () => {} }),
     };
     let tree: Finding[] = [];
@@ -110,5 +111,49 @@ describe('diffProject on the working tree', () => {
     };
     const ports = { repository: {} as Repository, cache: {} as FindingsCache };
     assert.throws(() => diffProject(request, ports), InvalidRange);
+  });
+});
+
+describe('diffProject anchoring', () => {
+  const loop = (file: string): Finding => ({
+    ...finding('loop'),
+    file,
+    sites: [
+      { file: 'infra/db.ts', line: 9 },
+      { file: 'domain/probe.ts', line: 1 },
+    ],
+  });
+  const anchored = (range: string) => {
+    const asked: [string, string | undefined][] = [];
+    const repository: Repository = {
+      projectPath: () => '',
+      commit: (ref) => `sha-${ref}`,
+      mergeBase: (a, b) => `base-of-${a}-${b}`,
+      changedLines: (base, head) => {
+        asked.push([base, head]);
+        return [
+          { file: 'infra/db.ts', from: 1, to: 8 },
+          { file: 'domain/probe.ts', from: 1, to: 1 },
+        ];
+      },
+      checkout: (commit) => ({ projectRoot: commit, dispose: () => {} }),
+    };
+    const cache: FindingsCache = { get: () => undefined, set: () => {}, prune: () => {} };
+    const project: ProjectCheck = {
+      config: {},
+      requiredFile: 'tsconfig.json',
+      check: (root) => (root === '/work' || root === 'sha-feature' ? [loop('infra/db.ts')] : []),
+    };
+    const delta = diffProject(
+      { range: parseRange(range), root: '/work', project, toolDigest: 'tool' },
+      { repository, cache },
+    );
+    return { at: delta.added.map(({ file, line }) => `${file}:${line}`), asked };
+  };
+
+  it('anchors a new finding at a site on a line changed since the base', () => {
+    assert.deepEqual(anchored('HEAD'), { at: ['domain/probe.ts:1'], asked: [['HEAD', undefined]] });
+    assert.deepEqual(anchored('main...'), { at: ['domain/probe.ts:1'], asked: [['base-of-main-HEAD', undefined]] });
+    assert.deepEqual(anchored('main..feature'), { at: ['domain/probe.ts:1'], asked: [['main', 'feature']] });
   });
 });

@@ -12,7 +12,14 @@ export interface Repository {
   projectPath(): string;
   commit(ref: string): string;
   mergeBase(a: string, b: string): string;
+  changedLines(base: string, head?: string): ChangedLines[];
   checkout(commit: string, requiredFile: string): { projectRoot?: string; dispose(): void };
+}
+
+export interface ChangedLines {
+  file: string;
+  from: number;
+  to: number;
 }
 
 export interface Cache<T> {

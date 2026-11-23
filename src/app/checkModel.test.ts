@@ -39,13 +39,23 @@ const folders = (paths: readonly string[]): Folders => {
 
 type Import = string | [to: string, extra: Partial<ImportEdge>];
 
+const edge = (from: string, to: string, extra: Partial<ImportEdge> = {}): ImportEdge => ({
+  from,
+  to,
+  specifier: `./${to}`,
+  names: ['x'],
+  typeOnly: false,
+  line: 2,
+  ...extra,
+});
+
 const project = (imports: Record<string, readonly Import[]>): Project => ({
   files: Object.entries(imports).map(([file, targets]) => ({
     path: file,
     lines: 10,
     imports: targets.map((target) => {
       const [to, extra] = typeof target === 'string' ? [target, {}] : target;
-      return { from: file, to, specifier: `./${to}`, names: ['x'], typeOnly: false, line: 2, ...extra };
+      return edge(file, to, extra);
     }),
     externals: [],
     members: { members: [], links: [] },
@@ -159,8 +169,8 @@ describe('rule settings', () => {
     );
     assert.deepEqual(keys(findings), [
       'dependency-direction:domain/order.ts->generated/api.ts',
-      'no-cycle:domain/order.ts->generated/api.ts',
-      'module-cycle:domain->generated',
+      'no-cycle:domain/order.ts+generated/api.ts',
+      'module-cycle:domain+generated',
     ]);
   });
 });
@@ -292,111 +302,128 @@ describe('cycles', () => {
   const cycles = (rules = featuresMayLoop) =>
     check(app, imports, rules).filter((finding) => finding.rule !== 'dependency-direction');
 
-  it('reports each edge of a loop between files, counting type-only imports and ignoring imports of the file itself', () => {
-    assert.deepEqual(keys(cycles().filter((finding) => finding.rule === 'no-cycle')), [
-      'no-cycle:main.ts->domain/u.ts',
-      'no-cycle:domain/u.ts->main.ts',
-      'no-cycle:domain/x.ts->infra/y.ts',
-      'no-cycle:infra/y.ts->domain/x.ts',
-      'no-cycle:domain/m.ts->infra/w.ts',
-      'no-cycle:infra/w.ts->domain/m.ts',
-      'no-cycle:domain/t.ts->infra/z.ts',
-      'no-cycle:infra/z.ts->domain/t.ts',
-      'no-cycle:domain/p.ts->domain/q.ts',
-      'no-cycle:domain/q.ts->domain/r.ts',
-      'no-cycle:domain/r.ts->domain/p.ts',
-      'no-cycle:a/a.ts->b/b.ts',
-      'no-cycle:b/b.ts->a/a.ts',
-      'no-cycle:loop/r.ts->loop/s.ts',
-      'no-cycle:loop/r.ts->loop/p.ts',
-      'no-cycle:loop/s.ts->loop/p.ts',
-      'no-cycle:loop/p.ts->loop/x.ts',
-      'no-cycle:loop/x.ts->loop/q.ts',
-      'no-cycle:loop/q.ts->loop/r.ts',
-    ]);
+  it('reports each loop between files once, counting type-only imports and ignoring imports of the file itself', () => {
+    assert.deepEqual(
+      cycles()
+        .filter((finding) => finding.rule === 'no-cycle')
+        .map(({ key, value }) => [key, value]),
+      [
+        ['no-cycle:domain/u.ts+main.ts', 2],
+        ['no-cycle:domain/x.ts+infra/y.ts', 2],
+        ['no-cycle:domain/m.ts+infra/w.ts', 2],
+        ['no-cycle:domain/t.ts+infra/z.ts', 2],
+        ['no-cycle:domain/p.ts+domain/q.ts+domain/r.ts', 3],
+        ['no-cycle:a/a.ts+b/b.ts', 2],
+        ['no-cycle:loop/p.ts+loop/q.ts+loop/r.ts+loop/s.ts+loop/x.ts', 6],
+      ],
+    );
   });
 
-  it('shows the shortest loop through the edge, with the imports that make it', () => {
-    const finding = cycles().find((candidate) => candidate.key === 'no-cycle:domain/q.ts->domain/r.ts');
+  it('names every import on a file loop, and each is a site', () => {
+    const finding = cycles().find((candidate) => candidate.key === 'no-cycle:domain/m.ts+infra/w.ts');
     assert.deepEqual(finding, {
       rule: 'no-cycle',
-      key: 'no-cycle:domain/q.ts->domain/r.ts',
-      file: 'domain/q.ts',
+      key: 'no-cycle:domain/m.ts+infra/w.ts',
+      file: 'domain/m.ts',
       line: 2,
       module: 'domain',
-      value: 1,
+      value: 2,
       message:
-        'domain/q.ts imports domain/r.ts, which leads back to it: domain/q.ts -> domain/r.ts -> domain/p.ts -> domain/q.ts. Break the loop: move what both need into a file they both import, or invert one import.',
+        'domain/m.ts and infra/w.ts import each other in a loop: domain/m.ts:2 imports infra/w.ts, infra/w.ts:7 imports domain/m.ts. Break it at one of these imports: move what both need into a file they both import, or invert one import.',
+      sites: [
+        { file: 'domain/m.ts', line: 2 },
+        { file: 'infra/w.ts', line: 7 },
+      ],
+      parts: ['domain/m.ts->infra/w.ts', 'infra/w.ts->domain/m.ts'],
       details: {
-        loop: ['domain/q.ts', 'domain/r.ts', 'domain/p.ts', 'domain/q.ts'],
+        files: ['domain/m.ts', 'infra/w.ts'],
         edges: [
-          {
-            from: 'domain/q.ts',
-            to: 'domain/r.ts',
-            specifier: './domain/r.ts',
-            names: ['x'],
-            typeOnly: false,
-            line: 2,
-          },
+          edge('domain/m.ts', 'infra/w.ts', { typeOnly: true }),
+          edge('domain/m.ts', 'infra/w.ts'),
+          edge('infra/w.ts', 'domain/m.ts', { line: 7 }),
         ],
       },
     });
-    const diamond = cycles().find((candidate) => candidate.key === 'no-cycle:loop/q.ts->loop/r.ts');
-    assert.deepEqual((diamond!.details as { loop: string[] }).loop, [
-      'loop/q.ts',
-      'loop/r.ts',
-      'loop/p.ts',
-      'loop/x.ts',
-      'loop/q.ts',
-    ]);
+    const large = cycles().find((candidate) => candidate.key.startsWith('no-cycle:loop/'))!;
+    assert.match(
+      large.message,
+      /^5 files import each other in a loop: loop\/p.ts:2 imports loop\/x.ts, .*, and 1 more\./,
+    );
   });
 
-  it('reports each edge of a loop between sibling modules, files modules among them', () => {
-    const modules = cycles().filter((finding) => finding.rule === 'module-cycle');
+  it('reports each loop between sibling modules once, at its first import, with every crossing import a site', () => {
+    const [loop, ...others] = cycles().filter((finding) => finding.rule === 'module-cycle');
+    assert.deepEqual(others, []);
     assert.deepEqual(
-      modules.map(({ key, file, line, value }) => [key, file, line, value]),
-      [
-        ['module-cycle:.:main->domain', 'main.ts', 2, 1],
-        ['module-cycle:domain->.:main', 'domain/u.ts', 2, 1],
-        ['module-cycle:domain->infra', 'domain/m.ts', 2, 4],
-        ['module-cycle:infra->domain', 'infra/w.ts', 7, 3],
-      ],
+      [loop!.key, loop!.file, loop!.line, loop!.value],
+      ['module-cycle:.:main+domain+infra', 'domain/m.ts', 2, 9],
     );
     assert.equal(
-      modules[2]!.message,
-      'domain imports infra (domain/m.ts imports infra/v.ts), and the modules of . loop: domain -> infra -> domain. Break the loop: move what both need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.',
+      loop!.message,
+      'The modules .:main, domain and infra of . import each other in a loop: .:main -> domain (main.ts:2 imports domain/u.ts), domain -> .:main (domain/u.ts:2 imports main.ts), domain -> infra (domain/x.ts:2 imports infra/y.ts and 3 more), infra -> domain (infra/y.ts:2 imports domain/x.ts and 2 more). Break it at one of these imports: move what both sides need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.',
+    );
+    assert.deepEqual(loop!.parts, ['.:main->domain', 'domain->.:main', 'domain->infra', 'infra->domain']);
+    assert.deepEqual(
+      loop!.sites!.map(({ file, line }) => `${file}:${line}`),
+      [
+        'domain/m.ts:2',
+        'domain/t.ts:2',
+        'domain/u.ts:2',
+        'domain/x.ts:2',
+        'infra/w.ts:7',
+        'infra/y.ts:2',
+        'infra/z.ts:2',
+        'main.ts:2',
+      ],
     );
     const {
       module,
-      loop,
+      modules,
       imports: crossing,
-    } = modules[2]!.details as {
+    } = loop!.details as {
       module: string;
-      loop: string[];
+      modules: string[];
       imports: { from: string; to: string; edges: unknown[] }[];
     };
     assert.deepEqual(
-      [module, loop, crossing.map(({ from, to, edges }) => [from, to, edges.length])],
+      [module, modules, crossing.map(({ from, to, edges }) => [from, to, edges.length])],
       [
         '.',
-        ['domain', 'infra', 'domain'],
+        ['.:main', 'domain', 'infra'],
         [
+          ['main.ts', 'domain/u.ts', 1],
+          ['domain/u.ts', 'main.ts', 1],
           ['domain/x.ts', 'infra/y.ts', 1],
           ['domain/m.ts', 'infra/w.ts', 2],
           ['domain/m.ts', 'infra/v.ts', 1],
           ['domain/t.ts', 'infra/z.ts', 1],
+          ['infra/y.ts', 'domain/x.ts', 1],
+          ['infra/w.ts', 'domain/m.ts', 1],
+          ['infra/z.ts', 'domain/t.ts', 1],
         ],
       ],
     );
+  });
+
+  it('leaves out the imports of a module where the rule is off, and the loop when all of them are', () => {
+    const app = archetype('app').contains((m) =>
+      m.module('a', dir('a'), exposes(all())).module('b', dir('b'), exposes(all())),
+    );
+    const looping = { 'a/a.ts': ['b/b.ts'], 'b/b.ts': ['a/a.ts'] };
+    const moduleCycles = (rules: Ruleset) =>
+      check(app, looping, rules).filter((finding) => finding.rule === 'module-cycle');
+    const [loop] = moduleCycles(ruleset().on(app.modules.a, { 'module-cycle': false }));
+    assert.deepEqual([loop!.file, loop!.value, loop!.sites], ['b/b.ts', 1, [{ file: 'b/b.ts', line: 2 }]]);
+    assert.deepEqual(moduleCycles(ruleset().on(app, { 'module-cycle': false })), []);
   });
 
   it("leaves type-only imports out where types is 'ignore'", () => {
     const ignored = cycles(
       featuresMayLoop.rules({ 'no-cycle': { types: 'ignore' }, 'module-cycle': { types: 'ignore' } }),
     );
-    assert.ok(!keys(ignored).includes('no-cycle:domain/t.ts->infra/z.ts'));
-    const loop = ignored.find((finding) => finding.key === 'module-cycle:domain->infra')!;
-    assert.equal(loop.value, 3);
+    assert.ok(!keys(ignored).includes('no-cycle:domain/t.ts+infra/z.ts'));
+    const loop = ignored.find((finding) => finding.key === 'module-cycle:.:main+domain+infra')!;
+    assert.equal(loop.value, 8);
   });
 
   it("attaches each rule's docs", () => {

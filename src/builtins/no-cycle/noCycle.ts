@@ -8,7 +8,10 @@ import {
   type Graph,
   importsByTarget,
   link,
-  loopEdges,
+  listed,
+  loops,
+  named,
+  uniqueSites,
 } from '../loops.ts';
 
 const id = 'no-cycle';
@@ -26,18 +29,26 @@ export const noCycle: ProjectRule<CycleOptions> = {
       for (const [to, edges] of importsByTarget(file, imports))
         if (files.has(to) && counts(edges, options)) link(graph, file, to, edges);
     }
-    return loopEdges(graph)
-      .filter(({ from }) => atFile(from).on)
-      .map(({ from, to, links: edges, loop }) => ({
-        rule: id,
-        key: `${id}:${from}->${to}`,
-        file: from,
-        line: edges[0]!.line,
-        value: 1,
-        message:
-          `${from} imports ${to}, which leads back to it: ${loop.join(' -> ')}. ` +
-          'Break the loop: move what both need into a file they both import, or invert one import.',
-        details: { loop, edges },
-      }));
+    return loops(graph).flatMap(({ members, edges }) => {
+      const reported = edges.filter(({ from }) => atFile(from).on);
+      if (reported.length === 0) return [];
+      const sites = reported.map(({ from, links: [first] }) => ({ file: from, line: first!.line }));
+      const who = members.length <= 3 ? named(members) : `${members.length} files`;
+      return [
+        {
+          rule: id,
+          key: `${id}:${members.join('+')}`,
+          file: sites[0]!.file,
+          line: sites[0]!.line,
+          value: reported.length,
+          message:
+            `${who} import each other in a loop: ${listed(sites.map(({ file, line }, at) => `${file}:${line} imports ${reported[at]!.to}`))}. ` +
+            'Break it at one of these imports: move what both need into a file they both import, or invert one import.',
+          sites: uniqueSites(sites),
+          parts: reported.map(({ from, to }) => `${from}->${to}`),
+          details: { files: members, edges: reported.flatMap(({ links }) => links) },
+        },
+      ];
+    });
   },
 };

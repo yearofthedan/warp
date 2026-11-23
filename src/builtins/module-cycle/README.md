@@ -3,7 +3,7 @@
 **Audience:** anyone reading a `module-cycle` finding, or setting the rule.
 **Purpose:** what `module-cycle` reports, why, and its options.
 
-Report each import between sibling modules that lies on a loop among them.
+Report each loop among sibling modules.
 
 ## Why
 
@@ -13,14 +13,16 @@ the loop at the level of modules shows it where the design says the boundary is.
 
 ## Rule details
 
-For each module, the rule builds the graph of imports between its child modules and reports every edge that lies on a
-loop, one finding per pair of modules, keyed `module-cycle:src/ui->src/application`. An import counts toward the pair of
-modules it crosses between, just below the deepest module that holds both files, so the graph holds imports between
-files inside different children; a module's own files belong to the module itself. An import is followed to the file its
-specifier names.
+For each module, the rule builds the graph of imports between its child modules and reports each loop once: a set
+of children that all reach each other, keyed by them, `module-cycle:src/application+src/ui`. An import counts toward
+the pair of modules it crosses between, just below the deepest module that holds both files, so the graph holds
+imports between files inside different children; a module's own files belong to the module itself. An import is
+followed to the file its specifier names.
 
-The finding is on the importing module, at the first import that crosses, and its value is the number of file pairs
-that cross. A loop that grows only adds findings or raises a value.
+The message names each pair of modules on the loop with one of its imports. Every crossing import is a site, where
+the loop can be broken, and the finding is at the first by path; [`diff`](../../../docs/agents-and-ci.md#diff) shows
+a new or worse loop at the import the change added. Its value is the number of file pairs that cross, so a loop that
+gains an import or a module is worse.
 
 With this config, `domain` and `infra` loop when `src/domain/order.ts` imports `src/infra/db.ts`:
 

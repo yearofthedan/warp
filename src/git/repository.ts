@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
-import type { Repository } from '../app/ports.ts';
+import type { ChangedLines, Repository } from '../app/ports.ts';
 
 export const gitRepository = (projectRoot: string): Repository => {
   const git = (...args: string[]) =>
@@ -14,6 +14,7 @@ export const gitRepository = (projectRoot: string): Repository => {
     projectPath: () => projectPath,
     commit: (ref) => git('rev-parse', '--verify', `${ref}^{commit}`),
     mergeBase: (a, b) => git('merge-base', a, b),
+    changedLines: (base, head) => changedLines(git, base, head),
     checkout(commit, requiredFile) {
       const dir = mkdtempSync(join(tmpdir(), 'warp-'));
       const dispose = () => {
@@ -51,4 +52,38 @@ export const projectPathOf = (projectRoot: string): string => {
   } catch {
     return '';
   }
+};
+
+const changedLines = (git: (...args: string[]) => string, base: string, head?: string): ChangedLines[] => {
+  const range = head === undefined ? [base] : [base, head];
+  const patch = git(
+    'diff',
+    '--unified=0',
+    '--no-color',
+    '--no-ext-diff',
+    '--src-prefix=a/',
+    '--dst-prefix=b/',
+    '--relative',
+    ...range,
+    '--',
+    '.',
+  );
+  const untracked = head === undefined ? git('ls-files', '--others', '--exclude-standard', '--', '.').split('\n') : [];
+  return [
+    ...addedLines(patch),
+    ...untracked.filter(Boolean).map((file) => ({ file, from: 1, to: Number.POSITIVE_INFINITY })),
+  ];
+};
+
+const addedLines = (patch: string): ChangedLines[] => {
+  const lines: ChangedLines[] = [];
+  let file: string | undefined;
+  for (const line of patch.split('\n')) {
+    if (line.startsWith('+++ ')) file = line === '+++ /dev/null' ? undefined : line.slice('+++ b/'.length);
+    const hunk = /^@@ -\S+ \+(\d+)(?:,(\d+))? @@/.exec(line);
+    if (!hunk || file === undefined) continue;
+    const [from, count] = [Number(hunk[1]), Number(hunk[2] ?? 1)];
+    if (count > 0) lines.push({ file, from, to: from + count - 1 });
+  }
+  return lines;
 };

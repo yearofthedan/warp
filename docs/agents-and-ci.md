@@ -29,8 +29,11 @@ from outside the project or from `node_modules` are unchanged. Adding or removin
 that names it, and changing a `.d.ts` file in the project redoes every file. Outside a git repository nothing is
 cached. Checkouts for `diff` share the cache, so a base close to the working tree analyses only what differs.
 
-A finding is new when its key is absent at the base, and worse when its value rose. Findings in a renamed file or
-function count as new. Function findings are keyed by name, and a callback is named after its call and a string first
+A finding is new when neither its key nor any of its parts is in a finding at the base, and worse when its value rose
+above that finding's. A loop that gains a module shares parts with the smaller loop at the base, so it is worse, not
+new, and a loop that loses one is neither. A new or worse finding with several sites is shown at the first one on a
+line the change added, so a loop is reported at the import that closed it. Findings in a renamed file or function
+count as new. Function findings are keyed by name, and a callback is named after its call and a string first
 argument, such as `<callback to it("saves an order")>`, so a key survives edits elsewhere in the file. Functions that
 still share a name get `#2`, `#3` in order of appearance.
 

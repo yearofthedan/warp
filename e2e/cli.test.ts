@@ -36,17 +36,17 @@ describe('warp diff', () => {
     const run = warp('diff', 'HEAD', '--reporter', 'json');
     assert.equal(run.status, 0, run.stderr);
     const delta = JSON.parse(run.stdout);
+    type Seen = { key: string; file: string; line: number; was: number; value: number };
     assert.deepEqual(
-      delta.added.map((f: { key: string }) => f.key),
-      [
-        'dependency-direction:src/domain/audit.ts->src/app/handle.ts',
-        'module-cycle:src/domain->src/app',
-        'module-cycle:src/app->src/domain',
-      ],
+      delta.added.map((f: Seen) => f.key),
+      ['dependency-direction:src/domain/audit.ts->src/app/handle.ts'],
     );
     assert.deepEqual(
-      delta.worsened.map((f: { key: string; was: number; value: number }) => [f.key, f.was, f.value]),
-      [['cognitive-complexity:src/app/handle.ts:grade', 10, 12]],
+      delta.worsened.map((f: Seen) => [f.key, `${f.file}:${f.line}`, f.was, f.value]),
+      [
+        ['module-cycle:src/adapters+src/app+src/domain', 'src/domain/audit.ts:1', 3, 6],
+        ['cognitive-complexity:src/app/handle.ts:grade', 'src/app/handle.ts:12', 10, 12],
+      ],
     );
   });
 
@@ -55,7 +55,7 @@ describe('warp diff', () => {
     git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'head');
     const run = warp('diff', 'HEAD~1..HEAD', '--fail');
     assert.equal(run.status, 1);
-    assert.match(run.stdout, /3 new findings, 1 worsened, 0 resolved\./);
+    assert.match(run.stdout, /1 new finding, 2 worsened, 0 resolved\./);
     assert.match(
       run.stdout,
       /src\/domain\/audit.ts \(src of layer src\/domain\) imports src\/app\/handle.ts \(src of layer src\/app\), which is outside src's reach/,
@@ -72,7 +72,7 @@ describe('warp diff', () => {
   it('compares from the merge base with three dots', () => {
     const run = warp('diff', 'HEAD~1...HEAD', '--reporter', 'json');
     assert.equal(run.status, 0, run.stderr);
-    assert.equal(JSON.parse(run.stdout).added.length, 3);
+    assert.equal(JSON.parse(run.stdout).added.length, 1);
   });
 
   it('refuses a malformed range', () => {
@@ -90,7 +90,7 @@ describe('warp diff', () => {
       encoding: 'utf8',
     });
     assert.equal(run.status, 0, run.stderr);
-    assert.equal(JSON.parse(run.stdout).added.length, 3);
+    assert.equal(JSON.parse(run.stdout).added.length, 1);
   });
 
   it('counts a base from before the project existed as having no findings', () => {
@@ -108,7 +108,7 @@ describe('warp diff', () => {
       encoding: 'utf8',
     });
     assert.equal(diffed.status, 0, diffed.stderr);
-    assert.equal(JSON.parse(diffed.stdout).added.length, 16);
+    assert.equal(JSON.parse(diffed.stdout).added.length, 13);
     assert.equal(run(['worktree', 'list']).trim().split('\n').length, 1);
   });
 

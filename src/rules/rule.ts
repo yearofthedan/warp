@@ -4,6 +4,11 @@ import type { Verdicts } from '../model/archetype/reach.ts';
 import type { Model, ModuleView } from '../model/archetype/resolve.ts';
 import type { FileFacts, Project } from '../model/facts.ts';
 
+export interface Site {
+  file: string;
+  line: number;
+}
+
 export interface Finding {
   rule: string;
   key: string;
@@ -14,6 +19,8 @@ export interface Finding {
   limit?: number;
   message: string;
   docs?: string;
+  sites?: Site[];
+  parts?: string[];
   details?: unknown;
 }
 

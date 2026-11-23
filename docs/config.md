@@ -175,8 +175,8 @@ surface, so there is one way to each name: a barrel over private files, or expos
 [`no-cross-module-reexport`](../src/builtins/no-cross-module-reexport/README.md) reports a file that re-exports
 another module's file, other than one nested in its own module, so a module doesn't pass on what it uses.
 
-[`module-cycle`](../src/builtins/module-cycle/README.md) reports each import between sibling modules that lies on a loop among them, and
-[`no-cycle`](../src/builtins/no-cycle/README.md) each import between files that lies on a loop.
+[`module-cycle`](../src/builtins/module-cycle/README.md) reports each loop among sibling modules, and
+[`no-cycle`](../src/builtins/no-cycle/README.md) each loop among files.
 
 `file-cohesion`, `function-cohesion` and `cognitive-complexity` judge each file's code with the options that resolve
 for that file, so tests and code, or two modules, can have different thresholds.
@@ -369,7 +369,9 @@ looks up its setting for each file or module. Rules are looked up in a registry,
 [own rules](#custom-rules) join the built-in ones.
 
 Every finding has a `rule`, a `key` that identifies it across commits, a `value` that `diff` compares, a `message`,
-`details` an agent can act on, and for built-in rules a `docs` link to the rule's page. The rules don't know where
+`details` an agent can act on, the `module` of its file, and for built-in rules a `docs` link to the rule's page. A
+finding that can be fixed in more than one place lists them as `sites`, and one whose subject can grow, such as a loop,
+names what it is made of as `parts`; [`diff`](agents-and-ci.md#diff) reads both. The rules don't know where
 their pages are published: [`src/builtins/index.ts`](../src/builtins/index.ts) attaches the links where the CLI composes them. The
 agent reporters list each rule's link once after the findings, and SARIF gives it as the rule's `helpUri`.
 
@@ -381,8 +383,8 @@ Each rule's page says why it exists, shows code it reports and code it passes, a
 | [`dependency-direction`](../src/builtins/dependency-direction/README.md) | An import outside the importer's reach. | |
 | [`module-externals`](../src/builtins/module-externals/README.md) | A package import that no `using` in the importer's reach lists. | |
 | [`no-double-export`](../src/builtins/no-double-export/README.md) | A re-export, in a file on its module's surface, of another file on that surface. | |
-| [`module-cycle`](../src/builtins/module-cycle/README.md) | An import between sibling modules that lies on a loop among them. | `types` |
-| [`no-cycle`](../src/builtins/no-cycle/README.md) | An import between files that lies on a loop. | `types` |
+| [`module-cycle`](../src/builtins/module-cycle/README.md) | A loop among sibling modules. | `types` |
+| [`no-cycle`](../src/builtins/no-cycle/README.md) | A loop among files. | `types` |
 | [`no-cross-module-reexport`](../src/builtins/no-cross-module-reexport/README.md) | A re-export of another module's file, other than one nested in the re-exporting module. | |
 | [`file-cohesion`](../src/builtins/file-cohesion/README.md) | A file over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
 | [`function-cohesion`](../src/builtins/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |

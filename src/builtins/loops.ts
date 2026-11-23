@@ -54,30 +54,36 @@ const components = <T>(graph: Graph<T>): Map<string, number> => {
   return walk.component;
 };
 
-const pathBack = <T>(graph: Graph<T>, component: ReadonlyMap<string, number>, start: string, end: string): string[] => {
-  const cameFrom = new Map<string, string>();
-  const queue = [start];
-  for (let at = 0; !cameFrom.has(end); at += 1) {
-    const node = queue[at]!;
-    for (const next of graph.get(node)!.keys()) {
-      if (cameFrom.has(next) || component.get(next) !== component.get(start)) continue;
-      cameFrom.set(next, node);
-      queue.push(next);
+export interface Loop<T> {
+  members: string[];
+  edges: { from: string; to: string; links: T[] }[];
+}
+
+export const loops = <T>(graph: Graph<T>): Loop<T>[] => {
+  const component = components(graph);
+  const found = new Map<number, Loop<T>>();
+  for (const [from, targets] of graph)
+    for (const [to, links] of targets) {
+      if (component.get(to) !== component.get(from)) continue;
+      const loop = found.get(component.get(from)!) ?? { members: [], edges: [] };
+      found.set(component.get(from)!, loop);
+      loop.edges.push({ from, to, links });
     }
-  }
-  const path = [end];
-  while (path[0] !== start) path.unshift(cameFrom.get(path[0]!)!);
-  return path;
+  return [...found.values()].map(({ edges }) => ({
+    members: [...new Set(edges.map(({ from }) => from))].sort(),
+    edges: edges.toSorted((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to)),
+  }));
 };
 
-export const loopEdges = <T>(graph: Graph<T>): { from: string; to: string; links: T[]; loop: string[] }[] => {
-  const component = components(graph);
-  return [...graph].flatMap(([from, targets]) =>
-    [...targets]
-      .filter(([to]) => component.get(to) === component.get(from))
-      .map(([to, links]) => ({ from, to, links, loop: [from, ...pathBack(graph, component, to, from)] })),
-  );
-};
+export const named = (items: readonly string[]): string =>
+  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+
+export const uniqueSites = <S extends { file: string; line: number }>(sites: readonly S[]): S[] => [
+  ...new Map(sites.map((site) => [`${site.file}:${site.line}`, site])).values(),
+];
+
+export const listed = (items: readonly string[], most = 5): string =>
+  items.length <= most ? items.join(', ') : `${items.slice(0, most).join(', ')}, and ${items.length - most} more`;
 
 export const importsByTarget = (file: string, imports: readonly ImportEdge[]) =>
   [...Map.groupBy(imports, (edge) => edge.via ?? edge.to)].filter(([to]) => to !== file);
