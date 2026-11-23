@@ -67,8 +67,3 @@ per mutant, so the integration and e2e tiers cover them. `stryker.vitest.config.
 - `release.yml` publishes through npm trusted publishing: the registry trusts the workflow's OIDC token, so no npm
   token is stored ([npm](https://docs.npmjs.com/trusted-publishers)).
 - Each action is pinned to a commit, with its version in a trailing `# v1.2.3` that Renovate keeps in step.
-
-## Integrations
-
-[`integrations/omp/warp.ts`](integrations/omp/warp.ts) follows omp's event and result shapes from
-`@oh-my-pi/pi-coding-agent` 18.22 (`dist/types/extensibility/extensions/types.d.ts`).

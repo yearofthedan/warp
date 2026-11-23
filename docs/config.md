@@ -6,7 +6,8 @@
 The config is the default export of a `warp.config.ts` (or `.mts`, `.js`, `.mjs`) next to the project's tsconfig. Its
 structure declares the modules of the codebase and what each module may use, and its rulesets say which rules judge
 each module, and how strictly. [concepts.md](concepts.md) defines its terms, and
-[`warp.config.ts`](../warp.config.ts) is the config warp checks itself with.
+[`warp.config.ts`](../warp.config.ts) is the config warp checks itself with. warp runs the config as code, as you;
+[SECURITY.md](../SECURITY.md) says what that means for running warp.
 
 ```ts
 import { all, archetype, defineConfig, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';

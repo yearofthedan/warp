@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { configDefaults, defineConfig } from 'vite-plus';
 
-const unit = ['src/**/*.test.ts', 'integrations/**/*.test.ts', 'scripts/*.test.ts'];
+const unit = ['src/**/*.test.ts', 'scripts/*.test.ts'];
 const integration = ['src/**/*.integration.test.ts'];
 const e2e = ['e2e/**/*.test.ts', 'do.test.ts'];
 
