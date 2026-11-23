@@ -14,8 +14,9 @@ unavailable and why, once until the failure changes or a run succeeds.
 1. **Install warp and add a config** in the directory you run omp from, as
    [Getting started](../../docs/getting-started.md) describes.
 
-2. **Leave the baseline.** The extension reports what an edit makes new or worse, so the findings `warp check`
-   reports today need no fixing first.
+2. **Commit the config.** Each finding `warp check` reports today is a choice between changing the config and fixing
+   the code, as [Fixing findings](../../docs/fixing-findings.md) describes. The extension reports only what an edit
+   makes new or worse, so those can be settled one at a time.
 
 3. **Load the extension** in that project:
 

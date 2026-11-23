@@ -4,7 +4,9 @@
 **Purpose:** how `diff` decides that a finding is new or worse, what it compares with, and what it caches.
 
 `warp diff` reports the findings a change made **new** or **worse**. The findings already there are the
-**baseline**, and `diff` leaves them out, so warp can run on a codebase that has findings today.
+**baseline**, and `diff` leaves them out. Each baseline finding is still a choice between changing the config and
+fixing the code, as [fixing-findings.md](fixing-findings.md) describes, and `diff` lets you make those choices one at
+a time.
 
 ## What it compares
 
