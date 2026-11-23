@@ -96,11 +96,11 @@ const uiArchetype = archetype('ui')
       .module(
         'api',
         files('index.ts'),
-        exposes(all()).using((s) => [s.cards, required.ports]),
+        exposes(all()).using((m) => [m.cards, required.ports]),
       )
       .module('src', files('*.ts'), using([required.ports])),
   )
-  .exposes((s) => ({ api: s.api }));
+  .exposes((m) => ({ api: m.api }));
 
 const ui = () => uiArchetype;
 
@@ -112,16 +112,16 @@ const app = (child: AnyArchetype) =>
         .module(
           'ports',
           dir('ports'),
-          exposes(all()).using((s) => [s.domain]),
+          exposes(all()).using((m) => [m.domain]),
         )
         .module('ui', dir('ui'), child)
         .module(
           'main',
           files('main.ts'),
-          using((s) => [s.ui, s.ports]),
+          using((m) => [m.ui, m.ports]),
         ),
     )
-    .provides((s) => ({ ports: s.ports }));
+    .provides((m) => ({ ports: m.ports }));
 
 describe(rule, () => {
   it('flags a re-export of another module, even one the module may use', () => {

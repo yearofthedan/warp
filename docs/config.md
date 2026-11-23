@@ -15,8 +15,8 @@ import { all, archetype, defineConfig, exposes, files, pkg, ruleset, using } fro
 const app = archetype('app').contains((m) =>
   m
     .module('domain', files('src/domain/**'), exposes(all()))
-    .module('application', files('src/app/**'), exposes(all()).using((s) => [s.domain]))
-    .module('adapters', files('src/adapters/**'), using((s) => [s.domain, s.application, pkg('*')])),
+    .module('application', files('src/app/**'), exposes(all()).using((m) => [m.domain]))
+    .module('adapters', files('src/adapters/**'), using((m) => [m.domain, m.application, pkg('*')])),
 );
 
 const base = ruleset()
@@ -39,14 +39,14 @@ Every boundary the config declares is a module, made by `.module(name, selector,
 import { all, archetype, defineConfig, dir, exposes, files, pkg, using } from 'warp';
 
 const layer = archetype('layer')
-  .contains((m) => m.module('src', files('**'), exposes(all())).module('test', files('**/*.test.ts')))
+  .contains((m) => m.module('src', files('**'), exposes(all())).module('generated', files('**/*.gen.ts')))
   .exposes(all());
 
 const app = archetype('app').contains((m) =>
   m
     .module('domain', dir('src/domain'), layer)
-    .module('adapters', dir('src/adapters'), layer.using((s) => [s.domain, pkg('*')]))
-    .module('main', files('src/main.ts'), using((s) => [s.adapters])),
+    .module('adapters', dir('src/adapters'), layer.using((m) => [m.domain, pkg('*')]))
+    .module('main', files('src/main.ts'), using((m) => [m.adapters])),
 );
 
 export default defineConfig({ root: app });
@@ -57,7 +57,7 @@ export default defineConfig({ root: app });
   its folder module; it takes no named archetype.
 - The third argument is only ever an archetype. `layer.using(...)` is the same `layer`, wired at this place. `using()`,
   `exposes()` and `archetype()` with no name start an archetype of the module's own, for a module that needs wiring or
-  modules but no reusable name. Put `.using()` last in the chain, so `s` is typed.
+  modules but no reusable name. Put `.using()` last in the chain, so `m` is typed.
 - `warp model` shows how warp reads the config. A folder module's id is its folder (`.` for the root), and a files
   module's is its folder and name, `src/domain:src`.
 
@@ -88,8 +88,8 @@ and report each one outside it as [`dependency-direction`](../src/builtins/depen
   reaches what its folder module's `using` names. A `required.x` reference reaches what the nearest provider above
   offers.
 - A module exposes nothing until it says so: `exposes(all())` opens its own files and what its modules expose,
-  `exposes(files('index.ts'))` some of those, and `.exposes((s) => ({ render: s.dom }))` named surfaces. `s.x`
-  reaches what `x` exposes, and `s.x.render` one surface. Naming a module that exposes nothing is a config error.
+  `exposes(files('index.ts'))` some of those, and `.exposes((m) => ({ render: m.dom }))` named surfaces. `m.x`
+  reaches what `x` exposes, and `m.x.render` one surface. Naming a module that exposes nothing is a config error.
 - An import is judged on the file its specifier names, so a barrel on a surface lets importers through to the files
   behind it. Type-only imports count.
 
@@ -108,29 +108,81 @@ another module's file, other than one nested in its own module, so a module does
 `file-cohesion`, `function-cohesion` and `cognitive-complexity` judge each file's code with the options that resolve
 for that file, so tests and code, or two modules, can have different thresholds.
 
+## Tests
+
+The config names its test entry files, and each one belongs to the folder module that holds it:
+
+```ts
+import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, using } from 'warp';
+
+const page = archetype('page')
+  .identify({ marker: '{name}.dom.ts' })
+  .contains((m) =>
+    m
+      .module('logic', files('*.ts'), exposes(all()))
+      .module('dom', files('{name}.dom.ts'), exposes(all()).using((m) => [m.logic])),
+  )
+  .exposes((m) => ({ render: m.dom }))
+  .tests(contains((t) => t.module('driver', files('*.driver.ts'))).exposes((t) => ({ driver: t.driver })));
+
+const site = archetype('site')
+  .contains((m) =>
+    m.module('domain', dir('src/domain'), exposes(all())).module('pages', dir('src/{name}'), page.using((m) => [m.domain])),
+  )
+  .tests(dir('e2e'), using([pkg('vitest')]));
+
+export default defineConfig({ root: site, tests: files('**/*.test.ts') });
+```
+
+```
+src/cart/cart.dom.ts       page src/cart, module dom
+src/cart/cart.ts           page src/cart, module logic
+src/cart/cart.test.ts      test of src/cart: sees logic, dom, its driver, and vitest
+src/cart/cart.driver.ts    test module src/cart:tests.driver
+e2e/checkout.test.ts       test of the root: sees each page's render and driver
+e2e/helpers.ts             test support of the root, in its located e2e folder
+```
+
+- `tests:` takes globs and has no default. A test file in a folder module is owned by that module, never by a files
+  module inside it, and sees all of the module's files and what its modules use. Nothing in production may import a
+  test file or a test module: [`dependency-direction`](../src/builtins/dependency-direction/README.md) reports it.
+- `.tests(locator?, layer)` gives an archetype a test layer: an archetype of its own, from `contains()`, `using()` or
+  `exposes()`. Its test modules hold test support (drivers, fixtures, DSLs) and see what the layer sees. Its `using`
+  reaches every test below it, so the root names the test runner once. What it exposes reaches the tests of the
+  modules above, as `m.cart.tests.driver`.
+- A locator, `dir('e2e')` or `files(...)`, moves the module's tests: every file there is test support, and the ones
+  the `tests:` globs match are entries. A files module claims its own tests the same way, `files('*.ts', ...)` with
+  `using(...).tests(files('*.logic.test.ts'))`, and then they see its files, not the rest of the folder module.
+- In a `using` callback, the second argument names the archetype's requirements, so a layer can reach one:
+  `.tests(using((m, { required }) => [required.application]))`.
+- [`module-cycle`](../src/builtins/module-cycle/README.md) counts production imports only.
+- `tests` names the test layer, so no module takes that name.
+
 ## Rulesets
 
 Every rule runs everywhere with its defaults until a ruleset says otherwise. A ruleset is a list of lines, each
 setting rules at one place: `.rules()` for the whole config, and `.on()` for an archetype, or one of its modules by the
-handle the archetype gives it after `.contains()`, `app.modules.adapters`. A misspelt module fails to compile. The config names its rulesets,
+handle the archetype gives it after `.contains()`, `app.modules.adapters`, or its tests after `.tests()`,
+`layer.modules.tests`. A misspelt module fails to compile. The config names its rulesets,
 and the one named `default` applies when the command names none.
 
 ```ts
-import { all, archetype, defineConfig, dir, files, ruleset } from 'warp';
+import { all, archetype, defineConfig, dir, files, pkg, ruleset, using } from 'warp';
 
 const layer = archetype('layer')
-  .contains((m) => m.module('src', files('**')).module('test', files('**/*.test.ts')))
-  .exposes(all());
+  .contains((m) => m.module('src', files('**')))
+  .exposes(all())
+  .tests(using([pkg('vitest')]));
 const app = archetype('app').contains((m) =>
   m
     .module('domain', dir('src/domain'), layer)
-    .module('adapters', dir('src/adapters'), layer.using((s) => [s.domain]))
+    .module('adapters', dir('src/adapters'), layer.using((m) => [m.domain]))
     .module('generated', dir('src/generated')),
 );
 
 const base = ruleset()
   .rules({ 'cognitive-complexity': { max: 15 } })
-  .on(layer.modules.test, { 'function-cohesion': false })
+  .on(layer.modules.tests, { 'function-cohesion': false })
   .on(app.modules.generated, 'off');
 
 const edit = ruleset()
@@ -138,7 +190,7 @@ const edit = ruleset()
   .rules({ 'cognitive-complexity': { max: 12 } })
   .on(app.modules.adapters, { 'file-cohesion': { maxLines: 300 } });
 
-export default defineConfig({ root: app, rulesets: { default: base, edit } });
+export default defineConfig({ root: app, tests: files('**/*.test.ts'), rulesets: { default: base, edit } });
 ```
 
 ```sh
@@ -153,7 +205,8 @@ warp model --ruleset edit --rules   # what each module changes
   not be one of the config's rulesets.
 - An archetype's line reaches every module of that archetype, and a module's line every module its selector finds.
   For a finding on a file, the nearest place wins: the file's module, then that module's archetype, then the same for
-  each module above it, then `.rules()`. Options merge nearest first. Where no line
+  each module above it, then `.rules()`. For a test file, each module's test layer comes before the module itself.
+  Options merge nearest first. Where no line
   sets `unclassified`, it is on at the root module and off below.
 - `diff` checks both sides with the same ruleset, and each ruleset caches its own findings, so switching rulesets
   never shows up as new findings. An unknown name fails and lists the rulesets there are.
@@ -206,8 +259,8 @@ import wt from './warp/rules.ts';
 const app = archetype('app').contains((m) =>
   m
     .module('domain', files('src/domain/**'), exposes(all()))
-    .module('application', files('src/application/**'), exposes(files('src/application/index.ts')).using((s) => [s.domain]))
-    .module('ui', files('src/ui/**'), using((s) => [s.application, s.domain])),
+    .module('application', files('src/application/**'), exposes(files('src/application/index.ts')).using((m) => [m.domain]))
+    .module('ui', files('src/ui/**'), using((m) => [m.application, m.domain])),
 );
 
 const base = ruleset()

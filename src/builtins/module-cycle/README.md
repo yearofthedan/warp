@@ -28,7 +28,7 @@ With this config, `domain` and `infra` loop when `src/domain/order.ts` imports `
 import { all, archetype, dir, exposes, using } from 'warp';
 
 const app = archetype('app').contains((m) =>
-  m.module('domain', dir('src/domain'), exposes(all())).module('infra', dir('src/infra'), using((s) => [s.domain])),
+  m.module('domain', dir('src/domain'), exposes(all())).module('infra', dir('src/infra'), using((m) => [m.domain])),
 );
 ```
 

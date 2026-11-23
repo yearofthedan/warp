@@ -24,12 +24,26 @@ export type ExposesData =
   | { kind: 'files'; patterns: string[] }
   | { kind: 'surfaces'; surfaces: Record<string, RefData[]> };
 
+export interface LocatorData {
+  kind: 'dir' | 'files';
+  patterns: string[];
+}
+
+export interface TestLayerData {
+  locator?: LocatorData;
+  modules: FilesModuleData[];
+  using: RefData[];
+  exposes?: ExposesData;
+  rules?: RuleSettingsData;
+}
+
 export interface FilesModuleData {
   kind: 'files';
   name: string;
   patterns: string[];
   using: RefData[];
   exposes?: Exclude<ExposesData, { kind: 'surfaces' }>;
+  tests?: TestLayerData;
   rules?: RuleSettingsData;
   description?: string;
 }
@@ -61,6 +75,7 @@ export interface ArchetypeData {
   modules: ModuleData[];
   exposes?: ExposesData;
   provides: Record<string, ModuleRefData>;
+  tests?: TestLayerData;
   rules?: RuleSettingsData;
 }
 

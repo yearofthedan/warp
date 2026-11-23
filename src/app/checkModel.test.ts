@@ -184,12 +184,12 @@ describe('code measures', () => {
     ],
   });
   const app = archetype('app').contains((m) =>
-    m.module('scripts', files('scripts/*.ts')).module('tests', files('*.test.ts')).module('src', files('*.ts')),
+    m.module('scripts', files('scripts/*.ts')).module('specs', files('*.test.ts')).module('src', files('*.ts')),
   );
   const thresholds = ruleset()
     .on(app, { 'cognitive-complexity': { max: 20 } })
     .on(app.modules.scripts, { 'cognitive-complexity': false })
-    .on(app.modules.tests, { 'cognitive-complexity': { max: 30 } });
+    .on(app.modules.specs, { 'cognitive-complexity': { max: 30 } });
 
   it("judges each file's functions against the threshold nearest to it, and not where the rule is off", () => {
     const measured = [complex('a.ts', 25), complex('b.ts', 18), complex('a.test.ts', 25), complex('scripts/c.ts', 40)];
@@ -218,7 +218,7 @@ describe('cycles', () => {
       .module(
         'infra',
         dir('infra'),
-        exposes(all()).using((s) => [s.domain]),
+        exposes(all()).using((m) => [m.domain]),
       )
       .module(
         'features',
@@ -226,12 +226,12 @@ describe('cycles', () => {
         archetype('feature')
           .contains((q) => q.module('src', files('**'), exposes(all())))
           .exposes(all())
-          .using((s) => [s.domain]),
+          .using((m) => [m.domain]),
       )
       .module(
         'main',
         files('main.ts'),
-        using((s) => [s.domain, s.infra, s.features]),
+        using((m) => [m.domain, m.infra, m.features]),
       ),
   );
   const featuresMayLoop = ruleset().on(app.modules.features, { 'module-cycle': false });

@@ -25,7 +25,10 @@ node -e '
 node -e '
   const { modules } = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
   const lines = modules.flatMap((module) =>
-    module.files.map((file) => `${file} ${module.id}${module.looseFiles.includes(file) ? " (loose)" : ""}`),
+    [
+      ...module.files.map((file) => `${file} ${module.id}${module.looseFiles.includes(file) ? " (loose)" : ""}`),
+      ...module.tests.map((file) => `${file} ${module.id} (test)`),
+    ],
   );
   console.log(lines.sort().join("\n"));
 ' "$work/model.json" >"$work/model.txt"

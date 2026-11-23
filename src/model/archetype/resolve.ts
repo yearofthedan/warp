@@ -1,5 +1,5 @@
 import { ConfigError } from '../configError.ts';
-import type { ArchetypeData, ConfigData, DirModuleData, ModuleData } from './data.ts';
+import type { ArchetypeData, ConfigData, DirModuleData, FilesModuleData, LocatorData, ModuleData } from './data.ts';
 
 export interface Folders {
   folders(dir: string): string[];
@@ -18,6 +18,7 @@ export interface ModuleView {
   files: string[];
   looseFiles: string[];
   tests: string[];
+  test?: true;
 }
 
 export interface Model {
@@ -69,16 +70,9 @@ export const resolveModel = (config: ConfigData, folders: Folders, files: readon
   const tests = new Set<string>();
   const isTest = testMatcher(config.tests);
   for (const file of [...files].sort()) {
-    const folder = deepest(resolution.byDir, file);
-    if (isTest(file)) {
-      tests.add(file);
-      folder.tests.push(file);
-      moduleOf.set(file, folder);
-      continue;
-    }
-    const module = place(resolution, folder, file);
+    const { module, test } = assign(resolution, file, isTest(file));
+    if (test) tests.add(file);
     moduleOf.set(file, module);
-    module.files.push(file);
   }
   if (resolution.errors.size > 0) throw new ConfigError([...resolution.errors].join('\n'));
   order(config, root);
@@ -88,6 +82,24 @@ export const resolveModel = (config: ConfigData, folders: Folders, files: readon
     moduleOf: (file) => moduleOf.get(file),
     isTest: (file) => tests.has(file),
   };
+};
+
+const assign = (resolution: Resolution, file: string, entry: boolean): { module: ModuleView; test: boolean } => {
+  const folder = deepest(resolution.byDir, file);
+  const claim = claimOf(resolution, folder, file);
+  if (claim) {
+    const support = claim.kind === 'dir' ? place(resolution, claim, file, 'tests') : claim;
+    if (support.test) support.files.push(file);
+    else claim.tests.push(file);
+    return { module: support.test ? support : claim, test: true };
+  }
+  if (entry) {
+    folder.tests.push(file);
+    return { module: folder, test: true };
+  }
+  const module = place(resolution, folder, file, 'all');
+  module.files.push(file);
+  return { module, test: module.test === true };
 };
 
 const testMatcher = (patterns: readonly string[] = []) => {
@@ -102,19 +114,31 @@ const walk = function* (module: ModuleView): Generator<ModuleView> {
 
 const order = (config: ConfigData, module: ModuleView) => {
   if (module.archetype === undefined) return;
-  const declared = config.archetypes[module.archetype]!.modules.map((data) => data.name);
+  const archetype = config.archetypes[module.archetype]!;
+  const declared = [
+    ...archetype.modules.map((data) => data.name),
+    ...(archetype.tests?.modules ?? []).map((data) => `tests.${data.name}`),
+  ];
   module.children.sort((a, b) => declared.indexOf(a.name!) - declared.indexOf(b.name!) || a.dir.localeCompare(b.dir));
   for (const child of module.children) order(config, child);
 };
 
-const place = (resolution: Resolution, folder: ModuleView, file: string): ModuleView => {
+const place = (resolution: Resolution, folder: ModuleView, file: string, among: 'all' | 'tests'): ModuleView => {
   const archetype = resolution.config.archetypes[folder.archetype!]!;
-  if (archetype.modules.length === 0) return folder;
-  const name = filesModule(resolution, folder, archetype, file);
+  const candidates = [
+    ...(among === 'all' ? archetype.modules : []),
+    ...(archetype.tests?.modules ?? []).map((module) => ({ ...module, name: `tests.${module.name}` })),
+  ];
+  if (candidates.length === 0) return folder;
+  const name = filesModule(resolution, folder, archetype, candidates, file);
   if (name === undefined) {
-    folder.looseFiles.push(file);
+    if (among === 'all' && archetype.modules.length > 0) folder.looseFiles.push(file);
     return folder;
   }
+  return childModule(folder, name);
+};
+
+const childModule = (folder: ModuleView, name: string): ModuleView => {
   const id = `${folder.id}:${name}`;
   let module = folder.children.find((child) => child.id === id);
   if (!module) {
@@ -129,10 +153,41 @@ const place = (resolution: Resolution, folder: ModuleView, file: string): Module
       files: [],
       looseFiles: [],
       tests: [],
+      ...(name.startsWith('tests.') ? { test: true as const } : {}),
     };
     folder.children.push(module);
   }
   return module;
+};
+
+const claimOf = (resolution: Resolution, folder: ModuleView, file: string): ModuleView | undefined => {
+  for (let at: ModuleView | undefined = folder; at; at = at.parent) {
+    const archetype = resolution.config.archetypes[at.archetype!]!;
+    const level = at;
+    const claims = [
+      ...(locates(level, archetype.tests?.locator, file) ? [level] : []),
+      ...archetype.modules
+        .filter((declared): declared is FilesModuleData => declared.kind === 'files')
+        .filter((declared) => locates(level, declared.tests?.locator, file))
+        .map((declared) => childModule(level, declared.name)),
+    ];
+    if (claims.length > 1)
+      resolution.errors.add(
+        `${file}: claimed as tests by ${claims.map((claim) => claim.id).join(' and ')}; narrow one of their locators`,
+      );
+    if (claims.length > 0) return claims[0];
+  }
+  return undefined;
+};
+
+const locates = (module: ModuleView, locator: LocatorData | undefined, file: string): boolean => {
+  if (!locator) return false;
+  const path = module.dir === '' ? file : file.slice(module.dir.length + 1);
+  return locator.patterns.some((pattern) => {
+    const filled = fillPattern(pattern, module.captures);
+    if (filled === undefined) return false;
+    return locator.kind === 'dir' ? path.startsWith(`${filled}/`) : globRegex(filled).test(path);
+  });
 };
 
 interface Found {
@@ -277,11 +332,12 @@ const filesModule = (
   resolution: Resolution,
   module: ModuleView,
   archetype: ArchetypeData,
+  candidates: readonly ModuleData[],
   file: string,
 ): string | undefined => {
   const path = module.dir === '' ? file : file.slice(module.dir.length + 1);
   const matches: { module: string; pattern: string; score: number }[] = [];
-  for (const declared of archetype.modules) {
+  for (const declared of candidates) {
     if (declared.kind !== 'files') continue;
     for (const pattern of declared.patterns) {
       const filled = fill(pattern, module.captures);

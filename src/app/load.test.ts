@@ -31,10 +31,10 @@ const workingTitleConfig = () => {
         .module(
           'runner',
           files('**'),
-          exposes(all()).using((s) => [s.contract]),
+          exposes(all()).using((m) => [m.contract]),
         ),
     )
-    .exposes((s) => ({ contract: s.contract, runner: s.runner }));
+    .exposes((m) => ({ contract: m.contract, runner: m.runner }));
 
   const layer = archetype('layer')
     .requires({ testRunner, methods: dir() })
@@ -42,8 +42,8 @@ const workingTitleConfig = () => {
       m.module('src', files('**'), exposes(all())).module(
         'test',
         files('**/*.test.ts'),
-        using((s) => [
-          s.src,
+        using((m) => [
+          m.src,
           required.testRunner.runner,
           required.testRunner.contract,
           required.methods,
@@ -51,7 +51,7 @@ const workingTitleConfig = () => {
         ]),
       ),
     )
-    .exposes((s) => ({ code: s.src }));
+    .exposes((m) => ({ code: m.src }));
 
   const component = archetype('component')
     .identify({ marker: '{name}.dom.ts' })
@@ -63,9 +63,9 @@ const workingTitleConfig = () => {
         .module(
           'dom',
           files('{name}.dom.ts'),
-          exposes(all()).using((s) => [
-            s.logic,
-            s.subcomponent.render,
+          exposes(all()).using((m) => [
+            m.logic,
+            m.subcomponent.render,
             required.icons,
             required.strings,
             required.transition,
@@ -76,21 +76,21 @@ const workingTitleConfig = () => {
         .module(
           'dsl',
           files('*.dsl.ts'),
-          exposes(all()).using((s) => [s.subcomponent.dsl, required.testRunner.contract]),
+          exposes(all()).using((m) => [m.subcomponent.dsl, required.testRunner.contract]),
         )
         .module(
           'testPage',
           files('*.test-page.ts'),
-          exposes(all()).using((s) => [s.subcomponent.testPage, pkg('vite-plus/*')]),
+          exposes(all()).using((m) => [m.subcomponent.testPage, pkg('vite-plus/*')]),
         )
         .module(
           'harness',
           files('*.harness.ts'),
-          exposes(all()).using((s) => [
-            s.dom,
-            s.logic,
-            s.dsl,
-            s.testPage,
+          exposes(all()).using((m) => [
+            m.dom,
+            m.logic,
+            m.dsl,
+            m.testPage,
             required.testRunner.runner,
             required.testRunner.contract,
             required.application,
@@ -101,13 +101,13 @@ const workingTitleConfig = () => {
         .module(
           'test',
           files('*.test.ts'),
-          using((s) => [
-            s.logic,
-            s.dom,
-            s.harness,
-            s.testPage,
-            s.dsl,
-            s.subcomponent.testPage,
+          using((m) => [
+            m.logic,
+            m.dom,
+            m.harness,
+            m.testPage,
+            m.dsl,
+            m.subcomponent.testPage,
             required.testRunner.runner,
             required.testRunner.contract,
             required.application,
@@ -116,7 +116,7 @@ const workingTitleConfig = () => {
           ]),
         ),
     )
-    .exposes((s) => ({ render: s.dom, testPage: s.testPage, dsl: s.dsl }));
+    .exposes((m) => ({ render: m.dom, testPage: m.testPage, dsl: m.dsl }));
 
   const ui = archetype('ui')
     .contains((m) =>
@@ -128,15 +128,15 @@ const workingTitleConfig = () => {
         .module(
           'test',
           files('*.test.ts'),
-          using((s) => [s.transition, pkg('vite-plus/*')]),
+          using((m) => [m.transition, pkg('vite-plus/*')]),
         ),
     )
-    .provides((s) => ({ strings: s.strings, icons: s.icons, transition: s.transition }))
-    .exposes((s) => ({
-      render: s.components.render,
-      testPage: s.components.testPage,
-      dsl: s.components.dsl,
-      strings: s.strings,
+    .provides((m) => ({ strings: m.strings, icons: m.icons, transition: m.transition }))
+    .exposes((m) => ({
+      render: m.components.render,
+      testPage: m.components.testPage,
+      dsl: m.components.dsl,
+      strings: m.strings,
     }));
 
   const journeys = archetype('journeys')
@@ -145,7 +145,7 @@ const workingTitleConfig = () => {
       m.module('dsl', files('*.dsl.ts'), exposes(all()).using([required.testRunner.contract, required.ui.dsl])).module(
         'rest',
         files('**'),
-        using((s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl]),
+        using((m) => [m.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl]),
       ),
     );
 
@@ -156,83 +156,83 @@ const workingTitleConfig = () => {
         .module(
           'ports',
           dir('src/ports'),
-          exposes(all()).using((s) => [s.domain]),
+          exposes(all()).using((m) => [m.domain]),
         )
         .module(
           'methods',
           dir('src/methods'),
-          exposes(all()).using((s) => [s.domain]),
+          exposes(all()).using((m) => [m.domain]),
         )
         .module(
           'application',
           dir('src/application'),
-          layer.using((s) => [s.domain, s.ports]),
+          layer.using((m) => [m.domain, m.ports]),
         )
         .module(
           'adapters',
           dir('src/adapters'),
-          layer.using((s) => [s.domain, s.ports, pkg('*')]),
+          layer.using((m) => [m.domain, m.ports, pkg('*')]),
         )
         .module(
           'ui',
           dir('src/ui'),
-          ui.using((s) => [s.application]),
+          ui.using((m) => [m.application]),
         )
         .module('styles', files('src/*.css'), exposes(all()))
         .module(
           'shell',
           files('src/shell.ts'),
-          exposes(all()).using((s) => [s.application, s.ui.strings]),
+          exposes(all()).using((m) => [m.application, m.ui.strings]),
         )
         .module(
           'app',
           files('src/main.ts', 'src/app.ts'),
-          exposes(all()).using((s) => [
-            s.application,
-            s.adapters,
-            s.ports,
-            s.methods,
-            s.ui.render,
-            s.ui.strings,
-            s.shell,
-            s.styles,
+          exposes(all()).using((m) => [
+            m.application,
+            m.adapters,
+            m.ports,
+            m.methods,
+            m.ui.render,
+            m.ui.strings,
+            m.shell,
+            m.styles,
             pkg('virtual:*'),
           ]),
         )
         .module(
           'testRunner',
           dir('src/test-helpers'),
-          testRunner.using((s) => [
-            s.domain,
-            s.application,
-            s.adapters,
-            s.methods,
-            s.app,
-            s.shell,
-            s.ui.render,
-            s.ui.testPage,
-            s.ports,
+          testRunner.using((m) => [
+            m.domain,
+            m.application,
+            m.adapters,
+            m.methods,
+            m.app,
+            m.shell,
+            m.ui.render,
+            m.ui.testPage,
+            m.ports,
             pkg('*'),
           ]),
         )
         .module(
           'e2e',
           dir('e2e'),
-          journeys.using((s) => [s.adapters, s.ui.testPage, pkg('*')]),
+          journeys.using((m) => [m.adapters, m.ui.testPage, pkg('*')]),
         )
         .module('lint', dir('lint'), layer.using([pkg('*')]))
         .module(
           'tooling',
           files('*.ts', 'scripts/**/*.ts'),
-          using((s) => [s.lint, pkg('*')]),
+          using((m) => [m.lint, pkg('*')]),
         ),
     )
-    .provides((s) => ({
-      testRunner: s.testRunner,
-      application: s.application,
-      ports: s.ports,
-      methods: s.methods,
-      ui: s.ui,
+    .provides((m) => ({
+      testRunner: m.testRunner,
+      application: m.application,
+      ports: m.ports,
+      methods: m.methods,
+      ui: m.ui,
     }));
 
   return defineConfig({ root: workingTitle });
@@ -254,7 +254,7 @@ const kid = archetype('kid')
   .contains((m) =>
     m.module('dom', files('*.dom.ts'), exposes(all())).module('page', files('*.page.ts'), exposes(all())),
   )
-  .exposes((s) => ({ render: s.dom, pages: [s.page, s.dom] }));
+  .exposes((m) => ({ render: m.dom, pages: [m.page, m.dom] }));
 
 describe('loadConfigData', () => {
   it("loads working title's config from the design doc", () => {
@@ -285,23 +285,23 @@ describe('loadConfigData', () => {
           .module(
             'kids',
             dir('kids/{name}', 'more/{name}'),
-            kid.using((s) => [s.strings, pkg('lit')]),
+            kid.using((m) => [m.strings, pkg('lit')]),
           )
           .module(
             'main',
             files('main.ts'),
-            exposes(files('main.ts')).using((s) => [s.kids.render, s.kids]),
+            exposes(files('main.ts')).using((m) => [m.kids.render, m.kids]),
           )
           .module(
             'core',
             dir('core'),
             archetype()
               .contains((q) => q.module('ports', files('ports.ts'), exposes(all())))
-              .exposes((s) => ({ ports: s.ports })),
+              .exposes((m) => ({ ports: m.ports })),
           ),
       )
-      .exposes((s) => ({ main: s.main }))
-      .provides((s) => ({ strings: s.strings }));
+      .exposes((m) => ({ main: m.main }))
+      .provides((m) => ({ strings: m.strings }));
     const node = archetype('node')
       .identify({ match })
       .requires({ strings: dir() })
@@ -316,7 +316,7 @@ describe('loadConfigData', () => {
             .module('root', dir('root'), root)
             .module('nodes', dir('nodes'), node),
         )
-        .provides((s) => ({ strings: s.words })),
+        .provides((m) => ({ strings: m.words })),
       tsconfig: ['tsconfig.json', 'tsconfig.test.json'],
       rulesets: {
         default: ruleset()
@@ -456,10 +456,10 @@ describe('loadConfigData', () => {
       );
     const middle = archetype('middle')
       .contains((m) => m.module('icons', dir('icons'), exposes(all())).module('leaves', dir('{name}'), leaf))
-      .provides((s) => ({ icons: s.icons }));
+      .provides((m) => ({ icons: m.icons }));
     const top = archetype('top')
       .contains((m) => m.module('icons', dir('icons'), exposes(all())).module('middle', dir('middle'), middle))
-      .provides((s) => ({ icons: s.icons }));
+      .provides((m) => ({ icons: m.icons }));
     assert.deepEqual(loadConfigData({ root: top }).warnings, ['top provides icons, which nothing below requires']);
   });
 
@@ -470,7 +470,7 @@ describe('loadConfigData', () => {
           .module('strings', dir('strings'), exposes(all()))
           .module('transition', files('transition.ts'), exposes(all())),
       )
-      .provides((s) => ({ strings: s.strings, transition: s.transition }));
+      .provides((m) => ({ strings: m.strings, transition: m.transition }));
     assert.deepEqual(loadConfigData({ root }).warnings, [
       'root provides strings, which nothing below requires',
       'root provides transition, which nothing below requires',
@@ -515,7 +515,7 @@ describe('loadConfigData', () => {
           .module('transition', dir('transition'), exposes(all()))
           .module('child', dir('child'), child),
       )
-      .provides((s) => ({ application: s.application, strings: s.strings, transition: s.transition }));
+      .provides((m) => ({ application: m.application, strings: m.strings, transition: m.transition }));
     assert.deepEqual(failures({ root }), [
       'child (child) requires application as modules of layer; root provides application from application, modules of other',
       'child (child) requires strings as dir(); root provides strings from strings, a files module',
@@ -540,7 +540,7 @@ describe('loadConfigData', () => {
           .module('transition', files('transition.ts'), exposes(all()))
           .module('child', dir('child'), child),
       )
-      .provides((s) => ({ application: s.application, strings: s.strings, transition: s.transition }));
+      .provides((m) => ({ application: m.application, strings: m.strings, transition: m.transition }));
     assert.deepEqual(loadConfigData({ root }).warnings, []);
   });
 
@@ -555,7 +555,7 @@ describe('loadConfigData', () => {
           .module('strings', dir('strings'), exposes(all()))
           .module('child', dir('child'), child),
       )
-      .provides((s) => ({ icons: s.icons, strings: s.strings }));
+      .provides((m) => ({ icons: m.icons, strings: m.strings }));
     assert.deepEqual(failures({ root }), ['child requires strings, which no module lists in using']);
   });
 
@@ -719,8 +719,8 @@ describe('loadConfigData', () => {
       "root.open.exposes: expected all() or files('a.ts', ...)",
       "root.needy.requires: a module's own archetype sees what its holder requires; name the archetype to require more",
       'root.named: an archetype makes a folder module; use dir(...), not files(...)',
-      "root.exposes: expected all(), files('a.ts', ...) or (s) => ({ render: s.dom })",
-      'root.provides: expected a callback returning modules by name, (s) => ({ strings: s.strings })',
+      "root.exposes: expected all(), files('a.ts', ...) or (m) => ({ render: m.dom })",
+      'root.provides: expected a callback returning modules by name, (m) => ({ strings: m.strings })',
       "root.notRef uses something other than a reference: use s.module, required.name or pkg('name')",
     ]);
   });
@@ -752,8 +752,8 @@ describe('loadConfigData', () => {
       .provides(() => null as never);
     assert.deepEqual(failures({ root }), [
       'root.contains: expected the modules chain, (m) => m.module(...)',
-      "root.exposes: expected all(), files('a.ts', ...) or (s) => ({ render: s.dom })",
-      'root.provides: expected a callback returning modules by name, (s) => ({ strings: s.strings })',
+      "root.exposes: expected all(), files('a.ts', ...) or (m) => ({ render: m.dom })",
+      'root.provides: expected a callback returning modules by name, (m) => ({ strings: m.strings })',
     ]);
     assert.deepEqual(
       failures({
@@ -825,7 +825,7 @@ describe('loadConfigData', () => {
       .contains((m, { required }) => m.module('src', files('**'), using([required.strings, required.icons])));
     const middle = archetype('middle')
       .contains((m) => m.module('other', dir('other'), exposes(all())).module('child', dir('child'), child))
-      .provides((s) => ({ other: s.other }));
+      .provides((m) => ({ other: m.other }));
     const root = archetype('root')
       .contains((m) =>
         m
@@ -833,7 +833,7 @@ describe('loadConfigData', () => {
           .module('middle', dir('middle'), middle)
           .module('child', dir('child'), child),
       )
-      .provides((s) => ({ strings: s.strings }));
+      .provides((m) => ({ strings: m.strings }));
     assert.deepEqual(failures({ root }), [
       'middle.child (child) requires strings as dir(); root provides strings from strings, a files module',
       'middle.child (child) requires icons, which nothing above it provides',
@@ -847,7 +847,7 @@ describe('loadConfigData', () => {
       .contains((m, { required }) => m.module('src', files('**'), using([required.strings])));
     const middle = archetype('middle')
       .contains((m) => m.module('strings', dir('strings'), exposes(all())).module('child', dir('child'), child))
-      .provides((s) => ({ strings: s.strings }));
+      .provides((m) => ({ strings: m.strings }));
     const root = archetype('root')
       .contains((m) =>
         m
@@ -855,7 +855,7 @@ describe('loadConfigData', () => {
           .module('middle', dir('middle'), middle)
           .module('child', dir('child'), child),
       )
-      .provides((s) => ({ strings: s.strings }));
+      .provides((m) => ({ strings: m.strings }));
     assert.deepEqual(failures({ root }), [
       'child (child) requires strings as dir(); root provides strings from strings, a files module',
     ]);
@@ -872,10 +872,10 @@ describe('loadConfigData', () => {
           .module(
             'main',
             files('main.ts'),
-            using((s) => [s.quiet, s.folder, s.kids]),
+            using((m) => [m.quiet, m.folder, m.kids]),
           ),
       )
-      .provides((s) => ({ quiet: s.quiet }));
+      .provides((m) => ({ quiet: m.quiet }));
     assert.deepEqual(failures({ root }), [
       'root.main uses quiet; quiet exposes nothing: give quiet exposes, or drop the reference',
       'root.main uses folder; folder exposes nothing: give folder exposes, or drop the reference',
@@ -895,11 +895,11 @@ describe('loadConfigData', () => {
         .module(
           'main',
           files('main.ts'),
-          using((s) => [
+          using((m) => [
             // @ts-expect-error lib exposes files, not named surfaces
-            s.lib.api,
+            m.lib.api,
             // @ts-expect-error kids exposes all its files, not named surfaces
-            s.kids.render,
+            m.kids.render,
           ]),
         ),
     );
@@ -922,7 +922,7 @@ describe('loadConfigData', () => {
           'x',
           files('x.ts'),
           // @ts-expect-error nameless has no .exposes()
-          using((s) => [s.n.render]),
+          using((m) => [m.n.render]),
         ),
     );
     assert.deepEqual(failures({ root }), [

@@ -8,8 +8,8 @@ const hexagon = archetype('hexagon')
   .contains((m) =>
     m
       .module('domain', dir('src/domain'), layer)
-      .module('app', dir('src/app'), layer.using((s) => [s.domain]))
-      .module('adapters', dir('src/adapters'), layer.using((s) => [s.domain, s.app])),
+      .module('app', dir('src/app'), layer.using((m) => [m.domain]))
+      .module('adapters', dir('src/adapters'), layer.using((m) => [m.domain, m.app])),
   );
 
 const base = ruleset().rules({

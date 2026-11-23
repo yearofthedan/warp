@@ -815,7 +815,7 @@ const warp = archetype('warp')
     .module('entry', files('src/cli.ts', 'src/builtins.ts'), using((s) => [s.adapters, s.reporters, s.app, s.model]))
     .module('api', files('src/index.ts'), using((s) => [s.model]))
     .module('integrations', dir('integrations'))
-    .module('tests', files('test/*.ts'), archetype().description('Tests against the public modules').using((s) => [s.model, s.app, s.reporters, s.adapters, s.entry, s.api, s.integrations, pkg('node:*')])));
+    .module('suite', files('test/*.ts'), archetype().description('Tests against the public modules').using((s) => [s.model, s.app, s.reporters, s.adapters, s.entry, s.api, s.integrations, pkg('node:*')])));
 
 export default defineConfig({ root: warp });
 ```

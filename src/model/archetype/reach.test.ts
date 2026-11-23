@@ -38,10 +38,10 @@ const runner = archetype('runner')
     m.module('contract', files('contract.ts'), exposes(all())).module(
       'rest',
       files('**'),
-      exposes(all()).using((s) => [s.contract]),
+      exposes(all()).using((m) => [m.contract]),
     ),
   )
-  .exposes((s) => ({ contract: s.contract, rest: s.rest }));
+  .exposes((m) => ({ contract: m.contract, rest: m.rest }));
 
 const card = archetype('card')
   .identify({ marker: '{name}.dom.ts' })
@@ -53,20 +53,20 @@ const card = archetype('card')
       .module(
         'dom',
         files('{name}.dom.ts'),
-        exposes(all()).using((s) => [s.logic, s.sub.render]),
+        exposes(all()).using((m) => [m.logic, m.sub.render]),
       )
       .module(
         'page',
         files('*.page.ts'),
-        exposes(all()).using((s) => [s.dom, s.sub.page]),
+        exposes(all()).using((m) => [m.dom, m.sub.page]),
       )
       .module(
         'test',
         files('*.test.ts'),
-        using((s) => [s.logic, s.page, required.runner.contract, pkg('vitest')]),
+        using((m) => [m.logic, m.page, required.runner.contract, pkg('vitest')]),
       ),
   )
-  .exposes((s) => ({ render: s.dom, page: s.page }));
+  .exposes((m) => ({ render: m.dom, page: m.page }));
 
 const ui = archetype('ui')
   .contains((m) =>
@@ -76,10 +76,10 @@ const ui = archetype('ui')
       .module(
         'shared',
         files('shared.ts'),
-        exposes(all()).using((s) => [s.strings]),
+        exposes(all()).using((m) => [m.strings]),
       ),
   )
-  .provides((s) => ({ strings: s.strings }))
+  .provides((m) => ({ strings: m.strings }))
   .exposes(all());
 
 const app = archetype('app')
@@ -91,15 +91,15 @@ const app = archetype('app')
       .module(
         'ui',
         dir('src/ui'),
-        ui.using((s) => [s.domain]),
+        ui.using((m) => [m.domain]),
       )
       .module(
         'main',
         files('src/main.ts'),
-        using((s) => [s.ui]),
+        using((m) => [m.ui]),
       ),
   )
-  .provides((s) => ({ runner: s.runner, strings: s.strings }));
+  .provides((m) => ({ runner: m.runner, strings: m.strings }));
 
 const projectFiles = [
   'src/main.ts',
@@ -143,16 +143,16 @@ describe('verdicts', () => {
   it("lets a file reach the rest of its own module, and refuses a sibling module its using doesn't list", () => {
     assert.equal(verdict('src/runner/driver.ts', 'src/runner/driver.ts'), 'allowed: own module src/runner:rest');
     assert.equal(verdict('src/domain/order.ts', 'src/domain/price.ts'), 'allowed: own module src/domain');
-    assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/a.ts'), 'allowed: dom uses s.logic');
+    assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/a.ts'), 'allowed: dom uses m.logic');
     assert.equal(verdict('src/ui/a/a.ts', 'src/ui/a/a.dom.ts'), 'not-in-using');
     assert.equal(verdict('src/ui/a/a.ts', 'src/ui/a/b/b.dom.ts'), 'not-in-using');
   });
 
   it('reaches a child through what it exposes, and finds the module that keeps a deeper file private', () => {
-    assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/b/b.dom.ts'), 'allowed: dom uses s.sub.render');
+    assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/b/b.dom.ts'), 'allowed: dom uses m.sub.render');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/b/b.ts'), 'private to src/ui/a/b');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/b/c/c.dom.ts'), 'private to src/ui/a/b');
-    assert.equal(verdict('src/ui/a/a.page.ts', 'src/ui/a/b/b.page.ts'), 'allowed: page uses s.sub.page');
+    assert.equal(verdict('src/ui/a/a.page.ts', 'src/ui/a/b/b.page.ts'), 'allowed: page uses m.sub.page');
     assert.equal(verdict('src/ui/a/a.page.ts', 'src/ui/a/b/c/c.page.ts'), 'private to src/ui/a/b');
   });
 
@@ -183,15 +183,15 @@ describe('verdicts', () => {
   });
 
   it("grants a dir module's using to its folder's files and files modules, and to nothing nested in folders below", () => {
-    assert.equal(verdict('src/ui/shared.ts', 'src/domain/order.ts'), 'allowed: app.ui uses s.domain');
+    assert.equal(verdict('src/ui/shared.ts', 'src/domain/order.ts'), 'allowed: app.ui uses m.domain');
     assert.equal(verdict('src/ui/a/a.ts', 'src/domain/order.ts'), 'not-in-using');
   });
 
   it("lets a module that names one exposing 'all' reach its own files and what its modules expose", () => {
-    assert.equal(verdict('src/main.ts', 'src/ui/shared.ts'), 'allowed: main uses s.ui');
-    assert.equal(verdict('src/main.ts', 'src/ui/notes.md'), 'allowed: main uses s.ui');
-    assert.equal(verdict('src/main.ts', 'src/ui/strings/en.ts'), 'allowed: main uses s.ui');
-    assert.equal(verdict('src/main.ts', 'src/ui/a/a.dom.ts'), 'allowed: main uses s.ui');
+    assert.equal(verdict('src/main.ts', 'src/ui/shared.ts'), 'allowed: main uses m.ui');
+    assert.equal(verdict('src/main.ts', 'src/ui/notes.md'), 'allowed: main uses m.ui');
+    assert.equal(verdict('src/main.ts', 'src/ui/strings/en.ts'), 'allowed: main uses m.ui');
+    assert.equal(verdict('src/main.ts', 'src/ui/a/a.dom.ts'), 'allowed: main uses m.ui');
     assert.equal(verdict('src/main.ts', 'src/ui/a/a.ts'), 'private to src/ui/a');
     assert.equal(verdict('src/main.ts', 'src/ui/a/b/b.dom.ts'), 'private to src/ui/a');
   });
@@ -211,8 +211,8 @@ describe('verdicts', () => {
         .map((grant) => [grantText(grant), [...grant.files]]),
       [
         ['own module src/ui/a:test', ['src/ui/a/a.test.ts']],
-        ['test uses s.logic', ['src/ui/a/a.ts']],
-        ['test uses s.page', ['src/ui/a/a.page.ts']],
+        ['test uses m.logic', ['src/ui/a/a.ts']],
+        ['test uses m.page', ['src/ui/a/a.page.ts']],
         ['test uses required.runner.contract (from .)', ['src/runner/contract.ts']],
         ["test uses pkg('vitest')", []],
       ],
@@ -223,8 +223,8 @@ describe('verdicts', () => {
     assert.deepEqual(judge().reach('src/ui/strings/en.ts')!.map(grantText), ['own module src/ui/strings']);
     assert.deepEqual(judge().reach('src/ui/shared.ts')!.map(grantText), [
       'own module src/ui:shared',
-      'shared uses s.strings',
-      'app.ui uses s.domain',
+      'shared uses m.strings',
+      'app.ui uses m.domain',
     ]);
   });
 
@@ -251,7 +251,7 @@ describe('exposes', () => {
       .module(
         'main',
         files('main.ts'),
-        using((s) => [s.app, s.widgets]),
+        using((m) => [m.app, m.widgets]),
       ),
   );
   const paths = [
@@ -274,15 +274,15 @@ describe('exposes', () => {
   };
 
   it("opens the files a files() selector names, inside the module's folder", () => {
-    assert.equal(shopVerdict('main.ts', 'app/check.ts'), 'allowed: main uses s.app');
-    assert.equal(shopVerdict('main.ts', 'app/ports/store.ts'), 'allowed: main uses s.app');
+    assert.equal(shopVerdict('main.ts', 'app/check.ts'), 'allowed: main uses m.app');
+    assert.equal(shopVerdict('main.ts', 'app/ports/store.ts'), 'allowed: main uses m.app');
     assert.equal(shopVerdict('main.ts', 'app/run.ts'), 'private to app');
     assert.equal(shopVerdict('main.ts', 'app/ports/deep/x.ts'), 'private to app');
   });
 
   it("opens a module's own files and each child's surface with 'all', never a child's private files", () => {
-    assert.equal(shopVerdict('main.ts', 'widgets/a/api.ts'), 'allowed: main uses s.widgets');
-    assert.equal(shopVerdict('main.ts', 'widgets/a/readme.md'), 'allowed: main uses s.widgets');
+    assert.equal(shopVerdict('main.ts', 'widgets/a/api.ts'), 'allowed: main uses m.widgets');
+    assert.equal(shopVerdict('main.ts', 'widgets/a/readme.md'), 'allowed: main uses m.widgets');
     assert.equal(shopVerdict('main.ts', 'widgets/a/util.ts'), 'private to widgets/a:internals');
   });
 
@@ -398,11 +398,11 @@ describe('checkModel', () => {
     ]);
     assert.equal(
       shared!.message,
-      "src/ui/shared.ts (shared of ui src/ui) imports src/runner/driver.ts (rest of runner src/runner), which is outside shared's reach: shared uses s.strings; app.ui uses s.domain. Add what holds src/runner/driver.ts to a using if the dependency is intended, or move the code.",
+      "src/ui/shared.ts (shared of ui src/ui) imports src/runner/driver.ts (rest of runner src/runner), which is outside shared's reach: shared uses m.strings; app.ui uses m.domain. Add what holds src/runner/driver.ts to a using if the dependency is intended, or move the code.",
     );
     assert.match(
       test!.message,
-      /reach: test uses s\.logic, s\.page, required\.runner\.contract \(from \.\), pkg\('vitest'\)\. Add/,
+      /reach: test uses m\.logic, m\.page, required\.runner\.contract \(from \.\), pkg\('vitest'\)\. Add/,
     );
     assert.match(runner!.message, /which is outside contract's reach, its own files only\. /);
   });

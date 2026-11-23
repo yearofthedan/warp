@@ -1,6 +1,7 @@
 export {
   all,
   archetype,
+  contains,
   defineConfig,
   dir,
   exposes,
@@ -17,6 +18,7 @@ export {
   type Archetype,
   type Exposed,
   type Using,
+  type UsingContext,
   type Package,
   type Reference,
   type Shape,

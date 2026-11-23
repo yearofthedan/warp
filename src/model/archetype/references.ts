@@ -1,7 +1,16 @@
 import { ConfigError } from '../configError.ts';
 import { recordedAs } from './builder.ts';
-import type { ArchetypeData, ExposesData, ModuleData, ModuleRefData, RefData, RuleSettingsData } from './data.ts';
-import type { Draft, DraftExposes } from './draft.ts';
+import type {
+  ArchetypeData,
+  ExposesData,
+  FilesModuleData,
+  ModuleData,
+  ModuleRefData,
+  RefData,
+  RuleSettingsData,
+  TestLayerData,
+} from './data.ts';
+import type { Draft, DraftExposes, DraftTests } from './draft.ts';
 import { type Fail, isName, isRecord, list } from './shared.ts';
 
 export interface Check {
@@ -27,7 +36,7 @@ export const show = (ref: RefData): string =>
     ? `pkg('${ref.pattern}')`
     : `${ref.kind === 'required' ? `required.${ref.name}` : ref.module}${ref.surface === undefined ? '' : `.${ref.surface}`}`;
 
-export const resolveDraft = (check: Check, { data: archetype, modules, exposes, provides }: Draft) => {
+export const resolveDraft = (check: Check, { data: archetype, modules, exposes, provides, tests }: Draft) => {
   for (const [index, module] of modules.entries()) {
     const scope: Scope = {
       archetype,
@@ -38,6 +47,8 @@ export const resolveDraft = (check: Check, { data: archetype, modules, exposes, 
     };
     const where = `${archetype.name}.${module.data.name}`;
     module.data.using.push(...module.using.map((value) => toRef(check, value, `${where} uses`, scope)));
+    if (module.tests && module.data.kind === 'files')
+      module.data.tests = testLayer(check, `${where}.tests`, archetype, module.tests, scope);
   }
   const own: Scope = {
     archetype,
@@ -50,6 +61,36 @@ export const resolveDraft = (check: Check, { data: archetype, modules, exposes, 
     const scope = { ...own, whole: true };
     archetype.provides[name] = toRef(check, value, `${archetype.name} provides ${name} as`, scope) as ModuleRefData;
   }
+  if (tests)
+    archetype.tests = testLayer(check, `${archetype.name}.tests`, archetype, tests, {
+      ...own,
+      kinds: ['module', 'required', 'package'],
+      refused: '',
+      module: 'tests',
+    });
+};
+
+const testLayer = (
+  check: Check,
+  where: string,
+  holder: ArchetypeData,
+  tests: DraftTests,
+  scope: Scope,
+): TestLayerData => {
+  const modules = tests.modules.map((module) => module.data as FilesModuleData);
+  const layer: ArchetypeData = { ...holder, name: where, modules, provides: {} };
+  const own: Scope = {
+    archetype: layer,
+    visible: modules.length,
+    kinds: ['module'],
+    refused: 'exposes names the layer’s own test modules',
+  };
+  return {
+    ...(tests.locator ? { locator: tests.locator } : {}),
+    modules,
+    using: tests.using.map((value) => toRef(check, value, `${where} uses`, scope)),
+    ...(tests.exposes ? { exposes: exposesData(check, where, tests.exposes, own) } : {}),
+  };
 };
 
 const exposesData = (check: Check, name: string, exposes: DraftExposes, scope: Scope): ExposesData =>

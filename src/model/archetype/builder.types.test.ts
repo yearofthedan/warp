@@ -20,16 +20,16 @@ const testRunner = archetype('test-runner')
     m.module('contract', files('driver.ts'), exposes(all())).module(
       'runner',
       files('**'),
-      exposes(all()).using((s) => [s.contract]),
+      exposes(all()).using((m) => [m.contract]),
     ),
   )
-  .exposes((s) => ({ contract: s.contract, runner: s.runner }));
+  .exposes((m) => ({ contract: m.contract, runner: m.runner }));
 
 const kid = archetype('kid')
   .contains((m) =>
     m.module('dom', files('*.dom.ts'), exposes(all())).module('page', files('*.page.ts'), exposes(all())),
   )
-  .exposes((s) => ({ render: s.dom, pages: s.page }));
+  .exposes((m) => ({ render: m.dom, pages: m.page }));
 
 const plainKid = archetype('plain-kid').contains((m) => m.module('src', files('**')));
 
@@ -41,7 +41,7 @@ const errorsIn = (child: AnyArchetype): string[] => {
         .module('strings', dir('strings'), exposes(all()))
         .module('child', dir('child'), child),
     )
-    .provides((s) => ({ testRunner: s.testRunner, strings: s.strings }));
+    .provides((m) => ({ testRunner: m.testRunner, strings: m.strings }));
   try {
     loadConfigData({ root });
   } catch (error) {
@@ -55,7 +55,7 @@ describe('archetype builders', () => {
   it('type and load the first example in the design doc', () => {
     const runner = archetype('test-runner')
       .contains((m) => m.module('runner', files('**'), exposes(all())))
-      .exposes((s) => ({ runner: s.runner }));
+      .exposes((m) => ({ runner: m.runner }));
     const component = archetype('component')
       .identify({ marker: '{name}.dom.ts' })
       .requires({ testRunner: runner, application: dir(), strings: dir(), icons: dir() })
@@ -66,9 +66,9 @@ describe('archetype builders', () => {
           .module(
             'dom',
             files('{name}.dom.ts'),
-            exposes(all()).using((s) => [
-              s.logic,
-              s.subcomponent.render,
+            exposes(all()).using((m) => [
+              m.logic,
+              m.subcomponent.render,
               required.application,
               required.icons,
               required.strings,
@@ -77,15 +77,15 @@ describe('archetype builders', () => {
           .module(
             'testPage',
             files('*.test-page.ts'),
-            exposes(all()).using((s) => [s.dom, s.subcomponent.testPage]),
+            exposes(all()).using((m) => [m.dom, m.subcomponent.testPage]),
           )
           .module(
             'test',
             files('*.test.ts'),
-            using((s) => [s.logic, s.dom, s.testPage, required.testRunner]),
+            using((m) => [m.logic, m.dom, m.testPage, required.testRunner]),
           ),
       )
-      .exposes((s) => ({ render: s.dom, testPage: s.testPage }));
+      .exposes((m) => ({ render: m.dom, testPage: m.testPage }));
     const ui = archetype('ui')
       .contains((m) =>
         m
@@ -93,8 +93,8 @@ describe('archetype builders', () => {
           .module('icons', dir('icons'), exposes(all()))
           .module('components', dir('{name}'), component),
       )
-      .provides((s) => ({ strings: s.strings, icons: s.icons }))
-      .exposes((s) => ({ render: s.components.render, testPage: s.components.testPage }));
+      .provides((m) => ({ strings: m.strings, icons: m.icons }))
+      .exposes((m) => ({ render: m.components.render, testPage: m.components.testPage }));
     const app = archetype('app')
       .contains((m) =>
         m
@@ -102,21 +102,21 @@ describe('archetype builders', () => {
           .module(
             'application',
             dir('src/application'),
-            exposes(all()).using((s) => [s.domain]),
+            exposes(all()).using((m) => [m.domain]),
           )
           .module('ui', dir('src/ui'), ui)
           .module(
             'main',
             files('src/main.ts'),
-            using((s) => [s.application, s.ui.render]),
+            using((m) => [m.application, m.ui.render]),
           )
           .module(
             'testRunner',
             dir('src/test-helpers'),
-            runner.using((s) => [s.domain, s.application, s.ui.testPage]),
+            runner.using((m) => [m.domain, m.application, m.ui.testPage]),
           ),
       )
-      .provides((s) => ({ testRunner: s.testRunner, application: s.application }));
+      .provides((m) => ({ testRunner: m.testRunner, application: m.application }));
     const base = ruleset().rules({ 'cognitive-complexity': { max: 15 } });
     const config = defineConfig({ root: app, rulesets: { default: base } });
     assert.deepEqual(loadConfigData(config).warnings, []);
@@ -134,17 +134,17 @@ describe('archetype builders', () => {
           .module(
             'logic',
             files('*.ts'),
-            using((s) => {
-              expectTypeOf<keyof typeof s>().toEqualTypeOf<'sub' | 'kids'>();
-              expectTypeOf<Exclude<keyof typeof s.kids, symbol>>().toEqualTypeOf<'render' | 'pages'>();
-              expectTypeOf<Exclude<keyof typeof s.sub, symbol>>().toEqualTypeOf<string | number>();
-              return [required.strings, required.transition, required.testRunner.runner, s.kids.render];
+            using((m) => {
+              expectTypeOf<keyof typeof m>().toEqualTypeOf<'sub' | 'kids'>();
+              expectTypeOf<Exclude<keyof typeof m.kids, symbol>>().toEqualTypeOf<'render' | 'pages'>();
+              expectTypeOf<Exclude<keyof typeof m.sub, symbol>>().toEqualTypeOf<string | number>();
+              return [required.strings, required.transition, required.testRunner.runner, m.kids.render];
             }),
           );
       })
-      .exposes((s) => {
-        expectTypeOf<keyof typeof s>().toEqualTypeOf<'sub' | 'kids' | 'logic'>();
-        return { logic: s.logic };
+      .exposes((m) => {
+        expectTypeOf<keyof typeof m>().toEqualTypeOf<'sub' | 'kids' | 'logic'>();
+        return { logic: m.logic };
       });
   });
 
@@ -154,7 +154,7 @@ describe('archetype builders', () => {
         'a',
         files('a.ts'),
         // @ts-expect-error misspelt module
-        using((s) => [s.lgoic]),
+        using((m) => [m.lgoic]),
       ),
     );
     assert.deepEqual(errorsIn(child), ['c.a uses lgoic; a sees logic']);
@@ -168,7 +168,7 @@ describe('archetype builders', () => {
           'b',
           files('b.ts'),
           // @ts-expect-error module declared further down
-          using((s) => [s.later]),
+          using((m) => [m.later]),
         )
         .module('later', files('later.ts')),
     );
@@ -181,7 +181,7 @@ describe('archetype builders', () => {
         'a',
         files('a.ts'),
         // @ts-expect-error a module is not among the modules above it
-        using((s) => [s.a]),
+        using((m) => [m.a]),
       ),
     );
     assert.deepEqual(errorsIn(child), ['c.a uses a; a module reaches its own files already; a sees no modules']);
@@ -209,7 +209,7 @@ describe('archetype builders', () => {
             'e',
             files('e.ts'),
             // @ts-expect-error misspelt child surface
-            using((s) => [s.kids.rendr]),
+            using((m) => [m.kids.rendr]),
           ),
       );
     assert.deepEqual(errorsIn(child), [
@@ -228,10 +228,10 @@ describe('archetype builders', () => {
           .module(
             'dom',
             files('{name}.dom.ts'),
-            exposes(all()).using((s) => [s.logic, s.subcomponent.rendr]),
+            exposes(all()).using((m) => [m.logic, m.subcomponent.rendr]),
           ),
       )
-      .exposes((s) => ({ render: s.dom, testPage: s.testPage }));
+      .exposes((m) => ({ render: m.dom, testPage: m.testPage }));
     assert.deepEqual(errorsIn(component), [
       'component.dom uses subcomponent.rendr; subcomponent exposes render, testPage',
     ]);
@@ -249,19 +249,19 @@ describe('archetype builders', () => {
             'a',
             files('a.ts'),
             // @ts-expect-error a files module has no surfaces
-            using((s) => [s.logic.render]),
+            using((m) => [m.logic.render]),
           )
           .module(
             'b',
             files('b.ts'),
             // @ts-expect-error a dir module that exposes nothing has no surfaces
-            using((s) => [s.folder.render]),
+            using((m) => [m.folder.render]),
           )
           .module(
             'c',
             files('c.ts'),
             // @ts-expect-error an archetype with no .exposes() names no surfaces
-            using((s) => [s.plain.render]),
+            using((m) => [m.plain.render]),
           )
           // @ts-expect-error dir() has no surfaces
           .module('d', files('d.ts'), using([required.strings.render])),
@@ -291,24 +291,24 @@ describe('archetype builders', () => {
         .module(
           'ports',
           dir('src/ports'),
-          exposes(all()).using((s) => [s.domain]),
+          exposes(all()).using((m) => [m.domain]),
         )
         .module(
           'kids',
           dir('kids/{name}'),
-          kid.using((s) => [s.ports]),
+          kid.using((m) => [m.ports]),
         )
         .module(
           'x',
           dir('x'),
           // @ts-expect-error misspelt module in the options overload
-          using((s) => [s.domian]),
+          using((m) => [m.domian]),
         )
         .module(
           'y',
           dir('y'),
           // @ts-expect-error misspelt module in the archetype overload
-          kid.using((s) => [s.prots]),
+          kid.using((m) => [m.prots]),
         ),
     );
     assert.deepEqual(errorsIn(child), [
@@ -321,8 +321,8 @@ describe('archetype builders', () => {
     const child = archetype('c')
       .contains((m) => m.module('dom', files('*.dom.ts')).module('kids', dir('{name}'), kid))
       // @ts-expect-error a surface names modules, not packages
-      .exposes((s) => ({ render: s.dmo, lib: pkg('lit') }))
-      .provides((s) => ({ render: s.kids.render }));
+      .exposes((m) => ({ render: m.dmo, lib: pkg('lit') }))
+      .provides((m) => ({ render: m.kids.render }));
     assert.deepEqual(errorsIn(child), [
       'c exposes render as dmo; c has modules dom, kids',
       "c exposes lib as pkg('lit'); exposes and provides name the archetype’s own modules",

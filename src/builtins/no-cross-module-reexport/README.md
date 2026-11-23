@@ -28,8 +28,8 @@ import { archetype, dir, using } from 'warp';
 const app = archetype('app').contains((m) =>
   m
     .module('domain', dir('src/domain'))
-    .module('ports', dir('src/ports'), using((s) => [s.domain]))
-    .module('application', dir('src/application'), using((s) => [s.domain, s.ports])),
+    .module('ports', dir('src/ports'), using((m) => [m.domain]))
+    .module('application', dir('src/application'), using((m) => [m.domain, m.ports])),
 );
 ```
 

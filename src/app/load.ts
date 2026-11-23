@@ -60,8 +60,18 @@ export const loadConfigData = (raw: unknown, { builtins, ruleset }: LoadOptions 
   return { config, rules, warnings };
 };
 
-const archetypeData = ({ name, inline, description, identify, requires, modules, exposes, provides }: ArchetypeData) =>
-  defined({ name, inline, description, identify, requires, modules: modules.map(defined), exposes, provides });
+const archetypeData = ({
+  name,
+  inline,
+  description,
+  identify,
+  requires,
+  modules,
+  exposes,
+  provides,
+  tests,
+}: ArchetypeData) =>
+  defined({ name, inline, description, identify, requires, modules: modules.map(defined), exposes, provides, tests });
 
 const plugins = (value: unknown, fail: Fail): Record<string, unknown> => {
   if (value === undefined) return {};

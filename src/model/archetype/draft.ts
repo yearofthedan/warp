@@ -1,10 +1,34 @@
-import { inlineName, moduleRefs, type RecordedDefinition, type RecordedModule, recordedAs, self } from './builder.ts';
-import type { ArchetypeData, ExposesData, IdentifyData, ModuleData, RequirementData } from './data.ts';
+import {
+  inlineName,
+  moduleRefs,
+  requiredRefs,
+  type RecordedDefinition,
+  type RecordedModule,
+  recordedAs,
+  self,
+} from './builder.ts';
+import type {
+  ArchetypeData,
+  ExposesData,
+  FilesModuleData,
+  IdentifyData,
+  LocatorData,
+  ModuleData,
+  RequirementData,
+} from './data.ts';
 import { type Fail, isName, isRecord } from './shared.ts';
+
+export interface DraftTests {
+  locator?: LocatorData;
+  modules: DraftModule[];
+  using: unknown[];
+  exposes?: DraftExposes;
+}
 
 export interface DraftModule {
   data: ModuleData;
   using: unknown[];
+  tests?: DraftTests;
 }
 
 type FilesExposes = Exclude<ExposesData, { kind: 'surfaces' }>;
@@ -19,6 +43,7 @@ export interface Draft {
   modules: DraftModule[];
   exposes?: DraftExposes;
   provides: Record<string, unknown>;
+  tests?: DraftTests;
 }
 
 export interface Collected extends RecordedDefinition {
@@ -91,7 +116,8 @@ export const draft = (name: string, state: Collected, fail: Fail): Draft => {
   const exposes = exposesOf(`${name}.exposes`, state.exposes, true, fail);
   const provides = state.provides === undefined ? {} : callback(state.provides);
   if (!isRecord(provides))
-    fail(`${name}.provides: expected a callback returning modules by name, (s) => ({ strings: s.strings })`);
+    fail(`${name}.provides: expected a callback returning modules by name, (m) => ({ strings: m.strings })`);
+  const tests = testsOf(name, state.tests, 'dir', fail);
   return {
     data: {
       name,
@@ -105,7 +131,55 @@ export const draft = (name: string, state: Collected, fail: Fail): Draft => {
     modules,
     ...(exposes ? { exposes } : {}),
     provides: isRecord(provides) ? provides : {},
+    ...(tests ? { tests } : {}),
   };
+};
+
+const testsOf = (
+  where: string,
+  value: RecordedDefinition['tests'],
+  kind: 'dir' | 'files',
+  fail: Fail,
+): DraftTests | undefined => {
+  if (value === undefined) return undefined;
+  if (value.extra.length > 0)
+    fail(`${where}.tests: takes a locator and an archetype, .tests(dir('e2e'), using([...]))`);
+  const locator = value.locator === undefined ? undefined : selectorOf(`${where}.tests`, value.locator, fail);
+  const recorded = value.layer === undefined ? undefined : recordedAs(value.layer, 'archetype');
+  if (value.layer !== undefined && recorded?.definition.name !== undefined)
+    fail(`${where}.tests: a test layer is an archetype of its own: contains(...), using(...) or exposes(...)`);
+  const layer = recorded?.definition.name === undefined ? recorded?.definition : undefined;
+  if (layer) checkLayer(`${where}.tests`, layer, fail);
+  const modules = layer
+    ? draftModules(`${where}.tests`, layer.modules, fail).map((module) => testModule(where, module, fail))
+    : [];
+  if (kind === 'files' && modules.length > 0)
+    fail(`${where}.tests: a files module's tests hold no modules; give them to its folder's archetype`);
+  if (kind === 'files' && !locator)
+    fail(`${where}.tests: a files module names where its tests are, .tests(files('*.logic.test.ts'))`);
+  const exposes = exposesOf(`${where}.tests.exposes`, layer?.exposes, true, fail);
+  return {
+    ...(locator ? { locator } : {}),
+    modules,
+    using: usingOf(`${where}.tests`, recorded?.using, fail),
+    ...(exposes ? { exposes } : {}),
+  };
+};
+
+const checkLayer = (where: string, layer: RecordedDefinition, fail: Fail) => {
+  for (const field of ['identify', 'provides', 'tests'] as const)
+    if (layer[field] !== undefined)
+      fail(`${where}.${field}: a test layer holds test modules, its using and what it exposes`);
+  if (isRecord(layer.requires) && Object.keys(layer.requires).length > 0)
+    fail(`${where}.requires: a test layer sees what its holder requires`);
+};
+
+const testModule = (where: string, module: DraftModule, fail: Fail): DraftModule => {
+  const at = `${where}.tests.${module.data.name}`;
+  if (module.data.kind !== 'files') fail(`${at}: a test module is a files module, files('*.dsl.ts')`);
+  if (module.using.length > 0) fail(`${at}: a test module sees what its layer sees; give the layer .using()`);
+  const data = module.data as FilesModuleData;
+  return { ...module, data: { ...data, exposes: data.exposes ?? { kind: 'all' } } };
 };
 
 const exposesOf = (where: string, value: unknown, surfaces: boolean, fail: Fail): DraftExposes | undefined => {
@@ -120,7 +194,7 @@ const exposesOf = (where: string, value: unknown, surfaces: boolean, fail: Fail)
       kind: 'surfaces',
       surfaces: Object.fromEntries(Object.entries(returned).map(([surface, refs]) => [surface, [refs].flat()])),
     };
-  const shapes = surfaces ? `all(), files('a.ts', ...) or (s) => ({ render: s.dom })` : `all() or files('a.ts', ...)`;
+  const shapes = surfaces ? `all(), files('a.ts', ...) or (m) => ({ render: m.dom })` : `all() or files('a.ts', ...)`;
   fail(`${where}: expected ${shapes}`);
   return undefined;
 };
@@ -147,6 +221,7 @@ const draftModule = (archetype: string, entry: RecordedModule, fail: Fail): Draf
   if (!isName(name) || name.includes('.'))
     fail(`${archetype}: a module's name is a non-empty string without dots, not ${JSON.stringify(name)}`);
   const where = `${archetype}.${String(name)}`;
+  if (name === 'tests') fail(`${where}: tests names a module's test layer; give the module another name`);
   const { kind, patterns } = selectorOf(where, entry.selector, fail);
   if (entry.extra.length > 0) fail(`${where}: .module() takes a name, a selector and an archetype`);
   const { named, anonymous, using } = archetypeOf(where, archetype, entry.archetype, fail);
@@ -160,7 +235,12 @@ const draftModule = (archetype: string, entry: RecordedModule, fail: Fail): Draf
     };
   if (named !== undefined) fail(`${where}: an archetype makes a folder module; use dir(...), not files(...)`);
   const exposes = exposesOf(`${where}.exposes`, anonymous?.exposes, false, fail) as FilesExposes | undefined;
-  return { data: { kind, ...common, patterns, ...(exposes ? { exposes } : {}) }, using };
+  const tests = testsOf(where, anonymous?.tests, 'files', fail);
+  return {
+    data: { kind, ...common, patterns, ...(exposes ? { exposes } : {}) },
+    using,
+    ...(tests ? { tests } : {}),
+  };
 };
 
 const archetypeOf = (where: string, holder: string, value: unknown, fail: Fail) => {
@@ -205,7 +285,7 @@ const selectorOf = (where: string, value: unknown, fail: Fail): { kind: 'dir' | 
 };
 
 const usingOf = (where: string, value: unknown, fail: Fail): unknown[] => {
-  const using = typeof value === 'function' ? value(moduleRefs()) : (value ?? []);
+  const using = typeof value === 'function' ? value(moduleRefs(), { required: requiredRefs() }) : (value ?? []);
   if (Array.isArray(using)) return using;
   fail(`${where}.using: expected a list of references, or a callback returning one`);
   return [];

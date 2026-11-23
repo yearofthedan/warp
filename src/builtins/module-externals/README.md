@@ -29,7 +29,7 @@ With this config, `src/domain/order.ts` may not import `pg`:
 import { archetype, dir, pkg, using } from 'warp';
 
 const app = archetype('app').contains((m) =>
-  m.module('domain', dir('src/domain')).module('adapters', dir('src/adapters'), using((s) => [s.domain, pkg('pg')])),
+  m.module('domain', dir('src/domain')).module('adapters', dir('src/adapters'), using((m) => [m.domain, pkg('pg')])),
 );
 ```
 

@@ -369,10 +369,9 @@ describe('a warp.config.ts with archetypes', () => {
       [
         '.  root: app',
         '  loose: src/stray.ts',
-        '  src/domain  domain: layer',
+        '  src/domain  domain: layer, 1 test',
         '    src/domain:src  1 file',
         '    src/domain:index  1 file',
-        '    src/domain:test  1 file',
         '  src/ui  ui: ui',
         '    src/ui/strings  strings: ui.strings, 1 file',
         '    src/ui/card  components: component {name=card}',
@@ -380,16 +379,18 @@ describe('a warp.config.ts with archetypes', () => {
         '      src/ui/card:dom  1 file',
         '  .:main  1 file',
         '',
-        '11 modules, 8 files, 1 loose.',
+        '10 modules, 7 files, 1 test, 1 loose.',
         '',
       ].join('\n'),
     );
     const { modules } = JSON.parse(run('model', '--json').stdout);
     const filesOf = (id: string) => modules.find((module: { id: string }) => module.id === id).files;
-    assert.deepEqual(['src/domain:src', 'src/domain:index', 'src/domain:test'].map(filesOf), [
+    assert.deepEqual(['src/domain:src', 'src/domain:index'].map(filesOf), [
       ['src/domain/order.ts'],
       ['src/domain/index.ts'],
-      ['src/domain/order.test.ts'],
+    ]);
+    assert.deepEqual(modules.find((module: { id: string }) => module.id === 'src/domain').tests, [
+      'src/domain/order.test.ts',
     ]);
   });
 
@@ -423,14 +424,7 @@ describe('a warp.config.ts with archetypes', () => {
     const delta = JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout);
     assert.deepEqual(
       delta.added.map((finding: { key: string }) => finding.key),
-      [
-        'unclassified:src/loose.ts',
-        'dependency-direction:src/domain/order.test.ts->src/main.ts',
-        'module-cycle:src/ui->src/domain',
-        'module-cycle:src/domain->.:main',
-        'module-cycle:.:main->src/domain',
-        'module-cycle:.:main->src/ui',
-      ],
+      ['unclassified:src/loose.ts', 'dependency-direction:src/domain/order.test.ts->src/main.ts'],
     );
   });
 

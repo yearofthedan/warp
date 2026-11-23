@@ -28,7 +28,7 @@ import { archetype, files } from 'warp';
 
 const layer = archetype('layer')
   .contains((m) => m.module('index', files('index.ts')).module('src', files('**')))
-  .exposes((s) => ({ api: s.index, code: s.src }));
+  .exposes((m) => ({ api: m.index, code: m.src }));
 ```
 
 ```ts fragment

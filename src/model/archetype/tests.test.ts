@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { ImportEdge, FileFacts } from '../facts.ts';
-import { all, archetype, dir, exposes, files } from './builder.ts';
+import { all, archetype, contains, dir, exposes, files, pkg, ruleset, using } from './builder.ts';
 import { builtinRules } from '../../builtins/index.ts';
 import { checkModel } from '../../app/checkModel.ts';
 import { loadConfigData } from '../../app/load.ts';
 import { grantText, verdicts } from './reach.ts';
 import { type Folders, resolveModel } from './resolve.ts';
+import { settings } from './settings.ts';
 import { modelText } from '../../reporters/model.ts';
 
 const folders = (paths: readonly string[]): Folders => {
@@ -38,7 +39,7 @@ const card = archetype('card')
       .module('logic', files('*.ts'), exposes(all()))
       .module('dom', files('{name}.dom.ts'), exposes(all())),
   )
-  .exposes((s) => ({ render: s.dom }));
+  .exposes((m) => ({ render: m.dom }));
 
 const app = archetype('app').contains((m) =>
   m
@@ -46,7 +47,7 @@ const app = archetype('app').contains((m) =>
     .module(
       'cards',
       dir('src/{name}'),
-      card.using((s) => [s.domain]),
+      card.using((m) => [m.domain]),
     )
     .module('main', files('src/main.ts')),
 );
@@ -107,7 +108,7 @@ describe('test entry files', () => {
     assert.equal(verdict('src/a/a.test.ts', 'src/a/a.dom.ts'), 'allowed: tests of src/a');
     assert.equal(verdict('src/a/a.test.ts', 'src/a/b/b.dom.ts'), 'allowed: tests of src/a uses src/a/b');
     assert.equal(verdict('src/a/a.test.ts', 'src/a/b/b.ts'), 'private to src/a/b');
-    assert.equal(verdict('src/a/a.test.ts', 'src/domain/order.ts'), 'allowed: app.cards uses s.domain');
+    assert.equal(verdict('src/a/a.test.ts', 'src/domain/order.ts'), 'allowed: app.cards uses m.domain');
     assert.equal(verdict('src/main.test.ts', 'src/a/a.ts'), 'private to src/a');
   });
 
@@ -174,5 +175,160 @@ describe('test entry files', () => {
       /config\.tests: expected the test entry files, files\('\*\*\/\*\.test\.ts', \.\.\.\)/,
     );
     assert.equal(loadConfigData({ root: app }).config.tests, undefined);
+  });
+});
+
+const page = archetype('page')
+  .identify({ marker: '{name}.dom.ts' })
+  .contains((m, { self }) =>
+    m
+      .module('sub', dir('{name}'), self)
+      .module('logic', files('*.ts'), exposes(all()).tests(files('*.logic.test.ts')))
+      .module('dom', files('{name}.dom.ts'), exposes(all())),
+  )
+  .exposes((m) => ({ render: m.dom }))
+  .tests(
+    contains((t) => t.module('driver', files('*.driver.ts')).module('fixture', files('*.fixture.ts'))).exposes((t) => ({
+      driver: t.driver,
+    })),
+  );
+
+const site = archetype('site')
+  .contains((m) =>
+    m.module('domain', dir('src/domain'), exposes(all())).module(
+      'pages',
+      dir('src/{name}'),
+      page.using((m) => [m.domain]),
+    ),
+  )
+  .tests(dir('e2e'), using([pkg('vitest')]));
+
+const sitePaths = [
+  'e2e/flow.test.ts',
+  'e2e/helpers.ts',
+  'src/domain/order.ts',
+  'src/a/a.ts',
+  'src/a/a.dom.ts',
+  'src/a/a.test.ts',
+  'src/a/a.logic.test.ts',
+  'src/a/a.driver.ts',
+  'src/a/b/b.ts',
+  'src/a/b/b.dom.ts',
+  'src/a/b/b.driver.ts',
+  'src/a/b/b.fixture.ts',
+];
+
+const siteConfig = loadConfigData({ root: site, tests: files('**/*.test.ts') }).config;
+const siteModel = resolveModel(siteConfig, folders(sitePaths), sitePaths);
+const siteJudge = verdicts(siteConfig, siteModel);
+const siteVerdict = (from: string, to: string): string => {
+  const found = siteJudge.verdict(from, to)!;
+  if (found.allowed) return `allowed: ${grantText(found.grant)}`;
+  return found.reason === 'private' ? `private to ${found.hiddenBy.id}` : found.reason;
+};
+
+describe('test layers', () => {
+  it('place test support in the test modules of a layer, a located folder, or a files module that claims its tests', () => {
+    const owner = (file: string) => `${siteModel.isTest(file) ? 'test' : 'code'} ${siteModel.moduleOf(file)!.id}`;
+    assert.deepEqual(Object.fromEntries(sitePaths.map((file) => [file, owner(file)])), {
+      'e2e/flow.test.ts': 'test .',
+      'e2e/helpers.ts': 'test .',
+      'src/domain/order.ts': 'code src/domain',
+      'src/a/a.ts': 'code src/a:logic',
+      'src/a/a.dom.ts': 'code src/a:dom',
+      'src/a/a.test.ts': 'test src/a',
+      'src/a/a.logic.test.ts': 'test src/a:logic',
+      'src/a/a.driver.ts': 'test src/a:tests.driver',
+      'src/a/b/b.ts': 'code src/a/b:logic',
+      'src/a/b/b.dom.ts': 'code src/a/b:dom',
+      'src/a/b/b.driver.ts': 'test src/a/b:tests.driver',
+      'src/a/b/b.fixture.ts': 'test src/a/b:tests.fixture',
+    });
+    assert.deepEqual(siteModel.root.looseFiles, []);
+  });
+
+  it("let a module's tests reach its test modules, a child's exposed test surface, and the layers above", () => {
+    assert.equal(siteVerdict('src/a/a.test.ts', 'src/a/a.driver.ts'), 'allowed: tests of src/a');
+    assert.equal(siteVerdict('src/a/a.test.ts', 'src/a/b/b.driver.ts'), 'allowed: tests of src/a uses src/a/b');
+    assert.equal(siteVerdict('src/a/a.test.ts', 'src/a/b/b.fixture.ts'), 'private to src/a/b');
+    assert.equal(siteVerdict('src/a/a.driver.ts', 'src/a/a.ts'), 'allowed: tests of src/a');
+    assert.equal(siteVerdict('e2e/flow.test.ts', 'e2e/helpers.ts'), 'allowed: tests of .');
+    assert.equal(siteVerdict('e2e/flow.test.ts', 'src/a/b/b.driver.ts'), 'private to src/a');
+  });
+
+  it('give a files module that claims its tests only its own files', () => {
+    assert.equal(siteVerdict('src/a/a.logic.test.ts', 'src/a/a.ts'), 'allowed: tests of src/a:logic');
+    assert.equal(siteVerdict('src/a/a.logic.test.ts', 'src/a/a.dom.ts'), 'not-in-using');
+  });
+
+  it("pass each layer's using down to every test below it, never to production code", () => {
+    const packages = (file: string) =>
+      siteJudge
+        .reach(file)!
+        .flatMap((grant) => grant.package ?? [])
+        .join(', ');
+    assert.equal(packages('src/a/a.test.ts'), 'vitest');
+    assert.equal(packages('src/a/a.logic.test.ts'), 'vitest');
+    assert.equal(packages('src/a/b/b.driver.ts'), 'vitest');
+    assert.equal(packages('src/a/a.ts'), '');
+    assert.equal(siteVerdict('src/a/a.dom.ts', 'src/a/a.driver.ts'), 'test');
+  });
+
+  it('refuse a module named tests, a named or folder-shaped layer, and a files module that says not where its tests are', () => {
+    const named = archetype('named');
+    const odd = archetype('odd')
+      .contains((m) =>
+        m
+          // @ts-expect-error tests names the test layer
+          .module('tests', files('t.ts'))
+          .module('loose', files('l.ts'), exposes(all()).tests(using([])))
+          .module('two', dir('two'), contains((t) => t.module('x', files('x.ts'))).tests(dir('a'), named as never)),
+      )
+      .tests(contains((t) => t.module('deep', dir('deep')).module('picky', files('p.ts'), using([pkg('x')]))));
+    assert.throws(
+      () => loadConfigData({ root: odd }),
+      (error: Error) => {
+        assert.deepEqual(error.message.split('\n'), [
+          "odd.tests: tests names a module's test layer; give the module another name",
+          "odd.loose.tests: a files module names where its tests are, .tests(files('*.logic.test.ts'))",
+          "odd.tests.deep: a test module is a files module, files('*.dsl.ts')",
+          'odd.tests.picky: a test module sees what its layer sees; give the layer .using()',
+          'odd.two.tests: a test layer is an archetype of its own: contains(...), using(...) or exposes(...)',
+        ]);
+        return true;
+      },
+    );
+  });
+});
+
+describe('test layer rules', () => {
+  const rulesFor = (target: unknown) =>
+    loadConfigData(
+      {
+        root: site,
+        tests: files('**/*.test.ts'),
+        rulesets: { default: ruleset().on(target as never, { 'function-cohesion': false }) },
+      },
+      { builtins: builtinRules },
+    ).config;
+
+  const cohesionOff = (target: unknown) => {
+    const config = rulesFor(target);
+    const on = settings(config, resolveModel(config, folders(sitePaths), sitePaths));
+    const files = ['src/a/a.test.ts', 'src/a/a.driver.ts', 'src/a/b/b.fixture.ts', 'e2e/flow.test.ts', 'src/a/a.ts'];
+    return files.filter((file) => !on.atFile(file, 'function-cohesion').on);
+  };
+
+  it("apply a line on an archetype's tests to its test entries and test modules, never to its production files", () => {
+    assert.deepEqual(cohesionOff(page.modules.tests), ['src/a/a.test.ts', 'src/a/a.driver.ts', 'src/a/b/b.fixture.ts']);
+  });
+
+  it("apply a line on an ancestor's tests to every test below it", () => {
+    assert.deepEqual(cohesionOff(site.modules.tests), [
+      'src/a/a.test.ts',
+      'src/a/a.driver.ts',
+      'src/a/b/b.fixture.ts',
+      'e2e/flow.test.ts',
+    ]);
   });
 });
