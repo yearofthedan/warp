@@ -188,6 +188,20 @@ describe(rule, () => {
     );
   });
 
+  it("passes a module's entry re-exporting what its own modules expose", () => {
+    const entered = archetype('entered')
+      .contains((m) => m.module('cards', dir('{name}'), card).module('src', files('view.ts'), exposes(all())))
+      .entry(files('index.ts'));
+    assert.deepEqual(
+      keys(
+        check(app(entered), [
+          facts('ui/index.ts', [reExport('ui/index.ts', 'ui/view.ts'), reExport('ui/index.ts', 'ui/card/card.ts')]),
+        ]),
+      ),
+      [],
+    );
+  });
+
   it("flags a nested module re-exporting its parent's files", () => {
     assert.deepEqual(keys(check(app(ui()), [facts('ui/card/card.ts', [reExport('ui/card/card.ts', 'ui/view.ts')])])), [
       `${rule}:ui/card/card.ts->ui/view.ts`,

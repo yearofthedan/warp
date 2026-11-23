@@ -88,8 +88,31 @@ and report each one outside it as [`dependency-direction`](../src/builtins/depen
   reaches what its folder module's `using` names. A `required.x` reference reaches what the nearest provider above
   offers.
 - A module exposes nothing until it says so: `exposes(all())` opens its own files and what its modules expose,
-  `exposes(files('index.ts'))` some of those, and `.exposes((m) => ({ render: m.dom }))` named surfaces. `m.x`
+  `exposes(files('ports/*.ts'))` some of those, and `.exposes((m) => ({ render: m.dom }))` named surfaces. `m.x`
   reaches what `x` exposes, and `m.x.render` one surface. Naming a module that exposes nothing is a config error.
+- `.entry(files('index.ts'))` gives a folder module one way in instead. The entry belongs to the folder module itself,
+  ahead of any files module that matches it, and it is the module's whole surface. It reaches what the module's own
+  modules expose, so it can re-export them. An archetype has an entry or exposes, never both.
+
+```ts
+import { all, archetype, defineConfig, dir, exposes, files, using } from 'warp';
+
+const lib = archetype('lib')
+  .contains((m) => m.module('core', dir('core'), exposes(all())).module('cli', files('cli.ts'), using((m) => [m.core])))
+  .entry(files('index.ts'));
+
+const repo = archetype('repo').contains((m) =>
+  m.module('lib', dir('src'), lib).module('scripts', files('scripts/*.ts'), using((m) => [m.lib])),
+);
+
+export default defineConfig({ root: repo });
+```
+
+```
+src/index.ts       src, the entry: re-exports src/core, and is all that scripts/*.ts reach through m.lib
+src/cli.ts         src:cli
+src/core/order.ts  src/core, reached from outside src only through index.ts
+```
 - An import is judged on the file its specifier names, so a barrel on a surface lets importers through to the files
   behind it. Type-only imports count.
 

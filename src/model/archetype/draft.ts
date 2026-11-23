@@ -35,7 +35,7 @@ type FilesExposes = Exclude<ExposesData, { kind: 'surfaces' }>;
 
 export type DraftExposes =
   | { kind: 'all' }
-  | { kind: 'files'; patterns: string[] }
+  | { kind: 'files'; patterns: string[]; entry?: true }
   | { kind: 'surfaces'; surfaces: Record<string, unknown[]> };
 
 export interface Draft {
@@ -113,7 +113,7 @@ export const draft = (name: string, state: Collected, fail: Fail): Draft => {
   const identify = identifyData(name, state.identify, fail);
   const requires = requirements(name, state.requires, fail);
   const modules = draftModules(name, state.modules, fail);
-  const exposes = exposesOf(`${name}.exposes`, state.exposes, true, fail);
+  const exposes = surfaceOf(name, state, fail);
   const provides = state.provides === undefined ? {} : callback(state.provides);
   if (!isRecord(provides))
     fail(`${name}.provides: expected a callback returning modules by name, (m) => ({ strings: m.strings })`);
@@ -167,7 +167,7 @@ const testsOf = (
 };
 
 const checkLayer = (where: string, layer: RecordedDefinition, fail: Fail) => {
-  for (const field of ['identify', 'provides', 'tests'] as const)
+  for (const field of ['identify', 'provides', 'tests', 'entry'] as const)
     if (layer[field] !== undefined)
       fail(`${where}.${field}: a test layer holds test modules, its using and what it exposes`);
   if (isRecord(layer.requires) && Object.keys(layer.requires).length > 0)
@@ -180,6 +180,17 @@ const testModule = (where: string, module: DraftModule, fail: Fail): DraftModule
   if (module.using.length > 0) fail(`${at}: a test module sees what its layer sees; give the layer .using()`);
   const data = module.data as FilesModuleData;
   return { ...module, data: { ...data, exposes: data.exposes ?? { kind: 'all' } } };
+};
+
+const surfaceOf = (name: string, state: Collected, fail: Fail): DraftExposes | undefined => {
+  if (state.entry === undefined) return exposesOf(`${name}.exposes`, state.exposes, true, fail);
+  if (state.exposes !== undefined)
+    fail(`${name}: an entry is the module's whole surface; give it .entry(...) or .exposes(...)`);
+  const selector = recordedAs(state.entry, 'selector');
+  if (selector?.kind === 'files' && selector.patterns.every(isName))
+    return { kind: 'files', patterns: selector.patterns as string[], entry: true };
+  fail(`${name}.entry: expected the module's entry files, files('index.ts')`);
+  return undefined;
 };
 
 const exposesOf = (where: string, value: unknown, surfaces: boolean, fail: Fail): DraftExposes | undefined => {
@@ -267,7 +278,7 @@ const checkAnonymous = (where: string, kind: 'dir' | 'files', definition: Record
   const hasModules = Array.isArray(definition.modules) && definition.modules.length > 0;
   const folderOnly = [
     ...(hasModules ? ['contains'] : []),
-    ...(['identify', 'provides'] as const).filter((field) => definition[field] !== undefined),
+    ...(['identify', 'provides', 'entry'] as const).filter((field) => definition[field] !== undefined),
   ];
   for (const field of folderOnly) fail(`${where}.${field}: a files module has no modules; use dir(...) for ${field}`);
 };

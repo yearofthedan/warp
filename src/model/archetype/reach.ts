@@ -134,7 +134,13 @@ const reach = (state: State, file: string): readonly Grant[] | undefined => {
   if (state.model.isTest(file)) return testReach(state, module);
   let found = state.reaches.get(module.id);
   if (!found) {
-    const granted = [{ owner: `own module ${module.id}`, files: new Set(module.files) }, ...using(state, module)];
+    const granted = [
+      { owner: `own module ${module.id}`, files: new Set(module.files) },
+      ...module.children
+        .filter((child) => !child.test)
+        .map((child) => ({ owner: module.id, ref: child.id, files: surface(state, child) })),
+      ...using(state, module),
+    ];
     if (module.kind === 'files') granted.push(...using(state, module.parent!));
     found = granted;
     state.reaches.set(module.id, found);

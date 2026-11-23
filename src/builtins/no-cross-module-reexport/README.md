@@ -18,7 +18,8 @@ A re-export is `export { x } from`, `export * from`, `export * as ns from`, or a
 `export { x }` or `export default x`. Type-only re-exports count. Each is judged on the file its specifier names.
 
 A module owns its own files and the modules nested in it, so a barrel over its own files or its children's surfaces
-passes. A re-export of a sibling's, an ancestor's or a provided module's file is a finding.
+passes. A package's public entry is a barrel of this kind: declare it with `.entry(files('index.ts'))` on the module
+that holds what it re-exports. A re-export of a sibling's, an ancestor's or a provided module's file is a finding.
 
 With this archetype:
 

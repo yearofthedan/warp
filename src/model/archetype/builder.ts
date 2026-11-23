@@ -127,6 +127,7 @@ export interface ArchetypeMethods<N extends string | undefined, C, H, R, E, P> e
   ): ArchetypeBuilder<N, C2, H2, R, E, P>;
   exposes<const E2 extends Surfaces>(exposes: (s: C) => E2): ArchetypeBuilder<N, C, H, R, E2, P>;
   exposes(exposes: Exposed): ArchetypeBuilder<N, C, H, R, {}, P>;
+  entry(entry: Selector<'files'>): ArchetypeBuilder<N, C, H, R, {}, P>;
   provides(provides: (s: C) => Record<string, Reference>): ArchetypeBuilder<N, C, H, R, E, P>;
   description(description: string): ArchetypeBuilder<N, C, H, R, E, P>;
   tests(layer: Archetype<undefined, any, C, any>): ArchetypeBuilder<N, C, With<H, 'tests', ModuleHandle>, R, E, P>;
@@ -177,6 +178,7 @@ export interface RecordedDefinition {
   requires: unknown;
   modules: unknown;
   exposes?: unknown;
+  entry?: unknown;
   provides?: unknown;
   description?: unknown;
   tests?: { locator?: unknown; layer?: unknown; extra: readonly unknown[] };
@@ -266,6 +268,7 @@ const builder = (state: RecordedArchetype): unknown => {
     contains: (contains: (m: unknown, context: unknown) => unknown) =>
       define('modules')(recordedAs(contains(modules([]), { required: requiredRefs(), self }), 'modules')),
     exposes: define('exposes'),
+    entry: define('entry'),
     provides: define('provides'),
     description: define('description'),
     tests: (first: unknown, ...rest: unknown[]) => {
