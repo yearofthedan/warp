@@ -38,6 +38,10 @@ warp --help                # the usage, with every flag
 
 The findings to act on are every finding for `check`, and the new and worse ones for `diff`.
 
+A finding quotes file names and code from the repository, so `text`, `claude-hook` and `omp` print a control
+character as its JSON escape, such as `\n`, and a finding always takes one line. `claude-hook` and `omp` show an agent
+the first 20 findings, each cut at 500 characters, and then say how many more there are.
+
 ## Exit codes
 
 | Code | When |

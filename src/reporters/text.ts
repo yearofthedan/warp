@@ -22,7 +22,7 @@ const checkText = (findings: Finding[]): string =>
 const summary = (findings: Finding[]): string[] => {
   const groups = Map.groupBy(findings, (finding) => `${finding.rule}\t${finding.module ?? finding.file}`);
   const rows = [...groups]
-    .map(([group, members]) => [...group.split('\t'), String(members.length)] as const)
+    .map(([group, members]) => [...group.split('\t').map(escaped), String(members.length)] as const)
     .toSorted(([rule, module, n], [otherRule, otherModule, other]) => {
       const byCount = Number(other) - Number(n);
       return byCount || rule.localeCompare(otherRule) || module.localeCompare(otherModule);
@@ -34,15 +34,26 @@ const summary = (findings: Finding[]): string[] => {
 };
 
 export const diffText = (delta: Delta): string => {
-  const lines = [
-    ...delta.added.map((finding) => `new: ${line(finding)}`),
-    ...delta.worsened.map((finding) => `worse (was ${finding.was}): ${line(finding)}`),
-  ];
-  const summary = `${count(delta.added.length, 'new finding')}, ${delta.worsened.length} worsened, ${delta.resolved.length} resolved.`;
-  return [...lines, ...(lines.length > 0 ? [''] : []), summary].join('\n');
+  const lines = diffLines(delta);
+  return [...lines, ...(lines.length > 0 ? [''] : []), diffSummary(delta)].join('\n');
 };
 
+export const diffLines = (delta: Delta): string[] => [
+  ...delta.added.map((finding) => `new: ${line(finding)}`),
+  ...delta.worsened.map((finding) => `worse (was ${finding.was}): ${line(finding)}`),
+];
+
+export const diffSummary = (delta: Delta): string =>
+  `${count(delta.added.length, 'new finding')}, ${delta.worsened.length} worsened, ${delta.resolved.length} resolved.`;
+
 export const line = (finding: Finding): string =>
-  `${finding.file}:${finding.line} [${finding.rule}] ${finding.message}`;
+  escaped(`${finding.file}:${finding.line} [${finding.rule}] ${finding.message}`);
+
+const escaped = (text: string): string =>
+  text.replaceAll(/[\p{Cc}\u2028\u2029]/gu, (char) =>
+    JSON.stringify(char).length === 4
+      ? JSON.stringify(char).slice(1, -1)
+      : `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
 
 const count = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' : 's'}`;

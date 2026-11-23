@@ -21,20 +21,6 @@ export const unavailable = (problem: string): string =>
 export const actionable = (report: Report): Finding[] =>
   report.mode === 'check' ? report.findings : [...report.delta.added, ...report.delta.worsened];
 
-export const agentContext = (
-  report: Report,
-  render: { delta: (delta: Delta) => string; finding: (finding: Finding) => string },
-): string => {
-  const body =
-    report.mode === 'diff'
-      ? `New or worse architecture fitness findings. Address them if this edit caused them:\n${render.delta(report.delta)}`
-      : `Architecture fitness findings:\n${report.findings.map(render.finding).join('\n')}`;
-  const docs = ruleDocs(actionable(report));
-  return docs.length === 0
-    ? body
-    : `${body}\n\nRule docs:\n${docs.map(([rule, url]) => `- ${rule}: ${url}`).join('\n')}`;
-};
-
 export const ruleDocs = (findings: Finding[]): [string, string][] => [
   ...new Map(findings.flatMap((finding): [string, string][] => (finding.docs ? [[finding.rule, finding.docs]] : []))),
 ];
