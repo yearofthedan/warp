@@ -1,5 +1,5 @@
-import { actionable, agentContext, type Reporter, unavailable } from './reporter.ts';
-import { diffText, line } from './text.ts';
+import { actionable, type Reporter, unavailable } from './reporter.ts';
+import { agentContext } from './agent.ts';
 
 const warnWithoutBlocking = 1;
 
@@ -8,8 +8,7 @@ const response = (additionalContext: string): string =>
 
 export const claudeHookReporter: Reporter = {
   id: 'claude-hook',
-  render: (report) =>
-    actionable(report).length === 0 ? '' : response(agentContext(report, { delta: diffText, finding: line })),
+  render: (report) => (actionable(report).length === 0 ? '' : response(agentContext(report))),
   renderFailure: (problem) => response(unavailable(problem)),
   failureExitCode: warnWithoutBlocking,
 };
