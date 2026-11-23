@@ -79,7 +79,7 @@ const explain = ({ config, model, verdicts }: Context, from: string, to: string,
   const reaches =
     uses.size > 0
       ? `: ${[...uses].map(([by, grants]) => `${by} uses ${grants.map((grant) => grant.ref).join(', ')}`).join('; ')}`
-      : ', its own files only';
+      : `: ${owner} may use nothing`;
   return (
     `which is outside ${owner}'s reach${reaches}. ` +
     `Add what holds ${to} to a using if the dependency is intended, or move the code.`

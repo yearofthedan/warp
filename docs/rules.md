@@ -34,7 +34,7 @@ gives every field:
   "file": "src/utils/slug.ts",
   "line": 1,
   "value": 1,
-  "message": "src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach, its own files only. ...",
+  "message": "src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach: utils may use nothing. ...",
   "details": { "from": "src/utils", "to": "src/db", "reason": "not-in-using", "edges": ["..."] },
   "docs": "https://github.com/yearofthedan/warp/blob/main/src/builtins/dependency-direction/README.md",
   "module": "src/utils"
