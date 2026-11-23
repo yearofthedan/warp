@@ -65,7 +65,7 @@ const loopFinding = (members: string[], reported: Loop<FileLink>['edges'], paren
     (a, b) => a.file.localeCompare(b.file) || a.line - b.line,
   );
   const crossings = reported.map(({ from, to, links: [first, ...rest] }) => {
-    const more = rest.length > 0 ? ` and ${rest.length} more` : '';
+    const more = rest.length === 0 ? '' : `, and ${rest.length} other import${rest.length === 1 ? '' : 's'}`;
     return `${from} -> ${to} (${first!.file}:${first!.edges[0]!.line} imports ${first!.to}${more})`;
   });
   return {
@@ -75,7 +75,7 @@ const loopFinding = (members: string[], reported: Loop<FileLink>['edges'], paren
     line: sites[0]!.line,
     value: links.length,
     message:
-      `The modules ${named(members)} of ${parent} import each other in a loop: ${listed(crossings)}. ` +
+      `${named(members)} import each other in a loop: ${listed(crossings)}. ` +
       'Break it at one of these imports: move what both sides need into a module they both use, or turn ' +
       'module-cycle off on the module that holds them if they are meant to use each other.',
     sites,

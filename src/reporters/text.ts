@@ -20,7 +20,7 @@ const checkText = (findings: Finding[]): string =>
       ].join('\n');
 
 const summary = (findings: Finding[]): string[] => {
-  const groups = Map.groupBy(findings, (finding) => `${finding.rule}\t${finding.module ?? '-'}`);
+  const groups = Map.groupBy(findings, (finding) => `${finding.rule}\t${finding.module ?? finding.file}`);
   const rows = [...groups]
     .map(([group, members]) => [...group.split('\t'), String(members.length)] as const)
     .toSorted(([rule, module, n], [otherRule, otherModule, other]) => {

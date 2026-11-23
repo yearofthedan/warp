@@ -362,7 +362,7 @@ describe('cycles', () => {
     );
     assert.equal(
       loop!.message,
-      'The modules .:main, domain and infra of . import each other in a loop: .:main -> domain (main.ts:2 imports domain/u.ts), domain -> .:main (domain/u.ts:2 imports main.ts), domain -> infra (domain/x.ts:2 imports infra/y.ts and 3 more), infra -> domain (infra/y.ts:2 imports domain/x.ts and 2 more). Break it at one of these imports: move what both sides need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.',
+      '.:main, domain and infra import each other in a loop: .:main -> domain (main.ts:2 imports domain/u.ts), domain -> .:main (domain/u.ts:2 imports main.ts), domain -> infra (domain/x.ts:2 imports infra/y.ts, and 3 other imports), infra -> domain (infra/y.ts:2 imports domain/x.ts, and 2 other imports). Break it at one of these imports: move what both sides need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.',
     );
     assert.deepEqual(loop!.parts, ['.:main->domain', 'domain->.:main', 'domain->infra', 'infra->domain']);
     assert.deepEqual(

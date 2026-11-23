@@ -22,7 +22,7 @@ describe('reporters', () => {
   it('text prints each finding and a count', () => {
     assert.equal(
       render('text', { mode: 'check', findings: [finding] }),
-      'src/a.ts:3 [cognitive-complexity] Too complex.\n\nBy rule and module:\n  cognitive-complexity  -  1\n\n1 finding',
+      'src/a.ts:3 [cognitive-complexity] Too complex.\n\nBy rule and module:\n  cognitive-complexity  src/a.ts  1\n\n1 finding',
     );
     assert.equal(render('text', { mode: 'check', findings: [] }), 'No findings.');
     assert.equal(render('text', diff([])), '0 new findings, 0 worsened, 0 resolved.');
