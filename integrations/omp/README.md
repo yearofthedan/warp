@@ -6,7 +6,8 @@
 [`warp.ts`](./warp.ts) is an omp extension. After each successful `edit`, `write`, `ast_edit` or `apply_patch`, it
 runs `warp diff HEAD --since-last-run --reporter omp` in the session's directory and returns the result from its `tool_result`
 handler. omp sends a handler's `additionalContext` with the next request to the model, outside the tool result, and
-the edit itself is never blocked. A failed run is left out of the context. The event and result shapes are from
+the edit itself is never blocked. When a run fails, as with a broken config or a missing CLI, the context says warp is
+unavailable and why, once until the failure changes or a run succeeds. The event and result shapes are from
 `@oh-my-pi/pi-coding-agent` 18.22 (`dist/types/extensibility/extensions/types.d.ts`).
 
 ## Set up a project
@@ -27,7 +28,7 @@ the edit itself is never blocked. A failed run is left out of the context. The e
 
    The link points into your clone, so keep it out of git, for example with
    `echo .omp/extensions/warp.ts >> .git/info/exclude`. Linking it into `~/.omp/agent/extensions/` instead loads
-   it everywhere; in a project without a config the run fails and the extension stays silent. Environment
+   it everywhere; in a project without a config, the first edit of each session says warp is unavailable. Environment
    variables change what it runs, set where you start omp:
    - `WARP_BASE=main...` makes a run with no [last run](../../docs/agents-and-ci.md#since-the-last-run) to
      compare with report against where the branch left main, instead of the last commit.
