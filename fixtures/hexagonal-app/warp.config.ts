@@ -12,7 +12,7 @@ const hexagon = archetype('hexagon')
   .exposes(() => ({}));
 
 const base = ruleset().rules({
-  'module-cohesion': { maxLines: 15 },
+  'file-cohesion': { maxLines: 15 },
   'function-cohesion': { maxLines: 6 },
   'cognitive-complexity': { max: 4 },
 });

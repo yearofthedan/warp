@@ -27,22 +27,22 @@ import {
   isVariableDeclaration,
   isVariableStatement,
 } from 'typescript/ast/is';
-import type { FunctionFacts, Unit, UnitGraph, UnitKind } from '../model/facts.ts';
+import type { FunctionFacts, Member, MemberGraph, MemberKind } from '../model/facts.ts';
 import { cognitiveComplexity } from './complexity.ts';
 import { type Source, symbolKey, walk } from './source.ts';
 
 interface Declared {
-  unit: Unit;
+  member: Member;
   node: Node;
   keys: string[];
 }
 
-export const moduleUnits = (source: Source): UnitGraph => {
+export const fileMembers = (source: Source): MemberGraph => {
   const declared = source.sourceFile.statements.flatMap((statement) => declarations(statement, source));
   const loose = source.sourceFile.statements.filter((statement) => isLooseCode(statement));
   if (loose.length > 0) {
     declared.push({
-      unit: {
+      member: {
         name: '<top-level code>',
         kind: 'code',
         line: source.line(loose[0]),
@@ -59,7 +59,7 @@ export const moduleUnits = (source: Source): UnitGraph => {
 
   const links: [number, number][] = [];
   declared.forEach((entry, index) => {
-    const nodes = entry.unit.kind === 'code' ? loose : [entry.node];
+    const nodes = entry.member.kind === 'code' ? loose : [entry.node];
     for (const node of nodes) {
       for (const key of references(node, source)) {
         const other = owner.get(key);
@@ -67,30 +67,30 @@ export const moduleUnits = (source: Source): UnitGraph => {
       }
     }
   });
-  return { units: declared.map((entry) => entry.unit), links };
+  return { members: declared.map((entry) => entry.member), links };
 };
 
 const declarations = (statement: Statement, source: Source): Declared[] => {
-  const unit = (name: string, kind: UnitKind, node: Node, nameNode?: Node): Declared => ({
-    unit: { name, kind, line: source.line(node), endLine: source.endLine(node) },
+  const member = (name: string, kind: MemberKind, node: Node, nameNode?: Node): Declared => ({
+    member: { name, kind, line: source.line(node), endLine: source.endLine(node) },
     node,
     keys: nameNode ? declaredKeys(nameNode, source) : [],
   });
   if (isFunctionDeclaration(statement))
-    return [unit(statement.name?.text ?? 'default', 'function', statement, statement.name)];
+    return [member(statement.name?.text ?? 'default', 'function', statement, statement.name)];
   if (isClassDeclaration(statement))
-    return [unit(statement.name?.text ?? 'default', 'class', statement, statement.name)];
+    return [member(statement.name?.text ?? 'default', 'class', statement, statement.name)];
   if (isInterfaceDeclaration(statement) || isTypeAliasDeclaration(statement) || isEnumDeclaration(statement)) {
-    return [unit(statement.name.text, 'type', statement, statement.name)];
+    return [member(statement.name.text, 'type', statement, statement.name)];
   }
   if (isModuleDeclaration(statement))
-    return [unit(statement.name.getText(source.sourceFile), 'type', statement, statement.name)];
+    return [member(statement.name.getText(source.sourceFile), 'type', statement, statement.name)];
   if (isVariableStatement(statement)) {
     return statement.declarationList.declarations.map((declaration) => {
       const fn =
         declaration.initializer &&
         (isArrowFunction(declaration.initializer) || isFunctionExpression(declaration.initializer));
-      return unit(
+      return member(
         declaration.name.getText(source.sourceFile),
         fn ? 'function' : 'state',
         declaration,
@@ -150,7 +150,9 @@ export const functionFacts = (source: Source): FunctionFacts[] => {
         line,
         endLine,
         lines: endLine - line + 1,
-        statements: isBlock(node.body) ? statementGraph(node, node.body.statements, source) : { units: [], links: [] },
+        statements: isBlock(node.body)
+          ? statementGraph(node, node.body.statements, source)
+          : { members: [], links: [] },
         ...(outermost ? { complexity: cognitiveComplexity(node, selfKey(node, source), source) } : {}),
       });
       node.forEachChild((child) => {
@@ -166,23 +168,23 @@ export const functionFacts = (source: Source): FunctionFacts[] => {
   return facts;
 };
 
-const statementGraph = (fn: Node, statements: readonly Statement[], source: Source): UnitGraph => {
+const statementGraph = (fn: Node, statements: readonly Statement[], source: Source): MemberGraph => {
   const locals = localKeys(fn, source);
-  const units: Unit[] = [];
+  const members: Member[] = [];
   const firstUser = new Map<string, number>();
   const links: [number, number][] = [];
   for (const statement of statements) {
     const touched = [...references(statement, source)].filter((key) => locals.has(key) || key.startsWith('this.'));
     if (touched.length === 0) continue;
     const line = source.line(statement);
-    const index = units.push({ name: `line ${line}`, kind: 'code', line, endLine: source.endLine(statement) }) - 1;
+    const index = members.push({ name: `line ${line}`, kind: 'code', line, endLine: source.endLine(statement) }) - 1;
     for (const key of touched) {
       const first = firstUser.get(key);
       if (first === undefined) firstUser.set(key, index);
       else links.push([first, index]);
     }
   }
-  return { units, links };
+  return { members, links };
 };
 
 const localKeys = (fn: Node, source: Source): Set<string> => {

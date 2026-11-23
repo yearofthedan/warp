@@ -23,8 +23,8 @@ const reanalyzedAfter = (change: () => void): string[] => {
   for (const entry of Object.values(saved!.files)) if (entry.facts) entry.facts.lines = 0;
   change();
   return analyze(store)
-    .modules.filter((module) => module.lines > 0)
-    .map((module) => module.file)
+    .files.filter((file) => file.lines > 0)
+    .map((file) => file.path)
     .sort();
 };
 

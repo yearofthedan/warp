@@ -16,14 +16,22 @@ export {
 } from './model/archetype/builder.ts';
 export { loadConfigData, type LoadedConfigData } from './app/load.ts';
 export type * from './model/archetype/data.ts';
-export type { Complexity, FunctionFacts, ImportEdge, ModuleFacts, Unit, UnitGraph, UnitKind } from './model/facts.ts';
+export type {
+  Complexity,
+  FunctionFacts,
+  ImportEdge,
+  FileFacts,
+  Member,
+  MemberGraph,
+  MemberKind,
+} from './model/facts.ts';
 export type { Model, UnitView } from './model/archetype/resolve.ts';
 export type { Grant, Refusal, Verdict, Verdicts } from './model/archetype/reach.ts';
 export { ConfigError } from './model/configError.ts';
 export {
   type Finding,
-  type ModuleContext,
-  type ModuleRule,
+  type FileContext,
+  type FileRule,
   type Plugin,
   type ProjectContext,
   type ProjectRule,

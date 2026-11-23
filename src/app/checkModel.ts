@@ -31,8 +31,8 @@ const run = (rule: Rule, shared: Shared, settled: Settings): Finding[] => {
       atFile: (file) => settled.atFile(file, rule.id, rule.defaults),
       atUnit: (unit) => settled.atUnit(unit, rule.id, rule.defaults),
     });
-  return shared.project.modules.flatMap((module) => {
-    const { on, options } = settled.atFile(module.file, rule.id, rule.defaults);
-    return on ? rule.check({ module, options }) : [];
+  return shared.project.files.flatMap((file) => {
+    const { on, options } = settled.atFile(file.path, rule.id, rule.defaults);
+    return on ? rule.check({ file, options }) : [];
   });
 };

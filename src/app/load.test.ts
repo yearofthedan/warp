@@ -5,7 +5,7 @@ import { ConfigError } from '../model/configError.ts';
 import { wholeNumberOptions } from '../rules/rule.ts';
 import { loadConfigData } from './load.ts';
 import { builtinRegistry } from '../builtins/index.ts';
-import type { ModuleRule } from '../rules/rule.ts';
+import type { FileRule } from '../rules/rule.ts';
 
 const workingTitleConfig = () => {
   const testRunner = archetype('test-runner')
@@ -218,7 +218,7 @@ describe('loadConfigData', () => {
         default: ruleset()
           .rules('off')
           .on(root, { '*': false, 'cognitive-complexity': { max: 10 } })
-          .on(root.main, { 'module-cohesion': false }),
+          .on(root.main, { 'file-cohesion': false }),
       },
     });
     const { config: data, warnings } = loadConfigData(config);
@@ -262,7 +262,7 @@ describe('loadConfigData', () => {
                 { kind: 'part', part: 'kids', surface: 'render' },
                 { kind: 'part', part: 'kids' },
               ],
-              rules: { 'module-cohesion': false },
+              rules: { 'file-cohesion': false },
             },
           ],
           exposes: { main: [{ kind: 'part', part: 'main' }] },
@@ -419,7 +419,7 @@ describe('loadConfigData', () => {
     assert.deepEqual(
       failures(
         { root, rulesets: { default: rules } },
-        { builtins: [builtinRegistry.get('module-cohesion')!, builtinRegistry.get('cognitive-complexity')!] },
+        { builtins: [builtinRegistry.get('file-cohesion')!, builtinRegistry.get('cognitive-complexity')!] },
       ),
       ['rulesets.default.on(root.test): no rule called no-such-rule'],
     );
@@ -428,14 +428,14 @@ describe('loadConfigData', () => {
   it("checks each rule's options with the check it is given", () => {
     const root = archetype('root').contains((p) => p.files('src', '**').files('test', '*.test.ts'));
     const rules = ruleset()
-      .rules({ 'dependency-direction': { strict: true }, 'module-cohesion': { maxLines: 0 } })
+      .rules({ 'dependency-direction': { strict: true }, 'file-cohesion': { maxLines: 0 } })
       .on(root, { 'no-cycle': { types: 'count', depth: 1, width: 2 }, 'unit-cycle': { types: 'ignore' } })
       .on(root.src, { 'unit-cycle': { types: 'sometimes' } })
       .on(root.test, { 'no-cycle': { types: 'count' }, 'unit-cycle': {} });
     const options = { builtins: [...builtinRegistry.values()] };
     assert.deepEqual(failures({ root, rulesets: { default: rules } }, options), [
       'rulesets.default.rules.dependency-direction: unknown key strict',
-      'rulesets.default.rules.module-cohesion.maxLines: expected a whole number of at least 1',
+      'rulesets.default.rules.file-cohesion.maxLines: expected a whole number of at least 1',
       'rulesets.default.on(root).no-cycle: unknown key depth, width',
       "rulesets.default.on(root.src).unit-cycle.types: expected 'count' or 'ignore'",
     ]);
@@ -454,7 +454,7 @@ describe('loadConfigData', () => {
   });
 
   it("joins plugins' rules to the built-in ones under their namespace, ids and options checked alike", () => {
-    const limit: ModuleRule<{ max: number }> = {
+    const limit: FileRule<{ max: number }> = {
       id: 'max-imports',
       defaults: { max: 5 },
       parseOptions: wholeNumberOptions({ max: 5 }),
@@ -462,7 +462,7 @@ describe('loadConfigData', () => {
     };
     const root = archetype('root').contains((p) => p.files('src', '**'));
     const rules = ruleset().on(root.src, { 'mine/max-imports': { max: 0 }, 'max-imports': false });
-    const builtins = [builtinRegistry.get('module-cohesion')!];
+    const builtins = [builtinRegistry.get('file-cohesion')!];
     assert.deepEqual(
       failures({ root, plugins: { mine: { rules: [limit] } }, rulesets: { default: rules } }, { builtins }),
       [
@@ -476,18 +476,18 @@ describe('loadConfigData', () => {
     );
     assert.deepEqual(
       registered.map((rule) => rule.id),
-      ['module-cohesion', 'mine/max-imports'],
+      ['file-cohesion', 'mine/max-imports'],
     );
   });
 
   it('refuses rule settings of the wrong shape', () => {
     const root = archetype('root').contains((p) => p.files('src', '**'));
     const rules = ruleset()
-      .on(root, { '*': {}, 'module-cohesion': 3 as never, 'cognitive-complexity': pkg('x') as never })
+      .on(root, { '*': {}, 'file-cohesion': 3 as never, 'cognitive-complexity': pkg('x') as never })
       .on(root.src, 'all' as never);
     assert.deepEqual(failures({ root, rulesets: { default: rules } }), [
       'rulesets.default.on(root).*: expected true, false',
-      'rulesets.default.on(root).module-cohesion: expected true, false or options',
+      'rulesets.default.on(root).file-cohesion: expected true, false or options',
       'rulesets.default.on(root).cognitive-complexity: expected true, false or options',
       "rulesets.default.on(root.src): expected 'off' or rule settings by id",
     ]);

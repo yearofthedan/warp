@@ -12,13 +12,13 @@ export const dependencyDirection: ProjectRule = {
   scope: 'project',
   parseOptions: noOptions,
   check: ({ config, model, verdicts, project, atFile }) =>
-    project.modules.flatMap((module) => {
-      if (!atFile(module.file).on) return [];
-      const byTarget = Map.groupBy(module.imports, (edge) => edge.via ?? edge.to);
+    project.files.flatMap((file) => {
+      if (!atFile(file.path).on) return [];
+      const byTarget = Map.groupBy(file.imports, (edge) => edge.via ?? edge.to);
       return [...byTarget].flatMap(([to, edges]) => {
-        const verdict = verdicts.verdict(module.file, to);
+        const verdict = verdicts.verdict(file.path, to);
         if (verdict === undefined || verdict.allowed) return [];
-        return [refused({ config, model, verdicts }, module.file, to, verdict, edges)];
+        return [refused({ config, model, verdicts }, file.path, to, verdict, edges)];
       });
     }),
 };

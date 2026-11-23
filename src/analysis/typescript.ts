@@ -4,11 +4,11 @@ import { join, relative, sep } from 'node:path';
 import { API } from 'typescript/sync';
 import { freshFacts } from '../app/facts.ts';
 import type { Analyzer, CachedFile } from '../app/ports.ts';
-import type { ModuleFacts } from '../model/facts.ts';
-import { moduleEdges, type Resolver } from './imports.ts';
+import type { FileFacts } from '../model/facts.ts';
+import { fileEdges, type Resolver } from './imports.ts';
 import { moduleSpecifiers } from './specifiers.ts';
 import { countLines, readSource } from './source.ts';
-import { functionFacts, moduleUnits } from './units.ts';
+import { functionFacts, fileMembers } from './members.ts';
 
 type Snapshot = ReturnType<API['createSnapshot']>;
 type Configured = NonNullable<ReturnType<Snapshot['getConfiguredProject']>>;
@@ -32,11 +32,11 @@ export const typescriptAnalyzer: Analyzer = {
       const cached = new Map<string, Omit<CachedFile, 'hash'>>();
       for (const { project, files } of projects)
         for (const [file, entry] of analyzeProgram(project, files, fresh, cached)) cached.set(file, entry);
-      const modules = [...cached.values()].flatMap(({ facts }) => (facts ? [facts] : []));
-      if (modules.length === 0) throw new Error(`${tsconfigs.join(', ')} include no files to check`);
+      const facts = [...cached.values()].flatMap(({ facts }) => (facts ? [facts] : []));
+      if (facts.length === 0) throw new Error(`${tsconfigs.join(', ')} include no files to check`);
       const files = [...hashes].map(([file, hash]) => [file, { ...cached.get(file), hash }]);
       store?.write({ digest, files: Object.fromEntries(files) });
-      return { modules };
+      return { files: facts };
     } finally {
       api.close();
     }
@@ -100,11 +100,11 @@ const analyzeProgram = (
     const sourceFile = program.getSourceFile(fileName);
     if (!sourceFile) continue;
     const source = readSource(checker, sourceFile, file);
-    const facts: ModuleFacts = {
-      file,
+    const facts: FileFacts = {
+      path: file,
       lines: countLines(sourceFile.text),
-      ...moduleEdges(source, resolver),
-      units: moduleUnits(source),
+      ...fileEdges(source, resolver),
+      members: fileMembers(source),
       functions: functionFacts(source),
     };
     analyzed.set(file, { specifiers: moduleSpecifiers(sourceFile), facts });

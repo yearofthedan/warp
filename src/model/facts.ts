@@ -1,13 +1,13 @@
 export interface Project {
-  modules: ModuleFacts[];
+  files: FileFacts[];
 }
 
-export interface ModuleFacts {
-  file: string;
+export interface FileFacts {
+  path: string;
   lines: number;
   imports: ImportEdge[];
   externals: ExternalImport[];
-  units: UnitGraph;
+  members: MemberGraph;
   functions: FunctionFacts[];
 }
 
@@ -32,17 +32,17 @@ export interface ExternalImport {
   line: number;
 }
 
-export type UnitKind = 'function' | 'class' | 'state' | 'type' | 'code';
+export type MemberKind = 'function' | 'class' | 'state' | 'type' | 'code';
 
-export interface Unit {
+export interface Member {
   name: string;
-  kind: UnitKind;
+  kind: MemberKind;
   line: number;
   endLine: number;
 }
 
-export interface UnitGraph {
-  units: Unit[];
+export interface MemberGraph {
+  members: Member[];
   links: [number, number][];
 }
 
@@ -51,7 +51,7 @@ export interface FunctionFacts {
   line: number;
   endLine: number;
   lines: number;
-  statements: UnitGraph;
+  statements: MemberGraph;
   complexity?: Complexity;
 }
 

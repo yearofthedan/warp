@@ -28,8 +28,8 @@ describe('check', () => {
       'dependency-direction:src/domain/order.ts->src/adapters/index.ts',
       'dependency-direction:src/domain/pricing.ts->src/adapters/db/orderRepo.ts',
       'function-cohesion:src/app/handle.ts:handle',
-      'module-cohesion:src/app/handle.ts',
-      'module-cohesion:src/domain/pricing.ts',
+      'file-cohesion:src/app/handle.ts',
+      'file-cohesion:src/domain/pricing.ts',
       'no-cross-unit-reexport:src/app/index.ts->src/domain/order.ts',
       'no-cycle:src/adapters/db/orderRepo.ts->src/domain/order.ts',
       'no-cycle:src/adapters/index.ts->src/adapters/db/orderRepo.ts',
@@ -57,7 +57,7 @@ describe('check', () => {
   });
 
   it('reports the groups a module splits into', () => {
-    assert.deepEqual(byKey('module-cohesion:src/domain/pricing.ts')?.details, {
+    assert.deepEqual(byKey('file-cohesion:src/domain/pricing.ts')?.details, {
       lines: 17,
       tripwire: 15,
       groups: [
@@ -76,6 +76,6 @@ describe('check', () => {
   });
 
   it('passes a module over the tripwire whose code is one group', () => {
-    assert.equal(byKey('module-cohesion:src/adapters/db/orderRepo.ts'), undefined);
+    assert.equal(byKey('file-cohesion:src/adapters/db/orderRepo.ts'), undefined);
   });
 });

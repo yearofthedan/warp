@@ -1,5 +1,5 @@
 import type { Folders } from '../model/archetype/resolve.ts';
-import type { ModuleFacts, Project } from '../model/facts.ts';
+import type { FileFacts, Project } from '../model/facts.ts';
 import type { Finding } from '../rules/rule.ts';
 
 export interface Analyzer {
@@ -36,5 +36,5 @@ export interface CachedFacts {
 export interface CachedFile {
   hash: string;
   specifiers?: string[];
-  facts?: ModuleFacts;
+  facts?: FileFacts;
 }

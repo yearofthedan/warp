@@ -10,14 +10,14 @@ export const noDoubleExport: ProjectRule = {
   scope: 'project',
   parseOptions: noOptions,
   check: ({ model, verdicts, project, atFile }) =>
-    project.modules.flatMap((module) => {
-      const unit = model.unitOf(module.file);
-      if (!unit || !atFile(module.file).on) return [];
+    project.files.flatMap((file) => {
+      const unit = model.unitOf(file.path);
+      if (!unit || !atFile(file.path).on) return [];
       const surface = verdicts.surface(unit);
-      if (!surface.has(module.file)) return [];
-      const reExports = module.imports.filter((edge) => edge.reExport);
+      if (!surface.has(file.path)) return [];
+      const reExports = file.imports.filter((edge) => edge.reExport);
       return [...Map.groupBy(reExports, (edge) => edge.via ?? edge.to)].flatMap(([to, edges]) =>
-        to === module.file || !surface.has(to) ? [] : [doubled(model, unit, to, edges)],
+        to === file.path || !surface.has(to) ? [] : [doubled(model, unit, to, edges)],
       );
     }),
 };

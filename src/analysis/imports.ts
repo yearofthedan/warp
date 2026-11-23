@@ -34,14 +34,14 @@ interface Binding {
   reExport: boolean;
 }
 
-export interface ModuleEdges {
+export interface FileEdges {
   imports: ImportEdge[];
   externals: ExternalImport[];
 }
 
-export const moduleEdges = (source: Source, resolver: Resolver): ModuleEdges => {
+export const fileEdges = (source: Source, resolver: Resolver): FileEdges => {
   const exported = locallyExportedNames(source.sourceFile);
-  const edges: ModuleEdges = { imports: [], externals: [] };
+  const edges: FileEdges = { imports: [], externals: [] };
   for (const statement of source.sourceFile.statements) {
     const declaration = moduleDeclaration(statement, exported);
     if (!declaration) continue;

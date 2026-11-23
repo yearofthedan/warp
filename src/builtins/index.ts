@@ -3,7 +3,7 @@ import type { Rule } from '../rules/rule.ts';
 import { cognitiveComplexity } from './cognitive-complexity/cognitiveComplexity.ts';
 import { dependencyDirection } from './dependency-direction/dependencyDirection.ts';
 import { functionCohesion } from './function-cohesion/functionCohesion.ts';
-import { moduleCohesion } from './module-cohesion/moduleCohesion.ts';
+import { fileCohesion } from './file-cohesion/fileCohesion.ts';
 import { noCrossUnitReexport } from './no-cross-unit-reexport/noCrossUnitReexport.ts';
 import { noCycle } from './no-cycle/noCycle.ts';
 import { noDoubleExport } from './no-double-export/noDoubleExport.ts';
@@ -17,7 +17,7 @@ export const builtinRules: readonly Rule[] = [
   noCrossUnitReexport,
   noCycle,
   unitCycle,
-  moduleCohesion,
+  fileCohesion,
   functionCohesion,
   cognitiveComplexity,
 ];

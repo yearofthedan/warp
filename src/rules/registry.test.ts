@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { Project } from '../model/facts.ts';
 import { pluginRules, registry } from './registry.ts';
-import type { Finding, ModuleRule, ProjectContext, ProjectRule } from './rule.ts';
+import type { Finding, FileRule, ProjectContext, ProjectRule } from './rule.ts';
 
-const module = {
-  file: 'src/a.ts',
+const file = {
+  path: 'src/a.ts',
   lines: 1,
   imports: [],
   externals: [],
-  units: { units: [], links: [] },
+  members: { members: [], links: [] },
   functions: [],
 };
 
@@ -24,18 +24,18 @@ const finding = (rule: string, file: string): Finding => ({
 
 describe('pluginRules', () => {
   it("names each rule and its findings' keys under the plugin's namespace, for either scope", () => {
-    const perModule: ModuleRule = { id: 'per-module', check: ({ module }) => [finding('per-module', module.file)] };
+    const perFile: FileRule = { id: 'per-file', check: ({ file }) => [finding('per-file', file.path)] };
     const whole: ProjectRule = {
       id: 'whole',
       scope: 'project',
-      check: ({ project }) => project.modules.map((m) => finding('whole', m.file)),
+      check: ({ project }) => project.files.map((m) => finding('whole', m.path)),
     };
-    const [a, b] = pluginRules({ mine: { rules: [perModule, whole] } });
-    assert.deepEqual([a!.id, b!.id, b!.scope], ['mine/per-module', 'mine/whole', 'project']);
-    assert.deepEqual((a as ModuleRule).check({ module, options: {} }), [
-      { ...finding('per-module', 'src/a.ts'), rule: 'mine/per-module', key: 'mine/per-module:src/a.ts' },
+    const [a, b] = pluginRules({ mine: { rules: [perFile, whole] } });
+    assert.deepEqual([a!.id, b!.id, b!.scope], ['mine/per-file', 'mine/whole', 'project']);
+    assert.deepEqual((a as FileRule).check({ file, options: {} }), [
+      { ...finding('per-file', 'src/a.ts'), rule: 'mine/per-file', key: 'mine/per-file:src/a.ts' },
     ]);
-    const project: Project = { modules: [module] };
+    const project: Project = { files: [file] };
     assert.deepEqual((b as ProjectRule).check({ project } as ProjectContext<object>), [
       { ...finding('whole', 'src/a.ts'), rule: 'mine/whole', key: 'mine/whole:src/a.ts' },
     ]);
@@ -71,10 +71,10 @@ describe('pluginRules', () => {
     assert.equal(refused({ mine: { rules: [{ id: 'r' }] } }), `${at}.mine.rules[0]: r has no check function`);
     assert.equal(
       refused({ mine: { rules: [{ id: 'r', scope: 'unit', check: () => [] }] } }),
-      `${at}.mine.rules[0]: r has scope unit; a scope is module or project`,
+      `${at}.mine.rules[0]: r has scope unit; a scope is file or project`,
     );
     assert.deepEqual(
-      pluginRules({ mine: { rules: [{ id: 'r', scope: 'module', check: () => [] }] } }).map((rule) => rule.id),
+      pluginRules({ mine: { rules: [{ id: 'r', scope: 'file', check: () => [] }] } }).map((rule) => rule.id),
       ['mine/r'],
     );
   });

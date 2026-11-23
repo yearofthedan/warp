@@ -1,5 +1,5 @@
 import { ConfigError } from '../model/configError.ts';
-import type { Rule, Finding, ModuleContext, ProjectContext } from './rule.ts';
+import type { Rule, Finding, FileContext, ProjectContext } from './rule.ts';
 
 export const registry = <R extends { id: string }>(rules: readonly R[]): ReadonlyMap<string, R> => {
   const byId = new Map<string, R>();
@@ -27,13 +27,13 @@ const namespaced = (namespace: string, plugin: unknown, at: string): Rule[] => {
     if (typeof rule?.id !== 'string' || !name.test(rule.id))
       throw new ConfigError(`${where}: a rule id is lowercase letters, digits and dashes`);
     if (typeof rule.check !== 'function') throw new ConfigError(`${where}: ${rule.id} has no check function`);
-    if (rule.scope !== undefined && rule.scope !== 'module' && rule.scope !== 'project')
-      throw new ConfigError(`${where}: ${rule.id} has scope ${String(rule.scope)}; a scope is module or project`);
+    if (rule.scope !== undefined && rule.scope !== 'file' && rule.scope !== 'project')
+      throw new ConfigError(`${where}: ${rule.id} has scope ${String(rule.scope)}; a scope is file or project`);
     const id = `${namespace}/${rule.id}`;
     const owned = (findings: Finding[]) =>
       findings.map((finding) => ({ ...finding, rule: id, key: `${namespace}/${finding.key}` }));
     if (rule.scope === 'project')
       return { ...rule, id, check: (context: ProjectContext<any>) => owned(rule.check(context)) };
-    return { ...rule, id, check: (context: ModuleContext<any>) => owned(rule.check(context)) };
+    return { ...rule, id, check: (context: FileContext<any>) => owned(rule.check(context)) };
   });
 };

@@ -4,7 +4,7 @@ import { type AnyArchetype, archetype, dir, type Ruleset, ruleset } from '../../
 import { checkModel } from '../../app/checkModel.ts';
 import { loadConfigData } from '../../app/load.ts';
 import { type Folders, resolveModel } from '../../model/archetype/resolve.ts';
-import type { ImportEdge, ModuleFacts } from '../../model/facts.ts';
+import type { ImportEdge, FileFacts } from '../../model/facts.ts';
 import { noCrossUnitReexport } from './noCrossUnitReexport.ts';
 
 const rule = 'no-cross-unit-reexport';
@@ -39,25 +39,25 @@ const reExport = (from: string, to: string, extra: Partial<ImportEdge> = {}): Im
   ...extra,
 });
 
-const module = (file: string, imports: ImportEdge[] = []): ModuleFacts => ({
-  file,
+const facts = (path: string, imports: ImportEdge[] = []): FileFacts => ({
+  path,
   lines: 1,
   imports,
   externals: [],
-  units: { units: [], links: [] },
+  members: { members: [], links: [] },
   functions: [],
 });
 
 const files = ['ports/folder.ts', 'domain/order.ts', 'ui/index.ts', 'ui/view.ts', 'ui/card/card.ts', 'main.ts'];
 
-const check = (root: AnyArchetype, modules: ModuleFacts[], rules?: Ruleset) => {
+const check = (root: AnyArchetype, analyzed: FileFacts[], rules?: Ruleset) => {
   const { config } = loadConfigData({ root, ...(rules ? { rulesets: { default: rules } } : {}) });
   const all = [
-    ...modules,
-    ...files.filter((file) => !modules.some((m) => m.file === file)).map((file) => module(file)),
+    ...analyzed,
+    ...files.filter((file) => !analyzed.some((m) => m.path === file)).map((file) => facts(file)),
   ];
   const model = resolveModel(config, folders(files), files);
-  return checkModel(config, model, { modules: all }, [noCrossUnitReexport]).filter(
+  return checkModel(config, model, { files: all }, [noCrossUnitReexport]).filter(
     (finding) => finding.rule !== 'unclassified',
   );
 };
@@ -95,7 +95,7 @@ describe(rule, () => {
       reExport('ui/index.ts', 'ports/folder.ts', { names: ['Folder', 'Chooser'] }),
       reExport('ui/index.ts', 'ports/folder.ts', { names: [], line: 3 }),
     ];
-    assert.deepEqual(check(app(ui()), [module('ui/index.ts', edges)]), [
+    assert.deepEqual(check(app(ui()), [facts('ui/index.ts', edges)]), [
       {
         rule,
         key: `${rule}:ui/index.ts->ports/folder.ts`,
@@ -118,7 +118,7 @@ describe(rule, () => {
 
   it('judges the file the specifier names, and says everything for a bare export *', () => {
     const findings = check(app(ui()), [
-      module('ui/index.ts', [reExport('ui/index.ts', 'domain/order.ts', { via: 'ports/folder.ts', names: [] })]),
+      facts('ui/index.ts', [reExport('ui/index.ts', 'domain/order.ts', { via: 'ports/folder.ts', names: [] })]),
     ]);
     assert.deepEqual(
       findings.map((finding) => [finding.key, finding.value, finding.message.split(' (')[1]]),
@@ -131,11 +131,11 @@ describe(rule, () => {
     assert.deepEqual(
       keys(
         check(app(ui()), [
-          module('ui/index.ts', [reExport('ui/index.ts', 'ui/view.ts'), reExport('ui/index.ts', 'ui/card/card.ts')]),
-          module('ui/view.ts', [plain]),
-          module('main.ts', [reExport('main.ts', 'ui/index.ts')]),
-          module('outside.ts', [reExport('outside.ts', 'ports/folder.ts')]),
-          module('ui/card/card.ts', [reExport('ui/card/card.ts', 'nowhere.ts')]),
+          facts('ui/index.ts', [reExport('ui/index.ts', 'ui/view.ts'), reExport('ui/index.ts', 'ui/card/card.ts')]),
+          facts('ui/view.ts', [plain]),
+          facts('main.ts', [reExport('main.ts', 'ui/index.ts')]),
+          facts('outside.ts', [reExport('outside.ts', 'ports/folder.ts')]),
+          facts('ui/card/card.ts', [reExport('ui/card/card.ts', 'nowhere.ts')]),
         ]),
       ),
       [],
@@ -143,14 +143,14 @@ describe(rule, () => {
   });
 
   it("flags a nested unit re-exporting its parent's files", () => {
-    assert.deepEqual(keys(check(app(ui()), [module('ui/card/card.ts', [reExport('ui/card/card.ts', 'ui/view.ts')])])), [
+    assert.deepEqual(keys(check(app(ui()), [facts('ui/card/card.ts', [reExport('ui/card/card.ts', 'ui/view.ts')])])), [
       `${rule}:ui/card/card.ts->ui/view.ts`,
     ]);
   });
 
   it('reports nothing where the rule is off, and takes no options', () => {
-    const modules = [module('ui/index.ts', [reExport('ui/index.ts', 'ports/folder.ts')])];
-    assert.deepEqual(keys(check(app(ui()), modules, ruleset().on(uiArchetype.api, { [rule]: false }))), []);
+    const analyzed = [facts('ui/index.ts', [reExport('ui/index.ts', 'ports/folder.ts')])];
+    assert.deepEqual(keys(check(app(ui()), analyzed, ruleset().on(uiArchetype.api, { [rule]: false }))), []);
     assert.throws(() => noCrossUnitReexport.parseOptions!({ allow: [] }, 'at'), /at: unknown key allow/);
   });
 });

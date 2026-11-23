@@ -1,19 +1,19 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import type { ImportEdge, ModuleFacts } from '../model/facts.ts';
+import type { ImportEdge, FileFacts } from '../model/facts.ts';
 import { factsStore, freshFacts } from './facts.ts';
 import type { Cache, CachedFacts, CachedFile } from './ports.ts';
 
-const facts = (file: string, imports: Partial<ImportEdge>[] = []): ModuleFacts => ({
-  file,
+const facts = (file: string, imports: Partial<ImportEdge>[] = []): FileFacts => ({
+  path: file,
   lines: 1,
   imports: imports.map((edge) => ({ from: file, to: '', specifier: '', names: [], typeOnly: false, line: 1, ...edge })),
   externals: [],
-  units: { units: [], links: [] },
+  members: { members: [], links: [] },
   functions: [],
 });
 
-const module = (file: string, specifiers: string[], imports: Partial<ImportEdge>[] = []): [string, CachedFile] => [
+const cachedFile = (file: string, specifiers: string[], imports: Partial<ImportEdge>[] = []): [string, CachedFile] => [
   file,
   { hash: 'v1', specifiers, facts: facts(file, imports) },
 ];
@@ -21,20 +21,20 @@ const module = (file: string, specifiers: string[], imports: Partial<ImportEdge>
 const cached: CachedFacts = {
   digest: 'config',
   files: Object.fromEntries([
-    module('src/core.ts', []),
-    module('src/lib/index.ts', ['../core.ts'], [{ to: 'src/core.ts' }]),
-    module('src/feature.ts', ['./lib'], [{ to: 'src/core.ts', via: 'src/lib/index.ts' }]),
-    module('src/app.ts', ['./feature.ts', './missing.ts'], [{ to: 'src/feature.ts' }]),
-    module('src/leaf.ts', ['../src/util.mjs']),
-    module('src/lib/dot.ts', ['.']),
-    module('src/lib/up.ts', ['..']),
-    module('src/slash.ts', ['./lib/']),
+    cachedFile('src/core.ts', []),
+    cachedFile('src/lib/index.ts', ['../core.ts'], [{ to: 'src/core.ts' }]),
+    cachedFile('src/feature.ts', ['./lib'], [{ to: 'src/core.ts', via: 'src/lib/index.ts' }]),
+    cachedFile('src/app.ts', ['./feature.ts', './missing.ts'], [{ to: 'src/feature.ts' }]),
+    cachedFile('src/leaf.ts', ['../src/util.mjs']),
+    cachedFile('src/lib/dot.ts', ['.']),
+    cachedFile('src/lib/up.ts', ['..']),
+    cachedFile('src/slash.ts', ['./lib/']),
     ['src/globals.d.ts', { hash: 'v1' }],
   ]),
 };
 
 const unchanged = Object.keys(cached.files).map((file) => [file, 'v1'] as const);
-const modules = Object.keys(cached.files).filter((file) => cached.files[file]!.facts);
+const analyzed = Object.keys(cached.files).filter((file) => cached.files[file]!.facts);
 
 const stale = (changes: Record<string, string | null> = {}, digest = 'config') => {
   const hashes = new Map<string, string>(unchanged);
@@ -43,11 +43,11 @@ const stale = (changes: Record<string, string | null> = {}, digest = 'config') =
     else hashes.set(file, hash);
   }
   const fresh = freshFacts(cached, { digest, hashes });
-  return modules.filter((file) => !fresh.has(file)).sort();
+  return analyzed.filter((file) => !fresh.has(file)).sort();
 };
 
 describe('freshFacts', () => {
-  it('keeps every module when no file changed', () => assert.deepEqual(stale(), []));
+  it('keeps every file when no file changed', () => assert.deepEqual(stale(), []));
 
   it('drops a changed file and every file that imports it, directly or through others', () => {
     assert.deepEqual(stale({ 'src/core.ts': 'v2' }), [
@@ -82,13 +82,13 @@ describe('freshFacts', () => {
     assert.deepEqual(stale({ 'index.ts': 'v1' }), ['src/lib/dot.ts', 'src/lib/up.ts', 'src/slash.ts']);
   });
 
-  it('keeps every module when an added file matches no specifier', () => {
+  it('keeps every file when an added file matches no specifier', () => {
     assert.deepEqual(stale({ 'src/lib/other.ts': 'v1', 'src/util.test.ts': 'v1' }), []);
   });
 
   it('drops everything when a declaration file or the config digest changes', () => {
-    assert.deepEqual(stale({ 'src/globals.d.ts': 'v2' }), modules.sort());
-    assert.deepEqual(stale({}, 'other config'), modules.sort());
+    assert.deepEqual(stale({ 'src/globals.d.ts': 'v2' }), analyzed.sort());
+    assert.deepEqual(stale({}, 'other config'), analyzed.sort());
   });
 
   it('starts empty without a cache', () => {
