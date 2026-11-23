@@ -83,8 +83,9 @@ export default defineConfig({ root: warp, tests: files('**/*.test.ts', 'do.test.
 
 The pattern takes several globs, has no default, and does three jobs:
 
-- **The colocated default.** Each module owns the matching files inside its selection as its tests. Those tests see
-  the module's internals, whatever it exposes, and nothing imports them.
+- **The colocated default.** Each folder module owns the matching files in its folder as its tests
+  ([ownership](#which-module-owns-a-test-file)). Those tests see the module's internals, whatever it exposes, and
+  nothing imports them.
 - **The production/test line.** Production code importing a test file, or a test module, is a finding.
 - **Locators.** Inside a test location ([below](#locators)), the pattern says which files are entries; the rest are
   test support.
@@ -123,9 +124,39 @@ The locator says where a module's tests live:
 ### Which module owns a test file
 
 1. The nearest test pattern applies. A nested pattern replaces its parent's; patterns don't merge.
-2. An explicit `.tests()` claim beats the pattern.
-3. Otherwise the deepest module whose selection holds the file owns it.
+2. An explicit `.tests()` claim, or a `tests:` option, beats the pattern.
+3. Otherwise the file belongs to the deepest **folder module** holding it: a `dir` module or an archetype instance,
+   never a `files` module inside it.
 4. Two sibling modules claiming the same file is a load error.
+
+`warp model` shows each test file's owner.
+
+**By folder (the default).** `graph.test.ts` sits in the `graph` component's folder. `logic`'s `*.ts` also matches
+it, but `logic` is a `files` module, so the component owns it. The test sees `logic` and `dom` together, and child
+components only through their surfaces:
+
+```ts fragment
+.module('logic', files('*.ts'), { using: [required.application] })
+.module('dom', files('{name}.dom.ts'), { using: (s) => [s.logic] })
+// src/ui/graph/graph.test.ts → owned by graph; sees logic, dom, subcomponent.render
+```
+
+**Stricter, per module.** A module that wants its own tests, seeing only its own internals, claims them:
+
+```ts fragment
+.module('logic', files('*.ts'), { using: [required.application], tests: files('*.logic.test.ts') })
+// src/ui/graph/graph.logic.test.ts → owned by logic; sees logic only
+```
+
+**A `files` module across folders.** A module whose files are spread through the tree has no folder of its own, so
+its tests are claimed explicitly:
+
+```ts fragment
+.module('handlers', files('src/**/*.handler.ts'), { tests: files('src/**/*.handler.test.ts') })
+```
+
+Why by folder: tests usually exercise a folder's code together, and a folder is what the reader sees as the module.
+The per-module claim is there for the stricter split when it is wanted.
 
 ### Production edges only
 
@@ -161,8 +192,7 @@ const component = archetype('component')
 
 The component's `*.test.ts` files need no declaration: the root pattern finds them, and they see `logic`, `dom`,
 `dsl`, `testPage` and the test runner that working title's root declares in its own test layer. The old `test` part
-listed eleven entries to say the same thing. This assumes the component owns those files, which is
-[open](#open) question 3.
+listed eleven entries to say the same thing.
 
 ```ts fragment
 const warp = archetype('warp')
@@ -219,8 +249,5 @@ rules' check in warp. Both are structure the old `test` parts hid.
 2. **The facade.** `src/index.ts` re-exports `app`, `rules` and `model`, so as its own module it fails
    `no-cross-module-reexport`. That rule has no `allow` by decision; the choice is between a carve-out for a
    package's public entry and a structure that needs none.
-3. **Test files in a folder split into file modules.** In the component above, `logic`'s `*.ts` also matches
-   `graph.test.ts`, so by depth `logic` owns the component's tests and they see only `logic`. Either file modules
-   don't own tests by the pattern, or the component claims them with `.tests()`.
-4. **Rollout order.** The rename, `.module` with closed `exposes`, and the test layer can land together or in turn.
+3. **Rollout order.** The rename, `.module` with closed `exposes`, and the test layer can land together or in turn.
    The test layer needs `.module` first; the rename can go at any point.
