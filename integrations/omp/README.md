@@ -7,17 +7,15 @@
 runs `warp diff HEAD --since-last-run --reporter omp` in the session's directory and returns the result from its `tool_result`
 handler. omp sends a handler's `additionalContext` with the next request to the model, outside the tool result, and
 the edit itself is never blocked. When a run fails, as with a broken config or a missing CLI, the context says warp is
-unavailable and why, once until the failure changes or a run succeeds. The event and result shapes are from
-`@oh-my-pi/pi-coding-agent` 18.22 (`dist/types/extensibility/extensions/types.d.ts`).
+unavailable and why, once until the failure changes or a run succeeds.
 
 ## Set up a project
 
-1. **Install the CLI** as [Run it](../../README.md#run-it) describes.
+1. **Install warp and add a config** in the directory you run omp from, as
+   [Getting started](../../docs/getting-started.md) describes.
 
-2. **Add a config** in the directory you run omp from, next to the project's `tsconfig.json`, starting from
-   [the starter](../../README.md#a-starter-config). The findings `warp check` reports once nothing is `unclassified`
-   are the existing baseline. The extension only reports what an edit makes new or worse, so they need no fixing
-   first.
+2. **Leave the baseline.** The extension reports what an edit makes new or worse, so the findings `warp check`
+   reports today need no fixing first.
 
 3. **Load the extension** in that project:
 
@@ -28,8 +26,8 @@ unavailable and why, once until the failure changes or a run succeeds. The event
 
    The link points into the dev dependency, so it can be committed and works wherever `pnpm install` has run.
    Environment variables change what it runs, set where you start omp:
-   - `WARP_BASE=main...` makes a run with no [last run](../../docs/agents-and-ci.md#since-the-last-run) to
-     compare with report against where the branch left main, instead of the last commit.
+   - `WARP_BASE=main...` sets what a run with no [last run](../../docs/diff.md#since-the-last-run) compares with:
+     here, where the branch left main. The default is `HEAD`.
    - `WARP_RULESET=edit` checks with a [ruleset](../../docs/config.md#rulesets) from the config.
    - `WARP_COMMAND="pnpm exec warp"` runs the project's dev dependency. Without it, the extension runs `warp` from
      the `PATH`.

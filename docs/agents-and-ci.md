@@ -1,56 +1,16 @@
 # Agents and CI
 
 **Audience:** anyone wiring warp into a coding agent or a CI pipeline.
-**Purpose:** how `diff` measures a change, and the setups for Claude Code, omp and GitHub code scanning.
+**Purpose:** the setups for Claude Code, omp and GitHub code scanning.
 
-An agent sees the findings its edit made new or worse while it still has the code in context, and CI gates the
-same delta on the pull request. Both run `warp diff`, with the reporter for the tool that reads it.
-
-## Diff
-
-`diff <base>[..<head>]` checks both sides with the working tree's config, so a delta reflects code changes, never
-rule changes. With three dots, `<base>...<head>`, the base is where `<head>` (or the working tree's `HEAD`) left
-`<base>`, as in git. A base commit where the project's tsconfig does not exist yet counts as having no findings.
-
-A ref is checked out into a temporary git worktree that links the project's `node_modules`, and its
-findings are cached under `.git/warp-cache/` by commit, config (with the custom rules it imports) and a digest of
-warp's own code and TypeScript version, so repeated runs against the same base only analyse the head, and a linked
-checkout that edits a built-in rule redoes the base. Each new entry prunes those from other builds of warp and those
-unread for 30 days. Without a head, the head is the working tree.
-
-## Facts cache
-
-Every command reuses the facts it read from each file on its last run, from `.git/warp-cache/`, so a run after an
-edit analyses only the edited files and the files that import them, directly or through others. A file's facts are
-reused while its content, the content of everything it imports, warp's own code and TypeScript version, the
-compiler options the tsconfig files resolve to, and the size and modification time of every file the program reads
-from outside the project or from `node_modules` are unchanged. Adding or removing a file also redoes each file with an import specifier
-that names it, and changing a `.d.ts` file in the project redoes every file. Outside a git repository nothing is
-cached. Checkouts for `diff` share the cache, so a base close to the working tree analyses only what differs.
-
-A finding is new when the base has no finding with its key or with any of its `parts`, and worse when its value rose
-above that finding's. A loop lists the pairs it links as parts, so a loop that gains a module is worse rather than
-new, and one that loses a module is neither. A new or worse finding with several `sites` is shown at the first one on
-a line the change added, so a loop is reported at the import that closed it. Findings in a renamed file or function
-count as new. Function findings are keyed by name, and a callback is named after its call and a string first
-argument, such as `<callback to it("saves an order")>`, so a key survives edits elsewhere in the file. Functions that
-still share a name get `#2`, `#3` in order of appearance.
-
-`diff HEAD` measures uncommitted changes, so a commit resets the baseline. To measure the whole branch instead, diff
-against where it left main, `main...`.
-
-## Since the last run
-
-`diff <base> --since-last-run` compares the working tree with its findings at the previous run with the flag, so a
-hook that runs it after every edit reports each new or worse finding once, after the edit that made it. The findings
-are kept under `.git/warp-cache/` for each working tree, config and ruleset. The first run, and the first after
-`HEAD` moves (a commit, a pull or a branch switch), compares with `<base>` instead. A change made between two runs by
-anyone is reported at the second run, so an agent may see a finding its own edit did not cause.
+An agent sees the findings its edit made new or worse while it still has the code in context, and CI reports the same
+delta on the pull request. Both run [`warp diff`](diff.md), with the [reporter](cli.md#reporters) for the tool that
+reads it.
 
 ## Claude Code
 
-To have Claude Code see what each edit made new or worse, [since the last run](#since-the-last-run), without being
-blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`:
+To have Claude Code see what each edit made new or worse, [since the last run](diff.md#since-the-last-run), without
+being blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`:
 
 ```json
 {
@@ -70,34 +30,46 @@ blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`:
 To check edits with a lighter set of rules, give the config an `edit` [ruleset](config.md#rulesets) and add
 `--ruleset edit` to the command. A non-empty delta prints a `hookSpecificOutput.additionalContext` response, which
 Claude reads as context for its next step. When warp itself fails, as with a broken config, the response tells
-Claude that warp is unavailable and why. It says so once, until the failure changes or a run succeeds. A repeat exits 1, which Claude Code shows to you without blocking; 2 would block.
+Claude that warp is unavailable and why. It says so once, until the failure changes or a run succeeds. A repeat
+exits 1, which Claude Code shows to you without blocking the edit.
+
+To confirm it works, run the hook's command with a clean tree: it prints nothing. Add an import that no `using`
+allows and run it again: it prints a `hookSpecificOutput` naming the import.
 
 ## omp
 
-omp runs warp through an extension, [`integrations/omp/warp.ts`](../integrations/omp/warp.ts), which runs the same
-`diff` after each edit with `--reporter omp`. Its page, [integrations/omp/README.md](../integrations/omp/README.md),
-sits beside it and covers loading it into a project.
+omp runs warp through an extension that runs the same `diff` after each edit with `--reporter omp`.
+[integrations/omp/README.md](../integrations/omp/README.md) covers loading it into a project.
 
 ## GitHub code scanning
 
 ```yaml
+# .github/workflows/warp.yml
+name: warp
+on: pull_request
 permissions:
+  contents: read
   security-events: write
-steps:
-  - uses: actions/checkout@v4
-    with:
-      fetch-depth: 0
-  - uses: pnpm/action-setup@v4
-  - uses: actions/setup-node@v4
-    with:
-      node-version: 26
-      cache: pnpm
-  - run: pnpm install --frozen-lockfile
-  - run: pnpm exec warp diff origin/${{ github.base_ref }}... --reporter sarif > warp.sarif
-  - uses: github/codeql-action/upload-sarif@v3
-    with:
-      sarif_file: warp.sarif
+jobs:
+  warp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec warp diff origin/${{ github.base_ref }}... --reporter sarif > warp.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: warp.sarif
 ```
 
-Each result's `partialFingerprints` holds the finding's key, so code scanning tracks a finding across commits the
-same way `diff` does.
+Code scanning shows each new or worse finding on the pull request's diff. Each result's `partialFingerprints` holds
+the finding's key, so code scanning tracks a finding across commits the same way `diff` does. To block a merge on
+findings, add a code scanning rule to the branch's ruleset in the repository settings, or replace the upload with
+`pnpm exec warp diff origin/${{ github.base_ref }}... --fail`.

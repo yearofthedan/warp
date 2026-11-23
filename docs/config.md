@@ -1,18 +1,18 @@
 # Config
 
 **Audience:** anyone writing or changing a warp config.
-**Purpose:** the config's structure and rulesets, custom rules, and the rules warp checks.
+**Purpose:** every part of the config: its keys, the builder, modules, reach, tests and rulesets.
 
 The config is the default export of a `warp.config.ts` (or `.mts`, `.js`, `.mjs`) next to the project's tsconfig. Its
 structure declares the modules of the codebase and what each module may use, and its rulesets say which rules judge
-each module, and how strictly. [concepts.md](concepts.md) defines its terms. See
-[`warp.config.ts`](../warp.config.ts) for the config this tool checks itself with.
+each module, and how strictly. [concepts.md](concepts.md) defines its terms, and
+[`warp.config.ts`](../warp.config.ts) is the config warp checks itself with.
 
 ```ts
 import { all, archetype, defineConfig, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
 
-const app = archetype('app').contains((m) =>
-  m
+const app = archetype('app').contains((c) =>
+  c
     .module('domain', files('src/domain/**'), exposes(all()))
     .module('application', files('src/app/**'), exposes(all()).using((m) => [m.domain]))
     .module('adapters', files('src/adapters/**'), using((m) => [m.domain, m.application, pkg('*')])),
@@ -32,13 +32,42 @@ export default defineConfig({ root: app, rulesets: { default: base } });
 | `root` | the archetype of the config's folder | required |
 | `tsconfig` | a path, or a list of paths, relative to the config | `'tsconfig.json'` |
 | `tests` | the test entry files, `files('**/*.test.ts', ...)` | none |
-| `plugins` | custom rules by namespace, see [Custom rules](#custom-rules) | none |
+| `plugins` | custom rules by namespace, see [custom-rules.md](custom-rules.md) | none |
 | `rulesets` | rulesets by name, see [Rulesets](#rulesets) | none |
 
 Node strips the types itself, so there is no build step. `@yearofthedan/warp` in the config resolves to the warp that
-is running, whether or not the project installs it. The config and its rules load as ES modules: in a project whose `package.json` lacks
-`"type": "module"`, name them `.mts` (Node only warns when `type` is missing, but fails on `"type": "commonjs"`).
-Unknown keys, rules and options are refused, so a misspelling fails loudly.
+is running, whether or not the project installs it. The config and its rules load as ES modules, so in a project
+whose `package.json` sets `"type": "commonjs"`, name them `.mts`. Unknown keys, rules and options are refused, so a
+misspelling fails loudly.
+
+## Builder
+
+Functions, imported from `@yearofthedan/warp`:
+
+| Function | Makes |
+| --- | --- |
+| `defineConfig({ ... })` | The config, with the keys above. |
+| `archetype(name?)` | An archetype: named for reuse, or unnamed for one module's own. |
+| `dir(...paths)` | A folder module for each folder that matches. `dir()` alone, in `.requires()`, asks for any folder module. |
+| `files(...patterns)` | A files module of the matching files in its folder module. `files()` alone, in `.requires()`, asks for any files module. |
+| `all()` | Everything a module holds, for `exposes`. |
+| `pkg(pattern)` | A package, for `using`: `pkg('zod')`, `pkg('node:*')`, `pkg('*')`. |
+| `using(...)`, `exposes(...)`, `contains(...)` | An unnamed archetype that starts with that method. |
+| `ruleset()` | A ruleset, see [Rulesets](#rulesets). |
+
+Archetype methods. Each returns a new archetype, so one archetype can be wired differently in each place it is used:
+
+| Method | Declares | Section |
+| --- | --- | --- |
+| `.contains((c, { required, self }) => c.module(...))` | The modules inside it, in dependency order. | [Modules](#modules) |
+| `.using((m) => [...])` or `.using([...])` | What its files may import. `m` holds the modules declared above. | [Reach](#reach) |
+| `.exposes(all() \| files(...) \| (m) => ({ ... }))` | What other modules may import from it. | [Reach](#reach) |
+| `.entry(files(...))` | Its one way in, in place of `exposes`. | [Reach](#reach) |
+| `.requires({ name: archetype \| dir() \| files() })` | What it needs from the modules above it. | [Requires](#requires-provides-identify-and-self) |
+| `.provides((m) => ({ name: m.x }))` | One of its modules, for those below that require it. | [Requires](#requires-provides-identify-and-self) |
+| `.identify({ marker } \| { match })` | Which folders that match its `dir` count. | [Identify](#requires-provides-identify-and-self) |
+| `.tests(locator?, layer)` | Its test layer. | [Tests](#tests) |
+| `.description(text)` | What it is for, as a note for whoever reads the config. | |
 
 ## Modules
 
@@ -48,11 +77,11 @@ Every boundary the config declares is a module, made by `.module(name, selector,
 import { all, archetype, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
 
 const layer = archetype('layer')
-  .contains((m) => m.module('src', files('**'), exposes(all())).module('generated', files('**/*.gen.ts')))
+  .contains((c) => c.module('src', files('**'), exposes(all())).module('generated', files('**/*.gen.ts')))
   .exposes(all());
 
-const app = archetype('app').contains((m) =>
-  m
+const app = archetype('app').contains((c) =>
+  c
     .module('domain', dir('src/domain'), layer)
     .module('adapters', dir('src/adapters'), layer.using((m) => [m.domain, pkg('*')]))
     .module('main', files('src/main.ts'), using((m) => [m.adapters])),
@@ -64,19 +93,11 @@ export default defineConfig({ root: app });
 - `dir(...)` makes a folder module for each folder it matches, shaped by the archetype given, or by none: a folder
   module with no modules of its own owns every file in it. `files(...)` makes a files module of the matching files in
   its folder module; it takes no named archetype.
-- `.description(text)` on an archetype says what it is for, as a note for whoever reads the config.
 - The third argument is only ever an archetype. `layer.using(...)` is the same `layer`, wired at this place. `using()`,
   `exposes()` and `archetype()` with no name start an archetype of the module's own, for a module that needs wiring or
   modules but no reusable name. Put `.using()` last in the chain, so `m` is typed.
-- `warp model` shows how warp reads the config. A folder module's id is its folder (`.` for the root), and a files
-  module's is its folder and name, `src/domain:src`.
-
-```sh
-warp model           # the modules the config finds, the files in each, and the loose files
-warp model --rules   # the same, with the rule settings each module changes
-warp model --json    # the same, for tools, with every module's resolved rule settings
-```
-
+- [`warp model`](cli.md) shows how warp reads the config. A folder module's id is its folder (`.` for the root), and
+  a files module's is its folder and name, `src/domain:src`.
 - The root module is the config's folder. A `dir` path is folder names and whole-segment placeholders (`src/ui`,
   `{name}`, `src/{name}`), relative to its module; a marker or `match` decides which matching folders count.
 - In a files pattern, `**` spans folders, `*` stays within one, `{name}` is the module's own capture, and the rest is
@@ -84,10 +105,9 @@ warp model --json    # the same, for tools, with every module's resolved rule se
 - The most specific module wins: a literal dir segment beats a placeholder, and a literal file path beats any glob,
   then the longer literal suffix after the last `*`, with `**` last. Two equally specific modules are a config error.
 - A file belongs to its deepest folder module, then to the files module there that matches it. One no files module
-  matches is loose, and `check` and `diff` report it as [`unclassified`](../src/builtins/unclassified/README.md): on
-  the root module unless a ruleset turns it off, and below it where a ruleset turns it on.
-- `tsconfig` takes a list, and warp reads every file of their programs except declaration files. A solution-style
-  tsconfig with only `references` is not followed: list the project configs.
+  matches is loose, and `check` and `diff` report it as [`unclassified`](../src/builtins/unclassified/README.md).
+- warp reads every file of the programs its `tsconfig` files make, except declaration files. For a solution-style
+  tsconfig, list each project config: `tsconfig: ['tsconfig.app.json', 'tsconfig.node.json']`.
 
 ## Requires, provides, identify and self
 
@@ -97,8 +117,8 @@ import { all, archetype, defineConfig, dir, exposes, files, using } from '@yearo
 const component = archetype('component')
   .identify({ marker: '{name}.dom.ts' })
   .requires({ strings: dir() })
-  .contains((m, { required, self }) =>
-    m
+  .contains((c, { required, self }) =>
+    c
       .module('subcomponent', dir('{name}'), self)
       .module('logic', files('*.ts'), exposes(all()))
       .module('dom', files('{name}.dom.ts'), exposes(all()).using((m) => [m.logic, m.subcomponent.render, required.strings])),
@@ -106,8 +126,8 @@ const component = archetype('component')
   .exposes((m) => ({ render: m.dom }));
 
 const app = archetype('app')
-  .contains((m) =>
-    m.module('strings', dir('src/strings'), exposes(all())).module('components', dir('src/ui/{name}'), component),
+  .contains((c) =>
+    c.module('strings', dir('src/strings'), exposes(all())).module('components', dir('src/ui/{name}'), component),
   )
   .provides((m) => ({ strings: m.strings }));
 
@@ -115,8 +135,8 @@ export default defineConfig({ root: app });
 ```
 
 - **Order is dependency order.** A module sees only the modules declared above it, so `subcomponent` comes before
-  `dom`, and two siblings can't use each other. A child never reaches its parent: an archetype is used in many places,
-  so it can't name one. What it needs from above, it requires.
+  `dom`, and two siblings can't use each other. An archetype reaches modules above it only through `.requires()`,
+  which the nearest `.provides()` satisfies.
 - **Requires and provides.** `.requires()` is an archetype's interface to its ancestors, typed by archetype, or by
   `dir()` and `files()` for a module with no named archetype. `.provides()` offers one of its modules to anything
   below that requires it by that name, and the nearest provider wins: `required.strings` in a component at any depth
@@ -136,10 +156,6 @@ export default defineConfig({ root: app });
 component.dom uses subcomponent.rendr; subcomponent exposes render
 ```
 
-The words are `exposes` and `requires`, not `exports` and `imports`, because the config doesn't follow a file's
-`export`s: exporting more from `card.ts` doesn't widen what other modules may import, and "card doesn't expose
-card.ts" states the architecture where "card doesn't export cardLooks" would look false.
-
 ## Reach
 
 `check` and `diff` judge every import between project files against the importer's reach,
@@ -148,49 +164,46 @@ and report each one outside it as [`dependency-direction`](../src/builtins/depen
 - A file reaches the rest of its own module and what its module's `using` names. A file in a files module also
   reaches what its folder module's `using` names. A `required.x` reference reaches what the nearest provider above
   offers.
-- A module exposes nothing until it says so: `exposes(all())` opens its own files and what its modules expose,
-  `exposes(files('ports/*.ts'))` some of those, and `.exposes((m) => ({ render: m.dom }))` named surfaces. `m.x`
-  reaches what `x` exposes, and `m.x.render` one surface. Naming a module that exposes nothing is a config error.
-- `.entry(files('index.ts'))` gives a folder module one way in instead. The entry belongs to the folder module itself,
-  ahead of any files module that matches it, and it is the module's whole surface. It reaches what the module's own
-  modules expose, so it can re-export them. An archetype has an entry or exposes, never both.
+- A module's surface is what it exposes, and is empty until it says: `exposes(all())` opens its own files and what
+  its modules expose, `exposes(files('ports/*.ts'))` some of those, and `.exposes((m) => ({ render: m.dom }))` named
+  surfaces. `m.x` reaches what `x` exposes, and `m.x.render` one surface. Naming a module that exposes nothing is a
+  config error.
+- The surface is set by the config, separately from TypeScript's `export`. With `exposes(files('index.ts'))`,
+  `order.ts` can export anything, and another module's import of it is still a finding.
+- `.entry(files('index.ts'))` gives a folder module one way in, in place of `exposes`. The entry belongs to the
+  folder module itself, ahead of any files module that matches it, and it is the module's whole surface. It reaches
+  what the module's own modules expose, so it can re-export them.
+- An import is judged on the file its specifier names, so a barrel on a surface lets importers through to the files
+  behind it. Type-only imports count.
 
 ```ts
 import { all, archetype, defineConfig, dir, exposes, files, using } from '@yearofthedan/warp';
 
 const lib = archetype('lib')
-  .contains((m) => m.module('core', dir('core'), exposes(all())).module('cli', files('cli.ts'), using((m) => [m.core])))
+  .contains((c) => c.module('core', dir('core'), exposes(all())).module('cli', files('cli.ts'), using((m) => [m.core])))
   .entry(files('index.ts'));
 
-const repo = archetype('repo').contains((m) =>
-  m.module('lib', dir('src'), lib).module('scripts', files('scripts/*.ts'), using((m) => [m.lib])),
+const repo = archetype('repo').contains((c) =>
+  c.module('lib', dir('src'), lib).module('scripts', files('scripts/*.ts'), using((m) => [m.lib])),
 );
 
 export default defineConfig({ root: repo });
 ```
 
-```
+```text
 src/index.ts       src, the entry: re-exports src/core, and is all that scripts/*.ts reach through m.lib
 src/cli.ts         src:cli
 src/core/order.ts  src/core, reached from outside src only through index.ts
 ```
-- An import is judged on the file its specifier names, so a barrel on a surface lets importers through to the files
-  behind it. Type-only imports count.
 
-A package import is judged the same way, against the `pkg()` entries in the file's reach, and one outside it is
-reported as [`module-externals`](../src/builtins/module-externals/README.md). `pkg('x')` covers the package and its subpaths, and `*` matches
-any run of characters: `pkg('node:*')`, `pkg('@aws-sdk/*')`, `pkg('*')`.
+A package import is judged against the `pkg()` entries in the file's reach, and one outside it is reported as
+[`module-externals`](../src/builtins/module-externals/README.md):
 
-[`no-double-export`](../src/builtins/no-double-export/README.md) reports a file on a module's surface that re-exports another file on that
-surface, so there is one way to each name: a barrel over private files, or exposed files with no barrel.
-[`no-cross-module-reexport`](../src/builtins/no-cross-module-reexport/README.md) reports a file that re-exports
-another module's file, other than one nested in its own module, so a module doesn't pass on what it uses.
-
-[`module-cycle`](../src/builtins/module-cycle/README.md) reports each loop among sibling modules, and
-[`no-cycle`](../src/builtins/no-cycle/README.md) each loop among files.
-
-`file-cohesion`, `function-cohesion` and `cognitive-complexity` judge each file's code with the options that resolve
-for that file, so tests and code, or two modules, can have different thresholds.
+- A bare specifier that resolves to no project file is a package import. Its package is the specifier's first
+  segment, or two for a scoped package, so `@aws-sdk/client-s3/commands` is `@aws-sdk/client-s3`. A Node built-in is
+  `node:` and its name, so `fs/promises` is `node:fs`.
+- `pkg('x')` covers the package and its subpaths, and `*` matches any run of characters: `pkg('node:*')`,
+  `pkg('@aws-sdk/*')`, `pkg('*')`.
 
 ## Tests
 
@@ -201,17 +214,17 @@ import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, using
 
 const page = archetype('page')
   .identify({ marker: '{name}.dom.ts' })
-  .contains((m) =>
-    m
+  .contains((c) =>
+    c
       .module('logic', files('*.ts'), exposes(all()))
       .module('dom', files('{name}.dom.ts'), exposes(all()).using((m) => [m.logic])),
   )
   .exposes((m) => ({ render: m.dom }))
-  .tests(contains((t) => t.module('driver', files('*.driver.ts'))).exposes((t) => ({ driver: t.driver })));
+  .tests(contains((c) => c.module('driver', files('*.driver.ts'))).exposes((m) => ({ driver: m.driver })));
 
 const site = archetype('site')
-  .contains((m) =>
-    m.module('domain', dir('src/domain'), exposes(all())).module('pages', dir('src/{name}'), page.using((m) => [m.domain])),
+  .contains((c) =>
+    c.module('domain', dir('src/domain'), exposes(all())).module('pages', dir('src/{name}'), page.using((m) => [m.domain])),
   )
   .tests(dir('e2e'), using([pkg('vitest')]));
 
@@ -227,38 +240,37 @@ e2e/checkout.test.ts       test of the root: sees each page's render and driver
 e2e/helpers.ts             test support of the root, in its located e2e folder
 ```
 
-- `tests:` takes globs and has no default. A test file in a folder module is owned by that module, never by a files
-  module inside it, and sees all of the module's files and what its modules use. Nothing in production may import a
-  test file or a test module: [`dependency-direction`](../src/builtins/dependency-direction/README.md) reports it.
+- A test file belongs to the folder module that holds it, ahead of any files module inside it, and sees all of the
+  module's files and what its modules use. A production file that imports a test file or a test module is a
+  [`dependency-direction`](../src/builtins/dependency-direction/README.md) finding.
 - `.tests(locator?, layer)` gives an archetype a test layer: an archetype of its own, from `contains()`, `using()` or
   `exposes()`. Its test modules hold test support (drivers, fixtures, DSLs) and see what the layer sees. Its `using`
   reaches every test below it, so the root names the test runner once. What it exposes reaches the tests of the
   modules above, with no `using`: `e2e/checkout.test.ts` may import `cart.driver.ts`.
 - A locator, `dir('e2e')` or `files(...)`, moves the module's tests: every file there is test support, and the ones
   the `tests:` globs match are entries. A files module claims its own tests the same way, `files('*.ts', ...)` with
-  `using(...).tests(files('*.logic.test.ts'))`, and then they see its files, not the rest of the folder module.
+  `using(...).tests(files('*.logic.test.ts'))`, and then they see that module's files alone.
 - In a `using` callback, the second argument names the archetype's requirements, so a layer can reach one:
   `.tests(using((m, { required }) => [required.application]))`.
-- [`module-cycle`](../src/builtins/module-cycle/README.md) counts production imports only.
-- `tests` names the test layer, so no module takes that name.
+- `tests` is the test layer's name, reserved for it among a module's children.
 
 ## Rulesets
 
-Every rule runs everywhere with its defaults until a ruleset says otherwise. A ruleset is a list of lines, each
-setting rules at one place: `.rules()` for the whole config, and `.on()` for an archetype, or one of its modules by the
-handle the archetype gives it after `.contains()`, `app.modules.adapters`, or its tests after `.tests()`,
-`layer.modules.tests`. A misspelt module fails to compile. The config names its rulesets,
-and the one named `default` applies when the command names none.
+Every rule runs everywhere with its defaults, and [`unclassified`](../src/builtins/unclassified/README.md) at the root
+module, until a ruleset says otherwise. A ruleset is a list of lines, each setting rules at one place: `.rules()` for
+the whole config, and `.on()` for an archetype, or one of its modules by the handle the archetype gives it after
+`.contains()`, `app.modules.adapters`, or its tests after `.tests()`, `layer.modules.tests`. A misspelt module fails
+to compile. The config names its rulesets, and the one named `default` applies when the command names none.
 
 ```ts
 import { all, archetype, defineConfig, dir, files, pkg, ruleset, using } from '@yearofthedan/warp';
 
 const layer = archetype('layer')
-  .contains((m) => m.module('src', files('**')))
+  .contains((c) => c.module('src', files('**')))
   .exposes(all())
   .tests(using([pkg('vitest')]));
-const app = archetype('app').contains((m) =>
-  m
+const app = archetype('app').contains((c) =>
+  c
     .module('domain', dir('src/domain'), layer)
     .module('adapters', dir('src/adapters'), layer.using((m) => [m.domain]))
     .module('generated', dir('src/generated')),
@@ -285,119 +297,11 @@ warp model --ruleset edit --rules   # what each module changes
 - Settings are `true`, `false` or options by rule id, or `'off'` for every rule at that place. `'*': false` turns
   every rule off there while the rules listed beside it stay on. Plugin rules are `namespace/id`.
 - A later line merges into an earlier one at the same place: options into options, `false` off, and `true` on with
-  the options kept. `.extends(base)` puts the base's lines first, so a ruleset changes only what differs. A base need
-  not be one of the config's rulesets.
+  the options kept. `.extends(base)` puts the base's lines first, so a ruleset changes only what differs. A base can
+  be any ruleset, listed in the config or not.
 - An archetype's line reaches every module of that archetype, and a module's line every module its selector finds.
   For a finding on a file, the nearest place wins: the file's module, then that module's archetype, then the same for
   each module above it, then `.rules()`. For a test file, each module's test layer comes before the module itself.
-  Options merge nearest first. Where no line
-  sets `unclassified`, it is on at the root module and off below.
-- `diff` checks both sides with the same ruleset, and each ruleset caches its own findings, so switching rulesets
-  never shows up as new findings. An unknown name fails and lists the rulesets there are.
-
-## Custom rules
-
-A project adds its own rules as plugins: objects with a `rules` list, imported in the config, never named by path.
-Each plugin gets a namespace, and its rules are `namespace/id` in rulesets. They go through the same
-option checks as the built-in rules, and two rules with the same id are refused.
-
-Working title's application layer re-exports its ports so adapters can implement them, which lets the UI reach a port
-through `application` without breaking `dependency-direction`. A rule for that, in `warp/rules.ts`:
-
-```ts
-// warp/rules.ts
-import { matchesGlob } from 'node:path';
-import { ConfigError, dir, type FileRule, files, type Plugin } from '@yearofthedan/warp';
-
-const noPortsThroughApplication: FileRule<{ ports: string[] }> = {
-  id: 'no-ports-through-application',
-  docs: 'https://example.com/no-ports-through-application.md', // optional, linked from its findings
-  defaults: { ports: ['src/application/ports/**'] },
-  parseOptions: ({ ports, ...rest }, at) => {
-    if (Object.keys(rest).length > 0) throw new ConfigError(`${at}: unknown key ${Object.keys(rest).join(', ')}`);
-    if (ports === undefined) return {};
-    if (!Array.isArray(ports) || !ports.every((glob) => typeof glob === 'string')) throw new ConfigError(`${at}.ports: expected globs`);
-    return { ports };
-  },
-  check: ({ file, options }) =>
-    file.imports
-      .filter((edge) => edge.via && options.ports.some((glob) => matchesGlob(edge.to, glob)))
-      .map((edge) => ({
-        rule: 'no-ports-through-application',
-        key: `no-ports-through-application:${file.path}->${edge.to}`,
-        file: file.path,
-        line: edge.line,
-        value: edge.names.length,
-        message: `${file.path} reaches the port ${edge.to} through ${edge.via}. Call a use case instead.`,
-      })),
-};
-
-export default { rules: [noPortsThroughApplication] } satisfies Plugin;
-```
-
-```ts
-// warp.config.ts
-import { all, archetype, defineConfig, exposes, files, ruleset, using } from '@yearofthedan/warp';
-import wt from './warp/rules.ts';
-
-const app = archetype('app').contains((m) =>
-  m
-    .module('domain', files('src/domain/**'), exposes(all()))
-    .module('application', files('src/application/**'), exposes(files('src/application/index.ts')).using((m) => [m.domain]))
-    .module('ui', files('src/ui/**'), using((m) => [m.application, m.domain])),
-);
-
-const base = ruleset()
-  .rules({ 'wt/no-ports-through-application': false })
-  .on(app.modules.ui, { 'wt/no-ports-through-application': true });
-
-export default defineConfig({ root: app, plugins: { wt }, rulesets: { default: base } });
-```
-
-- A rule reads the same facts as the built-in ones, and never reads source. A `FileRule` reads one file at a
-  time, with the options that resolve for that file: its imports, members and functions.
-- A `ProjectRule`, with `scope: 'project'`, reads the whole project once, with the config, the `model` (each file's
-  module through `moduleOf`) and the `verdicts` on reach. It looks up its setting for a file with
-  `atFile`, or for a module with `atModule`, and skips where the rule is off.
-- Its findings get the namespaced `rule`, and keys prefixed with the namespace. They link to the rule's `docs` when
-  it has one, and to nothing otherwise.
-- `defaults` and `parseOptions` are optional: without them, the rule takes no options. `wholeNumberOptions` and
-  `ConfigError` are exported for writing `parseOptions`.
-- Relative imports need their `.ts` extension, and an import of types alone must be `import type`: Node strips types
-  without resolving them, so `import { type FileRule }` would still load the module.
-- Types in the editor come from the `@yearofthedan/warp` dev dependency.
-- `diff`'s cache key includes the config and every file it imports outside warp, so editing a rule redoes the base.
-
-## Rules
-
-Analysis extracts the facts once for the whole project: the import graph, with re-exports marked, each file's top-level members and the
-links between them, and each function's statements and complexity. Each rule is its own folder in
-[`src/builtins/`](../src/builtins), holding its rule and its page, and reads those facts without touching
-source, so it stays pure. A rule declares its id, its default options and how to validate them, and a `check` that
-returns findings. Most read one file at a time; a project rule reads the whole project and the model once, and
-looks up its setting for each file or module. Rules are looked up in a registry, where a project's
-[own rules](#custom-rules) join the built-in ones.
-
-Every finding has a `rule`, a `key` that identifies it across commits, a `value` that `diff` compares, a `message`,
-`details` an agent can act on, the `module` of its file, and for built-in rules a `docs` link to the rule's page. A
-finding that can be fixed in more than one place lists them as `sites`, and one whose subject can grow, such as a loop,
-names what it is made of as `parts`; [`diff`](agents-and-ci.md#diff) reads both. The rules don't know where
-their pages are published: [`src/builtins/index.ts`](../src/builtins/index.ts) attaches the links where the CLI composes them. The
-agent reporters list each rule's link once after the findings, and SARIF gives it as the rule's `helpUri`.
-
-Each rule's page says why it exists, shows code it reports and code it passes, and lists its options:
-
-| Rule | Reports | Options |
-| --- | --- | --- |
-| [`unclassified`](../src/builtins/unclassified/README.md) | A loose file. On at the root module, off below, unless a ruleset says otherwise. | |
-| [`dependency-direction`](../src/builtins/dependency-direction/README.md) | An import outside the importer's reach. | |
-| [`module-externals`](../src/builtins/module-externals/README.md) | A package import that no `using` in the importer's reach lists. | |
-| [`no-double-export`](../src/builtins/no-double-export/README.md) | A re-export, in a file on its module's surface, of another file on that surface. | |
-| [`module-cycle`](../src/builtins/module-cycle/README.md) | A loop among sibling modules. | `types` |
-| [`no-cycle`](../src/builtins/no-cycle/README.md) | A loop among files. | `types` |
-| [`no-cross-module-reexport`](../src/builtins/no-cross-module-reexport/README.md) | A re-export of another module's file, other than one nested in the re-exporting module. | |
-| [`file-cohesion`](../src/builtins/file-cohesion/README.md) | A file over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
-| [`function-cohesion`](../src/builtins/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
-| [`cognitive-complexity`](../src/builtins/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |
-| [`unused-declaration`](../src/builtins/unused-declaration/README.md) | A `using` entry, a surface or a module the code doesn't use. | |
-
+  Options merge nearest first.
+- `diff` checks both sides with the same ruleset, so a delta comes from the code alone. An unknown name fails and
+  lists the rulesets there are.

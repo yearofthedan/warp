@@ -3,8 +3,8 @@ import { all, archetype, defineConfig, dir, exposes, files, pkg, ruleset, using 
 const rules = archetype('rules')
   .description('The rules API: what a rule implements, how rules are registered, and how findings compare')
   .requires({ model: dir() })
-  .contains((m, { required }) =>
-    m
+  .contains((c, { required }) =>
+    c
       .module(
         'rule',
         files('rule.ts'),
@@ -32,8 +32,8 @@ const rules = archetype('rules')
 const builtins = archetype('builtins')
   .description("warp's own rules: one folder per rule, holding its rule, its tests and its page")
   .requires({ model: dir(), rules, app: dir() })
-  .contains((m, { required }) =>
-    m.module(
+  .contains((c, { required }) =>
+    c.module(
       'code',
       files('**'),
       exposes(all())
@@ -46,8 +46,8 @@ const builtins = archetype('builtins')
 
 const pkgArchetype = archetype('package')
   .description("warp's source: the model, the rules, the app behind its ports, its adapters and the CLI")
-  .contains((m) =>
-    m
+  .contains((c) =>
+    c
       .module(
         'model',
         dir('model'),
@@ -106,8 +106,8 @@ const pkgArchetype = archetype('package')
 
 const warp = archetype('warp')
   .description('warp: checks a TypeScript codebase against a declared model of its modules')
-  .contains((m) =>
-    m
+  .contains((c) =>
+    c
       .module('package', dir('src'), pkgArchetype)
       .module(
         'integration',

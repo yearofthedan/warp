@@ -1,7 +1,7 @@
 # module-cycle
 
 **Audience:** anyone reading a `module-cycle` finding, or setting the rule.
-**Purpose:** what `module-cycle` reports, why, and its options.
+**Purpose:** what `module-cycle` reports, why, and how to fix it.
 
 Report each loop among sibling modules.
 
@@ -13,24 +13,31 @@ the loop at the level of modules shows it where the design says the boundary is.
 
 ## Rule details
 
-For each module, the rule builds the graph of imports between its child modules and reports each loop once: a set
-of children that all reach each other, keyed by them, `module-cycle:src/application+src/ui`. An import counts toward
-the pair of modules it crosses between, just below the deepest module that holds both files, so the graph holds
-imports between files inside different children; a module's own files belong to the module itself. An import is
-followed to the file its specifier names.
+For each module, the rule builds the graph of imports between its children and reports each loop once, keyed by the
+modules on it: `module-cycle:src/domain+src/infra`. An import counts toward the two children of the deepest module
+that holds both files:
 
-The message names each pair of modules on the loop with one of its imports. Every crossing import is a site, a place
-to break the loop. `check` shows the finding at the first site by path, and [`diff`](../../../docs/agents-and-ci.md#diff)
-at the import the change added. The value is the number of file pairs that cross, so a loop that gains an import or
-a module is worse.
+```text
+src/
+├── domain/order.ts     ─┐ imports infra/db.ts: domain → infra
+└── infra/
+    ├── db.ts           ─┘ imports domain/order.ts: infra → domain
+    └── pool/pool.ts       an import from here counts as infra → domain too
+```
 
-With this config, `domain` and `infra` loop when `src/domain/order.ts` imports `src/infra/db.ts`:
+A module's own files belong to the module itself. Production imports count, and test files' imports are left out.
+
+Every crossing import is a site, a place to break the loop. `check` shows the finding at the first site by path, and
+[`diff`](../../../docs/diff.md#new-and-worse) at the import the change added. The value is the number of file pairs
+that cross, so a loop that gains an import or a module is worse.
+
+## Example
 
 ```ts
 import { all, archetype, defineConfig, dir, exposes, using } from '@yearofthedan/warp';
 
-const app = archetype('app').contains((m) =>
-  m.module('domain', dir('src/domain'), exposes(all())).module('infra', dir('src/infra'), using((m) => [m.domain])),
+const app = archetype('app').contains((c) =>
+  c.module('domain', dir('src/domain'), exposes(all())).module('infra', dir('src/infra'), using((m) => [m.domain])),
 );
 
 export default defineConfig({ root: app });
@@ -48,15 +55,36 @@ import { connect } from '../infra/db.ts';
 import { order } from '../domain/order.ts';
 ```
 
-```
+```text
 src/domain/order.ts:1 [module-cycle] src/domain and src/infra import each other in a loop: src/domain -> src/infra (src/domain/order.ts:1 imports src/infra/db.ts), src/infra -> src/domain (src/infra/db.ts:1 imports src/domain/order.ts). Break it at one of these imports: move what both sides need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.
 ```
 
-Fix it by moving what both need into a module they both use, or by having the inner module own an interface the outer one
-implements. A known loop among the modules one selector finds, such as modules that use each other, is tolerated by turning
-the rule off on the module that finds them: `.on(app.modules.plugins, { 'module-cycle': false })`.
+Correct code: `domain` owns the interface, and `infra` implements it.
+
+```ts fragment
+// src/domain/order.ts
+export interface Orders {
+  save(order: Order): void;
+}
+```
+
+```ts fragment
+// src/infra/db.ts
+import type { Orders } from '../domain/order.ts';
+```
+
+## How to fix
+
+Move what both sides need into a module they both use, or have the inner module own an interface the outer one
+implements.
 
 ## Options
 
-- `types`: `'count'` (default) counts type-only imports, since a type couples two files as much as a value does;
-  `'ignore'` leaves them out of the graph, for a loop that matters only at run time.
+| Option | Default | Effect |
+| --- | --- | --- |
+| `types` | `'count'` | `'count'` counts type-only imports, since a type couples two modules as much as a value does. `'ignore'` leaves them out, for a loop that matters only at run time. |
+
+## When not to use it
+
+For modules that are meant to use each other, such as plugins. Turn the rule off on the module that holds them:
+`.on(app.modules.plugins, { 'module-cycle': false })`.
