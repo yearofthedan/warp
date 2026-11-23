@@ -1,8 +1,5 @@
 # warp
 
-**Audience:** anyone running warp on a project, or deciding whether to.
-**Purpose:** what warp does today and how to run it, with links to the pages for writing a config and wiring warp in.
-
 warp checks a TypeScript codebase against a declared model of its modules. A `warp.config.ts` names the modules and
 what each may use, and warp reports the code that steps outside it:
 

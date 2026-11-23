@@ -27,6 +27,15 @@ describe('headerProblems', () => {
     assert.deepEqual(headerProblems('docs/adr/0001-toolchain.md', '# 1. Toolchain\n'), []);
     assert.deepEqual(headerProblems('CLAUDE.md', '@AGENTS.md\n'), []);
   });
+
+  it('leaves conventional root files to their convention', () => {
+    assert.deepEqual(headerProblems('CHANGELOG.md', '# Changelog\n\n## [0.2.0]\n'), []);
+    assert.deepEqual(headerProblems('README.md', '# warp\n\nBody.\n'), []);
+    assert.deepEqual(headerProblems('docs/README.md', '# Docs\n'), [
+      'has an **Audience:** line after its title',
+      'has a **Purpose:** line after its Audience',
+    ]);
+  });
 });
 
 describe('examplesIn', () => {
