@@ -31,7 +31,7 @@ each using what it imports today. Put it next to `tsconfig.json`:
 
 ```ts
 // warp.config.ts
-import { all, archetype, defineConfig, dir, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
+import { all, archetype, defineConfig, dir, exposes, pkg } from '@yearofthedan/warp';
 
 const app = archetype('app')
   .contains((c) =>
@@ -39,16 +39,10 @@ const app = archetype('app')
       .module('utils', dir('src/utils'), exposes(all()))
       .module('db', dir('src/db'), exposes(all()))
       .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.utils, pkg('*')])),
-  )
-  .entry(files('src/index.ts'))
-  .tests(using([pkg('vitest')]));
+  );
 
-const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
-
-export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rulesets: { default: base } });
+export default defineConfig({ root: app });
 ```
-
-Line by line:
 
 - `archetype('app')` is the shape of the project's root folder, and `c` builds the [modules](concepts.md#module)
   inside it. `dir('src/api')` makes the folder `src/api` a module.
@@ -56,10 +50,6 @@ Line by line:
   [exposes](concepts.md#exposes-and-surface) nothing until it says so.
 - `using((m) => [...])` is what the module may import. `m` holds the modules declared above it, so `api`, declared
   last, may use `db` and `utils`. `pkg('*')` lets it import any package.
-- `.entry(files('src/index.ts'))` makes `src/index.ts` the project's [entry](concepts.md#entry).
-- `tests: files('src/**/*.test.ts')` names the test files, and `.tests(using([pkg('vitest')]))` lets every test
-  import vitest. The ruleset turns `function-cohesion` off for tests, since a `describe` callback holds `it` calls that
-  share no locals.
 
 ## 3. See how warp reads it
 
@@ -68,17 +58,18 @@ pnpm exec warp model
 ```
 
 ```text
-.  root: app, 1 file
+.  root: app
+  loose: src/index.ts
   loose: src/lib/format.ts
   src/utils  utils: app.utils, 1 file
   src/db  db: app.db, 1 file
-  src/api  api: app.api, 1 file, 1 test
+  src/api  api: app.api, 2 files
 
-4 modules, 5 files, 1 test, 1 loose.
+4 modules, 6 files, 2 loose.
 ```
 
-Each line is a module, its archetype and its files. `src/lib/format.ts` is [loose](concepts.md#loose-file): no module
-holds it yet.
+Each line is a module, its archetype and its files. The 4 modules are the root, `.`, and the three the config
+declares. `src/index.ts` and `src/lib/format.ts` are [loose](concepts.md#loose-file): no module holds them yet.
 
 ## 4. Check it
 
@@ -87,41 +78,41 @@ pnpm exec warp check
 ```
 
 ```text
+src/index.ts:1 [unclassified] src/index.ts is in no module of . (app), so nothing says what it may import. Add a files module to app that matches it, or move it into a module's folder.
 src/lib/format.ts:1 [unclassified] src/lib/format.ts is in no module of . (app), so nothing says what it may import. Add a files module to app that matches it, or move it into a module's folder.
 src/api/orders.ts:3 [dependency-direction] src/api/orders.ts (app.api src/api) imports src/lib/format.ts (loose in app .), which is above src/api. A module reaches up only through what it requires: require it in app and have an ancestor provide it, or move it below.
 
 By rule and module:
+  unclassified          .        2
   dependency-direction  src/api  1
-  unclassified          .        1
 
-2 findings
+3 findings
 ```
 
 Each [finding](concepts.md#finding) is a file and line, the rule in brackets, what is wrong, and how to fix it.
-[Fixing findings](fixing-findings.md) explains how to choose between the fixes.
+[Fixing findings](fixing-findings.md) explains how to choose between the fixes. All three come from the two loose
+files.
 
-## 5. Add modules until nothing is loose
+## 5. Give every file a module
 
-`lib` is a folder of its own, so give it a module, above `api`, and let `api` use it:
+`lib` is a folder of its own, so give it a module above `api`, and let `api` use it. `src/index.ts` is the project's
+[entry](concepts.md#entry), its one way in. The changed lines:
 
-```ts
-// warp.config.ts
-import { all, archetype, defineConfig, dir, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
+```diff
+-import { all, archetype, defineConfig, dir, exposes, pkg } from '@yearofthedan/warp';
++import { all, archetype, defineConfig, dir, exposes, files, pkg } from '@yearofthedan/warp';
 
-const app = archetype('app')
-  .contains((c) =>
-    c
-      .module('lib', dir('src/lib'), exposes(all()))
-      .module('utils', dir('src/utils'), exposes(all()))
-      .module('db', dir('src/db'), exposes(all()))
-      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.lib, m.utils, pkg('*')])),
-  )
-  .entry(files('src/index.ts'))
-  .tests(using([pkg('vitest')]));
-
-const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
-
-export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rulesets: { default: base } });
+ const app = archetype('app')
+   .contains((c) =>
+     c
++      .module('lib', dir('src/lib'), exposes(all()))
+       .module('utils', dir('src/utils'), exposes(all()))
+       .module('db', dir('src/db'), exposes(all()))
+-      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.utils, pkg('*')])),
+-  );
++      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.lib, m.utils, pkg('*')])),
++  )
++  .entry(files('src/index.ts'));
 ```
 
 ```sh
@@ -145,21 +136,53 @@ pnpm exec warp diff HEAD
 ```
 
 ```text
-new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach, its own files only. Add what holds src/db/client.ts to a using if the dependency is intended, or move the code.
+new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach: utils may use nothing. Add what holds src/db/client.ts to a using if the dependency is intended, or move the code.
 
 1 new finding, 0 worsened, 0 resolved.
 ```
 
 [Agents and CI](agents-and-ci.md) runs the same command after each edit of a coding agent, and on pull requests.
 
-## 7. Tighten one entry at a time
+## 7. Tighten one `using` at a time
 
-Each change to the config makes a rule stricter. Replacing `pkg('*')` with `pkg('zod')` limits `api` to the package
-it uses today, so a new package becomes a decision. An import of `dayjs` in `api` is then reported:
+Each change to a `using` makes the config stricter. Replacing `pkg('*')` with `pkg('zod')` limits `api` to the
+package it uses, so a new package becomes a decision. `warp check` then reports the test's import of vitest:
 
 ```text
-src/api/orders.ts:1 [module-externals] src/api/orders.ts (app.api src/api) imports dayjs, a package outside api's reach: app.api uses pkg('zod'). Add pkg('dayjs') to a using if the dependency is intended, or move the code.
+src/api/orders.test.ts:1 [module-externals] src/api/orders.test.ts (app.api src/api) imports vitest, a package outside api's reach: app.api uses pkg('zod'). Add pkg('vitest') to a using if the dependency is intended, or move the code.
 ```
+
+## 8. Tell warp which files are tests
+
+warp treats `orders.test.ts` as production code until the config names the test files. Name them, and give every
+test the test runner:
+
+```ts
+// warp.config.ts
+import { all, archetype, defineConfig, dir, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
+
+const app = archetype('app')
+  .contains((c) =>
+    c
+      .module('lib', dir('src/lib'), exposes(all()))
+      .module('utils', dir('src/utils'), exposes(all()))
+      .module('db', dir('src/db'), exposes(all()))
+      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.lib, m.utils, pkg('zod')])),
+  )
+  .entry(files('src/index.ts'))
+  .tests(using([pkg('vitest')]));
+
+const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
+
+export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rulesets: { default: base } });
+```
+
+- `tests: files('src/**/*.test.ts')` names the test files, and `.tests(using([pkg('vitest')]))` lets every test
+  import vitest.
+- The ruleset turns `function-cohesion` off for tests, since a `describe` callback holds `it` calls that share no
+  locals, which that rule would report as a function to split.
+
+`warp check` reports no findings again, and `warp model` counts `orders.test.ts` as a test of `src/api`.
 
 The [hexagonal layout](examples/hexagonal.md) shows a stricter config, and the [config reference](config.md) has every
 option.

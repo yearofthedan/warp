@@ -6,7 +6,7 @@
 ## Read the finding
 
 ```text
-src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach, its own files only. Add what holds src/db/client.ts to a using if the dependency is intended, or move the code.
+src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach: utils may use nothing. Add what holds src/db/client.ts to a using if the dependency is intended, or move the code.
 ```
 
 | Part | Here | Means |
@@ -14,7 +14,7 @@ src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/util
 | Location | `src/utils/slug.ts:1` | The file and line to change, for a code fix. |
 | Rule | `[dependency-direction]` | The rule that reports it. Its page is in [the rules table](rules.md). |
 | Each file's module | `(app.utils src/utils)` | The module's archetype and name, then its folder. |
-| Why | `outside utils's reach, its own files only` | What the config allows the importer: here, `utils` uses nothing. |
+| Why | `outside utils's reach: utils may use nothing` | What the config allows the importer. |
 | Fixes | `Add … to a using …, or move the code.` | The config fix first, then the code fix. |
 
 `diff` puts `new:` or `worse (was N):` in front of the line. The `json` reporter gives the same finding with `key`,

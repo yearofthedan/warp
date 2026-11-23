@@ -417,7 +417,7 @@ describe('checkModel', () => {
       test!.message,
       /reach: test uses m\.logic, m\.page, required\.runner\.contract \(from \.\), pkg\('vitest'\)\. Add/,
     );
-    assert.match(runner!.message, /which is outside contract's reach, its own files only\. /);
+    assert.match(runner!.message, /which is outside contract's reach: contract may use nothing\. /);
   });
 
   it('places a loose target in its module', () => {
