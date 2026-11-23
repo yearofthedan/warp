@@ -68,15 +68,16 @@ import { all, archetype, defineConfig, exposes, files, pkg, using } from 'warp';
 const app = archetype('app').contains((m) =>
   m
     .module('domain', files('src/domain/**'), exposes(all()))
-    .module('application', files('src/app/**'), exposes(all()).using((s) => [s.domain]))
-    .module('adapters', files('src/adapters/**'), exposes(all()).using((s) => [s.domain, s.application, pkg('*')]))
+    .module('application', files('src/app/**'), exposes(all()).using((m) => [m.domain]))
+    .module('adapters', files('src/adapters/**'), exposes(all()).using((m) => [m.domain, m.application, pkg('*')]))
     .module('lib', files('src/lib/**'), exposes(all()))
-    .module('entry', files('src/main.ts', 'src/index.ts'), using((s) => [s.domain, s.application, s.adapters, s.lib]))
-    .module('test', files('src/**/*.test.ts'), using((s) => [s.domain, s.application, s.adapters, s.lib, pkg('*')])),
+    .module('entry', files('src/main.ts', 'src/index.ts'), using((m) => [m.domain, m.application, m.adapters, m.lib])),
 );
 
-export default defineConfig({ root: app });
+export default defineConfig({ root: app, tests: files('src/**/*.test.ts') });
 ```
+
+The tests belong to the root module, so they see every module's files and what each module uses.
 
 Run `warp check` and add modules until no `unclassified` findings are left. The other findings it reports are the
 existing baseline, which `diff` leaves out, so they need no fixing first. Commit the config.

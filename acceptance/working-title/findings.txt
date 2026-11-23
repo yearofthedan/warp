@@ -19,7 +19,6 @@ dependency-direction:src/test-helpers/playwright.driver.ts->src/ui/project/graph
 dependency-direction:src/ui/project/graph/graph.test-page.ts->src/ui/project/graph/card/card.ts
 dependency-direction:src/ui/project/graph/graph.test.ts->src/ui/project/graph/card/card.ts
 dependency-direction:src/ui/project/graph/graph.ts->src/ui/project/graph/card/card.ts
-dependency-direction:src/ui/project/project.component.test.ts->src/app.ts
 dependency-direction:src/ui/project/project.component.test.ts->src/ui/project/graph/card/card.test-page.ts
 dependency-direction:src/ui/project/project.component.test.ts->src/ui/your-projects/your-projects.test-page.ts
 dependency-direction:src/ui/project/project.dom.ts->src/ui/header/header.dom.ts
@@ -61,31 +60,4 @@ function-cohesion:src/ui/project/project.component.test.ts:<callback to describe
 function-cohesion:src/ui/project/project.component.test.ts:<callback to describe("what the app keeps")>
 function-cohesion:src/ui/project/project.dsl.test.ts:<callback to describe("the app language")>
 function-cohesion:src/ui/your-projects/project-list/start-a-project/start-a-project.component.test.ts:<callback to describe("starting a project")>
-module-cycle:.:app->src/adapters
-module-cycle:.:app->src/application
-module-cycle:.:app->src/methods
-module-cycle:.:app->src/ports
-module-cycle:.:app->src/ui
-module-cycle:src/adapters->src/domain
-module-cycle:src/adapters->src/methods
-module-cycle:src/adapters->src/ports
-module-cycle:src/adapters->src/test-helpers
-module-cycle:src/application->src/domain
-module-cycle:src/application->src/methods
-module-cycle:src/application->src/ports
-module-cycle:src/application->src/test-helpers
-module-cycle:src/domain->src/test-helpers
-module-cycle:src/methods->src/domain
-module-cycle:src/ports->src/domain
-module-cycle:src/test-helpers->.:app
-module-cycle:src/test-helpers->src/adapters
-module-cycle:src/test-helpers->src/application
-module-cycle:src/test-helpers->src/domain
-module-cycle:src/test-helpers->src/methods
-module-cycle:src/test-helpers->src/ports
-module-cycle:src/test-helpers->src/ui
-module-cycle:src/ui->.:app
-module-cycle:src/ui->src/application
-module-cycle:src/ui->src/test-helpers
 no-cross-module-reexport:src/application/project.ts->src/ports/projects-folder.ts
-no-double-export:src/test-helpers/driver.ts->src/test-helpers/narrowing.ts

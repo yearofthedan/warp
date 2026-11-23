@@ -255,7 +255,7 @@ describe('resolveModel', () => {
       m
         .module('rest', files('**'))
         .module('code', files('*.ts'))
-        .module('tests', files('*.test.ts'))
+        .module('specs', files('*.test.ts'))
         .module('nested', files('src/**'))
         .module('main', files('main.ts'))
         .module('one', files('src/one.ts')),
@@ -264,7 +264,7 @@ describe('resolveModel', () => {
     assert.deepEqual(tree(model).slice(1), [
       '.:rest files: ["README.md"]',
       '.:code files: ["a.ts"]',
-      '.:tests files: ["a.test.ts"]',
+      '.:specs files: ["a.test.ts"]',
       '.:nested files: ["src/x.ts"]',
       '.:main files: ["main.ts"]',
       '.:one files: ["src/one.ts"]',
@@ -346,7 +346,7 @@ describe('resolveModel', () => {
           .module('testRunner', dir('src/test-helpers'), testRunner)
           .module('tooling', files('*.ts', 'scripts/**/*.ts')),
       )
-      .provides((s) => ({ testRunner: s.testRunner }));
+      .provides((m) => ({ testRunner: m.testRunner }));
     const model = resolve(root, [
       'vite.config.ts',
       'scripts/build/run.ts',

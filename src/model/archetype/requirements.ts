@@ -21,7 +21,11 @@ interface Walk {
 const usedRequirements = (drafts: readonly Draft[]): Set<unknown> =>
   new Set(
     drafts
-      .flatMap((draft) => draft.modules.flatMap((module) => module.using.map((value) => recordedAs(value, 'ref'))))
+      .flatMap((draft) => [
+        ...draft.modules.flatMap((module) => [...module.using, ...(module.tests?.using ?? [])]),
+        ...(draft.tests?.using ?? []),
+      ])
+      .map((value) => recordedAs(value, 'ref'))
       .map((ref) => ref?.kind === 'required' && ref.name),
   );
 

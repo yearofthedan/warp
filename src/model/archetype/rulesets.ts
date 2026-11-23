@@ -1,6 +1,6 @@
 import { ConfigError } from '../configError.ts';
 import { type RecordedRuleset, recordedAs } from './builder.ts';
-import type { ConfigData, RuleSettingsData } from './data.ts';
+import type { ArchetypeData, ConfigData, RuleSettingsData } from './data.ts';
 import { type Fail, isName, isRecord, list } from './shared.ts';
 
 export type ParseRules = (value: unknown, at: string) => RuleSettingsData | undefined;
@@ -100,20 +100,37 @@ const applied = (config: ConfigData, layers: readonly Layer[], parse: ParseRules
       fail(`${at}: ${target.archetype} is not in the config`);
       continue;
     }
-    if (target.module === undefined) {
-      archetype.rules = merged(archetype.rules, layer);
-      continue;
-    }
-    const index = archetype.modules.findIndex((module) => module.name === target.module);
-    const names = archetype.modules.map((module) => module.name);
-    if (index < 0) fail(`${at}: ${archetype.name} has modules ${list(names, 'none')}`);
-    else
-      archetype.modules[index] = {
-        ...archetype.modules[index]!,
-        rules: merged(archetype.modules[index]!.rules, layer),
-      };
+    applyTo(archetype, target.module, layer, at, fail);
   }
   return rules === undefined ? { ...config, archetypes } : { ...config, archetypes, rules };
+};
+
+const applyTo = (
+  archetype: ArchetypeData,
+  module: string | undefined,
+  layer: RuleSettingsData | undefined,
+  at: string,
+  fail: Fail,
+): void => {
+  if (module === undefined) {
+    archetype.rules = merged(archetype.rules, layer);
+    return;
+  }
+  if (module === 'tests') {
+    if (archetype.tests) archetype.tests = { ...archetype.tests, rules: merged(archetype.tests.rules, layer) };
+    else fail(`${at}: ${archetype.name} has no test layer`);
+    return;
+  }
+  const index = archetype.modules.findIndex((declared) => declared.name === module);
+  if (index < 0)
+    fail(
+      `${at}: ${archetype.name} has modules ${list(
+        archetype.modules.map((declared) => declared.name),
+        'none',
+      )}`,
+    );
+  else
+    archetype.modules[index] = { ...archetype.modules[index]!, rules: merged(archetype.modules[index]!.rules, layer) };
 };
 
 const merged = (

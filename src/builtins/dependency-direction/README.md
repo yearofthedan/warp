@@ -33,9 +33,9 @@ const card = archetype('card')
     m
       .module('subcomponent', dir('{name}'), self)
       .module('logic', files('*.ts'))
-      .module('dom', files('{name}.dom.ts'), using((s) => [s.logic, s.subcomponent.render, required.strings])),
+      .module('dom', files('{name}.dom.ts'), using((m) => [m.logic, m.subcomponent.render, required.strings])),
   )
-  .exposes((s) => ({ render: s.dom }));
+  .exposes((m) => ({ render: m.dom }));
 ```
 
 Incorrect code:

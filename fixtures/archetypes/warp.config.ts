@@ -4,10 +4,9 @@ const layer = archetype('layer')
   .contains((m) =>
     m
       .module('src', files('**'), exposes(all()))
-      .module('index', files('index.ts'), exposes(all()).using((s) => [s.src]))
-      .module('test', files('**/*.test.ts'), using((s) => [s.src, pkg('node:*')])),
+      .module('index', files('index.ts'), exposes(all()).using((m) => [m.src])),
   )
-  .exposes((s) => ({ api: s.index }));
+  .exposes((m) => ({ api: m.index }));
 
 const component = archetype('component')
   .identify({ marker: '{name}.dom.ts' })
@@ -16,22 +15,28 @@ const component = archetype('component')
     m
       .module('subcomponent', dir('{name}'), self)
       .module('logic', files('*.ts'), exposes(all()))
-      .module('dom', files('{name}.dom.ts'), exposes(all()).using((s) => [s.logic, s.subcomponent.render, required.strings])),
+      .module('dom', files('{name}.dom.ts'), exposes(all()).using((m) => [m.logic, m.subcomponent.render, required.strings])),
   )
-  .exposes((s) => ({ render: s.dom }));
+  .exposes((m) => ({ render: m.dom }));
 
 const ui = archetype('ui')
   .contains((m) =>
     m.module('strings', dir('strings'), exposes(all())).module('components', dir('{name}'), component),
   )
-  .provides((s) => ({ strings: s.strings }))
+  .provides((m) => ({ strings: m.strings }))
   .exposes(all());
 
-const app = archetype('app').contains((m) =>
-  m
-    .module('domain', dir('src/domain'), layer)
-    .module('ui', dir('src/ui'), ui.using((s) => [s.domain]))
-    .module('main', files('src/main.ts'), using((s) => [s.domain, s.ui])),
-);
+const app = archetype('app')
+  .contains((m) =>
+    m
+      .module('domain', dir('src/domain'), layer)
+      .module('ui', dir('src/ui'), ui.using((m) => [m.domain]))
+      .module('main', files('src/main.ts'), using((m) => [m.domain, m.ui])),
+  )
+  .tests(using([pkg('node:*')]));
 
-export default defineConfig({ root: app, tsconfig: ['tsconfig.json', 'tsconfig.test.json'] });
+export default defineConfig({
+  root: app,
+  tsconfig: ['tsconfig.json', 'tsconfig.test.json'],
+  tests: files('**/*.test.ts'),
+});
