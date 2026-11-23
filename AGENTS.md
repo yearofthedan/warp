@@ -3,14 +3,15 @@
 **Audience:** every agent working in this repo.
 **Purpose:** tells an agent how work runs here and where the rest of the rules live.
 
-warp checks a TypeScript codebase against a declared model of its modules, to keep it modular. The model's design is
-[docs/design/archetypes.md](docs/design/archetypes.md), the source of truth for the config language.
+warp checks a TypeScript codebase against a declared model of its modules, to keep it modular.
+[docs/concepts.md](docs/concepts.md) defines its terms, and [docs/config.md](docs/config.md) is the source of truth
+for the config language.
 
 ## Read before changing code
 
 - [README.md](README.md): what warp does today and its CLI.
 - [docs/config.md](docs/config.md): the config languages, custom rules, rulesets and rules.
-- [docs/design/archetypes.md](docs/design/archetypes.md): where the config language is going.
+- [docs/concepts.md](docs/concepts.md): what each of warp's terms means, on one example.
 - [docs/adr/](docs/adr/README.md): why each decision was made. Read the record before changing what it decided.
 - [docs/toolchain.md](docs/toolchain.md): why each tool, CI and dependency setting is there.
 
@@ -69,5 +70,5 @@ same change as the code they describe.
 
 ## Dated records stay as written
 
-A change across the repo, such as a find and replace, leaves dated records as they are: merged pull requests' bodies,
-the history notes in docs/design/archetypes.md and decision records once Accepted hold what was true when written.
+A change across the repo, such as a find and replace, leaves dated records as they are: merged pull requests' bodies
+and decision records once Accepted hold what was true when written.

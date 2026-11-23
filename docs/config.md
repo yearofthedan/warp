@@ -5,8 +5,7 @@
 
 The config is the default export of a `warp.config.ts` (or `.mts`, `.js`, `.mjs`) next to the project's tsconfig. Its
 structure declares the modules of the codebase and what each module may use, and its rulesets say which rules judge
-each module, and how strictly. Its language is designed in
-[docs/design/archetypes.md](design/archetypes.md); this page covers what warp checks today. See
+each module, and how strictly. [concepts.md](concepts.md) defines its terms. See
 [`warp.config.ts`](../warp.config.ts) for the config this tool checks itself with.
 
 ```ts
@@ -78,6 +77,57 @@ warp model --json    # the same, for tools, with every module's resolved rule se
   the root module unless a ruleset turns it off, and below it where a ruleset turns it on.
 - `tsconfig` takes a list, and warp reads every file of their programs except declaration files. A solution-style
   tsconfig with only `references` is not followed: list the project configs.
+
+## Requires, provides, identify and self
+
+```ts
+import { all, archetype, defineConfig, dir, exposes, files, using } from 'warp';
+
+const component = archetype('component')
+  .identify({ marker: '{name}.dom.ts' })
+  .requires({ strings: dir() })
+  .contains((m, { required, self }) =>
+    m
+      .module('subcomponent', dir('{name}'), self)
+      .module('logic', files('*.ts'), exposes(all()))
+      .module('dom', files('{name}.dom.ts'), exposes(all()).using((m) => [m.logic, m.subcomponent.render, required.strings])),
+  )
+  .exposes((m) => ({ render: m.dom }));
+
+const app = archetype('app')
+  .contains((m) =>
+    m.module('strings', dir('src/strings'), exposes(all())).module('components', dir('src/ui/{name}'), component),
+  )
+  .provides((m) => ({ strings: m.strings }));
+
+export default defineConfig({ root: app });
+```
+
+- **Order is dependency order.** A module sees only the modules declared above it, so `subcomponent` comes before
+  `dom`, and two siblings can't use each other. A child never reaches its parent: an archetype is used in many places,
+  so it can't name one. What it needs from above, it requires.
+- **Requires and provides.** `.requires()` is an archetype's interface to its ancestors, typed by archetype, or by
+  `dir()` and `files()` for a module with no named archetype. `.provides()` offers one of its modules to anything
+  below that requires it by that name, and the nearest provider wins: `required.strings` in a component at any depth
+  reaches `src/strings`. Before any file is read, the config is refused for a requirement with no provider above a
+  module that has it, a requirement no module lists in `using`, or a provider of the wrong archetype. A provision
+  nothing below requires is a warning. A module's own archetype sees what its holder requires and declares none.
+- **Identify and captures.** `{name}` in a dir path matches one folder name, and the archetype's own patterns use it:
+  for `src/ui/cart`, `dom` is `cart.dom.ts`. `.identify()` says which matching folders count: a `marker` file that
+  must exist, or a `match(dir, chain)` function that returns the captures or `false`. A marker matches the
+  shallowest folder, and deeper ones are found from inside it. It reads the file system, so a marker can be a file
+  outside the program, such as `component.json`.
+- **Self.** `self` is the archetype being defined, so it can nest in itself: `subcomponent` finds
+  `src/ui/cart/badge`, another component. `m.subcomponent.render` accepts any surface name, since the archetype's
+  surfaces aren't known until `.exposes()` runs, and the config is refused when it loads if the name is not one:
+
+```
+component.dom uses subcomponent.rendr; subcomponent exposes render
+```
+
+The words are `exposes` and `requires`, not `exports` and `imports`, because the config doesn't follow a file's
+`export`s: exporting more from `card.ts` doesn't widen what other modules may import, and "card doesn't expose
+card.ts" states the architecture where "card doesn't export cardLooks" would look false.
 
 ## Reach
 

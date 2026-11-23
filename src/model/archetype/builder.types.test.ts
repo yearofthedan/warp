@@ -52,7 +52,7 @@ const errorsIn = (child: AnyArchetype): string[] => {
 };
 
 describe('archetype builders', () => {
-  it('type and load the first example in the design doc', () => {
+  it('type and load a component tree with requirements and providers', () => {
     const runner = archetype('test-runner')
       .contains((m) => m.module('runner', files('**'), exposes(all())))
       .exposes((m) => ({ runner: m.runner }));

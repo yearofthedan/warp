@@ -257,7 +257,7 @@ const kid = archetype('kid')
   .exposes((m) => ({ render: m.dom, pages: [m.page, m.dom] }));
 
 describe('loadConfigData', () => {
-  it("loads working title's config from the design doc", () => {
+  it("loads a config shaped like working title's", () => {
     const { config, warnings } = loadConfigData(workingTitleConfig());
     assert.deepEqual(warnings, []);
     assert.equal(config.root, 'working-title');

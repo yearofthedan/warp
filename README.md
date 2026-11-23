@@ -82,6 +82,7 @@ The tests belong to the root module, so they see every module's files and what e
 Run `warp check` and add modules until no `unclassified` findings are left. The other findings it reports are the
 existing baseline, which `diff` leaves out, so they need no fixing first. Commit the config.
 
+- [docs/concepts.md](docs/concepts.md): what warp's terms mean, from module to finding.
 - [docs/config.md](docs/config.md): the config, custom rules, rulesets and the rules.
 - [docs/agents-and-ci.md](docs/agents-and-ci.md): how `diff` works, and running warp from Claude Code or GitHub code
   scanning.
