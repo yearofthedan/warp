@@ -1,7 +1,8 @@
-# Toolchain
+# Contributing
 
-**Audience:** anyone changing warp's tasks, CI or dependency settings.
-**Purpose:** why each setting in the tool configs is there, so a config file holds settings and this page holds reasons.
+**Audience:** anyone changing warp itself.
+**Purpose:** how to run warp from a clone, and why each compiler, tool, CI and dependency setting is there, so a config
+file holds settings and this page holds reasons.
 
 ## Running a clone
 
@@ -16,6 +17,12 @@ pnpm link --global   # puts `warp` on your PATH
 ```
 
 Or link it into one project as its dev dependency: `pnpm add -D link:~/src/warp`.
+
+## Compiler
+
+Analysis uses the TypeScript 7.1 API (`typescript/sync`), which runs the native compiler in a child process and gives
+the AST, module resolution and checker symbols with alias resolution. It is pinned to `7.1.0-beta`, so expect to adjust
+when 7.1 ships. Each file's identifiers are resolved in one batched checker call.
 
 ## Dependencies
 
