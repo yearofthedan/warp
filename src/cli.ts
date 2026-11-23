@@ -118,10 +118,37 @@ const run = async (options: Options, produce: Produce): Promise<number> => {
     const report = produce(resolved.root, checkOf(resolved), resolved.digest);
     const output = reporter.render(report, { toolVersion: version(), projectPath: projectPathOf(resolved.root) });
     if (output) console.log(output);
+    if (reporter.renderFailure) forgetFailure();
     return options.fail && actionable(report).length > 0 ? 1 : 0;
   } catch (error) {
-    return failed(error, reporter.failureExitCode);
+    const code = failed(error, reporter.failureExitCode);
+    const problem = describe(error);
+    if (!reporter.renderFailure || !isNewFailure(problem)) return code;
+    console.log(reporter.renderFailure(problem));
+    return 0;
   }
+};
+
+const failureKey = () => `${toolDigest()}-failure`;
+
+const failureCache = () => {
+  try {
+    return gitDirCache<string>(process.cwd());
+  } catch {
+    return undefined;
+  }
+};
+
+const isNewFailure = (problem: string): boolean => {
+  const cache = failureCache();
+  if (cache?.get(failureKey()) === problem) return false;
+  cache?.set(failureKey(), problem);
+  return true;
+};
+
+const forgetFailure = () => {
+  const cache = failureCache();
+  if (cache?.get(failureKey()) !== undefined) cache.prune((key) => key !== failureKey());
 };
 
 type ModelOptions = Omit<Options, 'reporter' | 'fail' | 'since-last-run'> & { json: boolean; rules: boolean };
@@ -146,10 +173,15 @@ const delta = (range: string, root: string, project: ProjectCheck, configDigest:
 
 const version = (): string => JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
+const describe = (error: unknown): string =>
+  error instanceof ConfigError
+    ? `warp config: ${error.message}`
+    : error instanceof Error
+      ? error.message
+      : String(error);
+
 const failed = (error: unknown, exitCode = 2): number => {
-  console.error(
-    error instanceof ConfigError ? `warp config: ${error.message}` : error instanceof Error ? error.message : error,
-  );
+  console.error(describe(error));
   return exitCode;
 };
 

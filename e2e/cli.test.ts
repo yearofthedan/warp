@@ -267,11 +267,23 @@ describe('warp check', () => {
     assert.match(run.stderr, /warp config: config\.root: expected an archetype/);
   });
 
-  it('exits 1 rather than 2 when a claude-hook run fails, so the hook warns without blocking', () => {
+  it('tells Claude once that a claude-hook run failed, then exits 1 so the hook warns without blocking', () => {
     writeFileSync(join(project, 'bad.config.ts'), 'export default {};\n');
-    for (const reporter of ['--reporter=claude-hook', '--reporter claude-hook']) {
-      assert.equal(warp('check', '--config', 'bad.config.ts', ...reporter.split(' ')).status, 1);
-    }
+    writeFileSync(join(project, 'worse.config.ts'), 'export default 1;\n');
+    const hook = (config: string) => warp('diff', 'HEAD', '--config', config, '--reporter=claude-hook');
+    const context = (run: ReturnType<typeof warp>) => JSON.parse(run.stdout).hookSpecificOutput.additionalContext;
+
+    const first = hook('bad.config.ts');
+    assert.equal(first.status, 0, first.stderr);
+    assert.match(
+      context(first),
+      /^Warp architecture feedback is unavailable, so edits are not checked: warp config: config\.root: expected an archetype/,
+    );
+    const again = hook('bad.config.ts');
+    assert.deepEqual([again.status, again.stdout], [1, '']);
+    assert.match(context(hook('worse.config.ts')), /unavailable.*warp config: config: expected an object/);
+    assert.equal(hook('warp.config.ts').status, 0);
+    assert.match(context(hook('bad.config.ts')), /unavailable/);
   });
 });
 
