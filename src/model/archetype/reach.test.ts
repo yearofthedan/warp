@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { ExternalImport, ImportEdge, FileFacts } from '../facts.ts';
-import { archetype, dir, pkg, ruleset } from './builder.ts';
+import { all, archetype, dir, exposes, files, pkg, ruleset, using } from './builder.ts';
 import { builtinRules } from '../../builtins/index.ts';
 import { noDoubleExport } from '../../builtins/no-double-export/noDoubleExport.ts';
 import { moduleExternals } from '../../builtins/module-externals/moduleExternals.ts';
@@ -34,43 +34,74 @@ const folders = (paths: readonly string[]): Folders => {
 };
 
 const runner = archetype('runner')
-  .contains((p) => p.files('contract', 'contract.ts').files('rest', '**', { using: (s) => [s.contract] }))
+  .contains((m) =>
+    m.module('contract', files('contract.ts'), exposes(all())).module(
+      'rest',
+      files('**'),
+      exposes(all()).using((s) => [s.contract]),
+    ),
+  )
   .exposes((s) => ({ contract: s.contract, rest: s.rest }));
 
 const card = archetype('card')
   .identify({ marker: '{name}.dom.ts' })
   .requires({ runner, strings: dir() })
-  .contains((p, { required, self }) =>
-    p
-      .dir('sub', '{name}', self)
-      .files('logic', '*.ts', { using: [required.strings] })
-      .files('dom', '{name}.dom.ts', { using: (s) => [s.logic, s.sub.render] })
-      .files('page', '*.page.ts', { using: (s) => [s.dom, s.sub.page] })
-      .files('test', '*.test.ts', { using: (s) => [s.logic, s.page, required.runner.contract, pkg('vitest')] }),
+  .contains((m, { required, self }) =>
+    m
+      .module('sub', dir('{name}'), self)
+      .module('logic', files('*.ts'), exposes(all()).using([required.strings]))
+      .module(
+        'dom',
+        files('{name}.dom.ts'),
+        exposes(all()).using((s) => [s.logic, s.sub.render]),
+      )
+      .module(
+        'page',
+        files('*.page.ts'),
+        exposes(all()).using((s) => [s.dom, s.sub.page]),
+      )
+      .module(
+        'test',
+        files('*.test.ts'),
+        using((s) => [s.logic, s.page, required.runner.contract, pkg('vitest')]),
+      ),
   )
   .exposes((s) => ({ render: s.dom, page: s.page }));
 
 const ui = archetype('ui')
-  .contains((p) =>
-    p
-      .dir('strings', 'strings')
-      .dir('cards', '{name}', card)
-      .files('shared', 'shared.ts', { using: (s) => [s.strings] }),
+  .contains((m) =>
+    m
+      .module('strings', dir('strings'), exposes(all()))
+      .module('cards', dir('{name}'), card)
+      .module(
+        'shared',
+        files('shared.ts'),
+        exposes(all()).using((s) => [s.strings]),
+      ),
   )
-  .provides((s) => ({ strings: s.strings }));
+  .provides((s) => ({ strings: s.strings }))
+  .exposes(all());
 
 const app = archetype('app')
-  .contains((p) =>
-    p
-      .dir('strings', 'src/strings')
-      .dir('runner', 'src/runner', runner)
-      .dir('domain', 'src/domain', { using: [pkg('node:*'), pkg('lodash.get')] })
-      .dir('ui', 'src/ui', ui, { using: (s) => [s.domain] })
-      .files('main', 'src/main.ts', { using: (s) => [s.ui] }),
+  .contains((m) =>
+    m
+      .module('strings', dir('src/strings'), exposes(all()))
+      .module('runner', dir('src/runner'), runner)
+      .module('domain', dir('src/domain'), exposes(all()).using([pkg('node:*'), pkg('lodash.get')]))
+      .module(
+        'ui',
+        dir('src/ui'),
+        ui.using((s) => [s.domain]),
+      )
+      .module(
+        'main',
+        files('src/main.ts'),
+        using((s) => [s.ui]),
+      ),
   )
   .provides((s) => ({ runner: s.runner, strings: s.strings }));
 
-const files = [
+const projectFiles = [
   'src/main.ts',
   'src/domain/order.ts',
   'src/domain/price.ts',
@@ -94,7 +125,7 @@ const files = [
 
 const setup = (): { config: ConfigData; model: Model } => {
   const { config } = loadConfigData({ root: app });
-  return { config, model: resolveModel(config, folders(files), files) };
+  return { config, model: resolveModel(config, folders(projectFiles), projectFiles) };
 };
 
 const { config, model } = setup();
@@ -109,9 +140,9 @@ const verdict = (from: string, to: string): string | undefined => {
 };
 
 describe('verdicts', () => {
-  it("lets a file reach the rest of its own part, and refuses another part of its module that its using doesn't list", () => {
-    assert.equal(verdict('src/runner/driver.ts', 'src/runner/driver.ts'), 'allowed: own part rest');
-    assert.equal(verdict('src/domain/order.ts', 'src/domain/price.ts'), 'allowed: own folder src/domain');
+  it("lets a file reach the rest of its own module, and refuses a sibling module its using doesn't list", () => {
+    assert.equal(verdict('src/runner/driver.ts', 'src/runner/driver.ts'), 'allowed: own module src/runner:rest');
+    assert.equal(verdict('src/domain/order.ts', 'src/domain/price.ts'), 'allowed: own module src/domain');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/a.ts'), 'allowed: dom uses s.logic');
     assert.equal(verdict('src/ui/a/a.ts', 'src/ui/a/a.dom.ts'), 'not-in-using');
     assert.equal(verdict('src/ui/a/a.ts', 'src/ui/a/b/b.dom.ts'), 'not-in-using');
@@ -125,13 +156,13 @@ describe('verdicts', () => {
     assert.equal(verdict('src/ui/a/a.page.ts', 'src/ui/a/b/c/c.page.ts'), 'private to src/ui/a/b');
   });
 
-  it("refuses modules of one dir part each other, and a file anywhere above the importer's module", () => {
+  it("refuses modules of one dir module each other, and a file anywhere above the importer's module", () => {
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/d/d.dom.ts'), 'not-in-using');
     assert.equal(verdict('src/ui/a/b/b.dom.ts', 'src/ui/d/d.dom.ts'), 'not-in-using');
     assert.equal(verdict('src/ui/a/b/b.dom.ts', 'src/ui/a/a.dom.ts'), 'above');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/shared.ts'), 'above');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/main.ts'), 'above');
-    assert.equal(verdict('src/domain/order.ts', 'src/main.ts'), 'above');
+    assert.equal(verdict('src/domain/order.ts', 'src/main.ts'), 'private to .:main');
   });
 
   it('answers a requirement from the nearest provider above, whole or by one surface', () => {
@@ -151,12 +182,12 @@ describe('verdicts', () => {
     assert.equal(verdict('src/ui/a/a.test.ts', 'src/runner/driver.ts'), 'not-in-using');
   });
 
-  it("grants a dir part's using to its modules' own files and to nothing nested in them", () => {
+  it("grants a dir module's using to its folder's files and files modules, and to nothing nested in folders below", () => {
     assert.equal(verdict('src/ui/shared.ts', 'src/domain/order.ts'), 'allowed: app.ui uses s.domain');
     assert.equal(verdict('src/ui/a/a.ts', 'src/domain/order.ts'), 'not-in-using');
   });
 
-  it('lets a part that names a module with no .exposes() reach its own files and what its modules expose', () => {
+  it("lets a module that names one exposing 'all' reach its own files and what its modules expose", () => {
     assert.equal(verdict('src/main.ts', 'src/ui/shared.ts'), 'allowed: main uses s.ui');
     assert.equal(verdict('src/main.ts', 'src/ui/notes.md'), 'allowed: main uses s.ui');
     assert.equal(verdict('src/main.ts', 'src/ui/strings/en.ts'), 'allowed: main uses s.ui');
@@ -179,7 +210,7 @@ describe('verdicts', () => {
         .reach('src/ui/a/a.test.ts')!
         .map((grant) => [grantText(grant), [...grant.files]]),
       [
-        ['own part test', ['src/ui/a/a.test.ts']],
+        ['own module src/ui/a:test', ['src/ui/a/a.test.ts']],
         ['test uses s.logic', ['src/ui/a/a.ts']],
         ['test uses s.page', ['src/ui/a/a.page.ts']],
         ['test uses required.runner.contract (from .)', ['src/runner/contract.ts']],
@@ -189,9 +220,9 @@ describe('verdicts', () => {
     const once = judge();
     assert.equal(once.reach('src/ui/a/a.test.ts'), once.reach('src/ui/a/a.test.ts'));
     assert.notEqual(once.reach('src/ui/a/a.test.ts'), once.reach('src/ui/a/a.page.ts'));
-    assert.deepEqual(judge().reach('src/ui/strings/en.ts')!.map(grantText), ['own folder src/ui/strings']);
+    assert.deepEqual(judge().reach('src/ui/strings/en.ts')!.map(grantText), ['own module src/ui/strings']);
     assert.deepEqual(judge().reach('src/ui/shared.ts')!.map(grantText), [
-      'own part shared',
+      'own module src/ui:shared',
       'shared uses s.strings',
       'app.ui uses s.domain',
     ]);
@@ -205,6 +236,59 @@ describe('verdicts', () => {
     const once = judge();
     assert.equal(once.surface(module('src/ui/a')), once.surface(module('src/ui/a')));
     assert.notEqual(once.surface(module('src/ui/a')), once.surface(module('src/ui/a'), 'page'));
+  });
+});
+
+describe('exposes', () => {
+  const widget = archetype('widget')
+    .contains((m) => m.module('api', files('api.ts'), exposes(all())).module('internals', files('*.ts')))
+    .exposes(all());
+  const shop = archetype('shop').contains((m) =>
+    m
+      .module('app', dir('app'), exposes(files('check.ts', 'ports/*.ts')))
+      .module('widgets', dir('widgets/{name}'), widget)
+      .module('quiet', files('quiet.ts'))
+      .module(
+        'main',
+        files('main.ts'),
+        using((s) => [s.app, s.widgets]),
+      ),
+  );
+  const paths = [
+    'main.ts',
+    'quiet.ts',
+    'app/check.ts',
+    'app/run.ts',
+    'app/ports/store.ts',
+    'app/ports/deep/x.ts',
+    'widgets/a/api.ts',
+    'widgets/a/util.ts',
+    'widgets/a/readme.md',
+  ];
+  const data = loadConfigData({ root: shop }).config;
+  const shopModel = resolveModel(data, folders(paths), paths);
+  const shopVerdict = (from: string, to: string) => {
+    const found = verdicts(data, shopModel).verdict(from, to)!;
+    if (found.allowed) return `allowed: ${grantText(found.grant)}`;
+    return found.reason === 'private' ? `private to ${found.hiddenBy.id}` : found.reason;
+  };
+
+  it("opens the files a files() selector names, inside the module's folder", () => {
+    assert.equal(shopVerdict('main.ts', 'app/check.ts'), 'allowed: main uses s.app');
+    assert.equal(shopVerdict('main.ts', 'app/ports/store.ts'), 'allowed: main uses s.app');
+    assert.equal(shopVerdict('main.ts', 'app/run.ts'), 'private to app');
+    assert.equal(shopVerdict('main.ts', 'app/ports/deep/x.ts'), 'private to app');
+  });
+
+  it("opens a module's own files and each child's surface with 'all', never a child's private files", () => {
+    assert.equal(shopVerdict('main.ts', 'widgets/a/api.ts'), 'allowed: main uses s.widgets');
+    assert.equal(shopVerdict('main.ts', 'widgets/a/readme.md'), 'allowed: main uses s.widgets');
+    assert.equal(shopVerdict('main.ts', 'widgets/a/util.ts'), 'private to widgets/a:internals');
+  });
+
+  it('keeps a module that says nothing closed', () => {
+    assert.equal(shopVerdict('main.ts', 'quiet.ts'), 'private to .:quiet');
+    assert.deepEqual([...verdicts(data, shopModel).surface(shopModel.moduleOf('quiet.ts')!)], []);
   });
 });
 
@@ -261,8 +345,8 @@ describe('checkModel', () => {
         message:
           "src/ui/a/a.ts (logic of card src/ui/a) imports src/ui/a/a.dom.ts (dom of card src/ui/a), which is outside logic's reach: logic uses required.strings (from src/ui). Add what holds src/ui/a/a.dom.ts to a using if the dependency is intended, or move the code.",
         details: {
-          from: { module: 'src/ui/a', part: 'logic' },
-          to: { module: 'src/ui/a', part: 'dom' },
+          from: 'src/ui/a:logic',
+          to: 'src/ui/a:dom',
           reason: 'not-in-using',
           edges: [
             edge('src/ui/a/a.ts', 'src/ui/a/a.dom.ts', { names: ['render'], line: 3, typeOnly: true }),
@@ -283,22 +367,22 @@ describe('checkModel', () => {
       'src/main.ts (main of app .) imports types from src/ui/a/a.ts (logic of card src/ui/a), which src/ui/a keeps private (it exposes render, page). Import what src/ui/a exposes, or expose src/ui/a/a.ts from card if other modules should reach it.',
     );
     assert.deepEqual(finding?.details, {
-      from: { module: '.', part: 'main' },
-      to: { module: 'src/ui/a', part: 'logic' },
+      from: '.:main',
+      to: 'src/ui/a:logic',
       reason: 'private',
       hiddenBy: 'src/ui/a',
       edges: [edge('src/main.ts', 'src/ui/a/a.ts', { names: [], typeOnly: true })],
     });
   });
 
-  it('tells a module that reaches above itself to require what it needs', () => {
+  it('tells a module that reaches above itself to require what it needs, and one that reaches a sibling that it keeps it private', () => {
     const [domain, card] = check([
       facts('src/domain/order.ts', [edge('src/domain/order.ts', 'src/main.ts')]),
       facts('src/ui/a/a.dom.ts', [edge('src/ui/a/a.dom.ts', 'src/ui/shared.ts', { typeOnly: true })]),
     ]);
     assert.equal(
       domain?.message,
-      'src/domain/order.ts (plain folder src/domain) imports src/main.ts (main of app .), which is above src/domain. A module reaches up only through what it requires: require it in the archetype that finds it and have an ancestor provide it, or move it below.',
+      'src/domain/order.ts (app.domain src/domain) imports src/main.ts (main of app .), which .:main keeps private (it exposes nothing). Import what .:main exposes, or expose src/main.ts from main if other modules should reach it.',
     );
     assert.equal(
       card?.message,
@@ -306,7 +390,7 @@ describe('checkModel', () => {
     );
   });
 
-  it('names every using that grants reach, by the part that holds it, or says there are none', () => {
+  it('names every using that grants reach, by the module that holds it, or says there are none', () => {
     const [shared, test, runner] = check([
       facts('src/ui/shared.ts', [edge('src/ui/shared.ts', 'src/runner/driver.ts')]),
       facts('src/ui/a/a.test.ts', [edge('src/ui/a/a.test.ts', 'src/runner/driver.ts')]),
@@ -359,9 +443,11 @@ describe('checkModel', () => {
   });
 
   it('reports loose files on the root and where a ruleset turns unclassified on, and nowhere else', () => {
-    const quiet = archetype('quiet').contains((p) => p.files('src', '*.ts'));
-    const denied = archetype('denied').contains((p) => p.files('src', '*.ts'));
-    const root = archetype('app').contains((p) => p.dir('quiet', 'quiet', quiet).dir('denied', 'denied', denied));
+    const quiet = archetype('quiet').contains((m) => m.module('src', files('*.ts')));
+    const denied = archetype('denied').contains((m) => m.module('src', files('*.ts')));
+    const root = archetype('app').contains((m) =>
+      m.module('quiet', dir('quiet'), quiet).module('denied', dir('denied'), denied),
+    );
     const base = ruleset().on(denied, { unclassified: true });
     const paths = ['stray.ts', 'quiet/a.css', 'denied/c.css', 'denied/d.ts'];
     const data = loadConfigData({ root, rulesets: { default: base } }, { ruleset: 'default' }).config;
@@ -374,7 +460,7 @@ describe('checkModel', () => {
         line: 1,
         value: 1,
         message:
-          "stray.ts is in no part of . (app), so nothing says what it may import. Add a files part to app that matches it, or move it into a part's folder.",
+          "stray.ts is in no module of . (app), so nothing says what it may import. Add a files module to app that matches it, or move it into a module's folder.",
         docs: 'https://docs',
       },
       {
@@ -384,7 +470,7 @@ describe('checkModel', () => {
         line: 1,
         value: 1,
         message:
-          "denied/c.css is in no part of denied (denied), so nothing says what it may import. Add a files part to denied that matches it, or move it into a part's folder.",
+          "denied/c.css is in no module of denied (denied), so nothing says what it may import. Add a files module to denied that matches it, or move it into a module's folder.",
         docs: 'https://docs',
       },
     ]);
@@ -392,8 +478,8 @@ describe('checkModel', () => {
   });
 
   it("turns unclassified off for a module and the modules below it from the module's archetype", () => {
-    const leaf = archetype('leaf').contains((p) => p.files('src', '*.ts'));
-    const root = archetype('app').contains((p) => p.dir('leaf', 'leaf', leaf));
+    const leaf = archetype('leaf').contains((m) => m.module('src', files('*.ts')));
+    const root = archetype('app').contains((m) => m.module('leaf', dir('leaf'), leaf));
     const everywhere = ruleset().rules({ unclassified: true }).on(root, { unclassified: false });
     const paths = ['stray.ts', 'leaf/a.css'];
     const data = loadConfigData({ root, rulesets: { default: everywhere } }, { ruleset: 'default' }).config;
@@ -441,12 +527,12 @@ describe('module-externals', () => {
         value: 2,
         message:
           "src/ui/a/a.test.ts (test of card src/ui/a) imports react, react/jsx-runtime, a package outside test's reach: test uses pkg('vitest'). Add pkg('react') to a using if the dependency is intended, or move the code.",
-        details: { from: { module: 'src/ui/a', part: 'test' }, package: 'react', edges },
+        details: { from: 'src/ui/a:test', package: 'react', edges },
       },
     ]);
   });
 
-  it("grants a dir part's packages to its modules' own files, and says when no using lists one", () => {
+  it("grants a dir module's packages to its files, and says when no using lists one", () => {
     const [logic, domain] = check([
       facts('src/ui/a/a.ts', [], [external('src/ui/a/a.ts', 'node:fs', { names: [], typeOnly: true })]),
       facts('src/domain/order.ts', [], [external('src/domain/order.ts', 'lodashxget')]),
@@ -456,22 +542,19 @@ describe('module-externals', () => {
       "src/ui/a/a.ts (logic of card src/ui/a) imports types from node:fs, a package outside logic's reach: no using in its reach lists a package. Add pkg('node:fs') to a using if the dependency is intended, or move the code.",
     );
     assert.equal(logic?.value, 1);
-    assert.match(
-      domain!.message,
-      /outside src\/domain's reach: app\.domain uses pkg\('node:\*'\), pkg\('lodash\.get'\)\./,
-    );
+    assert.match(domain!.message, /outside domain's reach: app\.domain uses pkg\('node:\*'\), pkg\('lodash\.get'\)\./);
   });
 
   it('reports only the imports of a package outside reach, naming each using that lists packages', () => {
-    const leaf = archetype('leaf').contains((p) => p.files('src', '*.ts', { using: [pkg('vite-plus/*')] }));
-    const root = archetype('root').contains((p) => p.dir('leaf', 'leaf', leaf, { using: [pkg('node:*')] }));
+    const leaf = archetype('leaf').contains((m) => m.module('src', files('*.ts'), using([pkg('vite-plus/*')])));
+    const root = archetype('root').contains((m) => m.module('leaf', dir('leaf'), leaf.using([pkg('node:*')])));
     const data = loadConfigData({ root }).config;
     const paths = ['leaf/a.ts'];
     const edges = [external('leaf/a.ts', 'vite-plus/test'), external('leaf/a.ts', 'vite-plus', { line: 2 })];
     const leafModel = resolveModel(data, folders(paths), paths);
     const [finding] = checkModel(data, leafModel, { files: [facts('leaf/a.ts', [], edges)] }, [moduleExternals]);
     assert.deepEqual(finding?.details, {
-      from: { module: 'leaf', part: 'src' },
+      from: 'leaf:src',
       package: 'vite-plus',
       edges: [edges[1]],
     });
@@ -523,7 +606,7 @@ describe('no-double-export', () => {
         value: 1,
         message:
           'src/ui/a/a.page.ts (page of card src/ui/a) re-exports src/ui/a/a.dom.ts (dom of card src/ui/a), and src/ui/a exposes both, so importers have two ways to the same names. Keep one: stop re-exporting it, or stop exposing it.',
-        details: { module: 'src/ui/a', to: { module: 'src/ui/a', part: 'dom' }, edges },
+        details: { module: 'src/ui/a', to: 'src/ui/a:dom', edges },
       },
     ]);
   });

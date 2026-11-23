@@ -60,7 +60,7 @@ export const moduleCycle: ProjectRule<CycleOptions> = {
           message:
             `${from} imports ${to} (${first!.file} imports ${first!.to}), and the modules of ${module.parent!.id} loop: ` +
             `${loop.join(' -> ')}. Break the loop: move what both need into a module they both use, or turn module-cycle ` +
-            'off on the dir part if its modules are meant to use each other.',
+            'off on the module that holds them if they are meant to use each other.',
           details: {
             module: module.parent!.id,
             loop,

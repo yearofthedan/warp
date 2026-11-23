@@ -1,14 +1,14 @@
 import { ConfigError } from '../configError.ts';
 import { recordedAs } from './builder.ts';
-import type { ArchetypeData, PartRefData, RefData, RuleSettingsData } from './data.ts';
-import type { Draft } from './draft.ts';
-import { type Fail, isName, isRecord, list, shapeText } from './shared.ts';
+import type { ArchetypeData, ExposesData, ModuleData, ModuleRefData, RefData, RuleSettingsData } from './data.ts';
+import type { Draft, DraftExposes } from './draft.ts';
+import { type Fail, isName, isRecord, list } from './shared.ts';
 
 export interface Check {
   fail: Fail;
   ruleIds?: ReadonlySet<string> | undefined;
   options: Readonly<Record<string, (raw: Record<string, unknown>, at: string) => unknown>>;
-  surfacesOf: (archetype: string) => string[] | undefined;
+  exposesOf: (archetype: string) => DraftExposes | undefined;
 }
 
 type RefKind = RefData['kind'];
@@ -18,51 +18,56 @@ interface Scope {
   visible: number;
   kinds: readonly RefKind[];
   refused: string;
-  part?: string;
+  module?: string;
   whole?: boolean;
 }
 
 export const show = (ref: RefData): string =>
   ref.kind === 'package'
     ? `pkg('${ref.pattern}')`
-    : `${ref.kind === 'required' ? `required.${ref.name}` : ref.part}${ref.surface === undefined ? '' : `.${ref.surface}`}`;
+    : `${ref.kind === 'required' ? `required.${ref.name}` : ref.module}${ref.surface === undefined ? '' : `.${ref.surface}`}`;
 
-export const resolveDraft = (check: Check, { data: archetype, parts, exposes, provides }: Draft) => {
-  for (const [index, part] of parts.entries()) {
+export const resolveDraft = (check: Check, { data: archetype, modules, exposes, provides }: Draft) => {
+  for (const [index, module] of modules.entries()) {
     const scope: Scope = {
       archetype,
       visible: index,
-      kinds: ['part', 'required', 'package'],
+      kinds: ['module', 'required', 'package'],
       refused: '',
-      part: part.data.name,
+      module: module.data.name,
     };
-    const where = `${archetype.name}.${part.data.name}`;
-    part.data.using.push(...part.using.map((value) => toRef(check, value, `${where} uses`, scope)));
+    const where = `${archetype.name}.${module.data.name}`;
+    module.data.using.push(...module.using.map((value) => toRef(check, value, `${where} uses`, scope)));
   }
-  const visible = archetype.parts.length;
   const own: Scope = {
     archetype,
-    visible,
-    kinds: ['part'],
-    refused: 'exposes and provides name the archetype’s own parts',
+    visible: archetype.modules.length,
+    kinds: ['module'],
+    refused: 'exposes and provides name the archetype’s own modules',
   };
-  archetype.exposes =
-    exposes &&
-    Object.fromEntries(
-      Object.entries(exposes).map(([surface, refs]) => [
-        surface,
-        refs.map((value) => toRef(check, value, `${archetype.name} exposes ${surface} as`, own)),
-      ]),
-    );
+  if (exposes) archetype.exposes = exposesData(check, archetype.name, exposes, own);
   for (const [name, value] of Object.entries(provides)) {
     const scope = { ...own, whole: true };
-    archetype.provides[name] = toRef(check, value, `${archetype.name} provides ${name} as`, scope) as PartRefData;
+    archetype.provides[name] = toRef(check, value, `${archetype.name} provides ${name} as`, scope) as ModuleRefData;
   }
 };
 
+const exposesData = (check: Check, name: string, exposes: DraftExposes, scope: Scope): ExposesData =>
+  exposes.kind !== 'surfaces'
+    ? exposes
+    : {
+        kind: 'surfaces',
+        surfaces: Object.fromEntries(
+          Object.entries(exposes.surfaces).map(([surface, refs]) => [
+            surface,
+            refs.map((value) => toRef(check, value, `${name} exposes ${surface} as`, scope)),
+          ]),
+        ),
+      };
+
 const toRef = (check: Check, value: unknown, where: string, scope: Scope): RefData => {
   const ref = recordedAs(value, 'ref');
-  if (!ref) check.fail(`${where} something other than a reference: use s.part, required.name or pkg('name')`);
+  if (!ref) check.fail(`${where} something other than a reference: use s.module, required.name or pkg('name')`);
   else {
     const problem = refProblem(check, ref, scope);
     if (problem) check.fail(`${where} ${show(ref)}; ${problem}`);
@@ -104,41 +109,58 @@ const refProblem = (check: Check, ref: RefData, scope: Scope): string | undefine
   if (!scope.kinds.includes(ref.kind)) return scope.refused;
   if (ref.kind === 'package') return isName(ref.pattern) ? undefined : 'a package pattern is a non-empty string';
   if (ref.kind === 'required') return requiredProblem(check, ref.name, ref.surface, scope.archetype);
-  return partProblem(check, ref.part, ref.surface, scope);
+  return moduleProblem(check, ref.module, ref.surface, scope);
 };
 
 const requiredProblem = (check: Check, name: string, surface: string | undefined, archetype: ArchetypeData) => {
   const requirement = archetype.requires[name];
   if (!requirement) return `${archetype.name} requires ${list(Object.keys(archetype.requires), 'nothing')}`;
-  if (surface === undefined) return undefined;
   if (requirement.kind !== 'archetype')
-    return `required.${name} is ${shapeText(requirement.kind)}, which has no surfaces`;
-  return surfaceProblem(requirement.archetype, surface, check.surfacesOf(requirement.archetype));
+    return surface === undefined ? undefined : `required.${name} is ${requirement.kind}(), which has no surfaces`;
+  return exposedProblem(`required.${name}`, requirement.archetype, check.exposesOf(requirement.archetype), surface);
 };
 
-const partProblem = (check: Check, name: string, surface: string | undefined, scope: Scope) => {
-  const index = scope.archetype.parts.findIndex((part) => part.name === name);
+const moduleProblem = (check: Check, name: string, surface: string | undefined, scope: Scope) => {
+  const index = scope.archetype.modules.findIndex((module) => module.name === name);
   if (index < 0 || index >= scope.visible) return visibilityProblem(name, index, scope);
+  if (surface !== undefined && scope.whole) return 'name the whole module, without a surface';
+  const module = scope.archetype.modules[index]!;
+  if (module.kind === 'files') return exposedProblem(name, undefined, module.exposes, surface);
+  return exposedProblem(name, archetypeText(scope.archetype, module), check.exposesOf(module.archetype), surface);
+};
+
+const archetypeText = (holder: ArchetypeData, module: ModuleData & { kind: 'dir' }): string | undefined =>
+  module.archetype === holder.name || module.archetype.startsWith(`${holder.name}.`) ? undefined : module.archetype;
+
+const exposedProblem = (
+  name: string,
+  archetype: string | undefined,
+  exposes: DraftExposes | undefined,
+  surface: string | undefined,
+): string | undefined => {
+  const subject = archetype === undefined ? name : `${name} (${archetype})`;
+  if (exposes === undefined)
+    return `${subject} exposes nothing: give ${archetype ?? name} exposes, or drop the reference`;
   if (surface === undefined) return undefined;
-  if (scope.whole) return 'name the whole part, without a surface';
-  const part = scope.archetype.parts[index]!;
-  if (part.kind === 'files') return `${part.name} is a files part, which has no surfaces`;
-  if (part.archetype === undefined) return `${part.name} is a plain folder, which has no surfaces`;
-  return surfaceProblem(part.archetype, surface, check.surfacesOf(part.archetype));
+  if (exposes.kind !== 'surfaces') return `${subject} exposes ${exposesText(exposes)}, not named surfaces`;
+  const surfaces = Object.keys(exposes.surfaces);
+  return surfaces.includes(surface) ? undefined : `${subject} exposes ${list(surfaces, 'nothing')}`;
 };
 
-const visibilityProblem = (name: string, index: number, { archetype, visible, part }: Scope): string => {
+export const exposesText = (exposes: DraftExposes | ExposesData | undefined): string => {
+  if (exposes === undefined) return 'nothing';
+  if (exposes.kind === 'all') return 'all its files';
+  if (exposes.kind === 'files') return `files(${exposes.patterns.map((pattern) => `'${pattern}'`).join(', ')})`;
+  return list(Object.keys(exposes.surfaces), 'nothing');
+};
+
+const visibilityProblem = (name: string, index: number, { archetype, visible, module }: Scope): string => {
   const above = list(
-    archetype.parts.slice(0, visible).map((candidate) => candidate.name),
-    'no parts',
+    archetype.modules.slice(0, visible).map((candidate) => candidate.name),
+    'no modules',
   );
-  if (part === undefined) return `${archetype.name} has parts ${above}`;
-  if (index < 0) return `${part} sees ${above}`;
-  if (index === visible) return `a part reaches its own files already; ${part} sees ${above}`;
-  return `${name} is declared below ${part}, which sees ${above}`;
-};
-
-const surfaceProblem = (archetype: string, surface: string, surfaces: string[] | undefined): string | undefined => {
-  if (surfaces === undefined) return `${archetype} has no .exposes(), so it names no surfaces`;
-  return surfaces.includes(surface) ? undefined : `${archetype} exposes ${list(surfaces, 'nothing')}`;
+  if (module === undefined) return `${archetype.name} has modules ${above}`;
+  if (index < 0) return `${module} sees ${above}`;
+  if (index === visible) return `a module reaches its own files already; ${module} sees ${above}`;
+  return `${name} is declared below ${module}, which sees ${above}`;
 };

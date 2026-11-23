@@ -1,9 +1,16 @@
 import { place } from '../place.ts';
+import type { Verdicts } from '../../model/archetype/reach.ts';
 import type { Model, ModuleView } from '../../model/archetype/resolve.ts';
 import type { ImportEdge } from '../../model/facts.ts';
 import { type Finding, noOptions, type ProjectRule } from '../../rules/rule.ts';
 
 const id = 'no-double-export';
+
+const exposingBoth = (verdicts: Verdicts, module: ModuleView, from: string, to: string): ModuleView | undefined => {
+  for (let at: ModuleView | undefined = module; at; at = at.parent)
+    if (verdicts.surface(at).has(from) && verdicts.surface(at).has(to)) return at;
+  return undefined;
+};
 
 export const noDoubleExport: ProjectRule = {
   id,
@@ -13,12 +20,11 @@ export const noDoubleExport: ProjectRule = {
     project.files.flatMap((file) => {
       const module = model.moduleOf(file.path);
       if (!module || !atFile(file.path).on) return [];
-      const surface = verdicts.surface(module);
-      if (!surface.has(file.path)) return [];
       const reExports = file.imports.filter((edge) => edge.reExport);
-      return [...Map.groupBy(reExports, (edge) => edge.via ?? edge.to)].flatMap(([to, edges]) =>
-        to === file.path || !surface.has(to) ? [] : [doubled(model, module, to, edges)],
-      );
+      return [...Map.groupBy(reExports, (edge) => edge.via ?? edge.to)].flatMap(([to, edges]) => {
+        const surface = to === file.path ? undefined : exposingBoth(verdicts, module, file.path, to);
+        return surface ? [doubled(model, surface, to, edges)] : [];
+      });
     }),
 };
 
@@ -32,8 +38,8 @@ const doubled = (model: Model, module: ModuleView, to: string, edges: ImportEdge
     line: edges[0]!.line,
     value: Math.max(1, names.length),
     message:
-      `${from} (${place(model, from, module)}) re-exports ${to} (${place(model, to)}), and ${module.id} exposes both, ` +
+      `${from} (${place(model, from)}) re-exports ${to} (${place(model, to)}), and ${module.id} exposes both, ` +
       `so importers have two ways to the same names. Keep one: stop re-exporting it, or stop exposing it.`,
-    details: { module: module.id, to: { module: model.moduleOf(to)!.id, part: model.partOf(to) }, edges },
+    details: { module: module.id, to: model.moduleOf(to)!.id, edges },
   };
 };

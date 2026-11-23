@@ -3,8 +3,8 @@
 **Audience:** anyone running warp on a project, or deciding whether to.
 **Purpose:** what warp does today and how to run it, with links to the pages for writing a config and wiring warp in.
 
-Architectural fitness checks for TypeScript codebases. A config declares the codebase's modules, the parts of each and
-what each part may use. warp builds a model from it and the import graph, and reports findings against it, as text
+Architectural fitness checks for TypeScript codebases. A config declares the codebase's modules and what each
+may use. warp builds a model from it and the import graph, and reports findings against it, as text
 for people, JSON or SARIF for tools, and hook responses for coding agents. `diff` reports only what a change made new
 or worse, and with `--since-last-run` only what the last edit did, so it can run after every edit. It covers dependency direction and package use, module surfaces and
 re-exports, cycles, cohesion and cognitive complexity.
@@ -34,7 +34,7 @@ warp check                 # every finding in the working tree
 warp diff HEAD             # new or worse findings in the working tree since HEAD
 warp diff main..feature    # new or worse findings between two refs
 warp diff main...          # new or worse findings since the working tree's branch left main
-warp model                 # the modules the config finds, and the part each file is in
+warp model                 # the modules the config finds, and the module each file is in
 ```
 
 | Flag | Effect |
@@ -42,8 +42,8 @@ warp model                 # the modules the config finds, and the part each fil
 | `--config <file>` | Config path. The project root is its directory. Default: the first of `warp.config.ts`, `.mts`, `.js` and `.mjs` in the current directory. |
 | `--ruleset <name>` | Check with one of the config's [rulesets](docs/config.md#rulesets). Default: the one named `default`, if any. |
 | `--since-last-run` | With `diff` and no head, compare the working tree with its findings at the last run with this flag. The first run, and the first after `HEAD` moves, compares with the base. |
-| `--rules` | With `model`, list the rule settings each module and part changes. |
-| `--json` | With `model`, print the model as JSON, with every module's and part's resolved rule settings. |
+| `--rules` | With `model`, list the rule settings each module changes. |
+| `--json` | With `model`, print the model as JSON, with every module's resolved rule settings. |
 | `--reporter <name>` | Output format, default `text`. |
 | `--fail` | Exit 1 when there are findings (`check`) or new or worse ones (`diff`). Without it, both exit 0. |
 
@@ -63,22 +63,22 @@ A starter for a hexagonal layout, to adjust to the project's folders:
 
 ```ts
 // warp.config.ts
-import { archetype, defineConfig, pkg } from 'warp';
+import { all, archetype, defineConfig, exposes, files, pkg, using } from 'warp';
 
-const app = archetype('app').contains((p) =>
-  p
-    .files('domain', 'src/domain/**')
-    .files('application', 'src/app/**', { using: (s) => [s.domain] })
-    .files('adapters', 'src/adapters/**', { using: (s) => [s.domain, s.application, pkg('*')] })
-    .files('lib', 'src/lib/**')
-    .files('entry', ['src/main.ts', 'src/index.ts'], { using: (s) => [s.domain, s.application, s.adapters, s.lib] })
-    .files('test', 'src/**/*.test.ts', { using: (s) => [s.domain, s.application, s.adapters, s.lib, pkg('*')] }),
+const app = archetype('app').contains((m) =>
+  m
+    .module('domain', files('src/domain/**'), exposes(all()))
+    .module('application', files('src/app/**'), exposes(all()).using((s) => [s.domain]))
+    .module('adapters', files('src/adapters/**'), exposes(all()).using((s) => [s.domain, s.application, pkg('*')]))
+    .module('lib', files('src/lib/**'), exposes(all()))
+    .module('entry', files('src/main.ts', 'src/index.ts'), using((s) => [s.domain, s.application, s.adapters, s.lib]))
+    .module('test', files('src/**/*.test.ts'), using((s) => [s.domain, s.application, s.adapters, s.lib, pkg('*')])),
 );
 
 export default defineConfig({ root: app });
 ```
 
-Run `warp check` and add parts until no `unclassified` findings are left. The other findings it reports are the
+Run `warp check` and add modules until no `unclassified` findings are left. The other findings it reports are the
 existing baseline, which `diff` leaves out, so they need no fixing first. Commit the config.
 
 - [docs/config.md](docs/config.md): the config, custom rules, rulesets and the rules.

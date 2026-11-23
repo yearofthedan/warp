@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import { type AnyArchetype, archetype, dir, type Ruleset, ruleset } from '../../model/archetype/builder.ts';
+import {
+  all,
+  type AnyArchetype,
+  archetype,
+  dir,
+  exposes,
+  files,
+  ruleset,
+  type Ruleset,
+  using,
+} from '../../model/archetype/builder.ts';
 import { checkModel } from '../../app/checkModel.ts';
 import { loadConfigData } from '../../app/load.ts';
 import { type Folders, resolveModel } from '../../model/archetype/resolve.ts';
@@ -48,15 +58,24 @@ const facts = (path: string, imports: ImportEdge[] = []): FileFacts => ({
   functions: [],
 });
 
-const files = ['ports/folder.ts', 'domain/order.ts', 'ui/index.ts', 'ui/view.ts', 'ui/card/card.ts', 'main.ts'];
+const paths = [
+  'ports/folder.ts',
+  'ports/store.ts',
+  'domain/order.ts',
+  'ui/index.ts',
+  'ui/view.ts',
+  'ui/card/card.ts',
+  'ui/card/inner.ts',
+  'main.ts',
+];
 
 const check = (root: AnyArchetype, analyzed: FileFacts[], rules?: Ruleset) => {
   const { config } = loadConfigData({ root, ...(rules ? { rulesets: { default: rules } } : {}) });
   const all = [
     ...analyzed,
-    ...files.filter((file) => !analyzed.some((m) => m.path === file)).map((file) => facts(file)),
+    ...paths.filter((file) => !analyzed.some((m) => m.path === file)).map((file) => facts(file)),
   ];
-  const model = resolveModel(config, folders(files), files);
+  const model = resolveModel(config, folders(paths), paths);
   return checkModel(config, model, { files: all }, [noCrossModuleReexport]).filter(
     (finding) => finding.rule !== 'unclassified',
   );
@@ -65,27 +84,42 @@ const check = (root: AnyArchetype, analyzed: FileFacts[], rules?: Ruleset) => {
 const keys = (findings: readonly { rule: string; key: string }[]) =>
   findings.filter((finding) => finding.rule !== 'unclassified').map((finding) => finding.key);
 
-const card = archetype('card').contains((p) => p.files('src', '*.ts'));
+const card = archetype('card')
+  .contains((m) => m.module('src', files('*.ts'), exposes(all())))
+  .exposes(all());
 
 const uiArchetype = archetype('ui')
   .requires({ ports: dir() })
-  .contains((p, { required }) =>
-    p
-      .dir('cards', '{name}', card)
-      .files('api', 'index.ts', { using: (s) => [s.cards, required.ports] })
-      .files('src', '*.ts', { using: [required.ports] }),
-  );
+  .contains((m, { required }) =>
+    m
+      .module('cards', dir('{name}'), card)
+      .module(
+        'api',
+        files('index.ts'),
+        exposes(all()).using((s) => [s.cards, required.ports]),
+      )
+      .module('src', files('*.ts'), using([required.ports])),
+  )
+  .exposes((s) => ({ api: s.api }));
 
 const ui = () => uiArchetype;
 
 const app = (child: AnyArchetype) =>
   archetype('app')
-    .contains((p) =>
-      p
-        .dir('domain', 'domain')
-        .dir('ports', 'ports', { using: (s) => [s.domain] })
-        .dir('ui', 'ui', child)
-        .files('main', 'main.ts', { using: (s) => [s.ui, s.ports] }),
+    .contains((m) =>
+      m
+        .module('domain', dir('domain'), exposes(all()))
+        .module(
+          'ports',
+          dir('ports'),
+          exposes(all()).using((s) => [s.domain]),
+        )
+        .module('ui', dir('ui'), child)
+        .module(
+          'main',
+          files('main.ts'),
+          using((s) => [s.ui, s.ports]),
+        ),
     )
     .provides((s) => ({ ports: s.ports }));
 
@@ -103,12 +137,12 @@ describe(rule, () => {
         line: 2,
         value: 2,
         message:
-          'ui/index.ts (api of ui ui) re-exports Folder, Chooser from ports/folder.ts (plain folder ports), so its importers ' +
-          'reach ports through ui. Have importers that need it use ports directly, give ui its own type that ' +
-          'hides it, or move it into ui if ui owns it.',
+          'ui/index.ts (api of ui ui) re-exports Folder, Chooser from ports/folder.ts (app.ports ports), so its importers ' +
+          'reach ports through ui:api. Have importers that need it use ports directly, give ui:api its own type that ' +
+          'hides it, or move it into ui:api if ui:api owns it.',
         details: {
-          from: { module: 'ui', part: 'api' },
-          to: { module: 'ports', part: undefined },
+          from: 'ui:api',
+          to: 'ports',
           names: ['Folder', 'Chooser'],
           edges,
         },
@@ -126,19 +160,31 @@ describe(rule, () => {
     );
   });
 
-  it('passes a re-export within the module or from a module nested in it, and plain imports', () => {
+  it('passes a re-export within the module, a plain import, and a file outside the model', () => {
     const plain = { ...reExport('ui/view.ts', 'ports/folder.ts'), reExport: undefined };
     assert.deepEqual(
       keys(
         check(app(ui()), [
-          facts('ui/index.ts', [reExport('ui/index.ts', 'ui/view.ts'), reExport('ui/index.ts', 'ui/card/card.ts')]),
+          facts('ports/folder.ts', [reExport('ports/folder.ts', 'ports/store.ts')]),
+          facts('ui/card/card.ts', [reExport('ui/card/card.ts', 'ui/card/inner.ts')]),
           facts('ui/view.ts', [plain]),
-          facts('main.ts', [reExport('main.ts', 'ui/index.ts')]),
           facts('outside.ts', [reExport('outside.ts', 'ports/folder.ts')]),
-          facts('ui/card/card.ts', [reExport('ui/card/card.ts', 'nowhere.ts')]),
+          facts('ui/card/inner.ts', [reExport('ui/card/inner.ts', 'nowhere.ts')]),
         ]),
       ),
       [],
+    );
+  });
+
+  it('flags a re-export of a sibling module, files modules in one folder included', () => {
+    assert.deepEqual(
+      keys(
+        check(app(ui()), [
+          facts('ui/index.ts', [reExport('ui/index.ts', 'ui/view.ts'), reExport('ui/index.ts', 'ui/card/card.ts')]),
+          facts('main.ts', [reExport('main.ts', 'ui/index.ts')]),
+        ]),
+      ),
+      [`${rule}:ui/index.ts->ui/view.ts`, `${rule}:ui/index.ts->ui/card/card.ts`, `${rule}:main.ts->ui/index.ts`],
     );
   });
 
@@ -150,7 +196,7 @@ describe(rule, () => {
 
   it('reports nothing where the rule is off, and takes no options', () => {
     const analyzed = [facts('ui/index.ts', [reExport('ui/index.ts', 'ports/folder.ts')])];
-    assert.deepEqual(keys(check(app(ui()), analyzed, ruleset().on(uiArchetype.api, { [rule]: false }))), []);
+    assert.deepEqual(keys(check(app(ui()), analyzed, ruleset().on(uiArchetype.modules.api, { [rule]: false }))), []);
     assert.throws(() => noCrossModuleReexport.parseOptions!({ allow: [] }, 'at'), /at: unknown key allow/);
   });
 });

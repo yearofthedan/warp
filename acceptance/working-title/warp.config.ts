@@ -1,38 +1,50 @@
-import { archetype, defineConfig, dir, files, pkg } from 'warp';
+import { all, archetype, defineConfig, dir, exposes, files, pkg, using } from 'warp';
 
 const testRunner = archetype('test-runner')
-  .contains((p) =>
-    p
-      .files('contract', ['driver.ts', 'steps.ts', 'seed.ts', 'narrowing.ts', 'scenario-file.ts', 'ids.ts'])
-      .files('runner', '**', { using: (s) => [s.contract] }),
+  .contains((m) =>
+    m
+      .module(
+        'contract',
+        files('driver.ts', 'steps.ts', 'seed.ts', 'narrowing.ts', 'scenario-file.ts', 'ids.ts'),
+        exposes(all()),
+      )
+      .module(
+        'runner',
+        files('**'),
+        exposes(all()).using((s) => [s.contract]),
+      ),
   )
   .exposes((s) => ({ contract: s.contract, runner: s.runner }));
 
 const layer = archetype('layer')
   .description('A folder of code whose tests need the runner: domain, application, adapters, lint')
   .requires({ testRunner, methods: dir() })
-  .contains((p, { required }) =>
-    p.files('src', '**').files('test', '**/*.test.ts', {
-      using: (s) => [
+  .contains((m, { required }) =>
+    m.module('src', files('**'), exposes(all())).module(
+      'test',
+      files('**/*.test.ts'),
+      using((s) => [
         s.src,
         required.testRunner.runner,
         required.testRunner.contract,
         required.methods,
         pkg('vite-plus/*'),
-      ],
-    }),
+      ]),
+    ),
   )
   .exposes((s) => ({ code: s.src }));
 
 const component = archetype('component')
   .identify({ marker: '{name}.dom.ts' })
   .requires({ testRunner, application: layer, ports: dir(), strings: dir(), icons: dir(), transition: files() })
-  .contains((p, { required, self }) =>
-    p
-      .dir('subcomponent', '{name}', self)
-      .files('logic', '*.ts', { using: [required.strings, required.application] })
-      .files('dom', '{name}.dom.ts', {
-        using: (s) => [
+  .contains((m, { required, self }) =>
+    m
+      .module('subcomponent', dir('{name}'), self)
+      .module('logic', files('*.ts'), exposes(all()).using([required.strings, required.application]))
+      .module(
+        'dom',
+        files('{name}.dom.ts'),
+        exposes(all()).using((s) => [
           s.logic,
           s.subcomponent.render,
           required.icons,
@@ -40,12 +52,22 @@ const component = archetype('component')
           required.transition,
           required.application,
           required.ports,
-        ],
-      })
-      .files('dsl', '*.dsl.ts', { using: (s) => [s.subcomponent.dsl, required.testRunner.contract] })
-      .files('testPage', '*.test-page.ts', { using: (s) => [s.subcomponent.testPage, pkg('vite-plus/*')] })
-      .files('harness', '*.harness.ts', {
-        using: (s) => [
+        ]),
+      )
+      .module(
+        'dsl',
+        files('*.dsl.ts'),
+        exposes(all()).using((s) => [s.subcomponent.dsl, required.testRunner.contract]),
+      )
+      .module(
+        'testPage',
+        files('*.test-page.ts'),
+        exposes(all()).using((s) => [s.subcomponent.testPage, pkg('vite-plus/*')]),
+      )
+      .module(
+        'harness',
+        files('*.harness.ts'),
+        exposes(all()).using((s) => [
           s.dom,
           s.logic,
           s.dsl,
@@ -55,10 +77,12 @@ const component = archetype('component')
           required.application,
           required.ports,
           pkg('vite-plus/*'),
-        ],
-      })
-      .files('test', '*.test.ts', {
-        using: (s) => [
+        ]),
+      )
+      .module(
+        'test',
+        files('*.test.ts'),
+        using((s) => [
           s.logic,
           s.dom,
           s.harness,
@@ -70,19 +94,23 @@ const component = archetype('component')
           required.application,
           pkg('vite-plus/*'),
           pkg('@playwright/*'),
-        ],
-      }),
+        ]),
+      ),
   )
   .exposes((s) => ({ render: s.dom, testPage: s.testPage, dsl: s.dsl }));
 
 const ui = archetype('ui')
-  .contains((p) =>
-    p
-      .dir('components', '{name}', component)
-      .dir('strings', 'strings', { description: "The app's words" })
-      .dir('icons', 'icons')
-      .files('transition', 'transition.ts')
-      .files('test', '*.test.ts', { using: (s) => [s.transition, pkg('vite-plus/*')] }),
+  .contains((m) =>
+    m
+      .module('components', dir('{name}'), component)
+      .module('strings', dir('strings'), exposes(all()).description("The app's words"))
+      .module('icons', dir('icons'), exposes(all()))
+      .module('transition', files('transition.ts'), exposes(all()))
+      .module(
+        'test',
+        files('*.test.ts'),
+        using((s) => [s.transition, pkg('vite-plus/*')]),
+      ),
   )
   .provides((s) => ({ strings: s.strings, icons: s.icons, transition: s.transition }))
   .exposes((s) => ({
@@ -94,25 +122,53 @@ const ui = archetype('ui')
 
 const journeys = archetype('journeys')
   .requires({ testRunner, ui })
-  .contains((p, { required }) =>
-    p.files('dsl', '*.dsl.ts', { using: [required.testRunner.contract, required.ui.dsl] }).files('rest', '**', {
-      using: (s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl],
-    }),
+  .contains((m, { required }) =>
+    m.module('dsl', files('*.dsl.ts'), exposes(all()).using([required.testRunner.contract, required.ui.dsl])).module(
+      'rest',
+      files('**'),
+      using((s) => [s.dsl, required.testRunner.runner, required.testRunner.contract, required.ui.dsl]),
+    ),
   );
 
 const workingTitle = archetype('working-title')
-  .contains((p) =>
-    p
-      .dir('domain', 'src/domain', layer)
-      .dir('ports', 'src/ports', { using: (s) => [s.domain] })
-      .dir('methods', 'src/methods', { using: (s) => [s.domain] })
-      .dir('application', 'src/application', layer, { using: (s) => [s.domain, s.ports] })
-      .dir('adapters', 'src/adapters', layer, { using: (s) => [s.domain, s.ports, pkg('*')] })
-      .dir('ui', 'src/ui', ui, { using: (s) => [s.application] })
-      .files('styles', 'src/*.css')
-      .files('shell', 'src/shell.ts', { using: (s) => [s.application, s.ui.strings] })
-      .files('app', ['src/main.ts', 'src/app.ts'], {
-        using: (s) => [
+  .contains((m) =>
+    m
+      .module('domain', dir('src/domain'), layer)
+      .module(
+        'ports',
+        dir('src/ports'),
+        exposes(all()).using((s) => [s.domain]),
+      )
+      .module(
+        'methods',
+        dir('src/methods'),
+        exposes(all()).using((s) => [s.domain]),
+      )
+      .module(
+        'application',
+        dir('src/application'),
+        layer.using((s) => [s.domain, s.ports]),
+      )
+      .module(
+        'adapters',
+        dir('src/adapters'),
+        layer.using((s) => [s.domain, s.ports, pkg('*')]),
+      )
+      .module(
+        'ui',
+        dir('src/ui'),
+        ui.using((s) => [s.application]),
+      )
+      .module('styles', files('src/*.css'), exposes(all()))
+      .module(
+        'shell',
+        files('src/shell.ts'),
+        exposes(all()).using((s) => [s.application, s.ui.strings]),
+      )
+      .module(
+        'app',
+        files('src/main.ts', 'src/app.ts'),
+        exposes(all()).using((s) => [
           s.application,
           s.adapters,
           s.ports,
@@ -122,10 +178,12 @@ const workingTitle = archetype('working-title')
           s.shell,
           s.styles,
           pkg('virtual:*'),
-        ],
-      })
-      .dir('testRunner', 'src/test-helpers', testRunner, {
-        using: (s) => [
+        ]),
+      )
+      .module(
+        'testRunner',
+        dir('src/test-helpers'),
+        testRunner.using((s) => [
           s.domain,
           s.application,
           s.adapters,
@@ -136,11 +194,19 @@ const workingTitle = archetype('working-title')
           s.ui.testPage,
           s.ports,
           pkg('*'),
-        ],
-      })
-      .dir('e2e', 'e2e', journeys, { using: (s) => [s.adapters, s.ui.testPage, pkg('*')] })
-      .dir('lint', 'lint', layer, { using: [pkg('*')] })
-      .files('tooling', ['*.ts', 'scripts/**/*.ts'], { using: (s) => [s.lint, pkg('*')] }),
+        ]),
+      )
+      .module(
+        'e2e',
+        dir('e2e'),
+        journeys.using((s) => [s.adapters, s.ui.testPage, pkg('*')]),
+      )
+      .module('lint', dir('lint'), layer.using([pkg('*')]))
+      .module(
+        'tooling',
+        files('*.ts', 'scripts/**/*.ts'),
+        using((s) => [s.lint, pkg('*')]),
+      ),
   )
   .provides((s) => ({
     testRunner: s.testRunner,

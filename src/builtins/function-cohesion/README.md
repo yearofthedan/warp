@@ -46,4 +46,4 @@ The finding's value is the number of groups. Its `details` lists their line rang
 ## When not to use it
 
 For code where a long sequence of independent steps is the point, such as test setup or a migration script. Turn it
-off for that part.
+off for that module.

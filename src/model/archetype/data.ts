@@ -1,6 +1,6 @@
-export interface PartRefData {
-  kind: 'part';
-  part: string;
+export interface ModuleRefData {
+  kind: 'module';
+  module: string;
   surface?: string;
 }
 
@@ -15,30 +15,36 @@ export interface PackageRefData {
   pattern: string;
 }
 
-export type RefData = PartRefData | RequiredRefData | PackageRefData;
+export type RefData = ModuleRefData | RequiredRefData | PackageRefData;
 
 export type RuleSettingsData = 'off' | Record<string, boolean | Record<string, unknown>>;
 
-export interface FilesPartData {
+export type ExposesData =
+  | { kind: 'all' }
+  | { kind: 'files'; patterns: string[] }
+  | { kind: 'surfaces'; surfaces: Record<string, RefData[]> };
+
+export interface FilesModuleData {
   kind: 'files';
   name: string;
   patterns: string[];
   using: RefData[];
+  exposes?: Exclude<ExposesData, { kind: 'surfaces' }>;
   rules?: RuleSettingsData;
   description?: string;
 }
 
-export interface DirPartData {
+export interface DirModuleData {
   kind: 'dir';
   name: string;
   paths: string[];
-  archetype?: string;
+  archetype: string;
   using: RefData[];
   rules?: RuleSettingsData;
   description?: string;
 }
 
-export type PartData = FilesPartData | DirPartData;
+export type ModuleData = FilesModuleData | DirModuleData;
 
 export type RequirementData = { kind: 'archetype'; archetype: string } | { kind: 'dir' } | { kind: 'files' };
 
@@ -48,12 +54,13 @@ export type IdentifyData =
 
 export interface ArchetypeData {
   name: string;
+  inline?: true;
   description?: string;
   identify?: IdentifyData;
   requires: Record<string, RequirementData>;
-  parts: PartData[];
-  exposes?: Record<string, RefData[]>;
-  provides: Record<string, PartRefData>;
+  modules: ModuleData[];
+  exposes?: ExposesData;
+  provides: Record<string, ModuleRefData>;
   rules?: RuleSettingsData;
 }
 

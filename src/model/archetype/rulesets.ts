@@ -1,13 +1,13 @@
 import { ConfigError } from '../configError.ts';
 import { type RecordedRuleset, recordedAs } from './builder.ts';
 import type { ConfigData, RuleSettingsData } from './data.ts';
-import { type Fail, isRecord, list } from './shared.ts';
+import { type Fail, isName, isRecord, list } from './shared.ts';
 
 export type ParseRules = (value: unknown, at: string) => RuleSettingsData | undefined;
 
 interface Target {
   archetype: string;
-  part?: string;
+  module?: string;
 }
 
 interface Layer {
@@ -65,10 +65,13 @@ const layersOf = (ruleset: RecordedRuleset, named: Map<string, RecordedRuleset>,
       if (target === undefined) return { settings, at: `${at}.rules` };
       const resolved = targetOf(target);
       if (!resolved) {
-        fail(`${at}.on: expected an archetype or one of its parts, such as component or component.logic`);
+        fail(`${at}.on: expected an archetype or one of its modules, such as component or component.modules.logic`);
         return { settings: undefined, at };
       }
-      const shown = resolved.part === undefined ? resolved.archetype : `${resolved.archetype}.${resolved.part}`;
+      const shown =
+        resolved.module === undefined
+          ? resolved.archetype
+          : `${resolved.archetype.replaceAll('.', '.modules.')}.modules.${resolved.module}`;
       return { target: resolved, settings, at: `${at}.on(${shown})` };
     });
   });
@@ -76,15 +79,15 @@ const layersOf = (ruleset: RecordedRuleset, named: Map<string, RecordedRuleset>,
 
 const targetOf = (value: unknown): Target | undefined => {
   const archetype = recordedAs(value, 'archetype');
-  if (archetype) return { archetype: archetype.name as string };
-  const part = recordedAs(value, 'partHandle');
-  return part && { archetype: part.archetype as string, part: part.part as string };
+  if (archetype) return isName(archetype.definition.name) ? { archetype: archetype.definition.name } : undefined;
+  const handle = recordedAs(value, 'handle');
+  return handle && { archetype: handle.archetype as string, module: handle.module as string };
 };
 
 const applied = (config: ConfigData, layers: readonly Layer[], parse: ParseRules, fail: Fail): ConfigData => {
   let rules = config.rules;
   const archetypes = Object.fromEntries(
-    Object.entries(config.archetypes).map(([name, data]) => [name, { ...data, parts: [...data.parts] }]),
+    Object.entries(config.archetypes).map(([name, data]) => [name, { ...data, modules: [...data.modules] }]),
   );
   for (const { target, settings, at } of layers) {
     const layer = parse(settings, at);
@@ -97,14 +100,18 @@ const applied = (config: ConfigData, layers: readonly Layer[], parse: ParseRules
       fail(`${at}: ${target.archetype} is not in the config`);
       continue;
     }
-    if (target.part === undefined) {
+    if (target.module === undefined) {
       archetype.rules = merged(archetype.rules, layer);
       continue;
     }
-    const index = archetype.parts.findIndex((part) => part.name === target.part);
-    const names = archetype.parts.map((part) => part.name);
-    if (index < 0) fail(`${at}: ${archetype.name} has parts ${list(names, 'none')}`);
-    else archetype.parts[index] = { ...archetype.parts[index]!, rules: merged(archetype.parts[index]!.rules, layer) };
+    const index = archetype.modules.findIndex((module) => module.name === target.module);
+    const names = archetype.modules.map((module) => module.name);
+    if (index < 0) fail(`${at}: ${archetype.name} has modules ${list(names, 'none')}`);
+    else
+      archetype.modules[index] = {
+        ...archetype.modules[index]!,
+        rules: merged(archetype.modules[index]!.rules, layer),
+      };
   }
   return rules === undefined ? { ...config, archetypes } : { ...config, archetypes, rules };
 };

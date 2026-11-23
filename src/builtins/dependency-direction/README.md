@@ -13,8 +13,8 @@ cheap to keep and expensive to recover, so it is checked on every import.
 
 ## Rule details
 
-`using` is the only permission. A file may import the rest of its own part, what its part's `using` names, and, for a
-module's own files, what the `using` of the dir part that found the module names. Anything else is a finding, one per
+`using` is the only permission. A file may import the rest of its own module, what its module's `using` names, and, in a
+files module, what its folder module's `using` names. Anything else is a finding, one per
 pair of files. Its value is the number of names imported, so importing more across the same boundary counts as
 worse. Type-only imports count too.
 
@@ -24,16 +24,16 @@ lets importers through. The barrel's own re-exports are judged as its imports.
 With this config:
 
 ```ts
-import { archetype, dir } from 'warp';
+import { archetype, dir, files, using } from 'warp';
 
 const card = archetype('card')
   .identify({ marker: '{name}.dom.ts' })
   .requires({ strings: dir() })
-  .contains((p, { required, self }) =>
-    p
-      .dir('subcomponent', '{name}', self)
-      .files('logic', '*.ts')
-      .files('dom', '{name}.dom.ts', { using: (s) => [s.logic, s.subcomponent.render, required.strings] }),
+  .contains((m, { required, self }) =>
+    m
+      .module('subcomponent', dir('{name}'), self)
+      .module('logic', files('*.ts'))
+      .module('dom', files('{name}.dom.ts'), using((s) => [s.logic, s.subcomponent.render, required.strings])),
   )
   .exposes((s) => ({ render: s.dom }));
 ```
@@ -71,8 +71,8 @@ None. The config's `using` sets what it allows.
 
 ## When not to use it
 
-For code with no direction to keep, such as scripts. Give its part a `using` that lists what it may reach, or turn
-the rule off for that part.
+For code with no direction to keep, such as scripts. Give its module a `using` that lists what it may reach, or turn
+the rule off for that module.
 
 See also [`no-cross-module-reexport`](../no-cross-module-reexport/README.md), which reports the file that re-exports
 another module's file, where this rule reports each importer.

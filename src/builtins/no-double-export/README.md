@@ -24,10 +24,10 @@ the first re-export. Its value is the number of names re-exported.
 With this archetype, `index.ts` may not re-export `order.ts`, because both are exposed:
 
 ```ts
-import { archetype } from 'warp';
+import { archetype, files } from 'warp';
 
 const layer = archetype('layer')
-  .contains((p) => p.files('index', 'index.ts').files('src', '**'))
+  .contains((m) => m.module('index', files('index.ts')).module('src', files('**')))
   .exposes((s) => ({ api: s.index, code: s.src }));
 ```
 

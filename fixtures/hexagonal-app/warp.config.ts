@@ -1,15 +1,16 @@
-import { archetype, defineConfig, ruleset } from 'warp';
+import { all, archetype, defineConfig, dir, exposes, files, ruleset } from 'warp';
 
-const layer = archetype('layer').contains((p) => p.files('src', '**'));
+const layer = archetype('layer')
+  .contains((m) => m.module('src', files('**'), exposes(all())))
+  .exposes(all());
 
 const hexagon = archetype('hexagon')
-  .contains((p) =>
-    p
-      .dir('domain', 'src/domain', layer)
-      .dir('app', 'src/app', layer, { using: (s) => [s.domain] })
-      .dir('adapters', 'src/adapters', layer, { using: (s) => [s.domain, s.app] }),
-  )
-  .exposes(() => ({}));
+  .contains((m) =>
+    m
+      .module('domain', dir('src/domain'), layer)
+      .module('app', dir('src/app'), layer.using((s) => [s.domain]))
+      .module('adapters', dir('src/adapters'), layer.using((s) => [s.domain, s.app])),
+  );
 
 const base = ruleset().rules({
   'file-cohesion': { maxLines: 15 },
