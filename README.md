@@ -49,7 +49,7 @@ warp model                 # the modules the config finds, and the module each f
 
 | Reporter | Output |
 | --- | --- |
-| `text` | One line per finding, then a count. For `diff`, findings are marked `new` or `worse (was N)`. |
+| `text` | One line per finding, then for `check` the findings counted by rule and module, and a total. For `diff`, findings are marked `new` or `worse (was N)`. |
 | `json` | `{ findings }` for `check`; `{ added, worsened, resolved }` for `diff`. Each finding has the same `message`. |
 | `sarif` | SARIF 2.1.0 for GitHub code scanning: the findings to act on, with paths from the repository root. |
 | `claude-hook` | A Claude Code PostToolUse hook response, or nothing when there is nothing to act on. |

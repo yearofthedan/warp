@@ -224,6 +224,7 @@ describe('a warp.config.ts with a plugin', () => {
         key: 'wt/no-ports-through-application:src/ui/orderForm.ts->src/application/ports/orderStore.ts',
         file: 'src/ui/orderForm.ts',
         line: 1,
+        module: '.:ui',
         value: 1,
         message:
           'src/ui/orderForm.ts reaches the port src/application/ports/orderStore.ts through src/application/index.ts. Call a use case instead of holding the port.',

@@ -135,6 +135,7 @@ describe(rule, () => {
         key: `${rule}:ui/index.ts->ports/folder.ts`,
         file: 'ui/index.ts',
         line: 2,
+        module: 'ui:api',
         value: 2,
         message:
           'ui/index.ts (api of ui ui) re-exports Folder, Chooser from ports/folder.ts (app.ports ports), so its importers ' +

@@ -343,6 +343,7 @@ describe('checkModel', () => {
         key: 'dependency-direction:src/ui/a/a.ts->src/ui/a/a.dom.ts',
         file: 'src/ui/a/a.ts',
         line: 3,
+        module: 'src/ui/a:logic',
         value: 2,
         message:
           "src/ui/a/a.ts (logic of card src/ui/a) imports src/ui/a/a.dom.ts (dom of card src/ui/a), which is outside logic's reach: logic uses required.strings (from src/ui). Add what holds src/ui/a/a.dom.ts to a using if the dependency is intended, or move the code.",
@@ -460,6 +461,7 @@ describe('checkModel', () => {
         key: 'unclassified:stray.ts',
         file: 'stray.ts',
         line: 1,
+        module: '.',
         value: 1,
         message:
           "stray.ts is in no module of . (app), so nothing says what it may import. Add a files module to app that matches it, or move it into a module's folder.",
@@ -470,6 +472,7 @@ describe('checkModel', () => {
         key: 'unclassified:denied/c.css',
         file: 'denied/c.css',
         line: 1,
+        module: 'denied',
         value: 1,
         message:
           "denied/c.css is in no module of denied (denied), so nothing says what it may import. Add a files module to denied that matches it, or move it into a module's folder.",
@@ -526,6 +529,7 @@ describe('module-externals', () => {
         key: 'module-externals:src/ui/a/a.test.ts->react',
         file: 'src/ui/a/a.test.ts',
         line: 2,
+        module: 'src/ui/a:test',
         value: 2,
         message:
           "src/ui/a/a.test.ts (test of card src/ui/a) imports react, react/jsx-runtime, a package outside test's reach: test uses pkg('vitest'). Add pkg('react') to a using if the dependency is intended, or move the code.",
@@ -605,6 +609,7 @@ describe('no-double-export', () => {
         key: 'no-double-export:src/ui/a/a.page.ts->src/ui/a/a.dom.ts',
         file: 'src/ui/a/a.page.ts',
         line: 2,
+        module: 'src/ui/a:page',
         value: 1,
         message:
           'src/ui/a/a.page.ts (page of card src/ui/a) re-exports src/ui/a/a.dom.ts (dom of card src/ui/a), and src/ui/a exposes both, so importers have two ways to the same names. Keep one: stop re-exporting it, or stop exposing it.',
