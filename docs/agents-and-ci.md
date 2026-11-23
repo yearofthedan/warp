@@ -29,10 +29,10 @@ from outside the project or from `node_modules` are unchanged. Adding or removin
 that names it, and changing a `.d.ts` file in the project redoes every file. Outside a git repository nothing is
 cached. Checkouts for `diff` share the cache, so a base close to the working tree analyses only what differs.
 
-A finding is new when neither its key nor any of its parts is in a finding at the base, and worse when its value rose
-above that finding's. A loop that gains a module shares parts with the smaller loop at the base, so it is worse, not
-new, and a loop that loses one is neither. A new or worse finding with several sites is shown at the first one on a
-line the change added, so a loop is reported at the import that closed it. Findings in a renamed file or function
+A finding is new when the base has no finding with its key or with any of its `parts`, and worse when its value rose
+above that finding's. A loop lists the pairs it links as parts, so a loop that gains a module is worse rather than
+new, and one that loses a module is neither. A new or worse finding with several `sites` is shown at the first one on
+a line the change added, so a loop is reported at the import that closed it. Findings in a renamed file or function
 count as new. Function findings are keyed by name, and a callback is named after its call and a string first
 argument, such as `<callback to it("saves an order")>`, so a key survives edits elsewhere in the file. Functions that
 still share a name get `#2`, `#3` in order of appearance.
@@ -71,9 +71,8 @@ blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`:
 Leave out `--ruleset edit` to check with the default config, or keep it with an `edit` [ruleset](config.md#rulesets)
 in the config. Where `warp` is a dev dependency, use `pnpm exec warp` in the command. A non-empty delta prints a
 `hookSpecificOutput.additionalContext` response, which Claude reads as context for its next step. When warp itself
-fails, as with a broken config, the response tells Claude warp is unavailable and why, once until the failure changes
-or a run succeeds. A repeat of the same failure exits 1 rather than 2, which Claude Code would treat as blocking
-feedback, so you see it and Claude does not.
+fails, as with a broken config, the response tells Claude that warp is unavailable and why. It says so once, until the
+failure changes or a run succeeds. A repeat exits 1, which Claude Code shows to you without blocking; 2 would block.
 
 ## GitHub code scanning
 

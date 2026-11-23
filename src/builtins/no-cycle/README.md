@@ -13,9 +13,10 @@ it is read. A loop also ties the files together: each changes and moves with the
 ## Rule details
 
 The rule builds the graph of imports between the project's files and reports each loop once: a set of files that all
-reach each other, keyed by them, `no-cycle:src/order.ts+src/price.ts`. Each import on the loop is a site, and the
-message lists them. The finding is at the first; [`diff`](../../../docs/agents-and-ci.md#diff) shows a new or worse
-loop at the import the change added. Its value is the number of imports on the loop. An import is followed to the
+reach each other, keyed by them, `no-cycle:src/order.ts+src/price.ts`. The message lists each import on the loop, and each
+is a site, a place to break it. `check` shows the finding at the first, and
+[`diff`](../../../docs/agents-and-ci.md#diff) at the import the change added. The value is the number of imports on
+the loop. An import is followed to the
 file its specifier names.
 
 Incorrect code:
