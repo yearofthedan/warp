@@ -27,7 +27,7 @@ The rule judges the model as a whole and reports one finding per declaration, on
 With this config:
 
 ```ts
-import { all, archetype, defineConfig, dir, exposes, files, pkg } from 'warp';
+import { all, archetype, defineConfig, dir, exposes, files, pkg } from '@yearofthedan/warp';
 
 const app = archetype('app').contains((m) =>
   m

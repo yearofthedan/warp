@@ -59,7 +59,7 @@ blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`:
       {
         "matcher": "Edit|MultiEdit|Write",
         "hooks": [
-          { "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && warp diff HEAD --since-last-run --ruleset edit --reporter claude-hook", "timeout": 60 }
+          { "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && pnpm exec warp diff HEAD --since-last-run --ruleset edit --reporter claude-hook", "timeout": 60 }
         ]
       }
     ]
@@ -68,7 +68,7 @@ blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`:
 ```
 
 Leave out `--ruleset edit` to check with the default config, or keep it with an `edit` [ruleset](config.md#rulesets)
-in the config. Where `warp` is a dev dependency, use `pnpm exec warp` in the command. A non-empty delta prints a
+in the config. A non-empty delta prints a
 `hookSpecificOutput.additionalContext` response, which Claude reads as context for its next step. When warp itself
 fails, as with a broken config, the response tells Claude that warp is unavailable and why. It says so once, until the
 failure changes or a run succeeds. A repeat exits 1, which Claude Code shows to you without blocking; 2 would block.
@@ -88,7 +88,13 @@ steps:
   - uses: actions/checkout@v4
     with:
       fetch-depth: 0
-  - run: warp diff origin/${{ github.base_ref }}... --reporter sarif > warp.sarif
+  - uses: pnpm/action-setup@v4
+  - uses: actions/setup-node@v4
+    with:
+      node-version: 26
+      cache: pnpm
+  - run: pnpm install --frozen-lockfile
+  - run: pnpm exec warp diff origin/${{ github.base_ref }}... --reporter sarif > warp.sarif
   - uses: github/codeql-action/upload-sarif@v3
     with:
       sarif_file: warp.sarif

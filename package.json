@@ -1,7 +1,6 @@
 {
-  "name": "warp",
+  "name": "@yearofthedan/warp",
   "version": "0.1.0",
-  "private": true,
   "description": "Architectural fitness checks for TypeScript codebases",
   "license": "MIT",
   "repository": {
@@ -12,7 +11,8 @@
     "warp": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "integrations/omp/warp.ts"
   ],
   "type": "module",
   "exports": {

@@ -1,4 +1,4 @@
-import { all, archetype, defineConfig, exposes, files, ruleset, using } from 'warp';
+import { all, archetype, defineConfig, exposes, files, ruleset, using } from '@yearofthedan/warp';
 import wt from './rules/noPortsThroughApplication.ts';
 
 const app = archetype('app').contains((m) =>

@@ -1,4 +1,4 @@
-import { all, archetype, defineConfig, dir, exposes, files, ruleset } from 'warp';
+import { all, archetype, defineConfig, dir, exposes, files, ruleset } from '@yearofthedan/warp';
 
 const layer = archetype('layer')
   .contains((m) => m.module('src', files('**'), exposes(all())))
