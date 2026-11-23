@@ -293,6 +293,12 @@ describe('resolveModel', () => {
     assert.deepEqual(errors(tied, ['a.test.ts', 'src/b.test.ts']), [
       "a.test.ts: app's files modules a ('*.test.ts') and b ('**/*.test.ts') are equally specific; narrow one of the patterns",
     ]);
+    const folders = archetype('app').contains((m) =>
+      m.module('domain', files('src/domain/**')).module('refs', files('src/domain/refs/**')),
+    );
+    assert.deepEqual(errors(folders, ['src/domain/refs/a.ts']), [
+      "src/domain/refs/a.ts: app's files modules domain ('src/domain/**') and refs ('src/domain/refs/**') are equally specific; declare the folders with dir(), where the deeper folder wins",
+    ]);
   });
 
   it('refuses a placeholder that the module does not capture, in a files pattern or a marker', () => {
