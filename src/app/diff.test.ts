@@ -120,6 +120,7 @@ describe('diffProject anchoring', () => {
     file,
     sites: [
       { file: 'infra/db.ts', line: 9 },
+      { file: 'domain/order.ts', line: 5 },
       { file: 'domain/probe.ts', line: 1 },
     ],
   });
@@ -133,6 +134,7 @@ describe('diffProject anchoring', () => {
         asked.push([base, head]);
         return [
           { file: 'infra/db.ts', from: 1, to: 8 },
+          { file: 'domain/order.ts', from: 6, to: 9 },
           { file: 'domain/probe.ts', from: 1, to: 1 },
         ];
       },
