@@ -16,16 +16,11 @@ export const gitRepository = (projectRoot: string): Repository => {
     mergeBase: (a, b) => git('merge-base', a, b),
     changedLines: (base, head) => changedLines(git, base, head),
     checkout(commit, requiredFile) {
-      const dir = mkdtempSync(join(tmpdir(), 'warp-'));
-      const dispose = () => {
-        try {
-          git('worktree', 'remove', '--force', dir);
-        } finally {
-          rmSync(dir, { recursive: true, force: true });
-        }
-      };
+      const scratch = mkdtempSync(join(tmpdir(), 'warp-'));
+      const dir = join(scratch, 'tree');
+      const dispose = () => rmSync(scratch, { recursive: true, force: true });
       try {
-        git('worktree', 'add', '--detach', '--quiet', dir, commit);
+        exportTree(top, commit, scratch, dir);
         const root = join(dir, projectPath);
         if (!existsSync(join(root, requiredFile))) return { dispose };
         for (const from of new Set([project, top])) {
@@ -35,15 +30,18 @@ export const gitRepository = (projectRoot: string): Repository => {
         }
         return { projectRoot: root, dispose };
       } catch (error) {
-        try {
-          dispose();
-        } catch {
-          throw error;
-        }
+        dispose();
         throw error;
       }
     },
   };
+};
+
+const exportTree = (cwd: string, commit: string, scratch: string, dir: string) => {
+  const env = { ...process.env, GIT_INDEX_FILE: join(scratch, 'index'), GIT_LFS_SKIP_SMUDGE: '1' };
+  const git = (...args: string[]) => execFileSync('git', args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  git('read-tree', commit);
+  git('checkout-index', '--all', `--prefix=${dir}${sep}`);
 };
 
 export const projectPathOf = (projectRoot: string): string => {

@@ -19,7 +19,7 @@ Each row is an input warp doesn't control.
 | `warp.config.ts`, what it imports, custom rules | You, and any agent that can edit files | Code in the config runs as you whenever warp runs | Imports and runs the config, like `vite.config.ts`. See [running warp from an agent hook](#running-warp-from-an-agent-hook). |
 | `node_modules` | Package authors | A package the config imports, or warp itself, runs as you | Runs what is installed. The lockfile is yours to keep. |
 | Refs given to `warp diff` | You, or CI from pull request data | A ref that git reads as an option | Calls git with argument arrays, never a shell, and resolves each ref with `git rev-parse --verify` before using it. |
-| git config, hooks and filters | You | Side effects when `diff` checks out a ref | See [known limits](#known-limits). |
+| git config, hooks and filters | You | Side effects when `diff` checks out a ref | Writes a ref's files from a temporary index with `git checkout-index`, with Git LFS downloads off. That runs no git hooks and creates no worktree. Your other filters run as they do on any checkout. |
 | `.git/warp-cache/` | Whoever can write `.git/` | Cached findings that hide real ones or fail every run | Trusts the cache. Anyone who can write `.git/` can already run code through `.git/hooks`. |
 | Readers of the output: agents, code scanning, terminals | Downstream tools | Repository text read as instructions or as terminal escape codes | Escapes and caps output, as above. JSON and SARIF are escaped by JSON. |
 
@@ -53,9 +53,8 @@ through an `ask` permission rule, and omp through the example extension's `tool_
 
 ## Known limits
 
-- `warp diff` checks out each ref it hasn't cached with `git worktree add`. That runs your `post-checkout` hook and
-  Git LFS downloads. A run killed partway, as by a hook timeout, leaves the worktree registered and its files in the
-  temporary folder. `git worktree prune` and deleting `warp-*` there clean it up.
+- A `warp diff` run killed partway, as by a hook timeout, leaves the ref's files in a `warp-*` folder in the
+  temporary directory. Deleting it cleans up.
 - Very deep code fails the whole run with "Maximum call stack size exceeded": an expression of about 4,000 terms in
   one file, or an import chain about 3,600 files deep.
 - A cache entry of the wrong shape fails every run until it is deleted. Deleting `.git/warp-cache/` starts fresh.
