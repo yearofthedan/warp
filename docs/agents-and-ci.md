@@ -1,11 +1,10 @@
 # Agents and CI
 
 **Audience:** anyone wiring warp into a coding agent or a CI pipeline.
-**Purpose:** how `diff` measures a change, and the setups for Claude Code and GitHub code scanning.
+**Purpose:** how `diff` measures a change, and the setups for Claude Code, omp and GitHub code scanning.
 
 An agent sees the findings its edit made new or worse while it still has the code in context, and CI gates the
-same delta on the pull request. Both run `warp diff`, with the reporter for the tool that reads it. For omp, see
-[integrations/omp/README.md](../integrations/omp/README.md).
+same delta on the pull request. Both run `warp diff`, with the reporter for the tool that reads it.
 
 ## Diff
 
@@ -73,6 +72,12 @@ in the config. Where `warp` is a dev dependency, use `pnpm exec warp` in the com
 `hookSpecificOutput.additionalContext` response, which Claude reads as context for its next step. When warp itself
 fails, as with a broken config, the response tells Claude that warp is unavailable and why. It says so once, until the
 failure changes or a run succeeds. A repeat exits 1, which Claude Code shows to you without blocking; 2 would block.
+
+## omp
+
+omp runs warp through an extension, [`integrations/omp/warp.ts`](../integrations/omp/warp.ts), which runs the same
+`diff` after each edit with `--reporter omp`. Its page, [integrations/omp/README.md](../integrations/omp/README.md),
+sits beside it and covers loading it into a project.
 
 ## GitHub code scanning
 
