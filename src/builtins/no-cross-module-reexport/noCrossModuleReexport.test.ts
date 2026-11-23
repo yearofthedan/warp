@@ -84,25 +84,25 @@ const check = (root: AnyArchetype, analyzed: FileFacts[], rules?: Ruleset) => {
 const keys = (findings: readonly { rule: string; key: string }[]) =>
   findings.filter((finding) => finding.rule !== 'unclassified').map((finding) => finding.key);
 
-const card = archetype('card')
-  .contains((m) => m.module('src', files('*.ts'), exposes(all())))
-  .exposes(all());
+const card = () =>
+  archetype('card')
+    .contains((m) => m.module('src', files('*.ts'), exposes(all())))
+    .exposes(all());
 
-const uiArchetype = archetype('ui')
-  .requires({ ports: dir() })
-  .contains((m, { required }) =>
-    m
-      .module('cards', dir('{name}'), card)
-      .module(
-        'api',
-        files('index.ts'),
-        exposes(all()).using((m) => [m.cards, required.ports]),
-      )
-      .module('src', files('*.ts'), using([required.ports])),
-  )
-  .exposes((m) => ({ api: m.api }));
-
-const ui = () => uiArchetype;
+const ui = () =>
+  archetype('ui')
+    .requires({ ports: dir() })
+    .contains((m, { required }) =>
+      m
+        .module('cards', dir('{name}'), card())
+        .module(
+          'api',
+          files('index.ts'),
+          exposes(all()).using((m) => [m.cards, required.ports]),
+        )
+        .module('src', files('*.ts'), using([required.ports])),
+    )
+    .exposes((m) => ({ api: m.api }));
 
 const app = (child: AnyArchetype) =>
   archetype('app')
@@ -191,7 +191,7 @@ describe(rule, () => {
 
   it("passes a module's entry re-exporting what its own modules expose", () => {
     const entered = archetype('entered')
-      .contains((m) => m.module('cards', dir('{name}'), card).module('src', files('view.ts'), exposes(all())))
+      .contains((m) => m.module('cards', dir('{name}'), card()).module('src', files('view.ts'), exposes(all())))
       .entry(files('index.ts'));
     assert.deepEqual(
       keys(
@@ -211,7 +211,8 @@ describe(rule, () => {
 
   it('reports nothing where the rule is off, and takes no options', () => {
     const analyzed = [facts('ui/index.ts', [reExport('ui/index.ts', 'ports/folder.ts')])];
-    assert.deepEqual(keys(check(app(ui()), analyzed, ruleset().on(uiArchetype.modules.api, { [rule]: false }))), []);
+    const quiet = ui();
+    assert.deepEqual(keys(check(app(quiet), analyzed, ruleset().on(quiet.modules.api, { [rule]: false }))), []);
     assert.throws(() => noCrossModuleReexport.parseOptions!({ allow: [] }, 'at'), /at: unknown key allow/);
   });
 });

@@ -77,31 +77,35 @@ const check = (root: AnyArchetype, imports: Record<string, readonly Import[]>, r
 const keys = (findings: readonly { key: string }[]) => findings.map((finding) => finding.key);
 
 describe('rule settings', () => {
-  const leaf = archetype('leaf').contains((m) =>
-    m.module('quiet', files('quiet.ts')).module('loud', files('loud.ts')).module('rest', files('*.ts')),
-  );
-  const mid = archetype('mid').contains((m) =>
-    m.module('leaves', dir('{name}'), leaf).module('plain', dir('plain')).module('own', files('*.ts')),
-  );
-  const root = archetype('root').contains((m) => m.module('mid', dir('mid'), mid).module('top', files('*.ts')));
-  const paths = ['top.ts', 'mid/own.ts', 'mid/plain/p.ts', 'mid/a/quiet.ts', 'mid/a/loud.ts', 'mid/a/rest.ts'];
-  const { config, model } = modelOf(
-    root,
-    Object.fromEntries(paths.map((file) => [file, []])),
-    ruleset()
-      .rules({ 'no-cycle': { types: 'count', z: 3 }, 'module-cycle': false })
-      .on(leaf, { 'no-cycle': { types: 'ignore', depth: 2 }, 'module-cycle': false })
-      .on(leaf.modules.quiet, 'off')
-      .on(leaf.modules.loud, { '*': false, 'no-cycle': { types: 'count' } })
-      .on(mid, { 'dependency-direction': { x: 1 } })
-      .on(mid.modules.leaves, { 'no-cycle': false, 'module-cycle': true })
-      .on(mid.modules.plain, { 'dependency-direction': false })
-      .on(root.modules.mid, { 'dependency-direction': { y: 2 } }),
-  );
-  const rules = settings(config, model);
-  const module = (id: string) => model.modules.find((candidate) => candidate.id === id)!;
+  const ruleTree = () => {
+    const leaf = archetype('leaf').contains((m) =>
+      m.module('quiet', files('quiet.ts')).module('loud', files('loud.ts')).module('rest', files('*.ts')),
+    );
+    const mid = archetype('mid').contains((m) =>
+      m.module('leaves', dir('{name}'), leaf).module('plain', dir('plain')).module('own', files('*.ts')),
+    );
+    const root = archetype('root').contains((m) => m.module('mid', dir('mid'), mid).module('top', files('*.ts')));
+    const paths = ['top.ts', 'mid/own.ts', 'mid/plain/p.ts', 'mid/a/quiet.ts', 'mid/a/loud.ts', 'mid/a/rest.ts'];
+    const { config, model } = modelOf(
+      root,
+      Object.fromEntries(paths.map((file) => [file, []])),
+      ruleset()
+        .rules({ 'no-cycle': { types: 'count', z: 3 }, 'module-cycle': false })
+        .on(leaf, { 'no-cycle': { types: 'ignore', depth: 2 }, 'module-cycle': false })
+        .on(leaf.modules.quiet, 'off')
+        .on(leaf.modules.loud, { '*': false, 'no-cycle': { types: 'count' } })
+        .on(mid, { 'dependency-direction': { x: 1 } })
+        .on(mid.modules.leaves, { 'no-cycle': false, 'module-cycle': true })
+        .on(mid.modules.plain, { 'dependency-direction': false })
+        .on(root.modules.mid, { 'dependency-direction': { y: 2 } }),
+    );
+    const rules = settings(config, model);
+    const module = (id: string) => model.modules.find((candidate) => candidate.id === id)!;
+    return { config, model, rules, module };
+  };
 
   it("turns a rule off in a files module with 'off', and '*': false leaves on only the rules listed beside it", () => {
+    const { rules } = ruleTree();
     assert.equal(rules.atFile('mid/a/quiet.ts', 'no-cycle').on, false);
     assert.equal(rules.atFile('mid/a/quiet.ts', 'dependency-direction').on, false);
     assert.deepEqual(rules.atFile('mid/a/loud.ts', 'no-cycle'), {
@@ -112,6 +116,7 @@ describe('rule settings', () => {
   });
 
   it('decides on the nearest level that names the rule: the module, its archetype, then each module above', () => {
+    const { rules } = ruleTree();
     assert.deepEqual(rules.atFile('mid/a/rest.ts', 'no-cycle'), {
       on: false,
       options: { types: 'ignore', depth: 2, z: 3 },
@@ -122,12 +127,14 @@ describe('rule settings', () => {
   });
 
   it("places a module by its declaration, then its archetype, then its parent's", () => {
+    const { rules, module } = ruleTree();
     assert.equal(rules.atModule(module('mid/a'), 'module-cycle').on, true);
     assert.equal(rules.atModule(module('mid'), 'module-cycle').on, false);
     assert.equal(rules.atModule(module('mid/plain'), 'no-cycle').on, true);
   });
 
   it("takes the global settings last, then the rule's defaults, and leaves a rule nobody names on", () => {
+    const { rules } = ruleTree();
     assert.deepEqual(rules.atFile('top.ts', 'no-cycle', { types: 'ignore', w: 4 }), {
       on: true,
       options: { types: 'count', w: 4, z: 3 },
@@ -141,6 +148,7 @@ describe('rule settings', () => {
   });
 
   it("resolves every rule for each module, a rule that's off as false", () => {
+    const { config, model, rules, module } = ruleTree();
     const resolved = rulesOf(config, model, [
       { id: 'no-cycle', defaults: { types: 'ignore' } },
       { id: 'module-cycle' },
@@ -224,15 +232,19 @@ describe('code measures', () => {
       },
     ],
   });
-  const app = archetype('app').contains((m) =>
-    m.module('scripts', files('scripts/*.ts')).module('specs', files('*.test.ts')).module('src', files('*.ts')),
-  );
-  const thresholds = ruleset()
-    .on(app, { 'cognitive-complexity': { max: 20 } })
-    .on(app.modules.scripts, { 'cognitive-complexity': false })
-    .on(app.modules.specs, { 'cognitive-complexity': { max: 30 } });
+  const measuredApp = () => {
+    const app = archetype('app').contains((m) =>
+      m.module('scripts', files('scripts/*.ts')).module('specs', files('*.test.ts')).module('src', files('*.ts')),
+    );
+    const thresholds = ruleset()
+      .on(app, { 'cognitive-complexity': { max: 20 } })
+      .on(app.modules.scripts, { 'cognitive-complexity': false })
+      .on(app.modules.specs, { 'cognitive-complexity': { max: 30 } });
+    return { app, thresholds };
+  };
 
   it("judges each file's functions against the threshold nearest to it, and not where the rule is off", () => {
+    const { app, thresholds } = measuredApp();
     const measured = [complex('a.ts', 25), complex('b.ts', 18), complex('a.test.ts', 25), complex('scripts/c.ts', 40)];
     const { config, model } = modelOf(app, Object.fromEntries(measured.map((file) => [file.path, []])), thresholds);
     const findings = checkModel(config, model, { files: measured }, builtinRules);
@@ -253,29 +265,33 @@ describe('code measures', () => {
 });
 
 describe('cycles', () => {
-  const app = archetype('app').contains((m) =>
-    m
-      .module('domain', dir('domain'), exposes(all()))
-      .module(
-        'infra',
-        dir('infra'),
-        exposes(all()).using((m) => [m.domain]),
-      )
-      .module(
-        'features',
-        dir('{name}'),
-        archetype('feature')
-          .contains((q) => q.module('src', files('**'), exposes(all())))
-          .exposes(all())
-          .using((m) => [m.domain]),
-      )
-      .module(
-        'main',
-        files('main.ts'),
-        using((m) => [m.domain, m.infra, m.features]),
-      ),
-  );
-  const featuresMayLoop = ruleset().on(app.modules.features, { 'module-cycle': false });
+  const loopingApp = () => {
+    const app = archetype('app').contains((m) =>
+      m
+        .module('domain', dir('domain'), exposes(all()))
+        .module(
+          'infra',
+          dir('infra'),
+          exposes(all()).using((m) => [m.domain]),
+        )
+        .module(
+          'features',
+          dir('{name}'),
+          archetype('feature')
+            .contains((q) => q.module('src', files('**'), exposes(all())))
+            .exposes(all())
+            .using((m) => [m.domain]),
+        )
+        .module(
+          'main',
+          files('main.ts'),
+          using((m) => [m.domain, m.infra, m.features]),
+        ),
+    );
+    const featuresMayLoop = ruleset().on(app.modules.features, { 'module-cycle': false });
+    return { app, featuresMayLoop };
+  };
+
   const imports = {
     'main.ts': ['domain/u.ts'],
     'domain/u.ts': ['main.ts'],
@@ -299,8 +315,10 @@ describe('cycles', () => {
     'loop/x.ts': ['loop/q.ts'],
     'loop/q.ts': ['loop/r.ts'],
   } satisfies Record<string, Import[]>;
-  const cycles = (rules = featuresMayLoop) =>
-    check(app, imports, rules).filter((finding) => finding.rule !== 'dependency-direction');
+  const cycles = (tune = (rules: Ruleset) => rules) => {
+    const { app, featuresMayLoop } = loopingApp();
+    return check(app, imports, tune(featuresMayLoop)).filter((finding) => finding.rule !== 'dependency-direction');
+  };
 
   it('reports each loop between files once, counting type-only imports and ignoring imports of the file itself', () => {
     assert.deepEqual(
@@ -434,8 +452,8 @@ describe('cycles', () => {
   });
 
   it("leaves type-only imports out where types is 'ignore'", () => {
-    const ignored = cycles(
-      featuresMayLoop.rules({ 'no-cycle': { types: 'ignore' }, 'module-cycle': { types: 'ignore' } }),
+    const ignored = cycles((rules) =>
+      rules.rules({ 'no-cycle': { types: 'ignore' }, 'module-cycle': { types: 'ignore' } }),
     );
     assert.ok(!keys(ignored).includes('no-cycle:domain/t.ts+infra/z.ts'));
     const loop = ignored.find((finding) => finding.key === 'module-cycle:.:main+domain+infra')!;
@@ -443,6 +461,7 @@ describe('cycles', () => {
   });
 
   it("attaches each rule's docs", () => {
+    const { app, featuresMayLoop } = loopingApp();
     const { config, model, project: facts } = modelOf(app, imports, featuresMayLoop);
     const rules = builtinRules.map((rule) => ({ ...rule, docs: `https://${rule.id}` }));
     const docs = checkModel(config, model, facts, rules);

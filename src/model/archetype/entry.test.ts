@@ -27,46 +27,58 @@ const folders = (paths: readonly string[]): Folders => {
   };
 };
 
-const lib = archetype('lib')
-  .contains((m) =>
-    m
-      .module('core', dir('core'), exposes(all()))
-      .module('hidden', dir('hidden'))
-      .module(
-        'cli',
-        files('*.ts'),
-        using((m) => [m.core]),
-      ),
-  )
-  .entry(files('index.ts'));
+const repoWithEntry = () => {
+  const lib = archetype('lib')
+    .contains((m) =>
+      m
+        .module('core', dir('core'), exposes(all()))
+        .module('hidden', dir('hidden'))
+        .module(
+          'cli',
+          files('*.ts'),
+          using((m) => [m.core]),
+        ),
+    )
+    .entry(files('index.ts'));
 
-const repo = archetype('repo').contains((m) =>
-  m.module('lib', dir('src'), lib).module(
-    'tooling',
-    files('scripts/*.ts'),
-    using((m) => [m.lib]),
-  ),
-);
+  const repo = archetype('repo').contains((m) =>
+    m.module('lib', dir('src'), lib).module(
+      'tooling',
+      files('scripts/*.ts'),
+      using((m) => [m.lib]),
+    ),
+  );
 
-const paths = ['src/index.ts', 'src/cli.ts', 'src/stray/x.ts', 'src/core/a.ts', 'src/hidden/b.ts', 'scripts/build.ts'];
-const { config } = loadConfigData({ root: repo });
-const model = resolveModel(config, folders(paths), paths);
-const judge = verdicts(config, model);
+  const paths = [
+    'src/index.ts',
+    'src/cli.ts',
+    'src/stray/x.ts',
+    'src/core/a.ts',
+    'src/hidden/b.ts',
+    'scripts/build.ts',
+  ];
+  const { config } = loadConfigData({ root: repo });
+  const model = resolveModel(config, folders(paths), paths);
+  const judge = verdicts(config, model);
 
-const verdict = (from: string, to: string): string => {
-  const found = judge.verdict(from, to)!;
-  if (found.allowed) return `allowed: ${grantText(found.grant)}`;
-  return found.reason === 'private' ? `private to ${found.hiddenBy.id}` : found.reason;
+  const verdict = (from: string, to: string): string => {
+    const found = judge.verdict(from, to)!;
+    if (found.allowed) return `allowed: ${grantText(found.grant)}`;
+    return found.reason === 'private' ? `private to ${found.hiddenBy.id}` : found.reason;
+  };
+  return { model, verdict };
 };
 
 describe('a module entry', () => {
   it('belongs to its folder module, ahead of a files module that also matches it, and is never loose', () => {
+    const { model } = repoWithEntry();
     assert.equal(model.moduleOf('src/index.ts')!.id, 'src');
     assert.equal(model.moduleOf('src/cli.ts')!.id, 'src:cli');
     assert.deepEqual(model.moduleOf('src/index.ts')!.looseFiles, ['src/stray/x.ts']);
   });
 
   it("is the module's whole surface", () => {
+    const { verdict } = repoWithEntry();
     assert.deepEqual(
       {
         entry: verdict('scripts/build.ts', 'src/index.ts'),
@@ -78,6 +90,7 @@ describe('a module entry', () => {
   });
 
   it('reaches what its own modules expose, and nothing they keep private', () => {
+    const { verdict } = repoWithEntry();
     assert.deepEqual(
       { core: verdict('src/index.ts', 'src/core/a.ts'), hidden: verdict('src/index.ts', 'src/hidden/b.ts') },
       { core: 'allowed: src uses src/core', hidden: 'private to src/hidden' },

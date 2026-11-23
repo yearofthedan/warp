@@ -6,16 +6,6 @@ import { resolveModel } from '../model/archetype/resolve.ts';
 import { rulesOf } from '../model/archetype/settings.ts';
 import { modelJson, modelText } from './model.ts';
 
-const component = archetype('component')
-  .identify({ marker: '{name}.dom.ts' })
-  .contains((m) => m.module('logic', files('*.ts')).module('dom', files('{name}.dom.ts')));
-const root = archetype('app').contains((m) =>
-  m
-    .module('strings', dir('src/strings'))
-    .module('features', dir('lib/{area}/{name}'))
-    .module('components', dir('src/{name}'), component)
-    .module('main', files('src/main.ts')),
-);
 const paths = [
   'src/main.ts',
   'src/stray.ts',
@@ -24,23 +14,38 @@ const paths = [
   'src/strings/en.ts',
   'lib/orders/list/list.ts',
 ];
-const rules = ruleset()
-  .rules({ 'max-lines': { max: 200 } })
-  .on(root.modules.components, { 'max-lines': { max: 300 } })
-  .on(component.modules.dom, { 'no-cycle': false });
-const { config } = loadConfigData({ root, rulesets: { default: rules } });
-const model = resolveModel(
-  config,
-  {
-    folders: (dir) =>
-      ({ '': ['lib', 'src'], lib: ['orders'], 'lib/orders': ['list'], src: ['card', 'empty', 'strings'] })[dir] ?? [],
-    exists: (path) => paths.includes(path) || path === 'src/empty/empty.dom.ts',
-  },
-  paths,
-);
+
+const resolved = () => {
+  const component = archetype('component')
+    .identify({ marker: '{name}.dom.ts' })
+    .contains((m) => m.module('logic', files('*.ts')).module('dom', files('{name}.dom.ts')));
+  const root = archetype('app').contains((m) =>
+    m
+      .module('strings', dir('src/strings'))
+      .module('features', dir('lib/{area}/{name}'))
+      .module('components', dir('src/{name}'), component)
+      .module('main', files('src/main.ts')),
+  );
+  const rules = ruleset()
+    .rules({ 'max-lines': { max: 200 } })
+    .on(root.modules.components, { 'max-lines': { max: 300 } })
+    .on(component.modules.dom, { 'no-cycle': false });
+  const { config } = loadConfigData({ root, rulesets: { default: rules } });
+  const model = resolveModel(
+    config,
+    {
+      folders: (dir) =>
+        ({ '': ['lib', 'src'], lib: ['orders'], 'lib/orders': ['list'], src: ['card', 'empty', 'strings'] })[dir] ?? [],
+      exists: (path) => paths.includes(path) || path === 'src/empty/empty.dom.ts',
+    },
+    paths,
+  );
+  return { config, model };
+};
 
 describe('modelText', () => {
   it('prints the module tree with each module, its archetype and captures, its files, and the loose files', () => {
+    const { model } = resolved();
     assert.equal(
       modelText(model),
       [
@@ -62,6 +67,7 @@ describe('modelText', () => {
 
 describe('modelText with rules', () => {
   it('lists what each module changes from the one above', () => {
+    const { config, model } = resolved();
     const rules = rulesOf(config, model, [{ id: 'max-lines', defaults: { max: 100 } }, { id: 'no-cycle' }]);
     assert.equal(
       modelText(model, rules),
@@ -88,6 +94,7 @@ describe('modelText with rules', () => {
 
 describe('modelJson', () => {
   it("gives each module's resolved rules when asked", () => {
+    const { config, model } = resolved();
     const rules = rulesOf(config, model, [{ id: 'no-cycle' }]);
     const { modules } = JSON.parse(modelJson(model, rules));
     const rulesOfModule = (id: string) => modules.find((module: { id: string }) => module.id === id).rules;
@@ -96,6 +103,7 @@ describe('modelJson', () => {
   });
 
   it('lists every module with its kind, parent and children by id', () => {
+    const { model } = resolved();
     const { modules } = JSON.parse(modelJson(model));
     assert.deepEqual(modules[0], {
       id: '.',

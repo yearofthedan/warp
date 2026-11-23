@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'vite-plus/test';
+import { beforeEach, describe, it } from 'vite-plus/test';
 import type { ExternalImport, ImportEdge, FileFacts } from '../facts.ts';
 import { all, archetype, dir, exposes, files, pkg, ruleset, using } from './builder.ts';
 import { builtinRules } from '../../builtins/index.ts';
@@ -35,74 +35,6 @@ const folders = (paths: readonly string[]): Folders => {
   };
 };
 
-const runner = archetype('runner')
-  .contains((m) =>
-    m.module('contract', files('contract.ts'), exposes(all())).module(
-      'rest',
-      files('**'),
-      exposes(all()).using((m) => [m.contract]),
-    ),
-  )
-  .exposes((m) => ({ contract: m.contract, rest: m.rest }));
-
-const card = archetype('card')
-  .identify({ marker: '{name}.dom.ts' })
-  .requires({ runner, strings: dir() })
-  .contains((m, { required, self }) =>
-    m
-      .module('sub', dir('{name}'), self)
-      .module('logic', files('*.ts'), exposes(all()).using([required.strings]))
-      .module(
-        'dom',
-        files('{name}.dom.ts'),
-        exposes(all()).using((m) => [m.logic, m.sub.render]),
-      )
-      .module(
-        'page',
-        files('*.page.ts'),
-        exposes(all()).using((m) => [m.dom, m.sub.page]),
-      )
-      .module(
-        'test',
-        files('*.test.ts'),
-        using((m) => [m.logic, m.page, required.runner.contract, pkg('vitest')]),
-      ),
-  )
-  .exposes((m) => ({ render: m.dom, page: m.page }));
-
-const ui = archetype('ui')
-  .contains((m) =>
-    m
-      .module('strings', dir('strings'), exposes(all()))
-      .module('cards', dir('{name}'), card)
-      .module(
-        'shared',
-        files('shared.ts'),
-        exposes(all()).using((m) => [m.strings]),
-      ),
-  )
-  .provides((m) => ({ strings: m.strings }))
-  .exposes(all());
-
-const app = archetype('app')
-  .contains((m) =>
-    m
-      .module('strings', dir('src/strings'), exposes(all()))
-      .module('runner', dir('src/runner'), runner)
-      .module('domain', dir('src/domain'), exposes(all()).using([pkg('node:*'), pkg('lodash.get')]))
-      .module(
-        'ui',
-        dir('src/ui'),
-        ui.using((m) => [m.domain]),
-      )
-      .module(
-        'main',
-        files('src/main.ts'),
-        using((m) => [m.ui]),
-      ),
-  )
-  .provides((m) => ({ runner: m.runner, strings: m.strings }));
-
 const projectFiles = [
   'src/main.ts',
   'src/domain/order.ts',
@@ -126,11 +58,83 @@ const projectFiles = [
 ];
 
 const setup = (): { config: ConfigData; model: Model } => {
+  const runner = archetype('runner')
+    .contains((m) =>
+      m.module('contract', files('contract.ts'), exposes(all())).module(
+        'rest',
+        files('**'),
+        exposes(all()).using((m) => [m.contract]),
+      ),
+    )
+    .exposes((m) => ({ contract: m.contract, rest: m.rest }));
+
+  const card = archetype('card')
+    .identify({ marker: '{name}.dom.ts' })
+    .requires({ runner, strings: dir() })
+    .contains((m, { required, self }) =>
+      m
+        .module('sub', dir('{name}'), self)
+        .module('logic', files('*.ts'), exposes(all()).using([required.strings]))
+        .module(
+          'dom',
+          files('{name}.dom.ts'),
+          exposes(all()).using((m) => [m.logic, m.sub.render]),
+        )
+        .module(
+          'page',
+          files('*.page.ts'),
+          exposes(all()).using((m) => [m.dom, m.sub.page]),
+        )
+        .module(
+          'test',
+          files('*.test.ts'),
+          using((m) => [m.logic, m.page, required.runner.contract, pkg('vitest')]),
+        ),
+    )
+    .exposes((m) => ({ render: m.dom, page: m.page }));
+
+  const ui = archetype('ui')
+    .contains((m) =>
+      m
+        .module('strings', dir('strings'), exposes(all()))
+        .module('cards', dir('{name}'), card)
+        .module(
+          'shared',
+          files('shared.ts'),
+          exposes(all()).using((m) => [m.strings]),
+        ),
+    )
+    .provides((m) => ({ strings: m.strings }))
+    .exposes(all());
+
+  const app = archetype('app')
+    .contains((m) =>
+      m
+        .module('strings', dir('src/strings'), exposes(all()))
+        .module('runner', dir('src/runner'), runner)
+        .module('domain', dir('src/domain'), exposes(all()).using([pkg('node:*'), pkg('lodash.get')]))
+        .module(
+          'ui',
+          dir('src/ui'),
+          ui.using((m) => [m.domain]),
+        )
+        .module(
+          'main',
+          files('src/main.ts'),
+          using((m) => [m.ui]),
+        ),
+    )
+    .provides((m) => ({ runner: m.runner, strings: m.strings }));
+
   const { config } = loadConfigData({ root: app });
   return { config, model: resolveModel(config, folders(projectFiles), projectFiles) };
 };
 
-const { config, model } = setup();
+let config: ConfigData;
+let model: Model;
+beforeEach(() => {
+  ({ config, model } = setup());
+});
 const judge = () => verdicts(config, model);
 const module = (id: string) => model.modules.find((candidate) => candidate.id === id)!;
 
@@ -242,40 +246,44 @@ describe('verdicts', () => {
 });
 
 describe('exposes', () => {
-  const widget = archetype('widget')
-    .contains((m) => m.module('api', files('api.ts'), exposes(all())).module('internals', files('*.ts')))
-    .exposes(all());
-  const shop = archetype('shop').contains((m) =>
-    m
-      .module('app', dir('app'), exposes(files('check.ts', 'ports/*.ts')))
-      .module('widgets', dir('widgets/{name}'), widget)
-      .module('quiet', files('quiet.ts'))
-      .module(
-        'main',
-        files('main.ts'),
-        using((m) => [m.app, m.widgets]),
-      ),
-  );
-  const paths = [
-    'main.ts',
-    'quiet.ts',
-    'app/check.ts',
-    'app/run.ts',
-    'app/ports/store.ts',
-    'app/ports/deep/x.ts',
-    'widgets/a/api.ts',
-    'widgets/a/util.ts',
-    'widgets/a/readme.md',
-  ];
-  const data = loadConfigData({ root: shop }).config;
-  const shopModel = resolveModel(data, folders(paths), paths);
-  const shopVerdict = (from: string, to: string) => {
-    const found = verdicts(data, shopModel).verdict(from, to)!;
-    if (found.allowed) return `allowed: ${grantText(found.grant)}`;
-    return found.reason === 'private' ? `private to ${found.hiddenBy.id}` : found.reason;
+  const shopFixture = () => {
+    const widget = archetype('widget')
+      .contains((m) => m.module('api', files('api.ts'), exposes(all())).module('internals', files('*.ts')))
+      .exposes(all());
+    const shop = archetype('shop').contains((m) =>
+      m
+        .module('app', dir('app'), exposes(files('check.ts', 'ports/*.ts')))
+        .module('widgets', dir('widgets/{name}'), widget)
+        .module('quiet', files('quiet.ts'))
+        .module(
+          'main',
+          files('main.ts'),
+          using((m) => [m.app, m.widgets]),
+        ),
+    );
+    const paths = [
+      'main.ts',
+      'quiet.ts',
+      'app/check.ts',
+      'app/run.ts',
+      'app/ports/store.ts',
+      'app/ports/deep/x.ts',
+      'widgets/a/api.ts',
+      'widgets/a/util.ts',
+      'widgets/a/readme.md',
+    ];
+    const data = loadConfigData({ root: shop }).config;
+    const shopModel = resolveModel(data, folders(paths), paths);
+    const shopVerdict = (from: string, to: string) => {
+      const found = verdicts(data, shopModel).verdict(from, to)!;
+      if (found.allowed) return `allowed: ${grantText(found.grant)}`;
+      return found.reason === 'private' ? `private to ${found.hiddenBy.id}` : found.reason;
+    };
+    return { data, shopModel, shopVerdict };
   };
 
   it("opens the files a files() selector names, inside the module's folder", () => {
+    const { shopVerdict } = shopFixture();
     assert.equal(shopVerdict('main.ts', 'app/check.ts'), 'allowed: main uses m.app');
     assert.equal(shopVerdict('main.ts', 'app/ports/store.ts'), 'allowed: main uses m.app');
     assert.equal(shopVerdict('main.ts', 'app/run.ts'), 'private to app');
@@ -283,12 +291,14 @@ describe('exposes', () => {
   });
 
   it("opens a module's own files and each child's surface with 'all', never a child's private files", () => {
+    const { shopVerdict } = shopFixture();
     assert.equal(shopVerdict('main.ts', 'widgets/a/api.ts'), 'allowed: main uses m.widgets');
     assert.equal(shopVerdict('main.ts', 'widgets/a/readme.md'), 'allowed: main uses m.widgets');
     assert.equal(shopVerdict('main.ts', 'widgets/a/util.ts'), 'private to widgets/a:internals');
   });
 
   it('keeps a module that says nothing closed', () => {
+    const { data, shopModel, shopVerdict } = shopFixture();
     assert.equal(shopVerdict('main.ts', 'quiet.ts'), 'private to .:quiet');
     assert.deepEqual([...verdicts(data, shopModel).surface(shopModel.moduleOf('quiet.ts')!)], []);
   });
