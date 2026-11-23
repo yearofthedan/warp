@@ -123,8 +123,13 @@ pnpm exec warp check
 No findings.
 ```
 
-On a real codebase, the findings left once nothing is `unclassified` are its existing baseline. `warp diff` leaves
-the baseline out, so it needs no fixing first. Commit the config.
+On a real codebase, findings remain once nothing is `unclassified`. Each one says the config and the code disagree,
+and you choose which is wrong: change the config if the design allows what the code does, or fix the code if it
+doesn't. If `src/utils/slug.ts` imported `db` today, either declare `utils` after `db` and add `m.db` to its `using`,
+or move the query out of `slug.ts`. [Fixing findings](fixing-findings.md) helps with the choice.
+
+They needn't all be settled before you commit the config. `warp diff` reports only what a change makes new or worse,
+so the findings there today can be worked through one at a time.
 
 ## 6. Check each change
 

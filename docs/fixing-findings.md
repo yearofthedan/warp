@@ -56,7 +56,8 @@ and stays on everywhere else:
   .on(app.modules.generated, 'off')
 ```
 
-## Leave the baseline for later
+## Work through existing findings one at a time
 
-On an existing codebase, `warp check` reports what was there before the config. `warp diff` reports only what a
-change makes new or worse, so the baseline can be fixed one finding at a time.
+On an existing codebase, `warp check` reports findings that were there before the config. Each is the same choice:
+change the config, or fix the code. `warp diff` reports only what a change makes new or worse, so they can be settled
+one at a time while new work stays checked.
