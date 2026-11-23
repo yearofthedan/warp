@@ -1,10 +1,11 @@
 export type Example = { line: number; code: string; fragment: boolean };
 
 const dated = /^docs\/adr\/\d{4}-[^/]+\.md$/;
+const conventional = /^(README|CHANGELOG|CONTRIBUTING|LICENSE|SECURITY|CODE_OF_CONDUCT)\.md$/;
 const include = /^@\S+\s*$/;
 
 export const headerProblems = (path: string, text: string): string[] => {
-  if (dated.test(path) || include.test(text)) return [];
+  if (dated.test(path) || conventional.test(path) || include.test(text)) return [];
   const lines = text.split('\n').filter((line) => line.trim() !== '');
   const problems: string[] = [];
   if (!lines[0]?.startsWith('# ')) problems.push('opens with a # title');

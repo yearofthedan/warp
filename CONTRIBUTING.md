@@ -1,9 +1,5 @@
 # Contributing
 
-**Audience:** anyone changing warp itself.
-**Purpose:** how to run warp from a clone, and why each compiler, tool, CI and dependency setting is there, so a config
-file holds settings and this page holds reasons.
-
 ## Running a clone
 
 To try a change on another project, link the CLI from a clone. Run `pnpm setup` first if pnpm has no global bin
