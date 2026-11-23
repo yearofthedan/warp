@@ -11,7 +11,11 @@ export interface Grant {
 
 export const grantText = ({ owner, ref }: Grant): string => (ref === undefined ? owner : `${owner} uses ${ref}`);
 
-export type Refusal = { reason: 'private'; hiddenBy: ModuleView } | { reason: 'above' } | { reason: 'not-in-using' };
+export type Refusal =
+  | { reason: 'private'; hiddenBy: ModuleView }
+  | { reason: 'above' }
+  | { reason: 'not-in-using' }
+  | { reason: 'test' };
 
 export type Verdict = { allowed: true; grant: Grant } | ({ allowed: false } & Refusal);
 
@@ -127,12 +131,29 @@ const grants = (state: State, holder: ModuleView, owner: string, refs: readonly 
 const reach = (state: State, file: string): readonly Grant[] | undefined => {
   const module = state.model.moduleOf(file);
   if (!module || module.looseFiles.includes(file)) return undefined;
+  if (state.model.isTest(file)) return testReach(state, module);
   let found = state.reaches.get(module.id);
   if (!found) {
     const granted = [{ owner: `own module ${module.id}`, files: new Set(module.files) }, ...using(state, module)];
     if (module.kind === 'files') granted.push(...using(state, module.parent!));
     found = granted;
     state.reaches.set(module.id, found);
+  }
+  return found;
+};
+
+const testReach = (state: State, owner: ModuleView): readonly Grant[] => {
+  const key = `tests\0${owner.id}`;
+  let found = state.reaches.get(key);
+  if (!found) {
+    const own = owner.children.filter((child) => child.kind === 'files').map((child) => new Set(child.files));
+    const children = owner.children.filter((child) => child.kind === 'dir');
+    found = [
+      { owner: `tests of ${owner.id}`, files: union([new Set(owner.files), ...own]) },
+      ...children.map((child) => ({ owner: `tests of ${owner.id}`, ref: child.id, files: surface(state, child) })),
+      ...(owner.parent ? using(state, owner) : []),
+    ];
+    state.reaches.set(key, found);
   }
   return found;
 };
@@ -150,6 +171,7 @@ const verdict = (state: State, from: string, to: string): Verdict | undefined =>
   if (!granted || !target) return undefined;
   const grant = granted.find((candidate) => candidate.files.has(to));
   if (grant) return { allowed: true, grant };
+  if (state.model.isTest(to) && !state.model.isTest(from)) return { allowed: false, reason: 'test' };
   return { allowed: false, ...refusal(state, state.model.moduleOf(from)!, target, to) };
 };
 
