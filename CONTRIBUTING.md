@@ -65,5 +65,7 @@ per mutant, so the integration and e2e tiers cover them. `stryker.vitest.config.
   `acceptance/working-title/source`, nightly and on demand. It stays off pull requests because it reaches another
   repository and its answer moves with the model.
 - `release.yml` publishes through npm trusted publishing: the registry trusts the workflow's OIDC token, so no npm
-  token is stored ([npm](https://docs.npmjs.com/trusted-publishers)).
+  token is stored ([npm](https://docs.npmjs.com/trusted-publishers)). One job installs, builds and packs with no
+  token, and the publish job, the only one that can mint the OIDC token, runs no checkout, install or package
+  script: a dependency compromised at build time can't publish.
 - Each action is pinned to a commit, with its version in a trailing `# v1.2.3` that Renovate keeps in step.

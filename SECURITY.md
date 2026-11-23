@@ -24,6 +24,7 @@ Each row is an input warp doesn't control.
 | Readers of the output: agents, code scanning, terminals | Downstream tools | Repository text read as instructions or as terminal escape codes | Escapes and caps output, as above. JSON and SARIF are escaped by JSON. |
 
 warp's own releases are published from CI through npm trusted publishing with provenance, so no npm token is stored.
+The job that can publish runs no install, build or package script: it publishes a tarball an earlier job packed.
 Every GitHub Action in that workflow is pinned to a commit. `typescript` is warp's only runtime dependency, pinned to
 an exact version.
 
