@@ -165,6 +165,37 @@ describe('rule settings', () => {
   });
 });
 
+describe('placing findings', () => {
+  it("names the module of each finding's file, its tests apart, and no module for the config", () => {
+    const app = archetype('app').contains((m) =>
+      m.module('domain', dir('domain'), exposes(all())).module(
+        'infra',
+        dir('infra'),
+        using((m) => [m.domain]),
+      ),
+    );
+    const { config } = loadConfigData({ root: app, tests: files('**/*.test.ts') });
+    const paths = ['domain/order.ts', 'domain/order.test.ts', 'infra/db.ts', 'loose.ts'];
+    const model = resolveModel(config, folders(paths), paths);
+    const facts = project({
+      'domain/order.ts': ['infra/db.ts'],
+      'domain/order.test.ts': ['infra/db.ts'],
+      'infra/db.ts': [],
+      'loose.ts': [],
+    });
+    assert.deepEqual(
+      checkModel(config, model, facts, builtinRules).map((finding) => [finding.file, finding.module]),
+      [
+        ['loose.ts', '.'],
+        ['domain/order.ts', 'domain'],
+        ['domain/order.test.ts', 'domain:tests'],
+        ['warp.config.ts', undefined],
+        ['warp.config.ts', undefined],
+      ],
+    );
+  });
+});
+
 describe('code measures', () => {
   const complex = (file: string, total: number): FileFacts => ({
     path: file,
@@ -292,6 +323,7 @@ describe('cycles', () => {
       key: 'no-cycle:domain/q.ts->domain/r.ts',
       file: 'domain/q.ts',
       line: 2,
+      module: 'domain',
       value: 1,
       message:
         'domain/q.ts imports domain/r.ts, which leads back to it: domain/q.ts -> domain/r.ts -> domain/p.ts -> domain/q.ts. Break the loop: move what both need into a file they both import, or invert one import.',

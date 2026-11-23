@@ -22,9 +22,33 @@ describe('reporters', () => {
   it('text prints each finding and a count', () => {
     assert.equal(
       render('text', { mode: 'check', findings: [finding] }),
-      'src/a.ts:3 [cognitive-complexity] Too complex.\n\n1 finding',
+      'src/a.ts:3 [cognitive-complexity] Too complex.\n\nBy rule and module:\n  cognitive-complexity  -  1\n\n1 finding',
     );
+    assert.equal(render('text', { mode: 'check', findings: [] }), 'No findings.');
     assert.equal(render('text', diff([])), '0 new findings, 0 worsened, 0 resolved.');
+  });
+
+  it('text counts findings by rule and module, most first, then by name', () => {
+    const at = (rule: string, module: string): Finding => ({ ...finding, rule, module });
+    const findings = [
+      at('no-cycle', 'domain'),
+      at('function-cohesion', 'domain:tests'),
+      at('function-cohesion', 'domain:tests'),
+      at('cognitive-complexity', 'infra'),
+      at('cognitive-complexity', 'domain'),
+      ...Array.from({ length: 10 }, () => at('file-cohesion', 'adapters')),
+    ];
+    const lines = render('text', { mode: 'check', findings }).split('\n');
+    assert.deepEqual(lines.slice(findings.length + 1), [
+      'By rule and module:',
+      '  file-cohesion         adapters      10',
+      '  function-cohesion     domain:tests   2',
+      '  cognitive-complexity  domain         1',
+      '  cognitive-complexity  infra          1',
+      '  no-cycle              domain         1',
+      '',
+      '15 findings',
+    ]);
   });
 
   it('sarif locates results from the repository root and fingerprints them by key', () => {

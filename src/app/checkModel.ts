@@ -19,7 +19,13 @@ export const checkModel = (
     const findings = run(rule, { project, config, model, verdicts: judged }, settled);
     return rule.docs ? findings.map((finding) => ({ ...finding, docs: rule.docs })) : findings;
   });
-  return [...unclassifiedFindings(model, settled, unclassifiedDocs), ...found];
+  return [...unclassifiedFindings(model, settled, unclassifiedDocs), ...found].map((finding) => placed(model, finding));
+};
+
+const placed = (model: Model, finding: Finding): Finding => {
+  const module = model.moduleOf(finding.file);
+  if (!module) return finding;
+  return { ...finding, module: model.isTest(finding.file) ? `${module.id}:tests` : module.id };
 };
 
 type Shared = Omit<ProjectContext<object>, 'atFile' | 'atModule'>;

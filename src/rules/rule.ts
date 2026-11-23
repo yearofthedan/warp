@@ -9,6 +9,7 @@ export interface Finding {
   key: string;
   file: string;
   line: number;
+  module?: string;
   value: number;
   limit?: number;
   message: string;

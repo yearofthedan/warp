@@ -8,7 +8,30 @@ export const textReporter: Reporter = {
 };
 
 const checkText = (findings: Finding[]): string =>
-  findings.length === 0 ? 'No findings.' : [...findings.map(line), '', count(findings.length, 'finding')].join('\n');
+  findings.length === 0
+    ? 'No findings.'
+    : [
+        ...findings.map(line),
+        '',
+        'By rule and module:',
+        ...summary(findings),
+        '',
+        count(findings.length, 'finding'),
+      ].join('\n');
+
+const summary = (findings: Finding[]): string[] => {
+  const groups = Map.groupBy(findings, (finding) => `${finding.rule}\t${finding.module ?? '-'}`);
+  const rows = [...groups]
+    .map(([group, members]) => [...group.split('\t'), String(members.length)] as const)
+    .toSorted(([rule, module, n], [otherRule, otherModule, other]) => {
+      const byCount = Number(other) - Number(n);
+      return byCount || rule.localeCompare(otherRule) || module.localeCompare(otherModule);
+    });
+  const width = (column: 0 | 1 | 2) => Math.max(...rows.map((row) => row[column].length));
+  return rows.map(
+    ([rule, module, n]) => `  ${rule.padEnd(width(0))}  ${module.padEnd(width(1))}  ${n.padStart(width(2))}`,
+  );
+};
 
 export const diffText = (delta: Delta): string => {
   const lines = [
