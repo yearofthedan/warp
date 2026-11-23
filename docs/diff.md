@@ -64,6 +64,7 @@ fresh.
   the edited files and the files that import them. A change to a file's imports, to the compiler options, to warp,
   or to a package in `node_modules` redoes the files it affects. A change to a `.d.ts` file in the project redoes
   every file.
-- **Findings.** A ref is checked out into a temporary git worktree that links the project's `node_modules`. Its
+- **Findings.** A ref's files are written to a temporary folder that links the project's `node_modules`, with no
+  worktree, git hooks or Git LFS downloads. Its
   findings are cached by commit, config (with the custom rules it imports), ruleset and warp version, so repeated
   runs against the same base analyse only the head. Entries unread for 30 days are pruned.
