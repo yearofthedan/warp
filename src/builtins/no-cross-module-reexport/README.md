@@ -17,19 +17,19 @@ file where the leak starts.
 A re-export is `export { x } from`, `export * from`, `export * as ns from`, or an imported name exported again with
 `export { x }` or `export default x`. Type-only re-exports count. Each is judged on the file its specifier names.
 
-A module owns its own files and the modules nested in it, so a barrel over its own parts or its children's surfaces
+A module owns its own files and the modules nested in it, so a barrel over its own files or its children's surfaces
 passes. A re-export of a sibling's, an ancestor's or a provided module's file is a finding.
 
 With this archetype:
 
 ```ts
-import { archetype } from 'warp';
+import { archetype, dir, using } from 'warp';
 
-const app = archetype('app').contains((p) =>
-  p
-    .dir('domain', 'src/domain')
-    .dir('ports', 'src/ports', { using: (s) => [s.domain] })
-    .dir('application', 'src/application', { using: (s) => [s.domain, s.ports] }),
+const app = archetype('app').contains((m) =>
+  m
+    .module('domain', dir('src/domain'))
+    .module('ports', dir('src/ports'), using((s) => [s.domain]))
+    .module('application', dir('src/application'), using((s) => [s.domain, s.ports])),
 );
 ```
 
@@ -60,8 +60,8 @@ export const openProject = (folder: ProjectsFolder, name: string) => folder.open
 ```
 
 There is one finding per pair of files, keyed `no-cross-module-reexport:src/application/project.ts->src/ports/projects-folder.ts`.
-Its value is the number of names re-exported (1 for `export *`). The finding's `details` gives both files' module and
-part, the names and the edges.
+Its value is the number of names re-exported (1 for `export *`). The finding's `details` gives both files' modules, the
+names and the edges.
 
 ## Options
 
@@ -71,5 +71,5 @@ directly, the module wraps it in its own type, or the other module moves inside 
 ## When not to use it
 
 When an archetype exists to present its siblings as one API and the structure can't change yet. Turn the rule off for
-that archetype or part in a ruleset, `.on(facade, { 'no-cross-module-reexport': false })`, so it stays on everywhere
+that archetype or module in a ruleset, `.on(facade, { 'no-cross-module-reexport': false })`, so it stays on everywhere
 else.

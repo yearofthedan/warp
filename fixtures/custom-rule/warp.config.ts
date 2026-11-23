@@ -1,15 +1,15 @@
-import { archetype, defineConfig, ruleset } from 'warp';
+import { all, archetype, defineConfig, exposes, files, ruleset, using } from 'warp';
 import wt from './rules/noPortsThroughApplication.ts';
 
-const app = archetype('app').contains((p) =>
-  p
-    .files('domain', 'src/domain/**')
-    .files('application', 'src/application/**', { using: (s) => [s.domain] })
-    .files('ui', 'src/ui/**', { using: (s) => [s.application, s.domain] }),
-).exposes(() => ({}));
+const app = archetype('app').contains((m) =>
+  m
+    .module('domain', files('src/domain/**'), exposes(all()))
+    .module('application', files('src/application/**'), exposes(files('src/application/index.ts')).using((s) => [s.domain]))
+    .module('ui', files('src/ui/**'), using((s) => [s.application, s.domain])),
+);
 
 const base = ruleset()
   .rules({ 'wt/no-ports-through-application': false })
-  .on(app.ui, { 'wt/no-ports-through-application': true });
+  .on(app.modules.ui, { 'wt/no-ports-through-application': true });
 
 export default defineConfig({ root: app, plugins: { wt }, rulesets: { default: base } });

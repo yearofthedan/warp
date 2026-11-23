@@ -36,32 +36,29 @@ export const loadConfigData = (raw: unknown, { builtins, ruleset }: LoadOptions 
   if (!root) throw new ConfigError("config.root: expected an archetype, archetype('name')...");
 
   const rules = [...registry([...(builtins ?? []), ...pluginRules(plugins(raw.plugins, fail))]).values()];
-  const drafts = [...collect(root, fail)].map(([name, state]) => draft(name, state, fail));
+  const drafts = [...collect(root.definition, fail)].map(([name, state]) => draft(name, state, fail));
   const check: Check = {
     fail,
     ruleIds: builtins && new Set([...rules.map((rule) => rule.id), unclassified]),
     options: Object.fromEntries(rules.map((rule) => [rule.id, rule.parseOptions ?? noOptions])),
-    surfacesOf: (name) => {
-      const exposes = drafts.find((d) => d.data.name === name)?.exposes;
-      return exposes && Object.keys(exposes);
-    },
+    exposesOf: (name) => drafts.find((d) => d.data.name === name)?.exposes,
   };
   for (const d of drafts) resolveDraft(check, d);
   const structure: ConfigData = {
-    root: root.name as string,
+    root: root.definition.name as string,
     archetypes: Object.fromEntries(drafts.map(({ data }) => [data.name, archetypeData(data)])),
     tsconfig: tsconfigs(raw.tsconfig, fail),
   };
   const config = withRuleset(structure, raw.rulesets, ruleset, (value, at) => toRules(check, value, at), fail);
-  for (const d of drafts) checkUnused(d, fail);
+  checkUnused(drafts, fail);
   failed();
   const warnings = checkRequirements(config.archetypes, config.root, fail);
   failed();
   return { config, rules, warnings };
 };
 
-const archetypeData = ({ name, description, identify, requires, parts, exposes, provides }: ArchetypeData) =>
-  defined({ name, description, identify, requires, parts: parts.map(defined), exposes, provides });
+const archetypeData = ({ name, inline, description, identify, requires, modules, exposes, provides }: ArchetypeData) =>
+  defined({ name, inline, description, identify, requires, modules: modules.map(defined), exposes, provides });
 
 const plugins = (value: unknown, fail: Fail): Record<string, unknown> => {
   if (value === undefined) return {};

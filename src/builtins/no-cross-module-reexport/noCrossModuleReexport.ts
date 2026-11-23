@@ -48,8 +48,8 @@ const passedThrough = (
       `importers reach ${target.id} through ${module.id}. Have importers that need it use ${target.id} directly, give ` +
       `${module.id} its own type that hides it, or move it into ${module.id} if ${module.id} owns it.`,
     details: {
-      from: { module: module.id, part: model.partOf(from) },
-      to: { module: target.id, part: model.partOf(to) },
+      from: module.id,
+      to: target.id,
       names,
       edges,
     },

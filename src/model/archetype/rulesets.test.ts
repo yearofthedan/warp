@@ -2,17 +2,17 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { builtinRegistry } from '../../builtins/index.ts';
 import { ConfigError } from '../configError.ts';
-import { archetype, ruleset } from './builder.ts';
+import { archetype, dir, files, ruleset } from './builder.ts';
 import { loadConfigData } from '../../app/load.ts';
 
-const leaf = archetype('leaf').contains((p) => p.files('src', '*.ts').files('test', '*.test.ts'));
-const root = archetype('root').contains((p) => p.dir('leaves', '{name}', leaf));
+const leaf = archetype('leaf').contains((m) => m.module('src', files('*.ts')).module('test', files('*.test.ts')));
+const root = archetype('root').contains((m) => m.module('leaves', dir('{name}'), leaf));
 const builtins = [...builtinRegistry.values()];
 
 const base = ruleset()
   .rules({ 'cognitive-complexity': { max: 15 }, 'module-cycle': false })
   .on(leaf, { 'file-cohesion': { maxLines: 300 } })
-  .on(leaf.test, 'off');
+  .on(leaf.modules.test, 'off');
 
 const load = (rulesets: Record<string, unknown> | undefined, name?: string) =>
   loadConfigData({ root, ...(rulesets ? { rulesets } : {}) }, { builtins, ...(name ? { ruleset: name } : {}) }).config;
@@ -28,12 +28,12 @@ const failures = (rulesets: Record<string, unknown>, name?: string): string[] =>
 };
 
 describe('rulesets', () => {
-  it('apply the default ruleset at each level its lines name: global, an archetype, a part', () => {
+  it('apply the default ruleset at each level its lines name: global, an archetype, a module', () => {
     const config = load({ default: base });
     assert.deepEqual(config.rules, { 'cognitive-complexity': { max: 15 }, 'module-cycle': false });
     assert.deepEqual(config.archetypes.leaf!.rules, { 'file-cohesion': { maxLines: 300 } });
     assert.deepEqual(
-      config.archetypes.leaf!.parts.map((part) => part.rules),
+      config.archetypes.leaf!.modules.map((module) => module.rules),
       [undefined, 'off'],
     );
     assert.equal(config.archetypes.root!.rules, undefined);
@@ -53,8 +53,8 @@ describe('rulesets', () => {
       .rules({ 'cognitive-complexity': { max: 12 }, 'module-cycle': true, 'no-cycle': false })
       .rules({ 'cognitive-complexity': true, 'file-cohesion': { maxLines: 100 } })
       .on(leaf, { 'file-cohesion': false })
-      .on(leaf.test, { 'no-cycle': true })
-      .on(root.leaves, 'off');
+      .on(leaf.modules.test, { 'no-cycle': true })
+      .on(root.modules.leaves, 'off');
     const config = load({ default: base, edit }, 'edit');
     assert.deepEqual(config.rules, {
       'cognitive-complexity': { max: 12 },
@@ -63,8 +63,8 @@ describe('rulesets', () => {
       'file-cohesion': { maxLines: 100 },
     });
     assert.deepEqual(config.archetypes.leaf!.rules, { 'file-cohesion': false });
-    assert.deepEqual(config.archetypes.leaf!.parts[1]!.rules, { '*': false, 'no-cycle': true });
-    assert.equal(config.archetypes.root!.parts[0]!.rules, 'off');
+    assert.deepEqual(config.archetypes.leaf!.modules[1]!.rules, { '*': false, 'no-cycle': true });
+    assert.equal(config.archetypes.root!.modules[0]!.rules, 'off');
   });
 
   it('extend a base the config does not list', () => {
@@ -77,27 +77,27 @@ describe('rulesets', () => {
     assert.throws(() => load(undefined, 'pr'), /no ruleset called pr\. The config declares none/);
   });
 
-  it('refuse what is not a ruleset, and a target that is not an archetype or one of its parts', () => {
-    const stranger = archetype('stranger').contains((p) => p.files('src', '**'));
+  it('refuse what is not a ruleset, and a target that is not an archetype or one of its modules', () => {
+    const stranger = archetype('stranger').contains((m) => m.module('src', files('**')));
     const odd = ruleset()
       .extends({} as never)
       .on('leaf' as never, {})
       .on(stranger, {})
-      .on(stranger.src, {});
+      .on(stranger.modules.src, {});
     assert.deepEqual(failures({ default: odd, plain: { rules: {} } }), [
       'config.rulesets.plain: expected a ruleset, ruleset().rules(...)',
       'rulesets.default.extends: expected a ruleset',
-      'rulesets.default.on: expected an archetype or one of its parts, such as component or component.logic',
+      'rulesets.default.on: expected an archetype or one of its modules, such as component or component.modules.logic',
       'rulesets.default.on(stranger): stranger is not in the config',
-      'rulesets.default.on(stranger.src): stranger is not in the config',
+      'rulesets.default.on(stranger.modules.src): stranger is not in the config',
     ]);
     assert.deepEqual(failures([] as never), ['config.rulesets: expected rulesets by name, { default: base, edit }']);
   });
 
-  it('refuse a part the archetype does not have', () => {
-    const renamed = archetype('leaf').contains((p) => p.files('lib', '*.ts'));
-    assert.deepEqual(failures({ default: ruleset().on(renamed.lib, {}) }), [
-      'rulesets.default.on(leaf.lib): leaf has parts src, test',
+  it('refuse a module the archetype does not have', () => {
+    const renamed = archetype('leaf').contains((m) => m.module('lib', files('*.ts')));
+    assert.deepEqual(failures({ default: ruleset().on(renamed.modules.lib, {}) }), [
+      'rulesets.default.on(leaf.modules.lib): leaf has modules src, test',
     ]);
   });
 
@@ -106,18 +106,40 @@ describe('rulesets', () => {
   });
 });
 
-describe('part handles', () => {
-  it("are typed after the parts, and a part can't take an archetype method's name", () => {
-    // @ts-expect-error no part called lib
-    assert.equal(leaf.lib, undefined);
-    const clash = archetype('clash').contains((p) =>
-      // @ts-expect-error a part named exposes would hide the method
-      p.files('exposes', '*.ts'),
+describe('module handles', () => {
+  it('are typed after the modules, under modules, so a module may take any name', () => {
+    // @ts-expect-error no module called lib
+    assert.equal(leaf.modules.lib, undefined);
+    const named = archetype('named').contains((m) => m.module('exposes', files('*.ts')));
+    assert.equal(typeof named.exposes, 'function');
+    assert.equal(typeof named.modules.exposes, 'object');
+    assert.doesNotThrow(() => loadConfigData({ root: named }));
+  });
+
+  it('nest through an inline contains, and name the module in a ruleset by the path to it', () => {
+    const app = archetype('app').contains((m) =>
+      m.module(
+        'core',
+        dir('core'),
+        archetype().contains((q) => q.module('ports', files('ports.ts'))),
+      ),
     );
-    assert.equal(typeof clash.exposes, 'function');
-    assert.throws(
-      () => loadConfigData({ root: clash }),
-      /clash: a part named exposes would hide the archetype's exposes/,
+    // @ts-expect-error no module called adapters inside core
+    assert.equal(app.modules.core.modules.adapters, undefined);
+    const config = loadConfigData(
+      { root: app, rulesets: { default: ruleset().on(app.modules.core.modules.ports, 'off') } },
+      { builtins },
+    ).config;
+    assert.equal(config.archetypes['app.core']!.modules[0]!.rules, 'off');
+    const stray = archetype('stray').contains((m) =>
+      m.module(
+        'core',
+        dir('core'),
+        archetype().contains((q) => q.module('ports', files('ports.ts'))),
+      ),
     );
+    assert.deepEqual(failures({ default: ruleset().on(stray.modules.core.modules.ports, {}) }), [
+      'rulesets.default.on(stray.modules.core.modules.ports): stray.core is not in the config',
+    ]);
   });
 });

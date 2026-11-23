@@ -215,7 +215,7 @@ describe('a warp.config.ts with a plugin', () => {
     commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
   });
 
-  it('is found without --config and runs the plugin rule on the parts that turn it on', () => {
+  it('is found without --config and runs the plugin rule on the modules that turn it on', () => {
     const checked = run('check', '--reporter', 'json');
     assert.equal(checked.status, 0, checked.stderr);
     assert.deepEqual(JSON.parse(checked.stdout).findings, [
@@ -289,13 +289,13 @@ describe('rulesets', () => {
         .replace('export default', 'const plain =')
         .replace(
           'const base = ruleset().rules({',
-          "const base = ruleset().on(hexagon.app, { 'cognitive-complexity': false }).rules({",
+          "const base = ruleset().on(hexagon.modules.app, { 'cognitive-complexity': false }).rules({",
         )
         .concat(
           'const edit = ruleset()\n',
           '  .extends(base)\n',
           "  .rules({ 'file-cohesion': { maxLines: 10 } })\n",
-          "  .on(hexagon.app, { 'cognitive-complexity': true, 'function-cohesion': false });\n",
+          "  .on(hexagon.modules.app, { 'cognitive-complexity': true, 'function-cohesion': false });\n",
           "const stray = ruleset().on(archetype('stranger'), { 'no-cycle': false });\n",
           'export default defineConfig({ ...plain, rulesets: { default: base, edit, stray } });\n',
         ),
@@ -322,16 +322,16 @@ describe('rulesets', () => {
     assert.deepEqual([delta.added, delta.worsened, delta.resolved], [[], [], []]);
   });
 
-  it('shows the rules each part resolves to under the ruleset', () => {
+  it('shows the rules each module resolves to under the ruleset', () => {
     const { modules } = JSON.parse(run('model', '--ruleset', 'edit', '--json').stdout);
-    const rules = (id: string) => modules.find((module: { id: string }) => module.id === id).rules.parts.src;
-    assert.deepEqual(rules('src/app')['file-cohesion'], { maxLines: 10 });
-    assert.deepEqual(rules('src/app')['cognitive-complexity'], { max: 4 });
-    assert.equal(rules('src/app')['function-cohesion'], false);
-    assert.deepEqual(rules('src/domain')['function-cohesion'], { maxLines: 6 });
+    const rules = (id: string) => modules.find((module: { id: string }) => module.id === id).rules;
+    assert.deepEqual(rules('src/app:src')['file-cohesion'], { maxLines: 10 });
+    assert.deepEqual(rules('src/app:src')['cognitive-complexity'], { max: 4 });
+    assert.equal(rules('src/app:src')['function-cohesion'], false);
+    assert.deepEqual(rules('src/domain:src')['function-cohesion'], { maxLines: 6 });
     assert.match(
       run('model', '--ruleset', 'edit', '--rules').stdout,
-      /src\/app {2}app: layer {2}src: 2\n {4}rules in module: function-cohesion off\n/,
+      /src\/app {2}app: layer\n {4}rules: function-cohesion off\n {4}src\/app:src {2}2 files\n/,
     );
   });
 
@@ -361,29 +361,36 @@ describe('a warp.config.ts with archetypes', () => {
     commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
   });
 
-  it('prints the modules it finds, with the files of both tsconfigs in their parts', () => {
+  it('prints the modules it finds, with the files of both tsconfigs in their modules', () => {
     const modelled = run('model');
     assert.equal(modelled.status, 0, modelled.stderr);
     assert.equal(
       modelled.stdout,
       [
-        '.  root: app  main: 1',
+        '.  root: app',
         '  loose: src/stray.ts',
-        '  src/domain  domain: layer  src: 1, index: 1, test: 1',
-        '  src/ui  ui: ui  no files',
-        '    src/ui/card  ui.components: component {name=card}  logic: 1, dom: 1',
-        '    src/ui/strings  ui.strings: plain folder  1 files',
+        '  src/domain  domain: layer',
+        '    src/domain:src  1 file',
+        '    src/domain:index  1 file',
+        '    src/domain:test  1 file',
+        '  src/ui  ui: ui',
+        '    src/ui/strings  strings: ui.strings, 1 file',
+        '    src/ui/card  components: component {name=card}',
+        '      src/ui/card:logic  1 file',
+        '      src/ui/card:dom  1 file',
+        '  .:main  1 file',
         '',
-        '5 modules, 8 files, 1 loose.',
+        '11 modules, 8 files, 1 loose.',
         '',
       ].join('\n'),
     );
     const { modules } = JSON.parse(run('model', '--json').stdout);
-    assert.deepEqual(modules[1].parts, {
-      src: ['src/domain/order.ts'],
-      index: ['src/domain/index.ts'],
-      test: ['src/domain/order.test.ts'],
-    });
+    const filesOf = (id: string) => modules.find((module: { id: string }) => module.id === id).files;
+    assert.deepEqual(['src/domain:src', 'src/domain:index', 'src/domain:test'].map(filesOf), [
+      ['src/domain/order.ts'],
+      ['src/domain/index.ts'],
+      ['src/domain/order.test.ts'],
+    ]);
   });
 
   it('reports loose files and imports and packages outside their reach, passing a barrel on a surface', () => {
@@ -396,6 +403,7 @@ describe('a warp.config.ts with archetypes', () => {
         'unclassified:src/stray.ts',
         'dependency-direction:src/ui/card/card.ts->src/domain/order.ts',
         'module-externals:src/ui/card/card.ts->node:util',
+        'no-cross-module-reexport:src/domain/index.ts->src/domain/order.ts',
       ],
     );
     assert.match(findings[2].docs, /src\/builtins\/module-externals\/README\.md$/);
@@ -415,7 +423,14 @@ describe('a warp.config.ts with archetypes', () => {
     const delta = JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout);
     assert.deepEqual(
       delta.added.map((finding: { key: string }) => finding.key),
-      ['unclassified:src/loose.ts', 'dependency-direction:src/domain/order.test.ts->src/main.ts'],
+      [
+        'unclassified:src/loose.ts',
+        'dependency-direction:src/domain/order.test.ts->src/main.ts',
+        'module-cycle:src/ui->src/domain',
+        'module-cycle:src/domain->.:main',
+        'module-cycle:.:main->src/domain',
+        'module-cycle:.:main->src/ui',
+      ],
     );
   });
 
@@ -423,24 +438,24 @@ describe('a warp.config.ts with archetypes', () => {
     writeFileSync(
       join(dir, 'tied.config.ts'),
       [
-        "import { archetype, defineConfig } from 'warp';",
-        "export default defineConfig({ root: archetype('app').contains((p) => p.files('a', 'src/*.ts').files('b', '**/*.ts')) });",
+        "import { archetype, defineConfig, files } from 'warp';",
+        "export default defineConfig({ root: archetype('app').contains((m) => m.module('a', files('src/*.ts')).module('b', files('**/*.ts'))) });",
         '',
       ].join('\n'),
     );
     const modelled = run('model', '--config', 'tied.config.ts');
     assert.equal(modelled.status, 2);
-    assert.match(modelled.stderr, /src\/main\.ts: app's files parts a \('src\/\*\.ts'\) and b \('\*\*\/\*\.ts'\)/);
+    assert.match(modelled.stderr, /src\/main\.ts: app's files modules a \('src\/\*\.ts'\) and b \('\*\*\/\*\.ts'\)/);
   });
 
   it("checks a ruleset's rule ids and each rule's options against the rules the config runs", () => {
     writeFileSync(
       join(dir, 'rules.config.ts'),
       [
-        "import { archetype, defineConfig } from 'warp';",
+        "import { archetype, defineConfig, files } from 'warp';",
         "import { ruleset } from 'warp';",
-        "const app = archetype('app').contains((p) => p.files('src', '**'));",
-        "const base = ruleset().rules({ 'module-cycle': { types: 'always' } }).on(app.src, { 'no-such-rule': false });",
+        "const app = archetype('app').contains((m) => m.module('src', files('**')));",
+        "const base = ruleset().rules({ 'module-cycle': { types: 'always' } }).on(app.modules.src, { 'no-such-rule': false });",
         'export default defineConfig({ root: app, rulesets: { default: base } });',
         '',
       ].join('\n'),
@@ -449,7 +464,7 @@ describe('a warp.config.ts with archetypes', () => {
     assert.equal(checked.status, 2);
     assert.equal(
       checked.stderr,
-      "warp config: rulesets.default.rules.module-cycle.types: expected 'count' or 'ignore'\nrulesets.default.on(app.src): no rule called no-such-rule\n",
+      "warp config: rulesets.default.rules.module-cycle.types: expected 'count' or 'ignore'\nrulesets.default.on(app.modules.src): no rule called no-such-rule\n",
     );
   });
 });

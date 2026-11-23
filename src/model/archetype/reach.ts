@@ -1,6 +1,6 @@
-import type { ArchetypeData, ConfigData, PartRefData, RefData } from './data.ts';
+import type { ConfigData, ExposesData, ModuleRefData, RefData } from './data.ts';
 import { show } from './references.ts';
-import type { Model, ModuleView } from './resolve.ts';
+import { declarationOf, fillPattern, globRegex, type Model, type ModuleView } from './resolve.ts';
 
 export interface Grant {
   owner: string;
@@ -17,6 +17,7 @@ export type Verdict = { allowed: true; grant: Grant } | ({ allowed: false } & Re
 
 export interface Verdicts {
   reach(file: string): readonly Grant[] | undefined;
+  exposes(module: ModuleView): ExposesData | undefined;
   surface(module: ModuleView, name?: string): ReadonlySet<string>;
   verdict(from: string, to: string): Verdict | undefined;
   files(module: ModuleView, ref: RefData): ReadonlySet<string>;
@@ -30,8 +31,6 @@ const union = (sets: Iterable<ReadonlySet<string>>): Set<string> => {
   for (const set of sets) for (const file of set) all.add(file);
   return all;
 };
-
-const partName = (module: ModuleView): string => module.part!.slice(module.part!.lastIndexOf('.') + 1);
 
 const ancestors = function* (module: ModuleView): Generator<ModuleView> {
   for (let at = module.parent; at; at = at.parent) yield at;
@@ -48,6 +47,7 @@ export const verdicts = (config: ConfigData, model: Model): Verdicts => {
   const state: State = { config, model, surfaces: new Map(), reaches: new Map() };
   return {
     reach: (file) => reach(state, file),
+    exposes: (module) => exposes(state, module),
     surface: (module, name) => surface(state, module, name),
     verdict: (from, to) => verdict(state, from, to),
     files: (module, ref) => resolve(state, module, ref),
@@ -55,8 +55,11 @@ export const verdicts = (config: ConfigData, model: Model): Verdicts => {
   };
 };
 
-const archetypeOf = ({ config }: State, module: ModuleView): ArchetypeData | undefined =>
-  module.archetype === undefined ? undefined : config.archetypes[module.archetype];
+const exposes = ({ config }: State, module: ModuleView): ExposesData | undefined => {
+  if (module.kind === 'dir') return config.archetypes[module.archetype!]!.exposes;
+  const declared = declarationOf(config, module);
+  return declared?.kind === 'files' ? declared.exposes : undefined;
+};
 
 const surface = (state: State, module: ModuleView, name?: string): ReadonlySet<string> => {
   const key = `${module.id}\0${name ?? ''}`;
@@ -69,17 +72,26 @@ const surface = (state: State, module: ModuleView, name?: string): ReadonlySet<s
 };
 
 const exposed = (state: State, module: ModuleView, name: string | undefined): ReadonlySet<string> => {
-  const archetype = archetypeOf(state, module);
-  if (!archetype) return new Set(module.ownFiles);
-  if (!archetype.exposes)
-    return union([new Set(module.ownFiles), ...module.children.map((child) => surface(state, child))]);
-  const refs = name === undefined ? Object.values(archetype.exposes).flat() : (archetype.exposes[name] ?? []);
-  return union(refs.map((ref) => resolve(state, module, ref)));
+  const declared = exposes(state, module);
+  if (declared === undefined) return none;
+  if (declared.kind === 'surfaces') {
+    const refs = name === undefined ? Object.values(declared.surfaces).flat() : (declared.surfaces[name] ?? []);
+    return union(refs.map((ref) => resolve(state, module, ref)));
+  }
+  const all = union([new Set(module.files), ...module.children.map((child) => surface(state, child))]);
+  if (declared.kind === 'all') return all;
+  const patterns = declared.patterns.flatMap((pattern) => fillPattern(pattern, module.captures) ?? []);
+  const inside = (file: string) => (module.dir === '' ? file : file.slice(module.dir.length + 1));
+  return new Set([...all].filter((file) => patterns.some((pattern) => globRegex(pattern).test(inside(file)))));
 };
 
-const provider = (state: State, module: ModuleView, name: string): { at: ModuleView; ref: PartRefData } | undefined => {
+const provider = (
+  state: State,
+  module: ModuleView,
+  name: string,
+): { at: ModuleView; ref: ModuleRefData } | undefined => {
   for (const at of ancestors(module)) {
-    const ref = archetypeOf(state, at)!.provides[name];
+    const ref = state.config.archetypes[at.archetype!]!.provides[name];
     if (ref) return { at, ref };
   }
   return undefined;
@@ -88,10 +100,8 @@ const provider = (state: State, module: ModuleView, name: string): { at: ModuleV
 const resolve = (state: State, module: ModuleView, ref: RefData): ReadonlySet<string> => {
   if (ref.kind === 'package') return none;
   if (ref.kind === 'required') return resolveRequired(state, module, ref.name, ref.surface);
-  const part = archetypeOf(state, module)!.parts.find((candidate) => candidate.name === ref.part)!;
-  if (part.kind === 'files') return new Set(module.parts[ref.part]);
   return union(
-    module.children.filter((child) => partName(child) === ref.part).map((child) => surface(state, child, ref.surface)),
+    module.children.filter((child) => child.name === ref.module).map((child) => surface(state, child, ref.surface)),
   );
 };
 
@@ -101,43 +111,37 @@ const resolveRequired = (state: State, module: ModuleView, name: string, surface
 };
 
 const describe = (state: State, module: ModuleView, ref: RefData): string => {
-  if (ref.kind === 'part') return `s.${show(ref)}`;
+  if (ref.kind === 'module') return `s.${show(ref)}`;
   if (ref.kind === 'package') return show(ref);
   return `${show(ref)} (from ${provider(state, module, ref.name)!.at.id})`;
 };
 
-const grants = (state: State, module: ModuleView, owner: string, refs: readonly RefData[]): Grant[] =>
+const grants = (state: State, holder: ModuleView, owner: string, refs: readonly RefData[]): Grant[] =>
   refs.map((ref) => ({
     owner,
-    ref: describe(state, module, ref),
-    files: resolve(state, module, ref),
+    ref: describe(state, holder, ref),
+    files: resolve(state, holder, ref),
     ...(ref.kind === 'package' ? { package: ref.pattern } : {}),
   }));
 
 const reach = (state: State, file: string): readonly Grant[] | undefined => {
   const module = state.model.moduleOf(file);
-  const part = state.model.partOf(file);
-  if (!module || (module.archetype !== undefined && part === undefined)) return undefined;
-  const key = `${module.id}\0${part ?? ''}`;
-  let found = state.reaches.get(key);
+  if (!module || module.looseFiles.includes(file)) return undefined;
+  let found = state.reaches.get(module.id);
   if (!found) {
-    found = [...ownReach(state, module, part), ...dirPartReach(state, module)];
-    state.reaches.set(key, found);
+    const granted = [{ owner: `own module ${module.id}`, files: new Set(module.files) }, ...using(state, module)];
+    if (module.kind === 'files') granted.push(...using(state, module.parent!));
+    found = granted;
+    state.reaches.set(module.id, found);
   }
   return found;
 };
 
-const ownReach = (state: State, module: ModuleView, part: string | undefined): Grant[] => {
-  if (part === undefined) return [{ owner: `own folder ${module.id}`, files: new Set(module.ownFiles) }];
-  const using = archetypeOf(state, module)!.parts.find((candidate) => candidate.name === part)!.using;
-  return [{ owner: `own part ${part}`, files: new Set(module.parts[part]) }, ...grants(state, module, part, using)];
-};
-
-const dirPartReach = (state: State, module: ModuleView): Grant[] => {
-  if (!module.parent) return [];
-  const parent = archetypeOf(state, module.parent)!;
-  const dirPart = parent.parts.find((candidate) => candidate.name === partName(module))!;
-  return grants(state, module.parent, `${parent.name}.${dirPart.name}`, dirPart.using);
+const using = (state: State, module: ModuleView): Grant[] => {
+  const declared = declarationOf(state.config, module);
+  if (!declared) return [];
+  const owner = module.kind === 'files' ? declared.name : `${module.parent!.archetype}.${declared.name}`;
+  return grants(state, module.parent!, owner, declared.using);
 };
 
 const verdict = (state: State, from: string, to: string): Verdict | undefined => {
@@ -152,6 +156,8 @@ const verdict = (state: State, from: string, to: string): Verdict | undefined =>
 const refusal = (state: State, source: ModuleView, target: ModuleView, to: string): Refusal => {
   const above = new Set(ancestors(source));
   if (above.has(target)) return { reason: 'above' };
+  if (target.kind === 'files' && target.parent !== source.parent && above.has(target.parent!))
+    return { reason: 'above' };
   for (let at = target; !above.has(at) && at !== source; at = at.parent!) {
     if (!surface(state, at).has(to)) return { reason: 'private', hiddenBy: at };
   }

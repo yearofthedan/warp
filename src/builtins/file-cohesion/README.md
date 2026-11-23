@@ -46,4 +46,4 @@ each group's names and line range.
 ## When not to use it
 
 For files that are lists by design, such as a set of independent helpers or a file of
-constants. Raise `maxLines` for that part, or turn the rule off there.
+constants. Raise `maxLines` for that module, or turn the rule off there.

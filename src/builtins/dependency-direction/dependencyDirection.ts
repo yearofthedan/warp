@@ -1,4 +1,5 @@
 import type { ConfigData } from '../../model/archetype/data.ts';
+import { exposesText } from '../../model/archetype/references.ts';
 import { place } from '../place.ts';
 import type { Refusal, Verdicts } from '../../model/archetype/reach.ts';
 import type { Model } from '../../model/archetype/resolve.ts';
@@ -43,8 +44,8 @@ const refused = (context: Context, from: string, to: string, refusal: Refusal, e
     value: Math.max(1, names.length),
     message: `${from} (${place(model, from, source)}) ${imports} ${to} (${place(model, to, target)}), ${explain(context, from, to, refusal)}`,
     details: {
-      from: { module: source.id, part: model.partOf(from) },
-      to: { module: target.id, part: model.partOf(to) },
+      from: source.id,
+      to: target.id,
       reason: refusal.reason,
       ...(refusal.reason === 'private' ? { hiddenBy: refusal.hiddenBy.id } : {}),
       edges,
@@ -56,18 +57,19 @@ const explain = ({ config, model, verdicts }: Context, from: string, to: string,
   const source = model.moduleOf(from)!;
   if (refusal.reason === 'private') {
     const { hiddenBy } = refusal;
-    const exposes = Object.keys(config.archetypes[hiddenBy.archetype!]!.exposes ?? {});
     return (
-      `which ${hiddenBy.id} keeps private (it exposes ${exposes.join(', ')}). ` +
-      `Import what ${hiddenBy.id} exposes, or expose ${to} from ${hiddenBy.archetype} if other modules should reach it.`
+      `which ${hiddenBy.id} keeps private (it exposes ${exposesText(verdicts.exposes(hiddenBy))}). ` +
+      `Import what ${hiddenBy.id} exposes, or expose ${to} from ${hiddenBy.archetype ?? hiddenBy.name} if other modules should reach it.`
     );
   }
-  if (refusal.reason === 'above')
+  if (refusal.reason === 'above') {
+    const folder = source.kind === 'files' ? source.parent! : source;
     return (
-      `which is above ${source.id}. A module reaches up only through what it requires: ` +
-      `require it in ${source.archetype ?? 'the archetype that finds it'} and have an ancestor provide it, or move it below.`
+      `which is above ${folder.id}. A module reaches up only through what it requires: ` +
+      `require it in ${namedArchetype(config, folder.archetype!)} and have an ancestor provide it, or move it below.`
     );
-  const owner = model.partOf(from) ?? source.id;
+  }
+  const owner = source.name ?? source.id;
   const uses = Map.groupBy(
     verdicts.reach(from)!.filter((grant) => grant.ref !== undefined),
     (grant) => grant.owner,
@@ -81,3 +83,6 @@ const explain = ({ config, model, verdicts }: Context, from: string, to: string,
     `Add what holds ${to} to a using if the dependency is intended, or move the code.`
   );
 };
+
+const namedArchetype = (config: ConfigData, name: string): string =>
+  config.archetypes[name]!.inline ? namedArchetype(config, name.slice(0, name.lastIndexOf('.'))) : name;

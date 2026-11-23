@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { FileFacts, ImportEdge, Project } from '../model/facts.ts';
-import { type AnyArchetype, archetype, type Ruleset, ruleset } from '../model/archetype/builder.ts';
+import {
+  all,
+  type AnyArchetype,
+  archetype,
+  dir,
+  exposes,
+  files,
+  ruleset,
+  type Ruleset,
+  using,
+} from '../model/archetype/builder.ts';
 import { builtinRules } from '../builtins/index.ts';
 import { checkModel } from './checkModel.ts';
 import { loadConfigData } from './load.ts';
@@ -45,8 +55,8 @@ const project = (imports: Record<string, readonly Import[]>): Project => ({
 
 const modelOf = (root: AnyArchetype, imports: Record<string, readonly Import[]>, rules?: Ruleset) => {
   const { config } = loadConfigData({ root, ...(rules === undefined ? {} : { rulesets: { default: rules } }) });
-  const files = Object.keys(imports);
-  return { config, model: resolveModel(config, folders(files), files), project: project(imports) };
+  const paths = Object.keys(imports);
+  return { config, model: resolveModel(config, folders(paths), paths), project: project(imports) };
 };
 
 const check = (root: AnyArchetype, imports: Record<string, readonly Import[]>, rules?: Ruleset) => {
@@ -57,13 +67,13 @@ const check = (root: AnyArchetype, imports: Record<string, readonly Import[]>, r
 const keys = (findings: readonly { key: string }[]) => findings.map((finding) => finding.key);
 
 describe('rule settings', () => {
-  const leaf = archetype('leaf').contains((p) =>
-    p.files('quiet', 'quiet.ts').files('loud', 'loud.ts').files('rest', '*.ts'),
+  const leaf = archetype('leaf').contains((m) =>
+    m.module('quiet', files('quiet.ts')).module('loud', files('loud.ts')).module('rest', files('*.ts')),
   );
-  const mid = archetype('mid').contains((p) =>
-    p.dir('leaves', '{name}', leaf).dir('plain', 'plain').files('own', '*.ts'),
+  const mid = archetype('mid').contains((m) =>
+    m.module('leaves', dir('{name}'), leaf).module('plain', dir('plain')).module('own', files('*.ts')),
   );
-  const root = archetype('root').contains((p) => p.dir('mid', 'mid', mid).files('top', '*.ts'));
+  const root = archetype('root').contains((m) => m.module('mid', dir('mid'), mid).module('top', files('*.ts')));
   const paths = ['top.ts', 'mid/own.ts', 'mid/plain/p.ts', 'mid/a/quiet.ts', 'mid/a/loud.ts', 'mid/a/rest.ts'];
   const { config, model } = modelOf(
     root,
@@ -71,17 +81,17 @@ describe('rule settings', () => {
     ruleset()
       .rules({ 'no-cycle': { types: 'count', z: 3 }, 'module-cycle': false })
       .on(leaf, { 'no-cycle': { types: 'ignore', depth: 2 }, 'module-cycle': false })
-      .on(leaf.quiet, 'off')
-      .on(leaf.loud, { '*': false, 'no-cycle': { types: 'count' } })
+      .on(leaf.modules.quiet, 'off')
+      .on(leaf.modules.loud, { '*': false, 'no-cycle': { types: 'count' } })
       .on(mid, { 'dependency-direction': { x: 1 } })
-      .on(mid.leaves, { 'no-cycle': false, 'module-cycle': true })
-      .on(mid.plain, { 'dependency-direction': false })
-      .on(root.mid, { 'dependency-direction': { y: 2 } }),
+      .on(mid.modules.leaves, { 'no-cycle': false, 'module-cycle': true })
+      .on(mid.modules.plain, { 'dependency-direction': false })
+      .on(root.modules.mid, { 'dependency-direction': { y: 2 } }),
   );
   const rules = settings(config, model);
   const module = (id: string) => model.modules.find((candidate) => candidate.id === id)!;
 
-  it("turns a rule off in a files part with 'off', and '*': false leaves on only the rules listed beside it", () => {
+  it("turns a rule off in a files module with 'off', and '*': false leaves on only the rules listed beside it", () => {
     assert.equal(rules.atFile('mid/a/quiet.ts', 'no-cycle').on, false);
     assert.equal(rules.atFile('mid/a/quiet.ts', 'dependency-direction').on, false);
     assert.deepEqual(rules.atFile('mid/a/loud.ts', 'no-cycle'), {
@@ -91,7 +101,7 @@ describe('rule settings', () => {
     assert.equal(rules.atFile('mid/a/loud.ts', 'dependency-direction').on, false);
   });
 
-  it('decides on the nearest level that names the rule: files part, dir part, archetype, then each module above', () => {
+  it('decides on the nearest level that names the rule: the module, its archetype, then each module above', () => {
     assert.deepEqual(rules.atFile('mid/a/rest.ts', 'no-cycle'), {
       on: false,
       options: { types: 'ignore', depth: 2, z: 3 },
@@ -101,7 +111,7 @@ describe('rule settings', () => {
     assert.equal(rules.atFile('mid/own.ts', 'dependency-direction').on, true);
   });
 
-  it("places a module by its dir part, then its archetype, then its parent's", () => {
+  it("places a module by its declaration, then its archetype, then its parent's", () => {
     assert.equal(rules.atModule(module('mid/a'), 'module-cycle').on, true);
     assert.equal(rules.atModule(module('mid'), 'module-cycle').on, false);
     assert.equal(rules.atModule(module('mid/plain'), 'no-cycle').on, true);
@@ -120,23 +130,23 @@ describe('rule settings', () => {
     assert.deepEqual(rules.atFile('elsewhere.ts', 'no-cycle').options, { types: 'count', z: 3 });
   });
 
-  it("resolves every rule for a module and for each of its parts, a rule that's off as false", () => {
+  it("resolves every rule for each module, a rule that's off as false", () => {
     const resolved = rulesOf(config, model, [
       { id: 'no-cycle', defaults: { types: 'ignore' } },
       { id: 'module-cycle' },
     ]);
     assert.deepEqual(resolved.defaults, { 'no-cycle': { types: 'ignore' }, 'module-cycle': {} });
     assert.deepEqual(resolved.module(module('mid/a')), { 'no-cycle': false, 'module-cycle': {} });
-    assert.deepEqual(resolved.part(module('mid/a'), 'loud'), {
+    assert.deepEqual(resolved.module(module('mid/a:loud')), {
       'no-cycle': { types: 'count', depth: 2, z: 3 },
       'module-cycle': false,
     });
-    assert.deepEqual(rules.atPart(module('mid/a'), 'quiet', 'no-cycle').on, false);
+    assert.deepEqual(rules.atModule(module('mid/a:quiet'), 'no-cycle').on, false);
   });
 
   it('silences the findings located where a rule is off', () => {
-    const app = archetype('app').contains((p) =>
-      p.dir('domain', 'domain').dir('generated', 'generated').files('main', 'main.ts'),
+    const app = archetype('app').contains((m) =>
+      m.module('domain', dir('domain')).module('generated', dir('generated')).module('main', files('main.ts')),
     );
     const findings = check(
       app,
@@ -145,7 +155,7 @@ describe('rule settings', () => {
         'domain/order.ts': ['generated/api.ts'],
         'generated/api.ts': ['domain/order.ts'],
       },
-      ruleset().on(app.generated, 'off').on(app.main, { 'dependency-direction': false }),
+      ruleset().on(app.modules.generated, 'off').on(app.modules.main, { 'dependency-direction': false }),
     );
     assert.deepEqual(keys(findings), [
       'dependency-direction:domain/order.ts->generated/api.ts',
@@ -173,18 +183,18 @@ describe('code measures', () => {
       },
     ],
   });
-  const app = archetype('app').contains((p) =>
-    p.files('scripts', 'scripts/*.ts').files('tests', '*.test.ts').files('src', '*.ts'),
+  const app = archetype('app').contains((m) =>
+    m.module('scripts', files('scripts/*.ts')).module('tests', files('*.test.ts')).module('src', files('*.ts')),
   );
   const thresholds = ruleset()
     .on(app, { 'cognitive-complexity': { max: 20 } })
-    .on(app.scripts, { 'cognitive-complexity': false })
-    .on(app.tests, { 'cognitive-complexity': { max: 30 } });
+    .on(app.modules.scripts, { 'cognitive-complexity': false })
+    .on(app.modules.tests, { 'cognitive-complexity': { max: 30 } });
 
   it("judges each file's functions against the threshold nearest to it, and not where the rule is off", () => {
-    const files = [complex('a.ts', 25), complex('b.ts', 18), complex('a.test.ts', 25), complex('scripts/c.ts', 40)];
-    const { config, model } = modelOf(app, Object.fromEntries(files.map((file) => [file.path, []])), thresholds);
-    const findings = checkModel(config, model, { files }, builtinRules);
+    const measured = [complex('a.ts', 25), complex('b.ts', 18), complex('a.test.ts', 25), complex('scripts/c.ts', 40)];
+    const { config, model } = modelOf(app, Object.fromEntries(measured.map((file) => [file.path, []])), thresholds);
+    const findings = checkModel(config, model, { files: measured }, builtinRules);
     assert.deepEqual(
       findings.map((finding) => [finding.key, finding.limit]),
       [['cognitive-complexity:a.ts:run', 20]],
@@ -192,27 +202,39 @@ describe('code measures', () => {
   });
 
   it("falls back to the rule's defaults", () => {
-    const plain = archetype('plain').contains((p) => p.files('src', '*.ts'));
-    const files = [complex('a.ts', 16), complex('b.ts', 15)];
-    const { config, model } = modelOf(plain, Object.fromEntries(files.map((file) => [file.path, []])));
-    assert.deepEqual(keys(checkModel(config, model, { files }, builtinRules)), ['cognitive-complexity:a.ts:run']);
+    const plain = archetype('plain').contains((m) => m.module('src', files('*.ts')));
+    const measured = [complex('a.ts', 16), complex('b.ts', 15)];
+    const { config, model } = modelOf(plain, Object.fromEntries(measured.map((file) => [file.path, []])));
+    assert.deepEqual(keys(checkModel(config, model, { files: measured }, builtinRules)), [
+      'cognitive-complexity:a.ts:run',
+    ]);
   });
 });
 
 describe('cycles', () => {
-  const app = archetype('app').contains((p) =>
-    p
-      .dir('domain', 'domain')
-      .dir('infra', 'infra', { using: (s) => [s.domain] })
-      .dir(
-        'features',
-        '{name}',
-        archetype('feature').contains((q) => q.files('src', '**')),
-        { using: (s) => [s.domain] },
+  const app = archetype('app').contains((m) =>
+    m
+      .module('domain', dir('domain'), exposes(all()))
+      .module(
+        'infra',
+        dir('infra'),
+        exposes(all()).using((s) => [s.domain]),
       )
-      .files('main', 'main.ts', { using: (s) => [s.domain, s.infra, s.features] }),
+      .module(
+        'features',
+        dir('{name}'),
+        archetype('feature')
+          .contains((q) => q.module('src', files('**'), exposes(all())))
+          .exposes(all())
+          .using((s) => [s.domain]),
+      )
+      .module(
+        'main',
+        files('main.ts'),
+        using((s) => [s.domain, s.infra, s.features]),
+      ),
   );
-  const featuresMayLoop = ruleset().on(app.features, { 'module-cycle': false });
+  const featuresMayLoop = ruleset().on(app.modules.features, { 'module-cycle': false });
   const imports = {
     'main.ts': ['domain/u.ts'],
     'domain/u.ts': ['main.ts'],
@@ -297,24 +319,26 @@ describe('cycles', () => {
     ]);
   });
 
-  it('reports each edge of a loop between sibling modules, skipping a module and its own files', () => {
+  it('reports each edge of a loop between sibling modules, files modules among them', () => {
     const modules = cycles().filter((finding) => finding.rule === 'module-cycle');
     assert.deepEqual(
       modules.map(({ key, file, line, value }) => [key, file, line, value]),
       [
+        ['module-cycle:.:main->domain', 'main.ts', 2, 1],
+        ['module-cycle:domain->.:main', 'domain/u.ts', 2, 1],
         ['module-cycle:domain->infra', 'domain/m.ts', 2, 4],
         ['module-cycle:infra->domain', 'infra/w.ts', 7, 3],
       ],
     );
     assert.equal(
-      modules[0]!.message,
-      'domain imports infra (domain/m.ts imports infra/v.ts), and the modules of . loop: domain -> infra -> domain. Break the loop: move what both need into a module they both use, or turn module-cycle off on the dir part if its modules are meant to use each other.',
+      modules[2]!.message,
+      'domain imports infra (domain/m.ts imports infra/v.ts), and the modules of . loop: domain -> infra -> domain. Break the loop: move what both need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.',
     );
     const {
       module,
       loop,
       imports: crossing,
-    } = modules[0]!.details as {
+    } = modules[2]!.details as {
       module: string;
       loop: string[];
       imports: { from: string; to: string; edges: unknown[] }[];

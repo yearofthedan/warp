@@ -1,5 +1,5 @@
 import type { ConfigData, RuleSettingsData } from './data.ts';
-import type { Model, ModuleView } from './resolve.ts';
+import { declarationOf, type Model, type ModuleView } from './resolve.ts';
 import { isRecord } from './shared.ts';
 
 export interface RuleAt {
@@ -9,7 +9,6 @@ export interface RuleAt {
 
 export interface Settings {
   atFile(file: string, id: string, defaults?: object): RuleAt;
-  atPart(module: ModuleView, part: string, id: string, defaults?: object): RuleAt;
   atModule(module: ModuleView, id: string, defaults?: object): RuleAt;
   decidedAt(module: ModuleView, id: string): boolean | undefined;
 }
@@ -17,32 +16,19 @@ export interface Settings {
 type Levels = readonly (RuleSettingsData | undefined)[];
 
 export const settings = (config: ConfigData, model: Model): Settings => {
-  const moduleLevels = (module: ModuleView): Levels => [
-    dirPartOf(config, module)?.rules,
+  const levels = (module: ModuleView): Levels => [
+    declarationOf(config, module)?.rules,
     module.archetype === undefined ? undefined : config.archetypes[module.archetype]!.rules,
-    ...(module.parent ? moduleLevels(module.parent) : [config.rules]),
+    ...(module.parent ? levels(module.parent) : [config.rules]),
   ];
-  const atPart = (module: ModuleView, part: string | undefined, id: string, defaults?: object) => {
-    const filesPart =
-      part === undefined ? undefined : config.archetypes[module.archetype!]!.parts.find((p) => p.name === part);
-    return ruleAt([filesPart?.rules, ...moduleLevels(module)], id, defaults);
-  };
   return {
     atFile: (file, id, defaults) => {
       const module = model.moduleOf(file);
-      if (!module) return ruleAt([config.rules], id, defaults);
-      return atPart(module, model.partOf(file), id, defaults);
+      return ruleAt(module ? levels(module) : [config.rules], id, defaults);
     },
-    atPart,
-    atModule: (module, id, defaults) => ruleAt(moduleLevels(module), id, defaults),
-    decidedAt: (module, id) => decided(moduleLevels(module), id),
+    atModule: (module, id, defaults) => ruleAt(levels(module), id, defaults),
+    decidedAt: (module, id) => decided(levels(module), id),
   };
-};
-
-const dirPartOf = (config: ConfigData, module: ModuleView) => {
-  if (!module.parent) return undefined;
-  const name = module.part!.slice(module.part!.lastIndexOf('.') + 1);
-  return config.archetypes[module.parent.archetype!]!.parts.find((part) => part.name === name);
 };
 
 const decision = (level: RuleSettingsData | undefined, id: string): boolean | undefined => {
@@ -70,7 +56,6 @@ export type ResolvedRules = Record<string, false | Record<string, unknown>>;
 export interface RulesOf {
   defaults: ResolvedRules;
   module(module: ModuleView): ResolvedRules;
-  part(module: ModuleView, part: string): ResolvedRules;
 }
 
 export const rulesOf = (
@@ -79,16 +64,14 @@ export const rulesOf = (
   rules: readonly { id: string; defaults?: object }[],
 ): RulesOf => {
   const settled = settings(config, model);
-  const resolved = (at: (id: string, defaults?: object) => RuleAt): ResolvedRules =>
-    Object.fromEntries(
-      rules.map(({ id, defaults }) => {
-        const { on, options } = at(id, defaults);
-        return [id, on ? options : false];
-      }),
-    );
   return {
     defaults: Object.fromEntries(rules.map(({ id, defaults }) => [id, { ...defaults }])),
-    module: (module) => resolved((id, defaults) => settled.atModule(module, id, defaults)),
-    part: (module, part) => resolved((id, defaults) => settled.atPart(module, part, id, defaults)),
+    module: (module) =>
+      Object.fromEntries(
+        rules.map(({ id, defaults }) => {
+          const { on, options } = settled.atModule(module, id, defaults);
+          return [id, on ? options : false];
+        }),
+      ),
   };
 };

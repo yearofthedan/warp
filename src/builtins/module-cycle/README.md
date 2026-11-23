@@ -25,16 +25,16 @@ that cross. A loop that grows only adds findings or raises a value.
 With this config, `domain` and `infra` loop when `src/domain/order.ts` imports `src/infra/db.ts`:
 
 ```ts
-import { archetype } from 'warp';
+import { all, archetype, dir, exposes, using } from 'warp';
 
-const app = archetype('app').contains((p) =>
-  p.dir('domain', 'src/domain').dir('infra', 'src/infra', { using: (s) => [s.domain] }),
+const app = archetype('app').contains((m) =>
+  m.module('domain', dir('src/domain'), exposes(all())).module('infra', dir('src/infra'), using((s) => [s.domain])),
 );
 ```
 
 Fix it by moving what both need into a module they both use, or by having the inner module own an interface the outer one
-implements. A known loop among a dir part's modules, such as modules that use each other, is tolerated by turning the
-rule off on that part: `.dir('modules', '{name}', module, { rules: { 'module-cycle': false } })`.
+implements. A known loop among the modules one selector finds, such as modules that use each other, is tolerated by turning
+the rule off on the module that finds them: `.on(app.modules.plugins, { 'module-cycle': false })`.
 
 ## Options
 

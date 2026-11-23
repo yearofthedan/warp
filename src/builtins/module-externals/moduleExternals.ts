@@ -39,7 +39,7 @@ const refused = (
   packages: readonly Grant[],
 ): Finding => {
   const module = model.moduleOf(from)!;
-  const owner = model.partOf(from) ?? module.id;
+  const owner = module.name ?? module.id;
   const names = [...new Set(edges.flatMap((edge) => edge.names))];
   const specifiers = [...new Set(edges.map((edge) => edge.specifier))];
   const imports = edges.every((edge) => edge.typeOnly) ? 'imports types from' : 'imports';
@@ -57,6 +57,6 @@ const refused = (
     message:
       `${from} (${place(model, from, module)}) ${imports} ${specifiers.join(', ')}, a package outside ${owner}'s reach${lists}. ` +
       `Add pkg('${name}') to a using if the dependency is intended, or move the code.`,
-    details: { from: { module: module.id, part: model.partOf(from) }, package: name, edges },
+    details: { from: module.id, package: name, edges },
   };
 };

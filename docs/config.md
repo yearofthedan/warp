@@ -4,24 +4,24 @@
 **Purpose:** the config's structure and rulesets, custom rules, and the rules warp checks.
 
 The config is the default export of a `warp.config.ts` (or `.mts`, `.js`, `.mjs`) next to the project's tsconfig. Its
-structure declares the modules of the codebase and what each part of a module may use, and its rulesets say which rules
-judge each part, and how strictly. Its language is designed in
+structure declares the modules of the codebase and what each module may use, and its rulesets say which rules judge
+each module, and how strictly. Its language is designed in
 [docs/design/archetypes.md](design/archetypes.md); this page covers what warp checks today. See
 [`warp.config.ts`](../warp.config.ts) for the config this tool checks itself with.
 
 ```ts
-import { archetype, defineConfig, pkg, ruleset } from 'warp';
+import { all, archetype, defineConfig, exposes, files, pkg, ruleset, using } from 'warp';
 
-const app = archetype('app').contains((p) =>
-  p
-    .files('domain', 'src/domain/**')
-    .files('application', 'src/app/**', { using: (s) => [s.domain] })
-    .files('adapters', 'src/adapters/**', { using: (s) => [s.domain, s.application, pkg('*')] }),
+const app = archetype('app').contains((m) =>
+  m
+    .module('domain', files('src/domain/**'), exposes(all()))
+    .module('application', files('src/app/**'), exposes(all()).using((s) => [s.domain]))
+    .module('adapters', files('src/adapters/**'), using((s) => [s.domain, s.application, pkg('*')])),
 );
 
 const base = ruleset()
   .rules({ 'cognitive-complexity': { max: 15 } })
-  .on(app.adapters, { 'file-cohesion': { maxLines: 300 } });
+  .on(app.modules.adapters, { 'file-cohesion': { maxLines: 300 } });
 
 export default defineConfig({ root: app, rulesets: { default: base } });
 ```
@@ -31,25 +31,51 @@ installed in the project or not. The config and its rules load as ES modules: in
 `"type": "module"`, name them `.mts` (Node only warns when `type` is missing, but fails on `"type": "commonjs"`).
 Unknown keys, rules and options are refused, so a misspelling fails loudly.
 
-## Modules and parts
+## Modules
 
-`warp model` shows how warp reads the config:
+Every boundary the config declares is a module, made by `.module(name, selector, archetype?)` inside `.contains()`:
 
-```sh
-warp model           # the modules the config finds, the part each file is in, and the loose files
-warp model --rules   # the same, with the rule settings each module and part changes
-warp model --json    # the same, for tools, with every module's and part's resolved rule settings
+```ts
+import { all, archetype, defineConfig, dir, exposes, files, pkg, using } from 'warp';
+
+const layer = archetype('layer')
+  .contains((m) => m.module('src', files('**'), exposes(all())).module('test', files('**/*.test.ts')))
+  .exposes(all());
+
+const app = archetype('app').contains((m) =>
+  m
+    .module('domain', dir('src/domain'), layer)
+    .module('adapters', dir('src/adapters'), layer.using((s) => [s.domain, pkg('*')]))
+    .module('main', files('src/main.ts'), using((s) => [s.adapters])),
+);
+
+export default defineConfig({ root: app });
 ```
 
-- The root module is the config's folder. A `p.dir` path is folder names and whole-segment placeholders (`src/ui`,
+- `dir(...)` makes a folder module for each folder it matches, shaped by the archetype given, or by none: a folder
+  module with no modules of its own owns every file in it. `files(...)` makes a files module of the matching files in
+  its folder module; it takes no named archetype.
+- The third argument is only ever an archetype. `layer.using(...)` is the same `layer`, wired at this place. `using()`,
+  `exposes()` and `archetype()` with no name start an archetype of the module's own, for a module that needs wiring or
+  modules but no reusable name. Put `.using()` last in the chain, so `s` is typed.
+- `warp model` shows how warp reads the config. A folder module's id is its folder (`.` for the root), and a files
+  module's is its folder and name, `src/domain:src`.
+
+```sh
+warp model           # the modules the config finds, the files in each, and the loose files
+warp model --rules   # the same, with the rule settings each module changes
+warp model --json    # the same, for tools, with every module's resolved rule settings
+```
+
+- The root module is the config's folder. A `dir` path is folder names and whole-segment placeholders (`src/ui`,
   `{name}`, `src/{name}`), relative to its module; a marker or `match` decides which matching folders count.
 - In a files pattern, `**` spans folders, `*` stays within one, `{name}` is the module's own capture, and the rest is
   literal.
-- The most specific part wins: a literal dir segment beats a placeholder, and a literal file path beats any glob,
-  then the longer literal suffix after the last `*`, with `**` last. Two equally specific parts are a config error.
-- A file belongs to its deepest module. One no part matches is loose, and `check` and `diff` report it as
-  [`unclassified`](../src/builtins/unclassified/README.md): on the root module unless a ruleset turns it off, and
-  below it where a ruleset turns it on.
+- The most specific module wins: a literal dir segment beats a placeholder, and a literal file path beats any glob,
+  then the longer literal suffix after the last `*`, with `**` last. Two equally specific modules are a config error.
+- A file belongs to its deepest folder module, then to the files module there that matches it. One no files module
+  matches is loose, and `check` and `diff` report it as [`unclassified`](../src/builtins/unclassified/README.md): on
+  the root module unless a ruleset turns it off, and below it where a ruleset turns it on.
 - `tsconfig` takes a list, and warp reads every file of their programs except declaration files. A solution-style
   tsconfig with only `references` is not followed: list the project configs.
 
@@ -58,12 +84,12 @@ warp model --json    # the same, for tools, with every module's and part's resol
 `check` and `diff` judge every import between project files against the importer's reach,
 and report each one outside it as [`dependency-direction`](../src/builtins/dependency-direction/README.md):
 
-- A file reaches the rest of its own part, what its part's `using` names, and, for a module's own files, what the
-  `using` of the dir part that found the module names. A `required.x` reference reaches what the nearest provider above
+- A file reaches the rest of its own module and what its module's `using` names. A file in a files module also
+  reaches what its folder module's `using` names. A `required.x` reference reaches what the nearest provider above
   offers.
-- `s.x` on a dir part reaches what its modules expose: one surface with `s.x.render`, all of them without. A module
-  exposes its `.exposes()` surfaces, a plain folder all its files, and an archetype with no `.exposes()` its own files
-  and what its modules expose.
+- A module exposes nothing until it says so: `exposes(all())` opens its own files and what its modules expose,
+  `exposes(files('index.ts'))` some of those, and `.exposes((s) => ({ render: s.dom }))` named surfaces. `s.x`
+  reaches what `x` exposes, and `s.x.render` one surface. Naming a module that exposes nothing is a config error.
 - An import is judged on the file its specifier names, so a barrel on a surface lets importers through to the files
   behind it. Type-only imports count.
 
@@ -80,42 +106,44 @@ another module's file, other than one nested in its own module, so a module does
 [`no-cycle`](../src/builtins/no-cycle/README.md) each import between files that lies on a loop.
 
 `file-cohesion`, `function-cohesion` and `cognitive-complexity` judge each file's code with the options that resolve
-for that file, so tests and code, or two parts, can have different thresholds.
+for that file, so tests and code, or two modules, can have different thresholds.
 
 ## Rulesets
 
 Every rule runs everywhere with its defaults until a ruleset says otherwise. A ruleset is a list of lines, each
-setting rules at one place: `.rules()` for the whole config, and `.on()` for an archetype, or one of its parts by the
-handle the archetype gives it after `.contains()`. A misspelt part fails to compile. The config names its rulesets,
+setting rules at one place: `.rules()` for the whole config, and `.on()` for an archetype, or one of its modules by the
+handle the archetype gives it after `.contains()`, `app.modules.adapters`. A misspelt module fails to compile. The config names its rulesets,
 and the one named `default` applies when the command names none.
 
 ```ts
-import { archetype, defineConfig, ruleset } from 'warp';
+import { all, archetype, defineConfig, dir, files, ruleset } from 'warp';
 
-const layer = archetype('layer').contains((p) => p.files('src', '**').files('test', '**/*.test.ts'));
-const app = archetype('app').contains((p) =>
-  p
-    .dir('domain', 'src/domain', layer)
-    .dir('adapters', 'src/adapters', layer, { using: (s) => [s.domain] })
-    .dir('generated', 'src/generated'),
+const layer = archetype('layer')
+  .contains((m) => m.module('src', files('**')).module('test', files('**/*.test.ts')))
+  .exposes(all());
+const app = archetype('app').contains((m) =>
+  m
+    .module('domain', dir('src/domain'), layer)
+    .module('adapters', dir('src/adapters'), layer.using((s) => [s.domain]))
+    .module('generated', dir('src/generated')),
 );
 
 const base = ruleset()
   .rules({ 'cognitive-complexity': { max: 15 } })
-  .on(layer.test, { 'function-cohesion': false })
-  .on(app.generated, 'off');
+  .on(layer.modules.test, { 'function-cohesion': false })
+  .on(app.modules.generated, 'off');
 
 const edit = ruleset()
   .extends(base)
   .rules({ 'cognitive-complexity': { max: 12 } })
-  .on(app.adapters, { 'file-cohesion': { maxLines: 300 } });
+  .on(app.modules.adapters, { 'file-cohesion': { maxLines: 300 } });
 
 export default defineConfig({ root: app, rulesets: { default: base, edit } });
 ```
 
 ```sh
 warp diff HEAD --ruleset edit
-warp model --ruleset edit --rules   # what each module and part changes
+warp model --ruleset edit --rules   # what each module changes
 ```
 
 - Settings are `true`, `false` or options by rule id, or `'off'` for every rule at that place. `'*': false` turns
@@ -123,9 +151,9 @@ warp model --ruleset edit --rules   # what each module and part changes
 - A later line merges into an earlier one at the same place: options into options, `false` off, and `true` on with
   the options kept. `.extends(base)` puts the base's lines first, so a ruleset changes only what differs. A base need
   not be one of the config's rulesets.
-- An archetype's line reaches every module of that archetype, and a dir part's line every module it finds. For a finding
-  on a file, the nearest place wins: the file's files part, then for its module and each module above it the dir part
-  that found it and its archetype, then `.rules()`. Options merge nearest first. Where no line
+- An archetype's line reaches every module of that archetype, and a module's line every module its selector finds.
+  For a finding on a file, the nearest place wins: the file's module, then that module's archetype, then the same for
+  each module above it, then `.rules()`. Options merge nearest first. Where no line
   sets `unclassified`, it is on at the root module and off below.
 - `diff` checks both sides with the same ruleset, and each ruleset caches its own findings, so switching rulesets
   never shows up as new findings. An unknown name fails and lists the rulesets there are.
@@ -142,7 +170,7 @@ through `application` without breaking `dependency-direction`. A rule for that, 
 ```ts
 // warp/rules.ts
 import { matchesGlob } from 'node:path';
-import { ConfigError, type FileRule, type Plugin } from 'warp';
+import { ConfigError, dir, type FileRule, files, type Plugin } from 'warp';
 
 const noPortsThroughApplication: FileRule<{ ports: string[] }> = {
   id: 'no-ports-through-application',
@@ -172,19 +200,19 @@ export default { rules: [noPortsThroughApplication] } satisfies Plugin;
 
 ```ts
 // warp.config.ts
-import { archetype, defineConfig, ruleset } from 'warp';
+import { all, archetype, defineConfig, exposes, files, ruleset, using } from 'warp';
 import wt from './warp/rules.ts';
 
-const app = archetype('app').contains((p) =>
-  p
-    .files('domain', 'src/domain/**')
-    .files('application', 'src/application/**', { using: (s) => [s.domain] })
-    .files('ui', 'src/ui/**', { using: (s) => [s.application, s.domain] }),
+const app = archetype('app').contains((m) =>
+  m
+    .module('domain', files('src/domain/**'), exposes(all()))
+    .module('application', files('src/application/**'), exposes(files('src/application/index.ts')).using((s) => [s.domain]))
+    .module('ui', files('src/ui/**'), using((s) => [s.application, s.domain])),
 );
 
 const base = ruleset()
   .rules({ 'wt/no-ports-through-application': false })
-  .on(app.ui, { 'wt/no-ports-through-application': true });
+  .on(app.modules.ui, { 'wt/no-ports-through-application': true });
 
 export default defineConfig({ root: app, plugins: { wt }, rulesets: { default: base } });
 ```
@@ -192,7 +220,7 @@ export default defineConfig({ root: app, plugins: { wt }, rulesets: { default: b
 - A rule reads the same facts as the built-in ones, and never reads source. A `FileRule` reads one file at a
   time, with the options that resolve for that file: its imports, members and functions.
 - A `ProjectRule`, with `scope: 'project'`, reads the whole project once, with the config, the `model` (each file's
-  module and part through `moduleOf` and `partOf`) and the `verdicts` on reach. It looks up its setting for a file with
+  module through `moduleOf`) and the `verdicts` on reach. It looks up its setting for a file with
   `atFile`, or for a module with `atModule`, and skips where the rule is off.
 - Its findings get the namespaced `rule`, and keys prefixed with the namespace. They link to the rule's `docs` when
   it has one, and to nothing otherwise.

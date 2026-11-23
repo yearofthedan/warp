@@ -1,12 +1,12 @@
 import { recordedAs } from './builder.ts';
-import type { ArchetypeData, PartData, RequirementData } from './data.ts';
+import type { ArchetypeData, ModuleData, RequirementData } from './data.ts';
 import type { Draft } from './draft.ts';
-import { archetypeOf, type Fail, shapeText } from './shared.ts';
+import type { Fail } from './shared.ts';
 
 interface Provision {
   archetype: string;
   name: string;
-  part: PartData;
+  module: ModuleData;
   used: boolean;
 }
 
@@ -18,14 +18,20 @@ interface Walk {
   visited: Set<string>;
 }
 
-export const checkUnused = ({ data, parts }: Draft, fail: Fail) => {
-  const used = new Set(
-    parts
-      .flatMap((part) => part.using.map((value) => recordedAs(value, 'ref')))
+const usedRequirements = (drafts: readonly Draft[]): Set<unknown> =>
+  new Set(
+    drafts
+      .flatMap((draft) => draft.modules.flatMap((module) => module.using.map((value) => recordedAs(value, 'ref'))))
       .map((ref) => ref?.kind === 'required' && ref.name),
   );
-  for (const name of Object.keys(data.requires)) {
-    if (!used.has(name)) fail(`${data.name} requires ${name}, which no part lists in using`);
+
+export const checkUnused = (drafts: readonly Draft[], fail: Fail) => {
+  for (const draft of drafts.filter((candidate) => !candidate.data.inline)) {
+    const inline = drafts.filter((candidate) => candidate.data.name.startsWith(`${draft.data.name}.`));
+    const used = usedRequirements([draft, ...inline]);
+    for (const name of Object.keys(draft.data.requires)) {
+      if (!used.has(name)) fail(`${draft.data.name} requires ${name}, which no module lists in using`);
+    }
   }
 };
 
@@ -34,7 +40,7 @@ export const checkRequirements = (archetypes: Record<string, ArchetypeData>, roo
     Object.entries(archetype.provides).map(([name, ref]) => ({
       archetype: archetype.name,
       name,
-      part: archetype.parts.find((part) => part.name === ref.part)!,
+      module: archetype.modules.find((module) => module.name === ref.module)!,
       used: false,
     })),
   );
@@ -46,18 +52,19 @@ export const checkRequirements = (archetypes: Record<string, ArchetypeData>, roo
 
 const walk = (state: Walk, archetype: ArchetypeData, path: string, above: ReadonlyMap<string, Provision>) => {
   const at = path === '' ? archetype.name : `${path} (${archetype.name})`;
-  for (const [name, requirement] of Object.entries(archetype.requires)) {
-    answer(state, at, archetype.name, name, requirement, above.get(name));
+  if (!archetype.inline) {
+    for (const [name, requirement] of Object.entries(archetype.requires)) {
+      answer(state, at, archetype.name, name, requirement, above.get(name));
+    }
   }
   const below = new Map(above);
   for (const provision of state.provisions.filter((p) => p.archetype === archetype.name))
     below.set(provision.name, provision);
   const signature = JSON.stringify([...below].map(([name, provision]) => [name, provision.archetype]));
-  for (const part of archetype.parts) {
-    const child = archetypeOf(part);
-    if (child === undefined || state.visited.has(`${child}|${signature}`)) continue;
-    state.visited.add(`${child}|${signature}`);
-    walk(state, state.archetypes[child]!, path === '' ? part.name : `${path}.${part.name}`, below);
+  for (const module of archetype.modules) {
+    if (module.kind !== 'dir' || state.visited.has(`${module.archetype}|${signature}`)) continue;
+    state.visited.add(`${module.archetype}|${signature}`);
+    walk(state, state.archetypes[module.archetype]!, path === '' ? module.name : `${path}.${module.name}`, below);
   }
 };
 
@@ -76,24 +83,22 @@ const answer = (
     return;
   }
   provider.used = true;
-  if (!fits(requirement, provider.part)) {
+  if (!fits(requirement, provider.module)) {
     state.fail(
-      `${at} requires ${name} as ${requirementText(requirement)}; ${provider.archetype} provides ${name} from ${provider.part.name}, ${partText(provider.part)}`,
+      `${at} requires ${name} as ${requirementText(requirement)}; ${provider.archetype} provides ${name} from ${provider.module.name}, ${moduleText(state, provider.module)}`,
     );
   }
 };
 
-const partText = (part: PartData): string => {
-  const archetype = archetypeOf(part);
-  return archetype !== undefined ? `modules of ${archetype}` : shapeText(part.kind);
+const moduleText = (state: Walk, module: ModuleData): string => {
+  if (module.kind === 'files') return 'a files module';
+  return state.archetypes[module.archetype]!.inline ? 'a dir module' : `modules of ${module.archetype}`;
 };
 
 const requirementText = (requirement: RequirementData): string =>
-  requirement.kind === 'archetype'
-    ? `modules of ${requirement.archetype}`
-    : `${shapeText(requirement.kind)} (${requirement.kind}())`;
+  requirement.kind === 'archetype' ? `modules of ${requirement.archetype}` : `${requirement.kind}()`;
 
-const fits = (requirement: RequirementData, part: PartData): boolean =>
+const fits = (requirement: RequirementData, module: ModuleData): boolean =>
   requirement.kind === 'archetype'
-    ? archetypeOf(part) === requirement.archetype
-    : part.kind === requirement.kind && archetypeOf(part) === undefined;
+    ? module.kind === 'dir' && module.archetype === requirement.archetype
+    : module.kind === requirement.kind;
