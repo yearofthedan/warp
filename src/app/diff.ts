@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
-import { type Delta, diff } from '../rules/diff.ts';
-import type { Finding } from '../rules/rule.ts';
+import { anchorAtChange, type Delta, diff } from '../rules/diff.ts';
+import type { Finding, Site } from '../rules/rule.ts';
 import type { ProjectCheck } from './check.ts';
-import type { FindingsCache, Repository } from './ports.ts';
+import type { ChangedLines, FindingsCache, Repository } from './ports.ts';
 
 export interface Range {
   base: string;
@@ -29,9 +29,24 @@ export interface DiffRequest {
   sinceLastRun?: boolean;
 }
 
-export const diffProject = (
+const changedAt =
+  (lines: readonly ChangedLines[]) =>
+  ({ file, line }: Site): boolean =>
+    lines.some((range) => range.file === file && range.from <= line && line <= range.to);
+
+type Ports = { repository: Repository; cache: FindingsCache };
+
+const baseOf = ({ base, head, fromMergeBase }: Range, repository: Repository): string =>
+  fromMergeBase ? repository.mergeBase(base, head ?? 'HEAD') : base;
+
+export const diffProject = (request: DiffRequest, ports: Ports): Delta =>
+  anchorAtChange(compareProject(request, ports), () =>
+    changedAt(ports.repository.changedLines(baseOf(request.range, ports.repository), request.range.head)),
+  );
+
+const compareProject = (
   { range, root, project, configDigest = '', toolDigest, sinceLastRun = false }: DiffRequest,
-  { repository, cache }: { repository: Repository; cache: FindingsCache },
+  { repository, cache }: Ports,
 ): Delta => {
   const configHash = createHash('sha256')
     .update(JSON.stringify(project.config))
@@ -56,8 +71,7 @@ export const diffProject = (
   const { head } = range;
   if (sinceLastRun && head !== undefined)
     throw new InvalidRange('a diff since the last run compares the working tree, so its range takes no <head>');
-  const baseFindings = () =>
-    atCommit(range.fromMergeBase ? repository.mergeBase(range.base, head ?? 'HEAD') : range.base);
+  const baseFindings = () => atCommit(baseOf(range, repository));
   if (head !== undefined) return diff(baseFindings(), atCommit(head));
   const current = project.check(root);
   if (!sinceLastRun) return diff(baseFindings(), current);

@@ -3,7 +3,7 @@
 **Audience:** anyone reading a `no-cycle` finding, or setting the rule.
 **Purpose:** what `no-cycle` reports, why, and its options.
 
-Report each import between files that lies on a loop.
+Report each loop among files.
 
 ## Why
 
@@ -12,9 +12,11 @@ it is read. A loop also ties the files together: each changes and moves with the
 
 ## Rule details
 
-The rule builds the graph of imports between the project's files and reports every edge that lies on a loop, one
-finding per pair of files, keyed `no-cycle:src/a.ts->src/b.ts`. The message shows the shortest loop through the
-edge. An import is followed to the file its specifier names.
+The rule builds the graph of imports between the project's files and reports each loop once: a set of files that all
+reach each other, keyed by them, `no-cycle:src/order.ts+src/price.ts`. Each import on the loop is a site, and the
+message lists them. The finding is at the first; [`diff`](../../../docs/agents-and-ci.md#diff) shows a new or worse
+loop at the import the change added. Its value is the number of imports on the loop. An import is followed to the
+file its specifier names.
 
 Incorrect code:
 

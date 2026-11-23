@@ -9,7 +9,11 @@ import {
   type Graph,
   importsByTarget,
   link,
-  loopEdges,
+  listed,
+  type Loop,
+  loops,
+  named,
+  uniqueSites,
 } from '../loops.ts';
 
 const id = 'module-cycle';
@@ -47,28 +51,39 @@ export const moduleCycle: ProjectRule<CycleOptions> = {
           link(graph, crossed[0].id, crossed[1].id, [{ file, to, edges }]);
       }
     }
-    return loopEdges(graph).flatMap(({ from, to, links, loop }): Finding[] => {
-      const module = modules.get(from)!;
-      if (!atModule(module).on) return [];
-      const [first] = links.toSorted((a, b) => a.file.localeCompare(b.file) || a.to.localeCompare(b.to));
-      return [
-        {
-          rule: id,
-          key: `${id}:${from}->${to}`,
-          file: first!.file,
-          line: first!.edges[0]!.line,
-          value: links.length,
-          message:
-            `${from} imports ${to} (${first!.file} imports ${first!.to}), and the modules of ${module.parent!.id} loop: ` +
-            `${loop.join(' -> ')}. Break the loop: move what both need into a module they both use, or turn module-cycle ` +
-            'off on the module that holds them if they are meant to use each other.',
-          details: {
-            module: module.parent!.id,
-            loop,
-            imports: links.map(({ file, to, edges }) => ({ from: file, to, edges })),
-          },
-        },
-      ];
+    return loops(graph).flatMap((loop): Finding[] => {
+      const reported = loop.edges.filter(({ from }) => atModule(modules.get(from)!).on);
+      if (reported.length === 0) return [];
+      return [loopFinding(loop.members, reported, modules.get(loop.members[0]!)!.parent!.id)];
     });
   },
+};
+
+const loopFinding = (members: string[], reported: Loop<FileLink>['edges'], parent: string): Finding => {
+  const links = reported.flatMap(({ links }) => links);
+  const sites = uniqueSites(links.map(({ file, edges: [first] }) => ({ file, line: first!.line }))).toSorted(
+    (a, b) => a.file.localeCompare(b.file) || a.line - b.line,
+  );
+  const crossings = reported.map(({ from, to, links: [first, ...rest] }) => {
+    const more = rest.length > 0 ? ` and ${rest.length} more` : '';
+    return `${from} -> ${to} (${first!.file}:${first!.edges[0]!.line} imports ${first!.to}${more})`;
+  });
+  return {
+    rule: id,
+    key: `${id}:${members.join('+')}`,
+    file: sites[0]!.file,
+    line: sites[0]!.line,
+    value: links.length,
+    message:
+      `The modules ${named(members)} of ${parent} import each other in a loop: ${listed(crossings)}. ` +
+      'Break it at one of these imports: move what both sides need into a module they both use, or turn ' +
+      'module-cycle off on the module that holds them if they are meant to use each other.',
+    sites,
+    parts: reported.map(({ from, to }) => `${from}->${to}`),
+    details: {
+      module: parent,
+      modules: members,
+      imports: links.map(({ file, to, edges }) => ({ from: file, to, edges })),
+    },
+  };
 };
