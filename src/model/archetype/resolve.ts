@@ -129,13 +129,23 @@ const place = (resolution: Resolution, folder: ModuleView, file: string, among: 
     ...(among === 'all' ? archetype.modules : []),
     ...(archetype.tests?.modules ?? []).map((module) => ({ ...module, name: `tests.${module.name}` })),
   ];
-  if (candidates.length === 0) return folder;
+  if (candidates.length === 0 || (among === 'all' && isEntry(archetype, folder, file))) return folder;
   const name = filesModule(resolution, folder, archetype, candidates, file);
   if (name === undefined) {
     if (among === 'all' && archetype.modules.length > 0) folder.looseFiles.push(file);
     return folder;
   }
   return childModule(folder, name);
+};
+
+const isEntry = (archetype: ArchetypeData, folder: ModuleView, file: string): boolean => {
+  const { exposes } = archetype;
+  if (exposes?.kind !== 'files' || !exposes.entry) return false;
+  const path = folder.dir === '' ? file : file.slice(folder.dir.length + 1);
+  return exposes.patterns.some((pattern) => {
+    const filled = fillPattern(pattern, folder.captures);
+    return filled !== undefined && globRegex(filled).test(path);
+  });
 };
 
 const childModule = (folder: ModuleView, name: string): ModuleView => {

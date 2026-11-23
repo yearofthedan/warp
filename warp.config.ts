@@ -44,68 +44,71 @@ const builtins = archetype('builtins')
   .exposes(all())
   .tests(using((m, { required }) => [required.app]));
 
-const warp = archetype('warp')
-  .description('warp: checks a TypeScript codebase against a declared model of its modules')
+const pkgArchetype = archetype('package')
+  .description("warp's source: the model, the rules, the app behind its ports, its adapters and the CLI")
   .contains((m) =>
     m
       .module(
         'model',
-        dir('src/model'),
+        dir('model'),
         exposes(all()).description(
           'The declared model: the archetype builder, config data, resolving files to modules, and reach',
         ),
       )
-      .module('rules', dir('src/rules'), rules)
-      .module('builtins', dir('src/builtins'), builtins)
+      .module('rules', dir('rules'), rules)
+      .module('builtins', dir('builtins'), builtins)
       .module(
         'app',
-        dir('src/app'),
+        dir('app'),
         exposes(all())
           .description('Loading a config, running the rules on a model, and diffing two commits, behind ports')
           .using((m) => [m.rules, m.model, pkg('node:*')]),
       )
       .module(
         'reporters',
-        dir('src/reporters'),
+        dir('reporters'),
         exposes(all())
           .description('Formats for findings and the model: text, JSON, SARIF and agent hooks')
           .using((m) => [m.rules, m.model]),
       )
       .module(
         'analysis',
-        dir('src/analysis'),
+        dir('analysis'),
         exposes(all())
           .description('Reading TypeScript into facts, and the project folders')
           .using((m) => [m.app, m.model, pkg('node:*'), pkg('typescript')]),
       )
       .module(
         'config',
-        dir('src/config'),
+        dir('config'),
         exposes(all())
           .description('Loading a warp.config.ts file')
           .using((m) => [m.app, m.model, pkg('node:*'), pkg('typescript')]),
       )
       .module(
         'git',
-        dir('src/git'),
+        dir('git'),
         exposes(all())
           .description('Git: the facts cache and the files at a commit')
           .using((m) => [m.app, m.model, pkg('node:*')]),
       )
       .module(
-        'entry',
-        files('src/cli.ts'),
-        exposes(all())
+        'cli',
+        files('cli.ts'),
+        archetype()
           .description('The CLI, which wires adapters, reporters and the built-in rules together')
           .using((m) => [m.analysis, m.config, m.git, m.reporters, m.app, m.rules, m.model, m.builtins, pkg('node:*')]),
-      )
-      .module(
-        'api',
-        files('src/index.ts'),
-        exposes(all())
-          .description("The package's public API, imported by warp.config.ts files and plugins")
-          .using((m) => [m.app, m.rules, m.model]),
-      )
+      ),
+  )
+  .entry(files('index.ts'))
+  .provides((m) => ({ model: m.model, rules: m.rules, app: m.app }))
+  .tests(using((m) => [m.app, m.builtins, m.reporters, m.analysis, m.config]));
+
+const warp = archetype('warp')
+  .description('warp: checks a TypeScript codebase against a declared model of its modules')
+  .contains((m) =>
+    m
+      .module('package', dir('src'), pkgArchetype)
       .module(
         'integration',
         dir('integrations'),
@@ -118,18 +121,12 @@ const warp = archetype('warp')
         files('*.ts', 'scripts/*.ts'),
         exposes(all())
           .description("warp's own config and the scripts behind ./do")
-          .using((m) => [m.api, pkg('node:*'), pkg('vite-plus'), pkg('typescript')]),
+          .using((m) => [m.package, pkg('node:*'), pkg('vite-plus'), pkg('typescript')]),
       ),
   )
-  .provides((m) => ({ model: m.model, rules: m.rules, app: m.app }))
-  .exposes((m) => ({ api: m.api }))
-  .tests(using((m) => [m.app, m.builtins, m.reporters, m.analysis, m.config, pkg('vite-plus/test'), pkg('node:*')]));
+  .tests(using([pkg('vite-plus/test'), pkg('node:*')]));
 
-const base = ruleset()
-  .on(warp.modules.tests, { 'function-cohesion': false })
-  // why: src/index.ts is the package's facade over app, rules and model, which are now modules of their own.
-  // until: no-cross-module-reexport allows a facade its parent exposes (modules.md, open question 2)
-  .on(warp.modules.api, { 'no-cross-module-reexport': false });
+const base = ruleset().on(warp.modules.tests, { 'function-cohesion': false });
 
 export default defineConfig({
   root: warp,

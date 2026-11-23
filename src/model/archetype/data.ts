@@ -21,7 +21,7 @@ export type RuleSettingsData = 'off' | Record<string, boolean | Record<string, u
 
 export type ExposesData =
   | { kind: 'all' }
-  | { kind: 'files'; patterns: string[] }
+  | { kind: 'files'; patterns: string[]; entry?: true }
   | { kind: 'surfaces'; surfaces: Record<string, RefData[]> };
 
 export interface LocatorData {
