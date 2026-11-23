@@ -107,22 +107,13 @@ const pkgArchetype = archetype('package')
 const warp = archetype('warp')
   .description('warp: checks a TypeScript codebase against a declared model of its modules')
   .contains((c) =>
-    c
-      .module('package', dir('src'), pkgArchetype)
-      .module(
-        'integration',
-        dir('integrations'),
-        archetype()
-          .description('Extensions that run warp from agent harnesses after each edit')
-          .using([pkg('node:*')]),
-      )
-      .module(
-        'tooling',
-        files('*.ts', 'scripts/*.ts'),
-        exposes(all())
-          .description("warp's own config and the scripts behind ./do")
-          .using((m) => [m.package, pkg('node:*'), pkg('vite-plus'), pkg('typescript')]),
-      ),
+    c.module('package', dir('src'), pkgArchetype).module(
+      'tooling',
+      files('*.ts', 'scripts/*.ts'),
+      exposes(all())
+        .description("warp's own config and the scripts behind ./do")
+        .using((m) => [m.package, pkg('node:*'), pkg('vite-plus'), pkg('typescript')]),
+    ),
   )
   .tests(using([pkg('vite-plus/test'), pkg('node:*')]));
 

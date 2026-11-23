@@ -23,9 +23,16 @@ being blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`
         ]
       }
     ]
+  },
+  "permissions": {
+    "ask": ["Edit(warp.config.*)"]
   }
 }
 ```
+
+The hook runs as you, outside Claude's permissions and sandbox, and warp runs its config as code. The `ask` rule has
+Claude ask before it edits the config, so an edit can't run code through the hook without you seeing it.
+[SECURITY.md](../SECURITY.md#running-warp-from-an-agent-hook) has the example and further hardening.
 
 To check edits with a lighter set of rules, give the config an `edit` [ruleset](config.md#rulesets) and add
 `--ruleset edit` to the command. A non-empty delta prints a `hookSpecificOutput.additionalContext` response, which
@@ -38,8 +45,32 @@ allows and run it again: it prints a `hookSpecificOutput` naming the import.
 
 ## omp
 
-omp runs warp through an extension that runs the same `diff` after each edit with `--reporter omp`.
-[integrations/omp/README.md](../integrations/omp/README.md) covers loading it into a project.
+omp runs code after each edit through an extension. Save this as `.omp/extensions/warp.ts` in the project, and start a
+new omp session to load it:
+
+```ts fragment
+const edits = ['edit', 'write', 'ast_edit', 'apply_patch'];
+
+export default function warp(pi) {
+  pi.on('tool_call', async (event, context) => {
+    if (!edits.includes(event.toolName) || !JSON.stringify(event.input).includes('warp.config.')) return undefined;
+    const allowed = context.hasUI && (await context.ui.confirm('Edit the warp config?', 'warp runs it as code after the edit.'));
+    return allowed ? undefined : { block: true, reason: 'Editing the warp config needs the user to allow it.' };
+  });
+  pi.on('tool_result', async (event, context) => {
+    if (event.isError || !edits.includes(event.toolName)) return undefined;
+    const args = ['exec', 'warp', 'diff', 'HEAD', '--since-last-run', '--reporter', 'omp'];
+    const run = await pi.exec('pnpm', args, { cwd: context.cwd, timeout: 60_000 });
+    if (run.code !== 0) return { additionalContext: `warp is unavailable, so edits are not checked: ${run.stderr.trim()}` };
+    return run.stdout.trim() === '' ? undefined : JSON.parse(run.stdout);
+  });
+}
+```
+
+After each edit, the `tool_result` handler runs warp and passes its `additionalContext` to the model with the next
+request, without blocking the edit. omp runs `pi.exec` as you, with no approval, so the `tool_call` handler asks you
+before any edit that names a `warp.config.*` file, and blocks it when omp has no UI to ask in. Add `--ruleset edit` to
+`args` to check edits with a lighter ruleset. The shapes follow `@oh-my-pi/pi-coding-agent` 19.1.
 
 ## GitHub code scanning
 
@@ -63,7 +94,9 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec warp diff origin/${{ github.base_ref }}... --reporter sarif > warp.sarif
+      - run: pnpm exec warp diff "origin/$BASE..." --reporter sarif > warp.sarif
+        env:
+          BASE: ${{ github.base_ref }}
       - uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: warp.sarif
@@ -72,4 +105,5 @@ jobs:
 Code scanning shows each new or worse finding on the pull request's diff. Each result's `partialFingerprints` holds
 the finding's key, so code scanning tracks a finding across commits the same way `diff` does. To block a merge on
 findings, add a code scanning rule to the branch's ruleset in the repository settings, or replace the upload with
-`pnpm exec warp diff origin/${{ github.base_ref }}... --fail`.
+`pnpm exec warp diff "origin/$BASE..." --fail`. The branch name reaches the shell through `env`, so the shell never
+reads it as code.

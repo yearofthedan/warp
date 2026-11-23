@@ -12,5 +12,5 @@
     "types": ["node"],
     "paths": { "@yearofthedan/warp": ["./src/index.ts"] }
   },
-  "include": ["src", "integrations", "e2e", "scripts/*.ts", "*.ts"]
+  "include": ["src", "e2e", "scripts/*.ts", "*.ts"]
 }
