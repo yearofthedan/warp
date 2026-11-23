@@ -16,7 +16,8 @@
 | `warp diff main...feature` | where `feature` left `main` | `feature` |
 | `warp diff HEAD --since-last-run` | the working tree at the last run with the flag | the working tree |
 
-Both sides are checked with the working tree's config and ruleset, so a delta comes from code changes alone. A base where the project's tsconfig doesn't exist yet has no findings.
+Both sides are checked with the working tree's config and ruleset, so a delta comes from code changes alone. A base
+where the project's tsconfig doesn't exist yet has no findings.
 
 `diff HEAD` measures uncommitted changes, so each commit starts a new baseline. `diff main...` measures the whole
 branch.
