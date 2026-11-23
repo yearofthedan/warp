@@ -67,8 +67,10 @@ blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`:
 
 Leave out `--ruleset edit` to check with the default config, or keep it with an `edit` [ruleset](config.md#rulesets)
 in the config. Where `warp` is a dev dependency, use `pnpm exec warp` in the command. A non-empty delta prints a
-`hookSpecificOutput.additionalContext` response, which Claude reads as context for its next step. With
-`--reporter claude-hook`, an error exits 1 rather than 2, which Claude Code would treat as blocking feedback.
+`hookSpecificOutput.additionalContext` response, which Claude reads as context for its next step. When warp itself
+fails, as with a broken config, the response tells Claude warp is unavailable and why, once until the failure changes
+or a run succeeds. A repeat of the same failure exits 1 rather than 2, which Claude Code would treat as blocking
+feedback, so you see it and Claude does not.
 
 ## GitHub code scanning
 

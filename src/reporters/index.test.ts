@@ -74,6 +74,15 @@ describe('reporters', () => {
     assert.equal(JSON.parse(render('claude-hook', diff([finding]))).hookSpecificOutput.hookEventName, 'PostToolUse');
   });
 
+  it('claude-hook tells Claude that warp is unavailable, and why', () => {
+    assert.deepEqual(JSON.parse(reporters.get('claude-hook')!.renderFailure!('no config')), {
+      hookSpecificOutput: {
+        hookEventName: 'PostToolUse',
+        additionalContext: 'Warp architecture feedback is unavailable, so edits are not checked: no config',
+      },
+    });
+  });
+
   it("link each rule's docs once", () => {
     const context = JSON.parse(render('omp', diff([documented, { ...documented, key: 'other' }]))).additionalContext;
     assert.match(context, /\n\nRule docs:\n- cognitive-complexity: https:\/\/example.test\/cognitive-complexity.md$/);
