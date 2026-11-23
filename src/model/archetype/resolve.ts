@@ -362,13 +362,15 @@ const filesModule = (
   if (matches.length === 0) return undefined;
   const best = matches.reduce((top, match) => (match.score > top.score ? match : top));
   const tied = matches.filter((match) => match.module !== best.module && match.score === best.score);
-  if (tied.length > 0) {
-    const names = [best, ...tied].map((match) => `${match.module} ('${match.pattern}')`).join(' and ');
-    resolution.errors.add(
-      `${file}: ${archetype.name}'s files modules ${names} are equally specific; narrow one of the patterns`,
-    );
-  }
+  if (tied.length > 0) resolution.errors.add(`${file}: ${archetype.name}'s ${tie([best, ...tied])}`);
   return best.module;
+};
+
+const tie = (clash: readonly { module: string; pattern: string }[]): string => {
+  const names = clash.map((match) => `${match.module} ('${match.pattern}')`).join(' and ');
+  const folders = clash.every((match) => match.pattern.endsWith('/**'));
+  const fix = folders ? 'declare the folders with dir(), where the deeper folder wins' : 'narrow one of the patterns';
+  return `files modules ${names} are equally specific; ${fix}`;
 };
 
 export const specificity = (pattern: string): number => {
