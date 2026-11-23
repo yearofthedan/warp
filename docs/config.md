@@ -149,7 +149,7 @@ e2e/helpers.ts             test support of the root, in its located e2e folder
 - `.tests(locator?, layer)` gives an archetype a test layer: an archetype of its own, from `contains()`, `using()` or
   `exposes()`. Its test modules hold test support (drivers, fixtures, DSLs) and see what the layer sees. Its `using`
   reaches every test below it, so the root names the test runner once. What it exposes reaches the tests of the
-  modules above, as `m.cart.tests.driver`.
+  modules above, with no `using`: `e2e/checkout.test.ts` may import `cart.driver.ts`.
 - A locator, `dir('e2e')` or `files(...)`, moves the module's tests: every file there is test support, and the ones
   the `tests:` globs match are entries. A files module claims its own tests the same way, `files('*.ts', ...)` with
   `using(...).tests(files('*.logic.test.ts'))`, and then they see its files, not the rest of the folder module.
