@@ -63,21 +63,27 @@ A starter for a hexagonal layout, to adjust to the project's folders:
 
 ```ts
 // warp.config.ts
-import { all, archetype, defineConfig, exposes, files, pkg, using } from 'warp';
+import { all, archetype, defineConfig, exposes, files, pkg, ruleset, using } from 'warp';
 
-const app = archetype('app').contains((m) =>
-  m
-    .module('domain', files('src/domain/**'), exposes(all()))
-    .module('application', files('src/app/**'), exposes(all()).using((m) => [m.domain]))
-    .module('adapters', files('src/adapters/**'), exposes(all()).using((m) => [m.domain, m.application, pkg('*')]))
-    .module('lib', files('src/lib/**'), exposes(all()))
-    .module('entry', files('src/main.ts', 'src/index.ts'), using((m) => [m.domain, m.application, m.adapters, m.lib])),
-);
+const app = archetype('app')
+  .contains((m) =>
+    m
+      .module('domain', files('src/domain/**'), exposes(all()))
+      .module('application', files('src/app/**'), exposes(all()).using((m) => [m.domain]))
+      .module('adapters', files('src/adapters/**'), exposes(all()).using((m) => [m.domain, m.application, pkg('*')]))
+      .module('lib', files('src/lib/**'), exposes(all()))
+      .module('entry', files('src/main.ts', 'src/index.ts'), using((m) => [m.domain, m.application, m.adapters, m.lib])),
+  )
+  .tests(using([pkg('vitest')]));
 
-export default defineConfig({ root: app, tests: files('src/**/*.test.ts') });
+const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
+
+export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rulesets: { default: base } });
 ```
 
-The tests belong to the root module, so they see every module's files and what each module uses.
+The tests belong to the root module, so they see every module's files, what each module uses, and the test runner.
+`function-cohesion` is off for them, because a `describe` callback holds `it` calls that share no locals, which the
+rule would ask to split.
 
 Run `warp check` and add modules until no `unclassified` findings are left. The other findings it reports are the
 existing baseline, which `diff` leaves out, so they need no fixing first. Commit the config.
