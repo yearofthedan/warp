@@ -59,7 +59,7 @@ blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`:
       {
         "matcher": "Edit|MultiEdit|Write",
         "hooks": [
-          { "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && pnpm exec warp diff HEAD --since-last-run --ruleset edit --reporter claude-hook", "timeout": 60 }
+          { "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && pnpm exec warp diff HEAD --since-last-run --reporter claude-hook", "timeout": 60 }
         ]
       }
     ]
@@ -67,11 +67,10 @@ blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`:
 }
 ```
 
-Leave out `--ruleset edit` to check with the default config, or keep it with an `edit` [ruleset](config.md#rulesets)
-in the config. A non-empty delta prints a
-`hookSpecificOutput.additionalContext` response, which Claude reads as context for its next step. When warp itself
-fails, as with a broken config, the response tells Claude that warp is unavailable and why. It says so once, until the
-failure changes or a run succeeds. A repeat exits 1, which Claude Code shows to you without blocking; 2 would block.
+To check edits with a lighter set of rules, give the config an `edit` [ruleset](config.md#rulesets) and add
+`--ruleset edit` to the command. A non-empty delta prints a `hookSpecificOutput.additionalContext` response, which
+Claude reads as context for its next step. When warp itself fails, as with a broken config, the response tells
+Claude that warp is unavailable and why. It says so once, until the failure changes or a run succeeds. A repeat exits 1, which Claude Code shows to you without blocking; 2 would block.
 
 ## omp
 

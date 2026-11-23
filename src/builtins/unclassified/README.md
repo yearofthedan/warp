@@ -1,6 +1,6 @@
 # unclassified
 
-**Audience:** anyone reading a `unclassified` finding, or setting the rule.
+**Audience:** anyone reading an `unclassified` finding, or setting the rule.
 **Purpose:** what `unclassified` reports, why, and its options.
 
 Report a loose file, one no files module of its folder module matches.
@@ -20,9 +20,15 @@ lists every loose file.
 With this config, `src/stray.ts` is reported:
 
 ```ts
-import { archetype, files } from '@yearofthedan/warp';
+import { archetype, defineConfig, files } from '@yearofthedan/warp';
 
 const app = archetype('app').contains((m) => m.module('domain', files('src/domain/**')).module('ui', files('src/ui/**')));
+
+export default defineConfig({ root: app });
+```
+
+```
+src/stray.ts:1 [unclassified] src/stray.ts is in no module of . (app), so nothing says what it may import. Add a files module to app that matches it, or move it into a module's folder.
 ```
 
 Fix it by adding a files module that matches it, or moving it into a module's folder.

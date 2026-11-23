@@ -25,8 +25,18 @@ const base = ruleset()
 export default defineConfig({ root: app, rulesets: { default: base } });
 ```
 
-Node strips the types itself, so there is no build step. `warp` in an import always means the running warp,
-installed in the project or not. The config and its rules load as ES modules: in a project whose `package.json` lacks
+`defineConfig` takes these keys:
+
+| Key | Takes | Default |
+| --- | --- | --- |
+| `root` | the archetype of the config's folder | required |
+| `tsconfig` | a path, or a list of paths, relative to the config | `'tsconfig.json'` |
+| `tests` | the test entry files, `files('**/*.test.ts', ...)` | none |
+| `plugins` | custom rules by namespace, see [Custom rules](#custom-rules) | none |
+| `rulesets` | rulesets by name, see [Rulesets](#rulesets) | none |
+
+Node strips the types itself, so there is no build step. `@yearofthedan/warp` in the config resolves to the warp that
+is running, whether or not the project installs it. The config and its rules load as ES modules: in a project whose `package.json` lacks
 `"type": "module"`, name them `.mts` (Node only warns when `type` is missing, but fails on `"type": "commonjs"`).
 Unknown keys, rules and options are refused, so a misspelling fails loudly.
 
@@ -54,6 +64,7 @@ export default defineConfig({ root: app });
 - `dir(...)` makes a folder module for each folder it matches, shaped by the archetype given, or by none: a folder
   module with no modules of its own owns every file in it. `files(...)` makes a files module of the matching files in
   its folder module; it takes no named archetype.
+- `.description(text)` on an archetype says what it is for, as a note for whoever reads the config.
 - The third argument is only ever an archetype. `layer.using(...)` is the same `layer`, wired at this place. `using()`,
   `exposes()` and `archetype()` with no name start an archetype of the module's own, for a module that needs wiring or
   modules but no reusable name. Put `.using()` last in the chain, so `m` is typed.

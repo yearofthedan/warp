@@ -21,20 +21,32 @@ only way to it.
 The rule reports one finding per pair of files, keyed `no-double-export:src/domain/index.ts->src/domain/order.ts`, on
 the first re-export. Its value is the number of names re-exported.
 
-With this archetype, `index.ts` may not re-export `order.ts`, because both are exposed:
+With this config, `index.ts` may not re-export `order.ts`, because `domain` exposes both:
 
 ```ts
-import { archetype, files } from '@yearofthedan/warp';
+import { archetype, defineConfig, dir, exposes, files, using } from '@yearofthedan/warp';
 
-const layer = archetype('layer')
-  .contains((m) => m.module('index', files('index.ts')).module('src', files('**')))
-  .exposes((m) => ({ api: m.index, code: m.src }));
+const app = archetype('app').contains((m) =>
+  m
+    .module('domain', dir('src/domain'), exposes(files('index.ts', 'order.ts')))
+    .module('ui', dir('src/ui'), using((m) => [m.domain])),
+);
+
+export default defineConfig({ root: app });
 ```
+
+Incorrect code:
 
 ```ts fragment
 // src/domain/index.ts
 export { order } from './order.ts';
 ```
+
+```
+src/domain/index.ts:1 [no-double-export] src/domain/index.ts (app.domain src/domain) re-exports src/domain/order.ts (app.domain src/domain), and src/domain exposes both, so importers have two ways to the same names. Keep one: stop re-exporting it, or stop exposing it.
+```
+
+Correct config: `domain` exposes `files('index.ts')`, so the barrel is the only way in.
 
 Fix it by exposing only the barrel, or only the files and deleting the barrel's re-export.
 

@@ -21,17 +21,19 @@ A module owns its own files and the modules nested in it, so a barrel over its o
 passes. A package's public entry is a barrel of this kind: declare it with `.entry(files('index.ts'))` on the module
 that holds what it re-exports. A re-export of a sibling's, an ancestor's or a provided module's file is a finding.
 
-With this archetype:
+With this config:
 
 ```ts
-import { archetype, dir, using } from '@yearofthedan/warp';
+import { all, archetype, defineConfig, dir, exposes, using } from '@yearofthedan/warp';
 
 const app = archetype('app').contains((m) =>
   m
-    .module('domain', dir('src/domain'))
-    .module('ports', dir('src/ports'), using((m) => [m.domain]))
+    .module('domain', dir('src/domain'), exposes(all()))
+    .module('ports', dir('src/ports'), exposes(all()).using((m) => [m.domain]))
     .module('application', dir('src/application'), using((m) => [m.domain, m.ports])),
 );
+
+export default defineConfig({ root: app });
 ```
 
 Incorrect code:
@@ -44,6 +46,10 @@ export { type ProjectsFolder } from '../ports/projects-folder.ts';
 ```ts fragment
 // src/application/index.ts
 export * from '../domain/order.ts';
+```
+
+```
+src/application/index.ts:1 [no-cross-module-reexport] src/application/index.ts (app.application src/application) re-exports everything from src/domain/order.ts (app.domain src/domain), so its importers reach src/domain through src/application. Have importers that need it use src/domain directly, give src/application its own type that hides it, or move it into src/application if src/application owns it.
 ```
 
 Correct code:
