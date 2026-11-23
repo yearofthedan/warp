@@ -1,195 +1,172 @@
 # Concepts
 
-**Audience:** anyone reading warp's findings or writing a rule for it, people and agents alike.
-**Purpose:** what each of warp's terms means, shown on one small project.
+**Audience:** anyone, person or agent, learning what warp's terms mean.
+**Purpose:** each term in one place, defined on the project from [getting-started.md](getting-started.md).
 
-Each term gets one line and an example from the project below. The linked pages hold the detail.
+Each term gets a short definition and an example. [config.md](config.md) holds the syntax and the detail.
 
 ## The example
 
+```text
+src/
+├── api/
+│   ├── orders.ts       imports db, lib, utils and zod
+│   └── orders.test.ts  imports orders.ts and vitest
+├── db/client.ts
+├── lib/format.ts
+├── utils/slug.ts
+└── index.ts            re-exports api/orders.ts
+```
+
 ```ts
 // warp.config.ts
-import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
-
-const component = archetype('component')
-  .identify({ marker: '{name}.dom.ts' })
-  .requires({ strings: dir() })
-  .contains((m, { required, self }) =>
-    m
-      .module('subcomponent', dir('{name}'), self)
-      .module('logic', files('*.ts'), exposes(all()))
-      .module('dom', files('{name}.dom.ts'), exposes(all()).using((m) => [m.logic, m.subcomponent.render, required.strings])),
-  )
-  .exposes((m) => ({ render: m.dom }))
-  .tests(contains((t) => t.module('driver', files('*.driver.ts'))).exposes((t) => ({ driver: t.driver })));
+import { all, archetype, defineConfig, dir, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
 
 const app = archetype('app')
-  .contains((m) =>
-    m
-      .module('domain', files('src/domain/**'), exposes(all()))
-      .module('strings', dir('src/strings'), exposes(all()))
-      .module('components', dir('src/ui/{name}'), component.using((m) => [m.domain]))
-      .module('main', files('src/main.ts'), using((m) => [m.components.render, pkg('node:*')])),
+  .contains((c) =>
+    c
+      .module('lib', dir('src/lib'), exposes(all()))
+      .module('utils', dir('src/utils'), exposes(all()))
+      .module('db', dir('src/db'), exposes(all()))
+      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.lib, m.utils, pkg('*')])),
   )
-  .provides((m) => ({ strings: m.strings }))
+  .entry(files('src/index.ts'))
   .tests(using([pkg('vitest')]));
 
-const base = ruleset().on(component.modules.dom, { 'cognitive-complexity': { max: 10 } });
+const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
 
-export default defineConfig({ root: app, tests: files('**/*.test.ts'), rulesets: { default: base } });
-```
-
-```
-src/
-├── domain/order.ts
-├── strings/en.ts
-├── ui/cart/
-│   ├── cart.ts              imports domain/order.ts
-│   ├── cart.dom.ts          imports cart.ts, strings/en.ts, badge/badge.dom.ts
-│   ├── cart.test.ts         imports cart.ts, cart.driver.ts, vitest
-│   ├── cart.driver.ts       imports cart.dom.ts
-│   └── badge/badge.dom.ts
-├── main.ts                  imports ui/cart/cart.dom.ts and ui/cart/cart.ts
-└── stray.ts
+export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rulesets: { default: base } });
 ```
 
 `warp model` reads it as:
 
-```
-.  root: app
-  loose: src/stray.ts
-  .:domain  1 file
-  src/strings  strings: app.strings, 1 file
-  src/ui/cart  components: component {name=cart}, 1 test
-    src/ui/cart/badge  subcomponent: component {name=badge}
-      src/ui/cart/badge:dom  1 file
-    src/ui/cart:logic  1 file
-    src/ui/cart:dom  1 file
-    src/ui/cart:tests.driver  1 file
-  .:main  1 file
+```text
+.  root: app, 1 file
+  src/lib  lib: app.lib, 1 file
+  src/utils  utils: app.utils, 1 file
+  src/db  db: app.db, 1 file
+  src/api  api: app.api, 1 file, 1 test
 
-10 modules, 8 files, 1 test, 1 loose.
+5 modules, 5 files, 1 test, 0 loose.
 ```
 
 ## Structure
 
-**Config.** The default export of `warp.config.ts`: the codebase's structure, its rulesets and its plugins. The
-example's config is everything above the file tree. See [config.md](config.md).
+### Config
 
-**Archetype.** A reusable module type: how its folders are found, the modules they hold, and what they expose,
-require and provide. `component` and `app` are archetypes.
+The default export of `warp.config.ts`: the codebase's modules, what each may use, and the rulesets that judge them.
 
-**Module.** A boundary warp checks imports across, declared with `.module(name, selector, archetype?)`. Every file
-belongs to at most one module.
+### Module
 
-- A **folder module** comes from a `dir(...)` selector, one per folder it matches, and is named by its path:
-  `src/ui/cart` (a `component`) and `src/strings`. The root module is the config's folder (`.`, an `app`).
-- A **files module** comes from a `files(...)` selector, some of its folder module's files by pattern, and is named
-  `folder:name`: `cart.ts` is in `src/ui/cart:logic` and `cart.dom.ts` in `src/ui/cart:dom`, because the more
-  specific pattern wins.
-- A module with no named archetype, such as `strings`, gets one of its own (`app.strings`). `using()`, `exposes()`
-  and `archetype()` start one when it needs wiring. A folder module with no modules of its own owns all its files.
+A boundary warp checks imports across, declared with `.module(name, selector, archetype?)`. Every file belongs to at
+most one module.
 
-**Captures.** A `{name}` placeholder in a dir path matches one folder name, and the archetype's own patterns can use
-it: for `src/ui/cart`, `{name}` is `cart`, so its `dom` module is `cart.dom.ts`.
+- A **folder module** comes from `dir(...)`, one per folder that matches, and is named by its folder: `src/api`. The
+  **root module** is the config's folder, `.`.
+- A **files module** comes from `files(...)`: some of its folder module's files, by pattern, named `folder:name`. A
+  `generated` module of `files('**/*.gen.ts')` inside `src/api` would be `src/api:generated`.
 
-**Identify.** Which matching folders count as modules: a **marker** file that must exist (`{name}.dom.ts`), or a
-`match` function. `src/ui/cart` has `cart.dom.ts`, so it is a component; a folder without one is not.
+### Archetype
 
-**Self.** The archetype being defined, so it can nest in itself: `subcomponent` finds `src/ui/cart/badge`, another
-`component`.
+A module's shape: the modules it holds, what it uses and what it exposes. `app` is the root's archetype. A named
+archetype, `archetype('layer')`, can shape many folders, and `exposes(all())` starts an unnamed one for a single
+module, shown as `app.lib`.
 
-**Loose file.** A folder module's file that none of its files modules matches. `src/stray.ts` is loose, and
-[`unclassified`](../src/builtins/unclassified/README.md) reports it.
+### Loose file
 
-**Model.** The modules and files warp resolves from the config and the file system, before any rule runs.
-`warp model` prints it, as above.
+A file in a folder module that none of its files modules matches. Before `lib` had a module, `src/lib/format.ts` was
+loose, and [`unclassified`](../src/builtins/unclassified/README.md) reported it.
+
+### Model
+
+The modules and files warp resolves from the config and the file system, before any rule runs. `warp model` prints
+it, as above.
 
 ## What a file may import
 
-**Using.** The list of what a module's files may import, and the only permission there is. `dom` uses
-`[m.logic, m.subcomponent.render, required.strings]`, so `cart.dom.ts` may import `cart.ts`, `badge.dom.ts` and
-`en.ts`. `m.x` names a module declared above; a module sees only those. `component.using(...)` wires a named
-archetype at one place: `components` uses `m.domain`.
+### Using
 
-**Package.** A `pkg()` entry in a `using`, for imports of npm or Node packages: `pkg('node:*')` would let `main.ts` import
-`node:fs`. An import of a package outside its reach is a
+What a module's files may import, and the only permission there is. `api` uses `[m.db, m.lib, m.utils, pkg('*')]`.
+`m` holds the modules declared above, so `lib`, declared first, can use none of the others.
+
+### Package
+
+A `pkg()` entry in a `using`, for imports of npm or Node packages. `pkg('*')` lets `api` import any package, and
+`pkg('zod')` only zod. A package import outside the importer's reach is a
 [`module-externals`](../src/builtins/module-externals/README.md) finding.
 
-**Reach.** Everything one file may import: the rest of its module, what its module's `using` names, and, in a files
-module, what its folder module's `using` names. `cart.ts` reaches `src/domain` through `components`' `using`. See
-[config.md](config.md#reach).
+### Reach
 
-**Exposes and surface.** What a module offers the modules that use it. A module exposes nothing until it says so:
-`exposes(all())` opens its files and what its modules expose, `exposes(files('ports/*.ts'))` some of them, and
-`.exposes((m) => ({ render: m.dom }))` named **surfaces**. `component` exposes `render` (its `dom` files), so
-`main.ts` may import `cart.dom.ts`, and `cart.ts` is private to its module. Using a module that exposes nothing is a
-config error.
+Everything one file may import: the rest of its module, and what its module's `using` names. `src/api/orders.ts`
+reaches `src/db`, `src/lib`, `src/utils` and any package. `src/utils/slug.ts` reaches its own module's files alone,
+so an import of `src/lib/format.ts` there is a [`dependency-direction`](../src/builtins/dependency-direction/README.md)
+finding. See [config.md](config.md#reach).
 
-**Entry.** A folder module's one way in, declared with `.entry(files('index.ts'))` in place of `exposes`. The entry
-belongs to the folder module itself, even when the module holds other modules, and it is the module's whole surface.
-It may re-export what the module's own modules expose: a package's `src/index.ts` is the entry of a `src` module. See
-[config.md](config.md#reach).
+### Exposes and surface
 
-**Requires and provides.** A module that needs something from above names it in `.requires()`, and the nearest
-ancestor that `.provides()` it supplies it. `component` requires `strings`, and `app` provides its `strings` module, so
-`required.strings` in `dom` reaches `src/strings` at any depth. See
-[config.md](config.md#requires-provides-identify-and-self).
+What a module offers the modules that use it is its **surface**, and the module's `exposes` sets it. Every module in
+the example exposes all its files. With `exposes(files('client.ts'))`, `db` would offer `client.ts` alone, and an
+import of any other `db` file from `api` would be a finding. A file's TypeScript `export`s leave the surface as the
+config sets it.
+
+### Entry
+
+A folder module's one way in, declared with `.entry(files('index.ts'))` in place of `exposes`. The entry belongs to
+the folder module itself, and it may re-export what the module's own modules expose: `src/index.ts` is the root's
+entry and re-exports `api`.
+
+### Barrel
+
+A file whose job is to re-export others, such as `src/index.ts`. An import is judged on the file its specifier names,
+so a barrel on a surface lets its importers through to the files behind it.
+
+### Requires and provides
+
+How an archetype reaches modules above it: it names what it needs in `.requires()`, and the nearest ancestor that
+`.provides()` it supplies it. See [config.md](config.md#requires-provides-identify-and-self).
 
 ## Tests
 
-**Test file.** A file the config's `tests:` globs match: `cart.test.ts`. It belongs to the folder module that holds it,
-`src/ui/cart`, never to a files module inside it, and sees all of that module's files. Nothing in production may
-import it.
+### Test file
 
-**Test layer.** What an archetype adds for its tests with `.tests()`: test modules, a `using` and test surfaces.
-`app`'s layer uses `vitest`, which reaches every test below it. See [config.md](config.md#tests).
+A file the config's `tests:` patterns match: `src/api/orders.test.ts`. It belongs to the folder module that holds
+it, `src/api`, and sees all of that module's files. A production file that imports it is a
+[`dependency-direction`](../src/builtins/dependency-direction/README.md) finding.
 
-**Test module.** Test support declared in a layer, such as `component`'s `driver`: `cart.driver.ts` is in
-`src/ui/cart:tests.driver`. Its tests see it, and what the layer exposes, here `driver`, reaches the tests of the
-modules above with no `using`.
+### Test layer
 
-**Locator.** Where a module's tests live when not beside its code: `.tests(dir('e2e'), ...)` makes every file in
-`e2e/` the root's test support, and the ones `tests:` matches its entries.
+What an archetype adds for its tests with `.tests()`: a `using`, test modules and test surfaces. `app`'s layer uses
+`vitest`, and a layer's `using` reaches every test below it. See [config.md](config.md#tests).
+
+### Test module
+
+Test support declared in a test layer, such as a driver or a fixture, which the tests of that module and of the
+modules above can import.
 
 ## Checking
 
-**Facts.** What analysis extracts from each file once, and the only thing a rule reads; no rule reads source. A
-file's facts (`FileFacts`) hold its imports, package imports, top-level members and functions:
+### Rule
 
-- an **edge** (`ImportEdge`) is one import between two files, resolved through the specifier: `main.ts` →
-  `src/ui/cart/cart.ts`, names `['cartTotal']`. It records whether it is type-only or a re-export, and `via` when
-  it went through a barrel.
-- a **member** is a top-level declaration, such as `cartTotal`, and the member graph links members that use each
-  other. The cohesion rules read it.
-- a function's facts hold its statements and its complexity.
+A check that returns findings. [rules.md](rules.md) lists the built-in rules, and a project adds its own as
+[custom rules](custom-rules.md). Rules read facts, never source: what analysis extracts once from each file.
 
-**Facts cache.** The facts from the last run, kept under `.git/warp-cache/`, so a run after an edit analyses only the
-edited files and their importers. See [agents-and-ci.md](agents-and-ci.md#facts-cache).
+### Ruleset
 
-**Rule.** A check over facts that returns findings. A **file rule** reads one file's facts at a time, with the
-options set for that file; `cognitive-complexity` is one. A **project rule** (`scope: 'project'`) reads every file
-once, with the model and the verdicts; `dependency-direction` is one. A **plugin** adds a project's own rules under a
-namespace, such as `wt/no-ports-through-application`. See [config.md](config.md#custom-rules).
+Which rules judge each place, and how strictly. `base` turns `function-cohesion` off for the tests, and every other
+rule runs with its defaults. See [config.md](config.md#rulesets).
 
-**Verdict.** The model's decision on one edge: allowed, with the **grant** that allows it, or refused, with the
-reason. `main.ts` → `cart.ts` is refused as `private`, hidden by `src/ui/cart`; `cart.dom.ts` → `en.ts` is allowed,
-granted by `dom` using `required.strings`.
+### Finding
 
-**Finding.** One thing a rule reports, at a file and line:
+One thing a rule reports, at a file and line:
 
-```
-src/main.ts:2 [dependency-direction] src/main.ts (main of app .) imports src/ui/cart/cart.ts (logic of component src/ui/cart), which src/ui/cart keeps private (it exposes render). ...
+```text
+src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/lib/format.ts (app.lib src/lib), which is outside utils's reach, its own files only. Add what holds src/lib/format.ts to a using if the dependency is intended, or move the code.
 ```
 
-Its **key**, `dependency-direction:src/main.ts->src/ui/cart/cart.ts`, identifies it across commits, and its
-**value**, here the number of names imported, is what `diff` compares. It also carries a `message`, `details` an
-agent can act on, and a `docs` link to the rule's page.
+Its **key**, `dependency-direction:src/utils/slug.ts->src/lib/format.ts`, identifies it across commits, and its
+**value**, here the number of names imported, measures it. [rules.md](rules.md#findings) lists every field.
 
-**Ruleset.** Which rules judge each place, and how strictly, apart from the structure. `base` sets
-`cognitive-complexity` to `max: 10` on every component's `dom` module (`component.modules.dom`), and every other rule runs with its defaults.
-See [config.md](config.md#rulesets).
+### Diff and baseline
 
-**Diff.** The findings a change made **new** (a key the base lacks) or **worse** (a higher value), against a base
-commit or the last run. The findings already there are the **baseline**, and `diff` leaves them out. See
-[agents-and-ci.md](agents-and-ci.md#diff).
+`warp diff` reports the findings a change made **new** (a key the base lacks) or **worse** (a higher value). The
+findings already there are the **baseline**, and `diff` leaves them out. See [diff.md](diff.md).

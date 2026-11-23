@@ -10,7 +10,8 @@ for the config language.
 ## Read before changing code
 
 - [README.md](README.md): what warp does today and its CLI.
-- [docs/config.md](docs/config.md): the config languages, custom rules, rulesets and rules.
+- [docs/config.md](docs/config.md): the config language and rulesets. [docs/rules.md](docs/rules.md) lists the rules,
+  and [docs/custom-rules.md](docs/custom-rules.md) covers plugins.
 - [docs/concepts.md](docs/concepts.md): what each of warp's terms means, on one example.
 - [docs/adr/](docs/adr/README.md): why each decision was made. Read the record before changing what it decided.
 - [CONTRIBUTING.md](CONTRIBUTING.md): running a clone, and why each compiler, tool, CI and dependency setting is there.
@@ -41,7 +42,7 @@ commit against approved findings; it runs nightly in CI, not on pull requests.
 
 A built-in rule is a folder in [src/builtins/](src/builtins): the rule module, its unit tests, and its page as
 the folder's `README.md`. [src/builtins/index.ts](src/builtins/index.ts) lists it. A new rule's page has the
-same sections as the others, and gets a row in the rules table in [docs/config.md](docs/config.md#rules).
+same sections as the others, and gets a row in the rules table in [docs/rules.md](docs/rules.md).
 
 ## Comments and docs
 

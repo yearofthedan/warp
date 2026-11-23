@@ -1,5 +1,10 @@
 # Contributing
 
+## Checks
+
+Every task runs through `./do`, and `./do` alone lists them. `./do check` is the one local check, and CI runs the
+same. `./do test --project unit` (or `integration`, `e2e`) runs one test tier.
+
 ## Running a clone
 
 To try a change on another project, link the CLI from a clone. Run `pnpm setup` first if pnpm has no global bin
@@ -17,8 +22,8 @@ Or link it into one project as its dev dependency: `pnpm add -D link:~/src/warp`
 ## Compiler
 
 Analysis uses the TypeScript 7.1 API (`typescript/sync`), which runs the native compiler in a child process and gives
-the AST, module resolution and checker symbols with alias resolution. It is pinned to `7.1.0-beta`, so expect to adjust
-when 7.1 ships. Each file's identifiers are resolved in one batched checker call.
+the AST, module resolution and checker symbols with alias resolution. It is pinned to `7.1.0-beta`. Each file's
+identifiers are resolved in one batched checker call.
 
 ## Dependencies
 
@@ -56,8 +61,14 @@ per mutant, so the integration and e2e tiers cover them. `stryker.vitest.config.
   whatever changes in them ([Stryker](https://stryker-mutator.io/docs/stryker-js/incremental)). The cache is saved
   in its own step, since the cache action saves only on success and a failing run's results are worth keeping, and
   the report is uploaded on failure, since it says which mutants survived.
-- `acceptance.yml` runs warp against working title at a pinned commit, nightly and on demand. It stays off pull
-  requests because it reaches another repository and its answer moves with the model.
+- `acceptance.yml` runs warp against [working title](https://github.com/yearofthedan/working-title), at the commit in
+  `acceptance/working-title/source`, nightly and on demand. It stays off pull requests because it reaches another
+  repository and its answer moves with the model.
 - `release.yml` publishes through npm trusted publishing: the registry trusts the workflow's OIDC token, so no npm
   token is stored ([npm](https://docs.npmjs.com/trusted-publishers)).
 - Each action is pinned to a commit, with its version in a trailing `# v1.2.3` that Renovate keeps in step.
+
+## Integrations
+
+[`integrations/omp/warp.ts`](integrations/omp/warp.ts) follows omp's event and result shapes from
+`@oh-my-pi/pi-coding-agent` 18.22 (`dist/types/extensibility/extensions/types.d.ts`).

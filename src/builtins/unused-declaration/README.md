@@ -1,7 +1,7 @@
 # unused-declaration
 
 **Audience:** anyone reading an `unused-declaration` finding, or setting the rule.
-**Purpose:** what `unused-declaration` reports, why, and its options.
+**Purpose:** what `unused-declaration` reports, why, and how to fix it.
 
 Report a `using` entry, a surface or a module that the code doesn't use.
 
@@ -20,17 +20,22 @@ The rule judges the model as a whole and reports one finding per declaration, on
 - `grant`: a `using` entry, a test layer's included, that no file it covers imports through. An archetype's `using` is
   judged across all its modules: one that imports through it is enough.
 - `surface`: an `exposes`, `.entry()` or named surface, a test layer's included, that no file outside the module
-  imports. The root module's surface is what the project offers its own users, so it is never reported.
-- `empty`: a module whose `dir(...)` or `files(...)` matches no files. Its own `using` and surface aren't reported
-  too.
+  imports. The root module's surface is what the project offers its own users, so it always counts as used.
+- `empty`: a module whose `dir(...)` or `files(...)` matches no files. Its own `using` and surface are covered by
+  this one finding.
+
+`details` gives the kind, where it is declared, the layer (`production` or `test`), the declaration as written, and
+the modules judged.
+
+## Example
 
 With this config:
 
 ```ts
 import { all, archetype, defineConfig, dir, exposes, files, pkg } from '@yearofthedan/warp';
 
-const app = archetype('app').contains((m) =>
-  m
+const app = archetype('app').contains((c) =>
+  c
     .module('domain', dir('src/domain'), exposes(all()))
     .module('ports', dir('src/ports'), exposes(all()).using((m) => [m.domain, pkg('zod')]))
     .module('styles', files('src/*.css'), exposes(all())),
@@ -41,22 +46,25 @@ export default defineConfig({ root: app });
 
 and these files:
 
-```
+```text
 src/domain/order.ts
 src/ports/store.ts     imports ../domain/order.ts
 ```
 
 the rule reports:
 
-```
+```text
 warp.config.ts:1 [unused-declaration] app.ports uses pkg('zod'), but nothing in src/ports imports through it. Remove it from the using.
 warp.config.ts:1 [unused-declaration] app.ports exposes(all()), but nothing outside src/ports imports it. Remove it, or use the module where it is needed.
 warp.config.ts:1 [unused-declaration] app.styles matches no files: files('src/*.css') finds nothing in the root. Fix the selector, or remove the module.
 ```
 
 keyed `unused-declaration:grant:app.ports->pkg('zod')`, `unused-declaration:surface:app.ports:exposes(all())` and
-`unused-declaration:empty:app.styles`. Each has value 1. `details` gives the kind, where it is declared, the layer
-(`production` or `test`), the declaration as written, and the modules judged.
+`unused-declaration:empty:app.styles`. Each has value 1.
+
+## How to fix
+
+Remove the declaration from the config, or fix the selector of a module that matches nothing.
 
 ## Options
 

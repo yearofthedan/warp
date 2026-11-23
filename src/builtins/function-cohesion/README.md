@@ -1,7 +1,7 @@
 # function-cohesion
 
 **Audience:** anyone reading a `function-cohesion` finding, or setting the rule.
-**Purpose:** what `function-cohesion` reports, why, and its options.
+**Purpose:** what `function-cohesion` reports, why, and how to fix it.
 
 Flag a long function whose statements fall into unrelated groups.
 
@@ -14,13 +14,20 @@ seam, so this rule reports where it is.
 ## Rule details
 
 The same LCOM4 measure as [`file-cohesion`](../file-cohesion/README.md), inside a function. It groups the body's
-statements, linking two when they share a parameter, a local or a `this.<member>`. Parameters count as shared, so guard
-clauses stay attached to the code they guard. Statements that touch none of these are left out. A function is checked
-only once it is over `maxLines`.
+statements, linking two when they share a parameter, a local or a `this.<member>`. Parameters count as shared, so
+guard clauses stay attached to the code they guard. Statements that touch none of these are left out. A function is
+checked once it is over `maxLines`.
 
-Incorrect code, over the tripwire:
+The finding's value is the number of groups. Its `details` lists their line ranges.
+
+## Example
+
+With `maxLines: 4`, set in a ruleset as `.rules({ 'function-cohesion': { maxLines: 4 } })`.
+
+Incorrect code:
 
 ```ts fragment
+// src/handle.ts
 export function handle(order: Order, log: (line: string) => void) {
   const placed = place(order);
   const id = placed.id;
@@ -31,17 +38,35 @@ export function handle(order: Order, log: (line: string) => void) {
 }
 ```
 
-Reported as two groups: lines 2-4 and 5-7.
+```text
+src/handle.ts:1 [function-cohesion] Function handle in src/handle.ts:1 is 8 lines (tripwire 4) and its statements fall into 2 groups that share no locals: lines 2-4; lines 5-7. Each group can become its own function.
+```
 
-Correct code: the timing moved to its own function, or a function whose statements all feed one another.
+Correct code, the timing in a function of its own:
 
-The finding's value is the number of groups. Its `details` lists their line ranges.
+```ts fragment
+// src/handle.ts
+export function handle(order: Order, log: (line: string) => void) {
+  const placed = place(order);
+  log(`placed ${placed.id}`);
+}
+
+export function timed(run: () => void) {
+  const started = Date.now();
+  run();
+  console.log(Date.now() - started);
+}
+```
+
+## How to fix
+
+Move each group the message names into a function of its own.
 
 ## Options
 
 | Option | Default | Effect |
 | --- | --- | --- |
-| `maxLines` | `40` | The tripwire. Functions at or under it are not checked. |
+| `maxLines` | `40` | The tripwire. A function is checked once it is longer. |
 
 ## When not to use it
 
