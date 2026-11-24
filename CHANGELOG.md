@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0](https://github.com/yearofthedan/warp/compare/warp-v0.2.0...warp-v0.3.0) (2026-11-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **model:** `defineConfig({ tests })` is removed.
+* **model:** `.tests()` is removed. Declare test code with `.testModule()` and shared test reach with `.testUsing()`. A file the config's `tests` patterns match that no test module claims is a config error.
+
+### Features
+
+* count a top-level module's entry as used ([9cd0b32](https://github.com/yearofthedan/warp/commit/9cd0b32da97ea6450ccd1260cfca2f256c38496d))
+* give findings advice the config can follow ([9e242c9](https://github.com/yearofthedan/warp/commit/9e242c9304ef97863728ae4aa293a7571f11e4fe))
+* **model:** drop the config's tests key ([5a1c44b](https://github.com/yearofthedan/warp/commit/5a1c44b2337c744a017788b696a843bb385bc43d))
+* **model:** replace test layers with test modules and test kits ([6e4cd34](https://github.com/yearofthedan/warp/commit/6e4cd3450cd506b8f3f993c4a597aebaa380a7f7))
+* report relative imports that resolve to no file, and skip warp's own config ([d905869](https://github.com/yearofthedan/warp/commit/d905869ec0cbafb9b040b3a366c688a9be16e9c5))
+
 ## [0.2.0](https://github.com/yearofthedan/warp/compare/warp-v0.1.0...warp-v0.2.0) (2026-11-23)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@yearofthedan/warp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Architectural fitness checks for TypeScript codebases",
   "license": "MIT",
   "repository": {
