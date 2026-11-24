@@ -152,6 +152,28 @@ describe(rule, () => {
     ]);
   });
 
+  it('drops the advice to use the target directly when an importer may not', () => {
+    const through = (from: string) => ({
+      ...reExport(from, 'ports/folder.ts', { via: 'ui/index.ts' }),
+      reExport: undefined,
+    });
+    const [finding] = check(app(ui()), [
+      facts('ui/index.ts', [reExport('ui/index.ts', 'ports/folder.ts')]),
+      facts('main.ts', [through('main.ts')]),
+      facts('domain/order.ts', [through('domain/order.ts')]),
+    ]);
+    assert.match(
+      finding!.message,
+      / through ui:api\. domain\/order\.ts may not use ports directly, so give ui:api its own type that hides it, /,
+    );
+    const [two] = check(app(ui()), [
+      facts('ui/index.ts', [reExport('ui/index.ts', 'ports/folder.ts')]),
+      facts('domain/order.ts', [through('domain/order.ts')]),
+      facts('ui/card/card.ts', [through('ui/card/card.ts')]),
+    ]);
+    assert.match(two!.message, /domain\/order\.ts and 1 other importer may not use ports directly/);
+  });
+
   it('judges the file the specifier names, and says everything for a bare export *', () => {
     const findings = check(app(ui()), [
       facts('ui/index.ts', [reExport('ui/index.ts', 'domain/order.ts', { via: 'ports/folder.ts', names: [] })]),

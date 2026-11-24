@@ -314,6 +314,25 @@ describe('resolveModel', () => {
     ]);
   });
 
+  it('points a literal dir() whose marker needs a placeholder, among siblings that capture it, at a shared folder', () => {
+    const component = archetype('component')
+      .identify({ marker: '{name}.dom.ts' })
+      .contains((m) => m.module('dom', files('*.dom.ts')));
+    const root = archetype('app').contains((m) =>
+      m.module('header', dir('header'), component).module('components', dir('{name}'), component),
+    );
+    assert.deepEqual(errors(root, ['header/header.dom.ts', 'card/card.dom.ts']), [
+      "header: component's marker '{name}.dom.ts' names {name}, which its dir path doesn't capture. A literal dir() " +
+        'binds no placeholders. If components use header, it is shared: move header out of the folders ' +
+        "dir('{name}') matches, for example into shared/header, and declare it as its own module with " +
+        "dir('shared/{name}')",
+    ]);
+    const alone = archetype('app').contains((m) => m.module('header', dir('header'), component));
+    assert.deepEqual(errors(alone, ['header/header.dom.ts']), [
+      "header: component's marker '{name}.dom.ts' names {name}, which its dir path doesn't capture",
+    ]);
+  });
+
   it('keeps the files no module matches as loose in their folder module', () => {
     const quiet = archetype('quiet').contains((m) => m.module('src', files('*.ts')));
     const strict = archetype('strict').contains((m) => m.module('src', files('*.ts')));

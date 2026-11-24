@@ -425,7 +425,9 @@ describe('a warp.config.ts with archetypes', () => {
     assert.match(findings[2].docs, /src\/builtins\/module-externals\/README\.md$/);
     assert.equal(
       findings[1].message,
-      'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes, or expose src/domain/order.ts from layer if other modules should reach it.',
+      'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes instead, once you ' +
+        'require domain in component, have app provide m.domain as domain and add required.domain to the using of ' +
+        'component.logic.',
     );
     assert.match(findings[1].docs, /src\/builtins\/dependency-direction\/README\.md$/);
   });

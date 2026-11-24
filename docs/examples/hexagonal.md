@@ -47,7 +47,7 @@ import { memoryOrders } from '../adapters/memoryOrders.ts';
 ```
 
 ```text
-src/application/placeOrder.ts:2 [dependency-direction] src/application/placeOrder.ts (app.application src/application) imports src/adapters/memoryOrders.ts (app.adapters src/adapters), which is outside application's reach: app.application uses m.domain. Add what holds src/adapters/memoryOrders.ts to a using if the dependency is intended, or move the code.
+src/application/placeOrder.ts:2 [dependency-direction] src/application/placeOrder.ts (app.application src/application) imports src/adapters/memoryOrders.ts (app.adapters src/adapters), which is outside application's reach. No declared path allows this: either the import or the structure is wrong.
 src/adapters/memoryOrders.ts:2 [no-cycle] src/adapters/memoryOrders.ts and src/application/placeOrder.ts import each other in a loop: src/adapters/memoryOrders.ts:2 imports src/application/placeOrder.ts, src/application/placeOrder.ts:2 imports src/adapters/memoryOrders.ts. Break it at one of these imports: move what both need into a file they both import, or invert one import.
 src/adapters/memoryOrders.ts:2 [module-cycle] src/adapters and src/application import each other in a loop: src/adapters -> src/application (src/adapters/memoryOrders.ts:2 imports src/application/placeOrder.ts, and 1 other import), src/application -> src/adapters (src/application/placeOrder.ts:2 imports src/adapters/memoryOrders.ts). Break it at one of these imports: move what both sides need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.
 
