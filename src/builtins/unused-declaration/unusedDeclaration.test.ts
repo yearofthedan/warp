@@ -58,6 +58,7 @@ const facts = (path: string, imports: string[] = [], packages: string[] = []): F
     typeOnly: false,
     line: 1,
   })),
+  unresolved: [],
   members: { members: [], links: [] },
   functions: [],
 });

@@ -38,6 +38,7 @@ takes the value it needs as a parameter, and `api` passes it in.
 | Rule | Fix in the code | Fix in the config |
 | --- | --- | --- |
 | [`unclassified`](../src/builtins/unclassified/README.md) | Move the file into a module's folder. | Add a module that matches it. |
+| [`unresolved-import`](../src/builtins/unresolved-import/README.md) | Fix the path, or add the file it names. | Nothing: the code is wrong. |
 | [`dependency-direction`](../src/builtins/dependency-direction/README.md) | Import what the module exposes, or move the code. | Add the module to the importer's `using`, or widen what the target exposes. |
 | [`module-externals`](../src/builtins/module-externals/README.md) | Move the package import into a module that lists it. | Add `pkg('name')` to the importer's `using`. |
 | [`module-cycle`](../src/builtins/module-cycle/README.md), [`no-cycle`](../src/builtins/no-cycle/README.md) | Move what both sides need into a module or file they both use, or invert one import. | Turn `module-cycle` off on the module that holds modules meant to use each other. |

@@ -9,6 +9,7 @@ its options.
 | Rule | Reports | Options |
 | --- | --- | --- |
 | [`unclassified`](../src/builtins/unclassified/README.md) | A loose file. On at the root module, off below, unless a ruleset says otherwise. | |
+| [`unresolved-import`](../src/builtins/unresolved-import/README.md) | A relative import that resolves to no file. | |
 | [`dependency-direction`](../src/builtins/dependency-direction/README.md) | An import outside the importer's reach. | |
 | [`module-externals`](../src/builtins/module-externals/README.md) | A package import that no `using` in the importer's reach lists. | |
 | [`no-double-export`](../src/builtins/no-double-export/README.md) | A re-export, in a file on its module's surface, of another file on that surface. | |

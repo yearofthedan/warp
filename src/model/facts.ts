@@ -7,6 +7,7 @@ export interface FileFacts {
   lines: number;
   imports: ImportEdge[];
   externals: ExternalImport[];
+  unresolved: UnresolvedImport[];
   members: MemberGraph;
   functions: FunctionFacts[];
 }
@@ -29,6 +30,12 @@ export interface ExternalImport {
   names: string[];
   typeOnly: boolean;
   reExport?: true;
+  line: number;
+}
+
+export interface UnresolvedImport {
+  from: string;
+  specifier: string;
   line: number;
 }
 

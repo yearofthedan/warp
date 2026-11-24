@@ -62,6 +62,12 @@ describe('import graph', () => {
     );
   });
 
+  it('keeps a relative import that resolves to no file, and passes one naming a file on disk', () => {
+    assert.deepEqual(files.get('src/broken.ts')?.unresolved, [
+      { from: 'src/broken.ts', specifier: './lib/shaeps.ts', line: 1 },
+    ]);
+  });
+
   it('keeps an import of a package apart, by package name, whether or not it resolves', () => {
     const file = files.get('src/externals.ts')!;
     assert.deepEqual(

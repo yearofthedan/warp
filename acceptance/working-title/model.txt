@@ -145,4 +145,3 @@ src/ui/your-projects/your-projects.test-page.ts src/ui/your-projects:tests.testP
 stryker.vitest.config.ts .:tooling
 vite.config.test.ts . (test)
 vite.config.ts .:tooling
-warp.config.ts .:tooling

@@ -82,6 +82,7 @@ A `FileRule` reads one file at a time, with the options that resolve for that fi
 | `path`, `lines` | The file's path from the project root, and its length. |
 | `imports` | Each `ImportEdge`, one import of a project file: `from`, `to`, `specifier`, `names`, `typeOnly`, `line`, `reExport` for a re-export, and `via` when it went through a barrel. |
 | `externals` | Each package import: `package`, `specifier`, `names`, `typeOnly`, `line`. |
+| `unresolved` | Each relative import that resolves to no file: `specifier`, `line`. |
 | `members` | The top-level declarations, such as `cartTotal`, and the links between those that use each other. The cohesion rules read it. |
 | `functions` | Each function's statements and complexity. |
 

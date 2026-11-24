@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { API } from 'typescript/sync';
 import { freshFacts } from '../app/facts.ts';
@@ -88,6 +88,7 @@ const analyzeProgram = (
     program,
     checker,
     relative: (path) => byPath.get(path) ?? byPath.get(path.toLowerCase()),
+    exists: existsSync,
   };
   const analyzed = new Map<string, Omit<CachedFile, 'hash'>>();
   for (const [fileName, file] of files) {

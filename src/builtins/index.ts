@@ -9,9 +9,11 @@ import { moduleExternals } from './module-externals/moduleExternals.ts';
 import { noCrossModuleReexport } from './no-cross-module-reexport/noCrossModuleReexport.ts';
 import { noCycle } from './no-cycle/noCycle.ts';
 import { noDoubleExport } from './no-double-export/noDoubleExport.ts';
+import { unresolvedImport } from './unresolved-import/unresolvedImport.ts';
 import { unusedDeclaration } from './unused-declaration/unusedDeclaration.ts';
 
 export const builtinRules: readonly Rule[] = [
+  unresolvedImport,
   dependencyDirection,
   moduleExternals,
   noDoubleExport,

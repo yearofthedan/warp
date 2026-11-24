@@ -9,6 +9,7 @@ const facts = (file: string, imports: Partial<ImportEdge>[] = []): FileFacts => 
   lines: 1,
   imports: imports.map((edge) => ({ from: file, to: '', specifier: '', names: [], typeOnly: false, line: 1, ...edge })),
   externals: [],
+  unresolved: [],
   members: { members: [], links: [] },
   functions: [],
 });

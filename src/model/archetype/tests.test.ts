@@ -93,6 +93,7 @@ const facts = (path: string, imports: ImportEdge[]): FileFacts => ({
   lines: 10,
   imports,
   externals: [],
+  unresolved: [],
   members: { members: [], links: [] },
   functions: [],
 });
