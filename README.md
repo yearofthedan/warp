@@ -40,7 +40,7 @@ const app = archetype('app')
 
 const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
 
-export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rulesets: { default: base } });
+export default defineConfig({ root: app, rulesets: { default: base } });
 ```
 
 Then check it, and after an edit, see what the edit broke:

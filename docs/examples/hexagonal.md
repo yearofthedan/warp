@@ -32,7 +32,7 @@ const app = archetype('app')
 
 const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
 
-export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rulesets: { default: base } });
+export default defineConfig({ root: app, rulesets: { default: base } });
 ```
 
 `domain` uses nothing, so it imports only its own files. `application` reaches the domain alone, so a use case names

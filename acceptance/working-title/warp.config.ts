@@ -144,4 +144,4 @@ const workingTitle = archetype('working-title')
     pkg('*'),
   ]);
 
-export default defineConfig({ root: workingTitle, tests: files('**/*.test.ts', 'e2e/**/*.spec.ts') });
+export default defineConfig({ root: workingTitle });

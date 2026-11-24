@@ -122,7 +122,7 @@ const shop = () => {
     )
     .testUsing((m) => [m.seed, pkg('vitest')]);
 
-  const { config } = loadConfigData({ root: app, tests: files('**/*.test.ts') }, { builtins: importRules });
+  const { config } = loadConfigData({ root: app }, { builtins: importRules });
   const model = resolveModel(config, folders(paths), paths);
   const judge = verdicts(config, model);
   const verdict = (from: string, to: string): string => {
@@ -267,15 +267,16 @@ describe('test modules', () => {
     );
   });
 
-  it("refuse a test file no test module claims, naming the folder module's archetype", () => {
-    const app = archetype('app').contains((c) => c.module('domain', dir('src/domain'), exposes(all())));
-    const { config } = loadConfigData({ root: app, tests: files('**/*.test.ts') });
-    const files_ = ['src/domain/order.ts', 'src/domain/order.test.ts'];
+  it('leave a file no test module claims to production, loose where no files module matches it', () => {
+    const app = archetype('app').contains((c) => c.module('main', files('main.ts')));
+    const { config } = loadConfigData({ root: app });
+    const all = ['main.ts', 'main.test.ts'];
+    const model = resolveModel(config, folders(all), all);
+    assert.equal(model.isTest('main.test.ts'), false);
+    assert.deepEqual(model.root.looseFiles, ['main.test.ts']);
     assert.deepEqual(
-      failures(() => resolveModel(config, folders(files_), files_)),
-      [
-        "src/domain/order.test.ts: a test file no test module claims; give app.domain a test module that matches it, .testModule('tests', files('*.test.ts'))",
-      ],
+      failures(() => loadConfigData({ root: app, tests: files('*.test.ts') } as never)),
+      ['config: unknown key tests'],
     );
   });
 
@@ -308,7 +309,6 @@ describe('test modules', () => {
       const { config } = loadConfigData(
         {
           root: built.app,
-          tests: files('**/*.test.ts'),
           rulesets: { default: ruleset().on(target(built) as never, { 'function-cohesion': false }) },
         },
         { builtins: importRules },
@@ -391,7 +391,7 @@ describe('mirrored test modules', () => {
   };
 
   it("hold the files under their module's folder with one prefix swapped, the longest mirror first", () => {
-    const { config } = loadConfigData({ root: site(), tests: files('**/*.test.ts') });
+    const { config } = loadConfigData({ root: site() });
     const model = resolveModel(config, folders(mirrored), mirrored);
     assert.deepEqual(Object.fromEntries(mirrored.map((file) => [file, model.moduleOf(file)!.id])), {
       'src/ui/project/project.dom.ts': 'src/ui/project:code',
@@ -420,16 +420,5 @@ describe('mirrored test modules', () => {
       failures(() => loadConfigData({ root: site('src/{name}', 'test') })),
       ["component.tests: mirror() takes two folder paths without placeholders, mirror('src', 'test')"],
     );
-  });
-});
-
-describe('config tests', () => {
-  it('are files patterns on the root config only', () => {
-    const { app } = shop();
-    assert.throws(
-      () => loadConfigData({ root: app, tests: '**/*.test.ts' as never }),
-      /config\.tests: expected the test files, files\('\*\*\/\*\.test\.ts', \.\.\.\)/,
-    );
-    assert.equal(loadConfigData({ root: app }).config.tests, undefined);
   });
 });

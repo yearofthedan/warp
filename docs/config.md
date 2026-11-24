@@ -32,7 +32,6 @@ export default defineConfig({ root: app, rulesets: { default: base } });
 | --- | --- | --- |
 | `root` | the archetype of the config's folder | required |
 | `tsconfig` | a path, or a list of paths, relative to the config | `'tsconfig.json'` |
-| `tests` | what a test file looks like, `files('**/*.test.ts', ...)`; one no test module claims is an error | none |
 | `plugins` | custom rules by namespace, see [custom-rules.md](custom-rules.md) | none |
 | `rulesets` | rulesets by name, see [Rulesets](#rulesets) | none |
 
@@ -235,7 +234,7 @@ const site = archetype('site')
   )
   .testUsing((m) => [m.fixtures, pkg('vitest')]);
 
-export default defineConfig({ root: site, tests: files('**/*.test.ts') });
+export default defineConfig({ root: site });
 ```
 
 ```text
@@ -263,8 +262,9 @@ e2e/checkout.test.ts        (root):e2e         reaches each page's render and dr
 - A test module claims its files ahead of any production module. Where several match, the deepest module's wins,
   then the more specific selector, as for files modules: `dir('e2e')` counts as `files('e2e/**')`, so
   `files('e2e/*.dsl.ts')` beside it takes the DSLs.
-- The config's `tests` patterns say what a test file looks like. A file they match that no test module claims is a
-  config error, so a new test can't pass as production code.
+- A file is test code only when a test module claims it. A test file nothing claims is production code of its
+  module, or loose, and reported by [`unclassified`](../src/builtins/unclassified/README.md), where no files module
+  matches it.
 - [`module-cycle`](../src/builtins/module-cycle/README.md) leaves test modules' imports out.
 
 ### Mirrored tests
@@ -287,7 +287,7 @@ const component = archetype('component')
 
 const app = archetype('app').contains((c) => c.module('components', dir('src/ui/{name}'), component));
 
-export default defineConfig({ root: app, tests: files('**/*.test.ts') });
+export default defineConfig({ root: app });
 ```
 
 ```text
@@ -333,7 +333,7 @@ const edit = ruleset()
   .rules({ 'cognitive-complexity': { max: 12 } })
   .on(app.modules.adapters, { 'file-cohesion': { maxLines: 300 } });
 
-export default defineConfig({ root: app, tests: files('**/*.test.ts'), rulesets: { default: base, edit } });
+export default defineConfig({ root: app, rulesets: { default: base, edit } });
 ```
 
 ```sh

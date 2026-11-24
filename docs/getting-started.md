@@ -180,7 +180,7 @@ const app = archetype('app')
 
 const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
 
-export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rulesets: { default: base } });
+export default defineConfig({ root: app, rulesets: { default: base } });
 ```
 
 - `.testModule('tests', files('src/**/*.test.ts'))` makes the test files a [test module](concepts.md#test-module) of
@@ -189,8 +189,6 @@ export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rules
   import vitest. A module deeper down adds to it for its own tests: with
   `contains((c) => c.testModule('tests', files('*.test.ts'))).exposes(all()).testUsing([pkg('testcontainers')])` on
   `db`, the tests in `src/db` import vitest and testcontainers, and the tests in `src/api` import vitest alone.
-- `tests: files('src/**/*.test.ts')` names what a test file looks like, so one that no test module claims is a config
-  error rather than production code.
 - The ruleset turns `function-cohesion` off for the root's tests, since a `describe` callback holds `it` calls that
   share no locals, which that rule would report as a function to split.
 

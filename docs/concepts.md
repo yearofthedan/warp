@@ -36,7 +36,7 @@ const app = archetype('app')
 
 const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
 
-export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rulesets: { default: base } });
+export default defineConfig({ root: app, rulesets: { default: base } });
 ```
 
 `warp model` reads it as:
@@ -137,11 +137,6 @@ A module of test code: test files and the drivers, fixtures and DSLs they share,
 what the module that declares it reaches, and that module's own files. Only test code may import it: a production
 file that does is a [`dependency-direction`](../src/builtins/dependency-direction/README.md) finding. See
 [config.md](config.md#tests).
-
-### Test file
-
-A file the config's `tests:` patterns match. A test module must claim it, so a new test in a folder no test module
-covers is a config error rather than production code.
 
 ### Test kit
 
