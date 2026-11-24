@@ -12,10 +12,12 @@ each module, and how strictly. [concepts.md](concepts.md) defines its terms, and
 ```ts
 import { all, archetype, defineConfig, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
 
+const open = exposes(all());
+
 const app = archetype('app').contains((c) =>
   c
-    .module('domain', files('src/domain/**'), exposes(all()))
-    .module('application', files('src/app/**'), exposes(all()).using((m) => [m.domain]))
+    .module('domain', files('src/domain/**'), open)
+    .module('application', files('src/app/**'), open.using((m) => [m.domain]))
     .module('adapters', files('src/adapters/**'), using((m) => [m.domain, m.application, pkg('*')])),
 );
 
@@ -97,6 +99,8 @@ export default defineConfig({ root: app });
 - The third argument is only ever an archetype. `layer.using(...)` is the same `layer`, wired at this place. `using()`,
   `exposes()` and `archetype()` with no name start an archetype of the module's own, for a module that needs wiring or
   modules but no reusable name. Put `.using()` last in the chain, so `m` is typed.
+- An archetype is a value, so wiring that several modules share is a `const`. The first example's
+  `const open = exposes(all())` makes `domain` `open`, and `application` `open.using((m) => [m.domain])`.
 - [`warp model`](cli.md) shows how warp reads the config. A folder module's id is its folder (`(root)` for the root), and
   a files module's is its folder and name, `src/domain:src`.
 - The root module is the config's folder. A `dir` path is folder names and whole-segment placeholders (`src/ui`,

@@ -71,6 +71,39 @@ export default defineConfig({ root: app, plugins: { local }, rulesets: { default
   when it has one.
 - `diff` caches findings by the config and every file it imports, so editing a rule redoes the base.
 
+## A rule that requires an import
+
+A rule can also report an import that is missing. In this project every DSL builds its steps on the driver contract,
+so each `*.dsl.ts` must import `src/drivers/driver.ts`:
+
+```ts
+// warp/dsl.ts
+import type { FileRule, Plugin } from '@yearofthedan/warp';
+
+const contract = 'src/drivers/driver.ts';
+
+const dslOnDriver: FileRule = {
+  id: 'dsl-on-driver',
+  check: ({ file }) =>
+    file.path.endsWith('.dsl.ts') && !file.imports.some((edge) => edge.to === contract)
+      ? [
+          {
+            rule: 'dsl-on-driver',
+            key: `dsl-on-driver:${file.path}`,
+            file: file.path,
+            line: 1,
+            value: 1,
+            message: `${file.path} imports nothing from ${contract}. Build its steps on the driver contract.`,
+          },
+        ]
+      : [],
+};
+
+export default { rules: [dslOnDriver] } satisfies Plugin;
+```
+
+It loads like the plugin above, as `plugins: { local, dsl }`, and its rule is `dsl/dsl-on-driver`.
+
 ## What a rule reads
 
 A rule reads facts, never source. Analysis extracts each file's facts once, and every rule reads the same ones.

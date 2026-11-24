@@ -1,6 +1,6 @@
 # Diff
 
-**Audience:** anyone reading `warp diff` output, or wiring it into a hook or CI.
+**Audience:** anyone reading `warp diff` output, or wiring it into an edit hook.
 **Purpose:** how `diff` decides that a finding is new or worse, what it compares with, and what it caches.
 
 `warp diff` reports the findings a change made **new** or **worse**. The findings already there are the
