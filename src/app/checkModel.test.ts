@@ -58,6 +58,7 @@ const project = (imports: Record<string, readonly Import[]>): Project => ({
       return edge(file, to, extra);
     }),
     externals: [],
+    unresolved: [],
     members: { members: [], links: [] },
     functions: [],
   })),
@@ -220,6 +221,7 @@ describe('code measures', () => {
     lines: 10,
     imports: [],
     externals: [],
+    unresolved: [],
     members: { members: [], links: [] },
     functions: [
       {

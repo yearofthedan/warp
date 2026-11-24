@@ -107,8 +107,8 @@ export default defineConfig({ root: app });
   then the longer literal suffix after the last `*`, with `**` last. Two equally specific modules are a config error.
 - A file belongs to its deepest folder module, then to the files module there that matches it. One no files module
   matches is loose, and `check` and `diff` report it as [`unclassified`](../src/builtins/unclassified/README.md).
-- warp reads every file of the programs its `tsconfig` files make, except declaration files. For a solution-style
-  tsconfig, list each project config: `tsconfig: ['tsconfig.app.json', 'tsconfig.node.json']`.
+- warp reads every file of the programs its `tsconfig` files make, except declaration files and its own config file.
+  For a solution-style tsconfig, list each project config: `tsconfig: ['tsconfig.app.json', 'tsconfig.node.json']`.
 
 ## Requires, provides, identify and self
 

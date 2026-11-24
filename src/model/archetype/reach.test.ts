@@ -329,6 +329,7 @@ const facts = (path: string, imports: ImportEdge[], externals: ExternalImport[] 
   lines: 10,
   imports,
   externals,
+  unresolved: [],
   members: { members: [], links: [] },
   functions: [],
 });

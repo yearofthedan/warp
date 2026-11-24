@@ -19,13 +19,15 @@ import {
 } from 'typescript/ast/is';
 import { type Checker, type Program, SymbolFlags } from 'typescript/sync';
 import { isBuiltin } from 'node:module';
-import type { ExternalImport, ImportEdge } from '../model/facts.ts';
+import { dirname, resolve } from 'node:path';
+import type { ExternalImport, ImportEdge, UnresolvedImport } from '../model/facts.ts';
 import type { Source } from './source.ts';
 
 export interface Resolver {
   checker: Checker;
   program: Program;
   relative: (pathOrFileName: string) => string | undefined;
+  exists: (fileName: string) => boolean;
 }
 
 interface Binding {
@@ -37,11 +39,12 @@ interface Binding {
 export interface FileEdges {
   imports: ImportEdge[];
   externals: ExternalImport[];
+  unresolved: UnresolvedImport[];
 }
 
 export const fileEdges = (source: Source, resolver: Resolver): FileEdges => {
   const exported = locallyExportedNames(source.sourceFile);
-  const edges: FileEdges = { imports: [], externals: [] };
+  const edges: FileEdges = { imports: [], externals: [], unresolved: [] };
   for (const statement of source.sourceFile.statements) {
     const declaration = moduleDeclaration(statement, exported);
     if (!declaration) continue;
@@ -52,9 +55,14 @@ export const fileEdges = (source: Source, resolver: Resolver): FileEdges => {
     const via = resolved?.resolvedFileName ? resolver.relative(resolved.resolvedFileName) : undefined;
     if (via) edges.imports.push(...statementEdges(statement, declaration, via, source, resolver));
     else if (isBare(declaration.specifier.text)) edges.externals.push(externalImport(statement, declaration, source));
+    else if (!resolved?.resolvedFileName && !namesFileOnDisk(declaration.specifier.text, source, resolver))
+      edges.unresolved.push({ from: source.file, specifier: declaration.specifier.text, line: source.line(statement) });
   }
   return edges;
 };
+
+const namesFileOnDisk = (specifier: string, source: Source, resolver: Resolver): boolean =>
+  resolver.exists(resolve(dirname(source.sourceFile.fileName), specifier));
 
 const isBare = (specifier: string): boolean => !specifier.startsWith('.') && !specifier.startsWith('/');
 

@@ -100,7 +100,6 @@ const pkgArchetype = archetype('package')
           .using((m) => [m.analysis, m.config, m.git, m.reporters, m.app, m.rules, m.model, m.builtins, pkg('node:*')]),
       ),
   )
-  .entry(files('index.ts'))
   .provides((m) => ({ model: m.model, rules: m.rules, app: m.app }))
   .tests(using((m) => [m.app, m.builtins, m.reporters, m.analysis, m.config]));
 
@@ -111,8 +110,8 @@ const warp = archetype('warp')
       'tooling',
       files('*.ts', 'scripts/*.ts'),
       exposes(all())
-        .description("warp's own config and the scripts behind ./do")
-        .using((m) => [m.package, pkg('node:*'), pkg('vite-plus'), pkg('typescript')]),
+        .description('The scripts behind ./do and the tool configs')
+        .using([pkg('node:*'), pkg('vite-plus'), pkg('typescript')]),
     ),
   )
   .tests(using([pkg('vite-plus/test'), pkg('node:*')]));

@@ -22,7 +22,8 @@ export const modelProject = (
   root: string,
   config: ConfigData,
 ): { model: Model; project: Project } => {
-  const project = analyzer.analyze(root, config.tsconfig, facts);
+  const analyzed = analyzer.analyze(root, config.tsconfig, facts);
+  const project = { files: analyzed.files.filter((file) => file.path !== config.file) };
   const files = project.files.map((file) => file.path);
   return { model: resolveModel(config, foldersAt(root), files), project };
 };

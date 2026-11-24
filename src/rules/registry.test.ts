@@ -9,6 +9,7 @@ const file = {
   lines: 1,
   imports: [],
   externals: [],
+  unresolved: [],
   members: { members: [], links: [] },
   functions: [],
 };
