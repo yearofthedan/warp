@@ -52,7 +52,7 @@ gives every field:
 | `message` | What is wrong and how to fix it, in one line. |
 | `details` | The same facts as data, for an agent or a tool. Each rule's page describes its own. |
 | `docs` | The rule's page. |
-| `module` | The module of the finding's file, with `:tests` for a test file. |
+| `module` | The module of the finding's file, a test module for a test file. |
 | `sites` | For a finding with more than one place to fix it, such as a loop: each place. |
 | `parts` | For a finding that can grow, such as a loop: what it is made of. |
 

@@ -32,7 +32,7 @@ export default defineConfig({ root: app, rulesets: { default: base } });
 | --- | --- | --- |
 | `root` | the archetype of the config's folder | required |
 | `tsconfig` | a path, or a list of paths, relative to the config | `'tsconfig.json'` |
-| `tests` | the test entry files, `files('**/*.test.ts', ...)` | none |
+| `tests` | what a test file looks like, `files('**/*.test.ts', ...)`; one no test module claims is an error | none |
 | `plugins` | custom rules by namespace, see [custom-rules.md](custom-rules.md) | none |
 | `rulesets` | rulesets by name, see [Rulesets](#rulesets) | none |
 
@@ -52,6 +52,7 @@ Functions, imported from `@yearofthedan/warp`:
 | `dir(...paths)` | A folder module for each folder that matches. `dir()` alone, in `.requires()`, asks for any folder module. |
 | `files(...patterns)` | A files module of the matching files in its folder module. `files()` alone, in `.requires()`, asks for any files module. |
 | `all()` | Everything a module holds, for `exposes`. |
+| `mirror(from, to)` | A test module's folder: its module's folder with the prefix `from` swapped for `to`. |
 | `pkg(pattern)` | A package, for `using`: `pkg('zod')`, `pkg('node:*')`, `pkg('*')`. |
 | `using(...)`, `exposes(...)`, `contains(...)` | An unnamed archetype that starts with that method. |
 | `ruleset()` | A ruleset, see [Rulesets](#rulesets). |
@@ -60,14 +61,14 @@ Archetype methods. Each returns a new archetype, so one archetype can be wired d
 
 | Method | Declares | Section |
 | --- | --- | --- |
-| `.contains((c, { required, self }) => c.module(...))` | The modules inside it, in dependency order. | [Modules](#modules) |
+| `.contains((c, { required, self }) => c.module(...))` | The modules inside it, in dependency order, and its test modules with `c.testModule(...)`. | [Modules](#modules), [Tests](#tests) |
 | `.using((m) => [...])` or `.using([...])` | What its files may import. `m` holds the modules declared above. | [Reach](#reach) |
 | `.exposes(all() \| files(...) \| (m) => ({ ... }))` | What other modules may import from it. | [Reach](#reach) |
 | `.entry(files(...))` | Its one way in, in place of `exposes`. | [Reach](#reach) |
 | `.requires({ name: archetype \| dir() \| files() })` | What it needs from the modules above it. | [Requires](#requires-provides-identify-and-self) |
 | `.provides((m) => ({ name: m.x }))` | One of its modules, for those below that require it. | [Requires](#requires-provides-identify-and-self) |
 | `.identify({ marker } \| { match })` | Which folders that match its `dir` count. | [Identify](#requires-provides-identify-and-self) |
-| `.tests(locator?, layer)` | Its test layer. | [Tests](#tests) |
+| `.testUsing((m) => [...])` or `.testUsing([...])` | What every test module at and below its modules may import. | [Tests](#tests) |
 | `.description(text)` | What it is for, as a note for whoever reads the config. | |
 
 ## Modules
@@ -97,7 +98,7 @@ export default defineConfig({ root: app });
 - The third argument is only ever an archetype. `layer.using(...)` is the same `layer`, wired at this place. `using()`,
   `exposes()` and `archetype()` with no name start an archetype of the module's own, for a module that needs wiring or
   modules but no reusable name. Put `.using()` last in the chain, so `m` is typed.
-- [`warp model`](cli.md) shows how warp reads the config. A folder module's id is its folder (`.` for the root), and
+- [`warp model`](cli.md) shows how warp reads the config. A folder module's id is its folder (`(root)` for the root), and
   a files module's is its folder and name, `src/domain:src`.
 - The root module is the config's folder. A `dir` path is folder names and whole-segment placeholders (`src/ui`,
   `{name}`, `src/{name}`), relative to its module; a marker or `match` decides which matching folders count.
@@ -208,68 +209,113 @@ A package import is judged against the `pkg()` entries in the file's reach, and 
 
 ## Tests
 
-The config names its test entry files, and each one belongs to the folder module that holds it:
+Test code lives in test modules, declared beside the modules they test:
 
 ```ts
-import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
+import { all, archetype, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
 
 const page = archetype('page')
   .identify({ marker: '{name}.dom.ts' })
   .contains((c) =>
     c
       .module('logic', files('*.ts'), exposes(all()))
-      .module('dom', files('{name}.dom.ts'), exposes(all()).using((m) => [m.logic])),
+      .module('dom', files('{name}.dom.ts'), exposes(all()).using((m) => [m.logic]))
+      .testModule('driver', files('*.driver.ts'))
+      .testModule('tests', files('*.test.ts'), using((m) => [m.driver])),
   )
-  .exposes((m) => ({ render: m.dom }))
-  .tests(contains((c) => c.module('driver', files('*.driver.ts'))).exposes((m) => ({ driver: m.driver })));
+  .exposes((m) => ({ render: m.dom, driver: m.driver }));
 
 const site = archetype('site')
   .contains((c) =>
-    c.module('domain', dir('src/domain'), exposes(all())).module('pages', dir('src/{name}'), page.using((m) => [m.domain])),
+    c
+      .module('domain', dir('src/domain'), exposes(all()))
+      .module('pages', dir('src/{name}'), page.using((m) => [m.domain]))
+      .testModule('fixtures', dir('src/test-helpers'), using((m) => [m.domain]))
+      .testModule('e2e', dir('e2e')),
   )
-  .tests(dir('e2e'), using([pkg('vitest')]));
+  .testUsing((m) => [m.fixtures, pkg('vitest')]);
 
 export default defineConfig({ root: site, tests: files('**/*.test.ts') });
 ```
 
-```
-src/cart/cart.dom.ts       page src/cart, module dom
-src/cart/cart.ts           page src/cart, module logic
-src/cart/cart.test.ts      test of src/cart: sees logic, dom, its driver, and vitest
-src/cart/cart.driver.ts    test module src/cart:tests.driver
-e2e/checkout.test.ts       test of the root: sees each page's render and driver
-e2e/helpers.ts             test support of the root, in its located e2e folder
+```text
+src/cart/cart.ts            src/cart:logic
+src/cart/cart.driver.ts     src/cart:driver
+src/cart/cart.test.ts       src/cart:tests     reaches logic, dom, the driver, the fixtures and vitest
+src/test-helpers/orders.ts  (root):fixtures    reaches domain and vitest
+e2e/checkout.test.ts        (root):e2e         reaches each page's render and driver, the fixtures and vitest
 ```
 
-- A test file belongs to the folder module that holds it, ahead of any files module inside it, and sees all of the
-  module's files and what its modules use. A production file that imports a test file or a test module is a
-  [`dependency-direction`](../src/builtins/dependency-direction/README.md) finding.
-- `.tests(locator?, layer)` gives an archetype a test layer: an archetype of its own, from `contains()`, `using()` or
-  `exposes()`. Its test modules hold test support (drivers, fixtures, DSLs) and see what the layer sees. Its `using`
-  reaches every test below it, so the root names the test runner once. What it exposes reaches the tests of the
-  modules above, with no `using`: `e2e/checkout.test.ts` may import `cart.driver.ts`.
-- A locator, `dir('e2e')` or `files(...)`, moves the module's tests: every file there is test support, and the ones
-  the `tests:` globs match are entries. A files module claims its own tests the same way, `files('*.ts', ...)` with
-  `using(...).tests(files('*.logic.test.ts'))`, and then they see that module's files alone.
-- In a `using` callback, the second argument names the archetype's requirements, so a layer can reach one:
-  `.tests(using((m, { required }) => [required.application]))`.
-- `tests` is the test layer's name, reserved for it among a module's children.
+- `.testModule(name, selector, archetype?)` goes in `.contains()` beside `.module()`, and holds test code: test files
+  and the drivers, fixtures and DSLs they share. Its selector is `files(...)` or `dir(...)`, relative to its module
+  like any other, or `mirror(...)`. Its archetype is unnamed, from `using()`, `exposes()` or `description()`, and it
+  exposes all its files unless it says otherwise.
+- A test module reaches its own files, every file of the module that declares it and of that module's files modules,
+  what that module reaches, and what its own `using` names. `cart.test.ts` reaches `logic` and `dom` because they
+  are `src/cart`'s.
+- `.testUsing(...)` is an archetype's test kit: every test module of its modules and of the modules below them reaches
+  it, so the root names the runner and the shared fixtures once. Its callback gets the archetype's own modules, test
+  modules included, and its requirements: `.testUsing((m, { required }) => [required.seed])`.
+- Only test code reaches a test module: through a test module's `using`, a `testUsing`, or a surface that names it.
+  `page` exposes `driver: m.driver`, so `e2e/checkout.test.ts` imports `cart.driver.ts` through `pages`, and a
+  production file that does is a [`dependency-direction`](../src/builtins/dependency-direction/README.md) finding.
+  Naming a test module in a production `using` or in `.provides()` is a config error.
+- A test module claims its files ahead of any production module. Where several match, the deepest module's wins,
+  then the more specific selector, as for files modules: `dir('e2e')` counts as `files('e2e/**')`, so
+  `files('e2e/*.dsl.ts')` beside it takes the DSLs.
+- The config's `tests` patterns say what a test file looks like. A file they match that no test module claims is a
+  config error, so a new test can't pass as production code.
+- [`module-cycle`](../src/builtins/module-cycle/README.md) leaves test modules' imports out.
+
+### Mirrored tests
+
+When tests sit in a tree of their own, `mirror(from, to)` finds each module's test folder: the module's own folder
+with the prefix `from` swapped for `to`.
+
+```ts
+import { all, archetype, defineConfig, dir, exposes, files, mirror } from '@yearofthedan/warp';
+
+const component = archetype('component')
+  .identify({ marker: '{name}.dom.ts' })
+  .contains((c, { self }) =>
+    c
+      .module('sub', dir('{name}'), self)
+      .module('code', files('*.ts'), exposes(all()))
+      .testModule('tests', mirror('src', 'test')),
+  )
+  .exposes(all());
+
+const app = archetype('app').contains((c) => c.module('components', dir('src/ui/{name}'), component));
+
+export default defineConfig({ root: app, tests: files('**/*.test.ts') });
+```
+
+```text
+src/ui/project/project.dom.ts        src/ui/project:code
+src/ui/project/graph/graph.dom.ts    src/ui/project/graph:code
+test/ui/project/project.test.ts      src/ui/project:tests
+test/ui/project/graph/graph.test.ts  src/ui/project/graph:tests
+```
+
+- Every file under the mirrored folder belongs to the test module, ahead of any module that holds the folder, and a
+  nested module's mirror takes its own subfolder.
+- A module outside `from`, or two modules mirroring one folder, is a config error.
 
 ## Rulesets
 
 Every rule runs everywhere with its defaults, and [`unclassified`](../src/builtins/unclassified/README.md) at the root
 module, until a ruleset says otherwise. A ruleset is a list of lines, each setting rules at one place: `.rules()` for
 the whole config, and `.on()` for an archetype, or one of its modules by the handle the archetype gives it after
-`.contains()`, `app.modules.adapters`, or its tests after `.tests()`, `layer.modules.tests`. A misspelt module fails
+`.contains()`, `app.modules.adapters`, test modules included, `layer.modules.tests`. A misspelt module fails
 to compile. The config names its rulesets, and the one named `default` applies when the command names none.
 
 ```ts
-import { all, archetype, defineConfig, dir, files, pkg, ruleset, using } from '@yearofthedan/warp';
+import { all, archetype, defineConfig, dir, files, pkg, ruleset } from '@yearofthedan/warp';
 
 const layer = archetype('layer')
-  .contains((c) => c.module('src', files('**')))
+  .contains((c) => c.module('src', files('**')).testModule('tests', files('**/*.test.ts')))
   .exposes(all())
-  .tests(using([pkg('vitest')]));
+  .testUsing([pkg('vitest')]);
 const app = archetype('app').contains((c) =>
   c
     .module('domain', dir('src/domain'), layer)
@@ -302,7 +348,8 @@ warp model --ruleset edit --rules   # what each module changes
   be any ruleset, listed in the config or not.
 - An archetype's line reaches every module of that archetype, and a module's line every module its selector finds.
   For a finding on a file, the nearest place wins: the file's module, then that module's archetype, then the same for
-  each module above it, then `.rules()`. For a test file, each module's test layer comes before the module itself.
+  each module above it, then `.rules()`. A test module is a module like any other, so a line on the module that
+  declares it reaches it too.
   Options merge nearest first.
 - `diff` checks both sides with the same ruleset, so a delta comes from the code alone. An unknown name fails and
   lists the rulesets there are.

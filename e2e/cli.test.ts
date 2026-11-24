@@ -224,7 +224,7 @@ describe('a warp.config.ts with a plugin', () => {
         key: 'wt/no-ports-through-application:src/ui/orderForm.ts->src/application/ports/orderStore.ts',
         file: 'src/ui/orderForm.ts',
         line: 1,
-        module: '.:ui',
+        module: '(root):ui',
         value: 1,
         message:
           'src/ui/orderForm.ts reaches the port src/application/ports/orderStore.ts through src/application/index.ts. Call a use case instead of holding the port.',
@@ -380,19 +380,20 @@ describe('a warp.config.ts with archetypes', () => {
     assert.equal(
       modelled.stdout,
       [
-        '.  root: app',
+        '(root)  root: app',
         '  loose: src/stray.ts',
-        '  src/domain  domain: layer, 1 test',
+        '  src/domain  domain: layer',
         '    src/domain:src  1 file',
         '    src/domain:index  1 file',
+        '    src/domain:tests  1 test file',
         '  src/ui  ui: ui',
         '    src/ui/strings  strings: ui.strings, 1 file',
         '    src/ui/card  components: component {name=card}',
         '      src/ui/card:logic  1 file',
         '      src/ui/card:dom  1 file',
-        '  .:main  1 file',
+        '  (root):main  1 file',
         '',
-        '10 modules, 7 files, 1 test, 1 loose.',
+        '11 modules, 7 files, 1 test file, 1 loose.',
         '',
       ].join('\n'),
     );
@@ -402,9 +403,7 @@ describe('a warp.config.ts with archetypes', () => {
       ['src/domain/order.ts'],
       ['src/domain/index.ts'],
     ]);
-    assert.deepEqual(modules.find((module: { id: string }) => module.id === 'src/domain').tests, [
-      'src/domain/order.test.ts',
-    ]);
+    assert.deepEqual(filesOf('src/domain:tests'), ['src/domain/order.test.ts']);
   });
 
   it('reports loose files and imports and packages outside their reach, passing a barrel on a surface', () => {
@@ -443,7 +442,7 @@ describe('a warp.config.ts with archetypes', () => {
       [
         'unclassified:src/loose.ts',
         'dependency-direction:src/domain/order.test.ts->src/main.ts',
-        "unused-declaration:grant:app.tests->pkg('node:*')",
+        "unused-declaration:grant:app.testUsing->pkg('node:*')",
       ],
     );
   });

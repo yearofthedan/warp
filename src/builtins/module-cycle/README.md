@@ -25,7 +25,7 @@ src/
     └── pool/pool.ts       an import from here counts as infra → domain too
 ```
 
-A module's own files belong to the module itself. Production imports count, and test files' imports are left out.
+A module's own files belong to the module itself. Production imports count, and the imports of test modules are left out.
 
 Every crossing import is a site, a place to break the loop. `check` shows the finding at the first site by path, and
 [`diff`](../../../docs/diff.md#new-and-worse) at the import the change added. The value is the number of file pairs

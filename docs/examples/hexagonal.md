@@ -25,9 +25,10 @@ const app = archetype('app')
       .module('domain', dir('src/domain'), exposes(all()))
       .module('application', dir('src/application'), exposes(all()).using((m) => [m.domain]))
       .module('adapters', dir('src/adapters'), exposes(all()).using((m) => [m.domain, m.application, pkg('*')]))
-      .module('main', files('src/main.ts'), using((m) => [m.application, m.adapters])),
+      .module('main', files('src/main.ts'), using((m) => [m.application, m.adapters]))
+      .testModule('tests', files('src/**/*.test.ts')),
   )
-  .tests(using([pkg('vitest')]));
+  .testUsing([pkg('vitest')]);
 
 const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
 

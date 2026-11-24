@@ -17,12 +17,12 @@ fix, and the config stays a true picture of the code.
 The rule judges the model as a whole and reports one finding per declaration, on the config file, line 1. Its
 `details.kind` says which of three things it found:
 
-- `grant`: a `using` entry, a test layer's included, that no file it covers imports through. An archetype's `using` is
+- `grant`: a `using` or `testUsing` entry, a test module's included, that no file it covers imports through. An archetype's `using` is
   judged across all its modules: one that imports through it is enough.
-- `surface`: an `exposes`, `.entry()` or named surface, a test layer's included, that no file outside the module
+- `surface`: an `exposes`, `.entry()` or named surface, a test module's included, that no file outside the module
   imports. The root module's surface, and the `.entry()` of a module directly below it, are what the project offers
   its own users, so they always count as used.
-- `empty`: a module whose `dir(...)` or `files(...)` matches no files. Its own `using` and surface are covered by
+- `empty`: a module whose `dir(...)`, `files(...)` or `mirror(...)` matches no files. Its own `using` and surface are covered by
   this one finding.
 
 `details` gives the kind, where it is declared, the layer (`production` or `test`), the declaration as written, and

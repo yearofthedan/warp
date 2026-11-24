@@ -24,18 +24,7 @@ export type ExposesData =
   | { kind: 'files'; patterns: string[]; entry?: true }
   | { kind: 'surfaces'; surfaces: Record<string, RefData[]> };
 
-export interface LocatorData {
-  kind: 'dir' | 'files';
-  patterns: string[];
-}
-
-export interface TestLayerData {
-  locator?: LocatorData;
-  modules: FilesModuleData[];
-  using: RefData[];
-  exposes?: ExposesData;
-  rules?: RuleSettingsData;
-}
+export type LocatorData = { kind: 'dir' | 'files'; patterns: string[] } | { kind: 'mirror'; from: string; to: string };
 
 export interface FilesModuleData {
   kind: 'files';
@@ -43,7 +32,6 @@ export interface FilesModuleData {
   patterns: string[];
   using: RefData[];
   exposes?: Exclude<ExposesData, { kind: 'surfaces' }>;
-  tests?: TestLayerData;
   rules?: RuleSettingsData;
   description?: string;
 }
@@ -58,7 +46,17 @@ export interface DirModuleData {
   description?: string;
 }
 
-export type ModuleData = FilesModuleData | DirModuleData;
+export interface TestModuleData {
+  kind: 'test';
+  name: string;
+  locator: LocatorData;
+  using: RefData[];
+  exposes?: Exclude<ExposesData, { kind: 'surfaces' }>;
+  rules?: RuleSettingsData;
+  description?: string;
+}
+
+export type ModuleData = FilesModuleData | DirModuleData | TestModuleData;
 
 export type RequirementData = { kind: 'archetype'; archetype: string } | { kind: 'dir' } | { kind: 'files' };
 
@@ -75,7 +73,7 @@ export interface ArchetypeData {
   modules: ModuleData[];
   exposes?: ExposesData;
   provides: Record<string, ModuleRefData>;
-  tests?: TestLayerData;
+  testUsing?: RefData[];
   rules?: RuleSettingsData;
 }
 

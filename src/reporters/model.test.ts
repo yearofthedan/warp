@@ -49,7 +49,7 @@ describe('modelText', () => {
     assert.equal(
       modelText(model),
       [
-        '.  root: app',
+        '(root)  root: app',
         '  loose: src/stray.ts',
         '  src/strings  strings: app.strings, 1 file',
         '  lib/orders/list  features: app.features {area=orders} {name=list}, 1 file',
@@ -57,7 +57,7 @@ describe('modelText', () => {
         '    src/card:logic  1 file',
         '    src/card:dom  1 file',
         '  src/empty  components: component {name=empty}',
-        '  .:main  1 file',
+        '  (root):main  1 file',
         '',
         '8 modules, 6 files, 1 loose.',
       ].join('\n'),
@@ -72,7 +72,7 @@ describe('modelText with rules', () => {
     assert.equal(
       modelText(model, rules),
       [
-        '.  root: app',
+        '(root)  root: app',
         '  rules: max-lines {"max":200}',
         '  loose: src/stray.ts',
         '  src/strings  strings: app.strings, 1 file',
@@ -84,7 +84,7 @@ describe('modelText with rules', () => {
         '      rules: no-cycle off',
         '  src/empty  components: component {name=empty}',
         '    rules: max-lines {"max":300}',
-        '  .:main  1 file',
+        '  (root):main  1 file',
         '',
         '8 modules, 6 files, 1 loose.',
       ].join('\n'),
@@ -106,14 +106,13 @@ describe('modelJson', () => {
     const { model } = resolved();
     const { modules } = JSON.parse(modelJson(model));
     assert.deepEqual(modules[0], {
-      id: '.',
+      id: '(root)',
       kind: 'dir',
       archetype: 'app',
       captures: {},
-      children: ['src/strings', 'lib/orders/list', 'src/card', 'src/empty', '.:main'],
+      children: ['src/strings', 'lib/orders/list', 'src/card', 'src/empty', '(root):main'],
       files: ['src/stray.ts'],
       looseFiles: ['src/stray.ts'],
-      tests: [],
     });
     assert.deepEqual(modules[5], {
       id: 'src/card:dom',
@@ -124,7 +123,6 @@ describe('modelJson', () => {
       children: [],
       files: ['src/card/card.dom.ts'],
       looseFiles: [],
-      tests: [],
     });
   });
 });

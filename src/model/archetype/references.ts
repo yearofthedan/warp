@@ -1,16 +1,7 @@
 import { ConfigError } from '../configError.ts';
 import { recordedAs } from './builder.ts';
-import type {
-  ArchetypeData,
-  ExposesData,
-  FilesModuleData,
-  ModuleData,
-  ModuleRefData,
-  RefData,
-  RuleSettingsData,
-  TestLayerData,
-} from './data.ts';
-import type { Draft, DraftExposes, DraftTests } from './draft.ts';
+import type { ArchetypeData, ExposesData, ModuleData, ModuleRefData, RefData, RuleSettingsData } from './data.ts';
+import type { Draft, DraftExposes } from './draft.ts';
 import { type Fail, isName, isRecord, list } from './shared.ts';
 
 export interface Check {
@@ -27,6 +18,7 @@ interface Scope {
   visible: number;
   kinds: readonly RefKind[];
   refused: string;
+  tests: boolean;
   module?: string;
   whole?: boolean;
 }
@@ -36,61 +28,35 @@ export const show = (ref: RefData): string =>
     ? `pkg('${ref.pattern}')`
     : `${ref.kind === 'required' ? `required.${ref.name}` : ref.module}${ref.surface === undefined ? '' : `.${ref.surface}`}`;
 
-export const resolveDraft = (check: Check, { data: archetype, modules, exposes, provides, tests }: Draft) => {
+export const resolveDraft = (check: Check, { data: archetype, modules, exposes, provides, testUsing }: Draft) => {
+  const every: readonly RefKind[] = ['module', 'required', 'package'];
   for (const [index, module] of modules.entries()) {
     const scope: Scope = {
       archetype,
       visible: index,
-      kinds: ['module', 'required', 'package'],
+      kinds: every,
       refused: '',
+      tests: module.data.kind === 'test',
       module: module.data.name,
     };
     const where = `${archetype.name}.${module.data.name}`;
     module.data.using.push(...module.using.map((value) => toRef(check, value, `${where} uses`, scope)));
-    if (module.tests && module.data.kind === 'files')
-      module.data.tests = testLayer(check, `${where}.tests`, archetype, module.tests, scope);
   }
   const own: Scope = {
     archetype,
     visible: archetype.modules.length,
     kinds: ['module'],
     refused: 'exposes and provides name the archetype’s own modules',
+    tests: true,
   };
   if (exposes) archetype.exposes = exposesData(check, archetype.name, exposes, own);
   for (const [name, value] of Object.entries(provides)) {
-    const scope = { ...own, whole: true };
+    const scope = { ...own, whole: true, tests: false };
     archetype.provides[name] = toRef(check, value, `${archetype.name} provides ${name} as`, scope) as ModuleRefData;
   }
-  if (tests)
-    archetype.tests = testLayer(check, `${archetype.name}.tests`, archetype, tests, {
-      ...own,
-      kinds: ['module', 'required', 'package'],
-      refused: '',
-      module: 'tests',
-    });
-};
-
-const testLayer = (
-  check: Check,
-  where: string,
-  holder: ArchetypeData,
-  tests: DraftTests,
-  scope: Scope,
-): TestLayerData => {
-  const modules = tests.modules.map((module) => module.data as FilesModuleData);
-  const layer: ArchetypeData = { ...holder, name: where, modules, provides: {} };
-  const own: Scope = {
-    archetype: layer,
-    visible: modules.length,
-    kinds: ['module'],
-    refused: 'exposes names the layer’s own test modules',
-  };
-  return {
-    ...(tests.locator ? { locator: tests.locator } : {}),
-    modules,
-    using: tests.using.map((value) => toRef(check, value, `${where} uses`, scope)),
-    ...(tests.exposes ? { exposes: exposesData(check, where, tests.exposes, own) } : {}),
-  };
+  const kit: Scope = { ...own, kinds: every, refused: '' };
+  if (testUsing.length > 0)
+    archetype.testUsing = testUsing.map((value) => toRef(check, value, `${archetype.name} testUsing`, kit));
 };
 
 const exposesData = (check: Check, name: string, exposes: DraftExposes, scope: Scope): ExposesData =>
@@ -166,6 +132,10 @@ const moduleProblem = (check: Check, name: string, surface: string | undefined, 
   if (index < 0 || index >= scope.visible) return visibilityProblem(name, index, scope);
   if (surface !== undefined && scope.whole) return 'name the whole module, without a surface';
   const module = scope.archetype.modules[index]!;
+  if (module.kind === 'test')
+    return scope.tests
+      ? exposedProblem(name, undefined, module.exposes ?? { kind: 'all' }, surface)
+      : `${name} is a test module, which only test modules and testUsing may name`;
   if (module.kind === 'files') return exposedProblem(name, undefined, module.exposes, surface);
   return exposedProblem(name, archetypeText(scope.archetype, module), check.exposesOf(module.archetype), surface);
 };

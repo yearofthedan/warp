@@ -3,6 +3,7 @@ import { describe, it } from 'vite-plus/test';
 import type { FileFacts, ImportEdge, Project } from '../model/facts.ts';
 import {
   all,
+  contains,
   type AnyArchetype,
   archetype,
   dir,
@@ -185,13 +186,15 @@ describe('rule settings', () => {
 });
 
 describe('placing findings', () => {
-  it("names the module of each finding's file, its tests apart, and no module for the config", () => {
+  it("names the module of each finding's file, a test module's for a test, and no module for the config", () => {
     const app = archetype('app').contains((m) =>
-      m.module('domain', dir('domain'), exposes(all())).module(
-        'infra',
-        dir('infra'),
-        using((m) => [m.domain]),
-      ),
+      m
+        .module('domain', dir('domain'), contains((c) => c.testModule('tests', files('*.test.ts'))).exposes(all()))
+        .module(
+          'infra',
+          dir('infra'),
+          using((m) => [m.domain]),
+        ),
     );
     const { config } = loadConfigData({ root: app, tests: files('**/*.test.ts') });
     const paths = ['domain/order.ts', 'domain/order.test.ts', 'infra/db.ts', 'loose.ts'];
@@ -205,7 +208,7 @@ describe('placing findings', () => {
     assert.deepEqual(
       checkModel(config, model, facts, builtinRules).map((finding) => [finding.file, finding.module]),
       [
-        ['loose.ts', '.'],
+        ['loose.ts', '(root)'],
         ['domain/order.ts', 'domain'],
         ['domain/order.test.ts', 'domain:tests'],
         ['warp.config.ts', undefined],
@@ -378,13 +381,13 @@ describe('cycles', () => {
     assert.deepEqual(others, []);
     assert.deepEqual(
       [loop!.key, loop!.file, loop!.line, loop!.value],
-      ['module-cycle:.:main+domain+infra', 'domain/m.ts', 2, 9],
+      ['module-cycle:(root):main+domain+infra', 'domain/m.ts', 2, 9],
     );
     assert.equal(
       loop!.message,
-      '.:main, domain and infra import each other in a loop: .:main -> domain (main.ts:2 imports domain/u.ts), domain -> .:main (domain/u.ts:2 imports main.ts), domain -> infra (domain/x.ts:2 imports infra/y.ts, and 3 other imports), infra -> domain (infra/y.ts:2 imports domain/x.ts, and 2 other imports). Break it at one of these imports: move what both sides need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.',
+      '(root):main, domain and infra import each other in a loop: (root):main -> domain (main.ts:2 imports domain/u.ts), domain -> (root):main (domain/u.ts:2 imports main.ts), domain -> infra (domain/x.ts:2 imports infra/y.ts, and 3 other imports), infra -> domain (infra/y.ts:2 imports domain/x.ts, and 2 other imports). Break it at one of these imports: move what both sides need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.',
     );
-    assert.deepEqual(loop!.parts, ['.:main->domain', 'domain->.:main', 'domain->infra', 'infra->domain']);
+    assert.deepEqual(loop!.parts, ['(root):main->domain', 'domain->(root):main', 'domain->infra', 'infra->domain']);
     assert.deepEqual(
       loop!.sites!.map(({ file, line }) => `${file}:${line}`),
       [
@@ -410,8 +413,8 @@ describe('cycles', () => {
     assert.deepEqual(
       [module, modules, crossing.map(({ from, to, edges }) => [from, to, edges.length])],
       [
-        '.',
-        ['.:main', 'domain', 'infra'],
+        '(root)',
+        ['(root):main', 'domain', 'infra'],
         [
           ['main.ts', 'domain/u.ts', 1],
           ['domain/u.ts', 'main.ts', 1],
@@ -458,7 +461,7 @@ describe('cycles', () => {
       rules.rules({ 'no-cycle': { types: 'ignore' }, 'module-cycle': { types: 'ignore' } }),
     );
     assert.ok(!keys(ignored).includes('no-cycle:domain/t.ts+infra/z.ts'));
-    const loop = ignored.find((finding) => finding.key === 'module-cycle:.:main+domain+infra')!;
+    const loop = ignored.find((finding) => finding.key === 'module-cycle:(root):main+domain+infra')!;
     assert.equal(loop.value, 8);
   });
 

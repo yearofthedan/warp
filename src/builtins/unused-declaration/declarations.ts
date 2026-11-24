@@ -27,7 +27,7 @@ export const instancesOf = ({ model, held }: Context, archetype: string): Module
 export const childrenNamed = ({ held }: Context, instances: readonly ModuleView[], name: string): ModuleView[] =>
   instances.flatMap((instance) => instance.children.filter((child) => child.name === name && held.has(child)));
 
-export const named = (module: ModuleView): string => (module.id === '.' ? 'the root' : module.id);
+export const named = (module: ModuleView): string => (module.parent === undefined ? 'the root' : module.id);
 
 export const within = (module: ModuleView | undefined, holder: ModuleView): boolean => {
   for (let at = module; at; at = at.parent) if (at === holder) return true;

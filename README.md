@@ -32,10 +32,11 @@ const app = archetype('app')
     c
       .module('utils', dir('src/utils'), exposes(all()))
       .module('db', dir('src/db'), exposes(all()))
-      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.utils, pkg('*')])),
+      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.utils, pkg('*')]))
+      .testModule('tests', files('src/**/*.test.ts')),
   )
   .entry(files('src/index.ts'))
-  .tests(using([pkg('vitest')]));
+  .testUsing([pkg('vitest')]);
 
 const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
 

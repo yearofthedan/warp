@@ -168,7 +168,7 @@ describe('verdicts', () => {
     assert.equal(verdict('src/ui/a/b/b.dom.ts', 'src/ui/a/a.dom.ts'), 'above');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/shared.ts'), 'above');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/main.ts'), 'above');
-    assert.equal(verdict('src/domain/order.ts', 'src/main.ts'), 'private to .:main');
+    assert.equal(verdict('src/domain/order.ts', 'src/main.ts'), 'private to (root):main');
   });
 
   it('answers a requirement from the nearest provider above, whole or by one surface', () => {
@@ -183,7 +183,7 @@ describe('verdicts', () => {
     assert.equal(verdict('src/ui/a/a.ts', 'src/strings/root.ts'), 'not-in-using');
     assert.equal(
       verdict('src/ui/a/a.test.ts', 'src/runner/contract.ts'),
-      'allowed: test uses required.runner.contract (from .)',
+      'allowed: test uses required.runner.contract (from (root))',
     );
     assert.equal(verdict('src/ui/a/a.test.ts', 'src/runner/driver.ts'), 'not-in-using');
   });
@@ -219,7 +219,7 @@ describe('verdicts', () => {
         ['own module src/ui/a:test', ['src/ui/a/a.test.ts']],
         ['test uses m.logic', ['src/ui/a/a.ts']],
         ['test uses m.page', ['src/ui/a/a.page.ts']],
-        ['test uses required.runner.contract (from .)', ['src/runner/contract.ts']],
+        ['test uses required.runner.contract (from (root))', ['src/runner/contract.ts']],
         ["test uses pkg('vitest')", []],
       ],
     );
@@ -299,7 +299,7 @@ describe('exposes', () => {
 
   it('keeps a module that says nothing closed', () => {
     const { data, shopModel, shopVerdict } = shopFixture();
-    assert.equal(shopVerdict('main.ts', 'quiet.ts'), 'private to .:quiet');
+    assert.equal(shopVerdict('main.ts', 'quiet.ts'), 'private to (root):quiet');
     assert.deepEqual([...verdicts(data, shopModel).surface(shopModel.moduleOf('quiet.ts')!)], []);
   });
 });
@@ -378,10 +378,10 @@ describe('checkModel', () => {
     assert.equal(finding?.value, 1);
     assert.equal(
       finding?.message,
-      'src/main.ts (main of app .) imports types from src/ui/a/a.ts (logic of card src/ui/a), which src/ui/a keeps private (it exposes render, page). Import what src/ui/a exposes, or expose src/ui/a/a.ts from card if other modules should reach it.',
+      'src/main.ts (main of app (root)) imports types from src/ui/a/a.ts (logic of card src/ui/a), which src/ui/a keeps private (it exposes render, page). Import what src/ui/a exposes, or expose src/ui/a/a.ts from card if other modules should reach it.',
     );
     assert.deepEqual(finding?.details, {
-      from: '.:main',
+      from: '(root):main',
       to: 'src/ui/a:logic',
       reason: 'private',
       hiddenBy: 'src/ui/a',
@@ -396,7 +396,7 @@ describe('checkModel', () => {
     ]);
     assert.equal(
       domain?.message,
-      'src/domain/order.ts (app.domain src/domain) imports src/main.ts (main of app .), which .:main keeps private (it exposes nothing). Import what .:main exposes, or expose src/main.ts from main if other modules should reach it.',
+      'src/domain/order.ts (app.domain src/domain) imports src/main.ts (main of app (root)), which (root):main keeps private (it exposes nothing). Import what (root):main exposes, or expose src/main.ts from main if other modules should reach it.',
     );
     assert.equal(
       card?.message,
@@ -416,7 +416,7 @@ describe('checkModel', () => {
     );
     assert.match(
       test!.message,
-      /reach: test uses m\.logic, m\.page, required\.runner\.contract \(from \.\), pkg\('vitest'\)\. Add/,
+      /reach: test uses m\.logic, m\.page, required\.runner\.contract \(from \(root\)\), pkg\('vitest'\)\. Add/,
     );
     assert.match(runner!.message, /which is outside contract's reach: contract may use nothing\. /);
   });
@@ -476,10 +476,10 @@ describe('checkModel', () => {
         key: 'unclassified:stray.ts',
         file: 'stray.ts',
         line: 1,
-        module: '.',
+        module: '(root)',
         value: 1,
         message:
-          "stray.ts is in no module of . (app), so nothing says what it may import. Add a files module to app that matches it, or move it into a module's folder.",
+          "stray.ts is in no module of (root) (app), so nothing says what it may import. Add a files module to app that matches it, or move it into a module's folder.",
         docs: 'https://docs',
       },
       {

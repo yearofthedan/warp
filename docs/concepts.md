@@ -28,10 +28,11 @@ const app = archetype('app')
       .module('lib', dir('src/lib'), exposes(all()))
       .module('utils', dir('src/utils'), exposes(all()))
       .module('db', dir('src/db'), exposes(all()))
-      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.lib, m.utils, pkg('*')])),
+      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.lib, m.utils, pkg('*')]))
+      .testModule('tests', files('src/**/*.test.ts')),
   )
   .entry(files('src/index.ts'))
-  .tests(using([pkg('vitest')]));
+  .testUsing([pkg('vitest')]);
 
 const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
 
@@ -41,13 +42,14 @@ export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rules
 `warp model` reads it as:
 
 ```text
-.  root: app, 1 file
+(root)  root: app, 1 file
   src/lib  lib: app.lib, 1 file
   src/utils  utils: app.utils, 1 file
   src/db  db: app.db, 1 file
-  src/api  api: app.api, 1 file, 1 test
+  src/api  api: app.api, 1 file
+  (root):tests  1 test file
 
-5 modules, 5 files, 1 test, 0 loose.
+6 modules, 5 files, 1 test file, 0 loose.
 ```
 
 ## Structure
@@ -62,9 +64,10 @@ A boundary warp checks imports across, declared with `.module(name, selector, ar
 most one module.
 
 - A **folder module** comes from `dir(...)`, one per folder that matches, and is named by its folder: `src/api`. The
-  **root module** is the config's folder, `.`.
+  **root module** is the config's folder, `(root)`.
 - A **files module** comes from `files(...)`: some of its folder module's files, by pattern, named `folder:name`. A
   `generated` module of `files('**/*.gen.ts')` inside `src/api` would be `src/api:generated`.
+- A **test module** comes from `.testModule(...)` and holds test code. See [Test module](#test-module).
 
 ### Archetype
 
@@ -127,22 +130,23 @@ How an archetype reaches modules above it: it names what it needs in `.requires(
 
 ## Tests
 
-### Test file
-
-A file the config's `tests:` patterns match: `src/api/orders.test.ts`. It belongs to the folder module that holds
-it, `src/api`, and sees all of that module's files. A production file that imports it is a
-[`dependency-direction`](../src/builtins/dependency-direction/README.md) finding.
-
-### Test layer
-
-What an archetype adds for its tests with `.tests()`: a `using`, test modules and test surfaces. Layers nest: a
-layer's `using` reaches every test below it, and a module's own layer adds to what it inherits. `app`'s layer uses
-`vitest`, so every test may import it. See [config.md](config.md#tests).
-
 ### Test module
 
-Test support declared in a test layer, such as a driver or a fixture, which the tests of that module and of the
-modules above can import.
+A module of test code: test files and the drivers, fixtures and DSLs they share, declared with
+`.testModule(name, selector)` in `.contains()`. `(root):tests` holds `src/api/orders.test.ts`. A test module reaches
+what the module that declares it reaches, and that module's own files. Only test code may import it: a production
+file that does is a [`dependency-direction`](../src/builtins/dependency-direction/README.md) finding. See
+[config.md](config.md#tests).
+
+### Test file
+
+A file the config's `tests:` patterns match. A test module must claim it, so a new test in a folder no test module
+covers is a config error rather than production code.
+
+### Test kit
+
+What every test module at and below an archetype's modules may import, declared with `.testUsing(...)`. `app`'s kit is
+`vitest`, so every test may import it, and a module deeper down adds to what it inherits.
 
 ## Checking
 

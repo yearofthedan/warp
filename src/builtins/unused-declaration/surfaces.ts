@@ -47,23 +47,28 @@ const declared = (context: Context): Declared[] =>
     const judged = isEntry(archetype.exposes)
       ? instances.filter((instance) => !isTopLevel(context, instance))
       : instances;
-    const own = archetype.exposes ? production(context, archetype.name, archetype.exposes, judged) : [];
+    const own = archetype.exposes ? surfaces(context, archetype.name, archetype.exposes, judged, 'production') : [];
     const modules = archetype.modules.flatMap((module) => {
       const holders = childrenNamed(context, instances, module.name);
-      return module.kind === 'files' && module.exposes
-        ? production(context, `${archetype.name}.${module.name}`, module.exposes, holders)
+      const layer: Layer = module.kind === 'test' ? 'test' : 'production';
+      return module.kind !== 'dir' && module.exposes
+        ? surfaces(context, `${archetype.name}.${module.name}`, module.exposes, holders, layer)
         : [];
     });
-    const tests = archetype.tests?.exposes ? test(`${archetype.name}.tests`, archetype.tests.exposes, instances) : [];
-    return [...own, ...modules, ...tests];
+    return [...own, ...modules];
   });
 
 const isEntry = (exposes: ExposesData | undefined): boolean => exposes?.kind === 'files' && exposes.entry === true;
 
 const isTopLevel = (context: Context, module: ModuleView): boolean => module.parent === context.model.root;
 
-const production = (context: Context, declaredIn: string, exposes: ExposesData, holders: ModuleView[]): Declared[] => {
-  const layer = 'production';
+const surfaces = (
+  context: Context,
+  declaredIn: string,
+  exposes: ExposesData,
+  holders: ModuleView[],
+  layer: Layer,
+): Declared[] => {
   if (exposes.kind !== 'surfaces')
     return [
       { declaredIn, layer, exposes: whole(exposes), holders, files: (holder) => context.verdicts.surface(holder) },
@@ -75,22 +80,6 @@ const production = (context: Context, declaredIn: string, exposes: ExposesData, 
     holders,
     files: (holder) => context.verdicts.surface(holder, name),
   }));
-};
-
-const test = (declaredIn: string, exposes: ExposesData, holders: ModuleView[]): Declared[] => {
-  const layer = 'test';
-  const filesOf = (holder: ModuleView, names?: ReadonlySet<string>) =>
-    new Set(
-      holder.children
-        .filter((child) => child.test && (names === undefined || names.has(child.name!)))
-        .flatMap((child) => child.files),
-    );
-  if (exposes.kind !== 'surfaces')
-    return [{ declaredIn, layer, exposes: whole(exposes), holders, files: (holder) => filesOf(holder) }];
-  return Object.entries(exposes.surfaces).map(([name, refs]) => {
-    const names = new Set(refs.flatMap((ref) => (ref.kind === 'module' ? [`tests.${ref.module}`] : [])));
-    return { declaredIn, layer, exposes: `exposes ${name}`, holders, files: (holder) => filesOf(holder, names) };
-  });
 };
 
 const whole = (exposes: Exclude<ExposesData, { kind: 'surfaces' }>): string => {

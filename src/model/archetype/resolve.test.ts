@@ -42,7 +42,7 @@ describe('resolveModel', () => {
       archetype('app').contains((m) => m.module('main', files('main.ts')).module('rest', files('**'))),
       ['main.ts', 'src/a.ts', 'src/b/c.ts'],
     );
-    assert.equal(model.root.id, '.');
+    assert.equal(model.root.id, '(root)');
     assert.equal(model.root.dir, '');
     assert.equal(model.root.kind, 'dir');
     assert.equal(model.root.archetype, 'app');
@@ -50,9 +50,9 @@ describe('resolveModel', () => {
     assert.ok(!('parent' in model.root));
     assert.deepEqual(model.root.captures, {});
     assert.deepEqual(tree(model), [
-      '. app: []',
-      '.:main files: ["main.ts"]',
-      '.:rest files: ["src/a.ts","src/b/c.ts"]',
+      '(root) app: []',
+      '(root):main files: ["main.ts"]',
+      '(root):rest files: ["src/a.ts","src/b/c.ts"]',
     ]);
     const [main, rest] = model.root.children;
     assert.equal(main?.kind, 'files');
@@ -68,9 +68,9 @@ describe('resolveModel', () => {
       ['src/domain/order.ts', 'src/domain/deep/price.ts', 'src/main.ts'],
     );
     assert.deepEqual(tree(model), [
-      '. app: []',
+      '(root) app: []',
       'src/domain app.domain: ["src/domain/deep/price.ts","src/domain/order.ts"]',
-      '.:rest files: ["src/main.ts"]',
+      '(root):rest files: ["src/main.ts"]',
     ]);
     const [domain] = model.root.children;
     assert.equal(domain?.parent, model.root);
@@ -88,7 +88,7 @@ describe('resolveModel', () => {
     );
     assert.deepEqual(
       model.modules.map((module) => module.id),
-      ['.', '.:z', 'a', 'b', '.:a'],
+      ['(root)', '(root):z', 'a', 'b', '(root):a'],
     );
   });
 
@@ -102,7 +102,7 @@ describe('resolveModel', () => {
     );
     const model = resolve(root, ['src/app/ports.ts', 'src/app/core/a.ts', 'src/app/stray.ts']);
     assert.deepEqual(tree(model), [
-      '. app: []',
+      '(root) app: []',
       'src/app app.app: ["src/app/stray.ts"]',
       'src/app:ports files: ["src/app/ports.ts"]',
       'src/app/core app.app.core: ["src/app/core/a.ts"]',
@@ -134,7 +134,7 @@ describe('resolveModel', () => {
       'src/ui/project/graph/card/card.dom.ts',
     ]);
     assert.deepEqual(tree(model), [
-      '. app: []',
+      '(root) app: []',
       'src/ui ui: []',
       'src/ui/strings ui.strings: ["src/ui/strings/en.ts"]',
       'src/ui/project component: []',
@@ -163,7 +163,7 @@ describe('resolveModel', () => {
     const model = resolve(root, ['src/a/a.ts', 'src/b/b.ts', 'src/c/c.ts'], ['src/a/a.json', 'src/c/a.json']);
     assert.deepEqual(
       model.modules.map((module) => module.id),
-      ['.', 'src/a', 'src/a:src'],
+      ['(root)', 'src/a', 'src/a:src'],
     );
     assert.deepEqual(model.root.looseFiles, ['src/b/b.ts', 'src/c/c.ts']);
   });
@@ -187,8 +187,8 @@ describe('resolveModel', () => {
     );
     const model = resolve(root, ['src/area/a-feature/x.ts', 'src/area/other/y.ts']);
     assert.deepEqual(seen, [
-      ['src/area/a-feature', ['.', 'src/area']],
-      ['src/area/other', ['.', 'src/area']],
+      ['src/area/a-feature', ['(root)', 'src/area']],
+      ['src/area/other', ['(root)', 'src/area']],
     ]);
     assert.deepEqual(model.moduleOf('src/area/a-feature/x.ts')?.captures, { name: 'a-feature', slug: 'a-feature' });
     assert.deepEqual(model.moduleOf('src/area/other/y.ts')?.looseFiles, ['src/area/other/y.ts']);
@@ -205,7 +205,7 @@ describe('resolveModel', () => {
     assert.deepEqual(
       model.modules.map((module) => [module.id, module.name]),
       [
-        ['.', undefined],
+        ['(root)', undefined],
         ['lib/x', 'anywhere'],
         ['src/card', 'components'],
         ['src/strings', 'strings'],
@@ -218,7 +218,7 @@ describe('resolveModel', () => {
     assert.deepEqual(
       resolve(root, ['src/a/x.ts', 'src/b/y.ts']).modules.map((module) => [module.id, module.name, module.captures]),
       [
-        ['.', undefined, {}],
+        ['(root)', undefined, {}],
         ['src/a', 'code', {}],
         ['src/b', 'code', { name: 'b' }],
       ],
@@ -262,12 +262,12 @@ describe('resolveModel', () => {
     );
     const model = resolve(root, ['main.ts', 'a.ts', 'a.test.ts', 'README.md', 'src/x.ts', 'src/one.ts']);
     assert.deepEqual(tree(model).slice(1), [
-      '.:rest files: ["README.md"]',
-      '.:code files: ["a.ts"]',
-      '.:specs files: ["a.test.ts"]',
-      '.:nested files: ["src/x.ts"]',
-      '.:main files: ["main.ts"]',
-      '.:one files: ["src/one.ts"]',
+      '(root):rest files: ["README.md"]',
+      '(root):code files: ["a.ts"]',
+      '(root):specs files: ["a.test.ts"]',
+      '(root):nested files: ["src/x.ts"]',
+      '(root):main files: ["main.ts"]',
+      '(root):one files: ["src/one.ts"]',
     ]);
   });
 
@@ -286,8 +286,8 @@ describe('resolveModel', () => {
       m.module('a', files('*.dsl.ts', 'x.ts')).module('b', files('card.*')),
     );
     assert.deepEqual(tree(resolve(root, ['card.dsl.ts', 'card.ts'])).slice(1), [
-      '.:a files: ["card.dsl.ts"]',
-      '.:b files: ["card.ts"]',
+      '(root):a files: ["card.dsl.ts"]',
+      '(root):b files: ["card.ts"]',
     ]);
     const tied = archetype('app').contains((m) => m.module('a', files('*.test.ts')).module('b', files('**/*.test.ts')));
     assert.deepEqual(errors(tied, ['a.test.ts', 'src/b.test.ts']), [
@@ -310,7 +310,7 @@ describe('resolveModel', () => {
     );
     assert.deepEqual(errors(root, ['a.dom.ts', 'b.dom.ts', 'x/x.dom.ts']), [
       "x: component's marker '{id}.dom.ts' names {id}, which its dir path doesn't capture",
-      ".: app.dom '{name}.dom.ts' names {name}, which . doesn't capture",
+      "(root): app.dom '{name}.dom.ts' names {name}, which (root) doesn't capture",
     ]);
   });
 
@@ -324,7 +324,7 @@ describe('resolveModel', () => {
     assert.deepEqual(
       model.modules.map((module) => [module.id, module.looseFiles]),
       [
-        ['.', ['stray.ts']],
+        ['(root)', ['stray.ts']],
         ['quiet', ['quiet/a.css']],
         ['quiet:src', []],
         ['strict', ['strict/b.css']],
@@ -362,14 +362,14 @@ describe('resolveModel', () => {
       'src/test-helpers/driver.ts',
     ]);
     assert.deepEqual(tree(model), [
-      '. working-title: []',
+      '(root) working-title: []',
       'src/domain layer: []',
       'src/domain:src files: ["src/domain/project.ts"]',
       'src/domain:test files: ["src/domain/project.test.ts"]',
       'src/ports working-title.ports: ["src/ports/store.ts"]',
       'src/test-helpers test-runner: []',
       'src/test-helpers:runner files: ["src/test-helpers/driver.ts"]',
-      '.:tooling files: ["scripts/build/run.ts","vite.config.ts"]',
+      '(root):tooling files: ["scripts/build/run.ts","vite.config.ts"]',
     ]);
   });
 });

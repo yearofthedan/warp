@@ -21,10 +21,7 @@ interface Walk {
 const usedRequirements = (drafts: readonly Draft[]): Set<unknown> =>
   new Set(
     drafts
-      .flatMap((draft) => [
-        ...draft.modules.flatMap((module) => [...module.using, ...(module.tests?.using ?? [])]),
-        ...(draft.tests?.using ?? []),
-      ])
+      .flatMap((draft) => [...draft.modules.flatMap((module) => module.using), ...draft.testUsing])
       .map((value) => recordedAs(value, 'ref'))
       .map((ref) => ref?.kind === 'required' && ref.name),
   );
@@ -95,7 +92,7 @@ const answer = (
 };
 
 const moduleText = (state: Walk, module: ModuleData): string => {
-  if (module.kind === 'files') return 'a files module';
+  if (module.kind !== 'dir') return `a ${module.kind} module`;
   return state.archetypes[module.archetype]!.inline ? 'a dir module' : `modules of ${module.archetype}`;
 };
 

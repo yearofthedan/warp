@@ -116,11 +116,6 @@ const applyTo = (
     archetype.rules = merged(archetype.rules, layer);
     return;
   }
-  if (module === 'tests') {
-    if (archetype.tests) archetype.tests = { ...archetype.tests, rules: merged(archetype.tests.rules, layer) };
-    else fail(`${at}: ${archetype.name} has no test layer`);
-    return;
-  }
   const index = archetype.modules.findIndex((declared) => declared.name === module);
   if (index < 0)
     fail(

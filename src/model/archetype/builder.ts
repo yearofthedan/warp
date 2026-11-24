@@ -25,7 +25,7 @@ export interface Shape {
   readonly [shapeBrand]: 'dir' | 'files';
 }
 
-export interface Selector<K extends 'dir' | 'files' = 'dir' | 'files'> {
+export interface Selector<K extends 'dir' | 'files' | 'mirror' = 'dir' | 'files'> {
   readonly [selectorBrand]: K;
 }
 
@@ -69,11 +69,7 @@ type Surfaces = Record<string, Reference | readonly Reference[]>;
 
 export type Exposed = All | Selector<'files'>;
 
-type NewName<K extends string, C> = K extends 'tests'
-  ? 'tests names the test layer'
-  : K extends keyof C
-    ? `module '${K}' is already declared`
-    : K;
+type NewName<K extends string, C> = K extends keyof C ? `module '${K}' is already declared` : K;
 
 type With<C, K extends string, T> = C & { readonly [k in K]: T };
 
@@ -99,7 +95,16 @@ export interface Modules<C, H> {
     selector: Selector<'dir'>,
     archetype?: Archetype<N, E, C, H2>,
   ): Modules<With<C, K, SurfaceRefs<E>>, With<H, K, HandleOf<N, H2>>>;
+  testModule<const K extends string>(
+    name: NewName<K, C>,
+    selector: Selector<'files' | 'dir' | 'mirror'>,
+    archetype?: Archetype<undefined, {}, C, {}>,
+  ): Modules<With<C, K, Reference>, With<H, K, ModuleHandle>>;
 }
+
+export type TestUsing<C, R> =
+  | readonly (Reference | Package)[]
+  | ((m: C, context: { readonly required: R }) => readonly (Reference | Package)[]);
 
 export interface ContainsContext<R> {
   required: R;
@@ -130,11 +135,7 @@ export interface ArchetypeMethods<N extends string | undefined, C, H, R, E, P> e
   entry(entry: Selector<'files'>): ArchetypeBuilder<N, C, H, R, {}, P>;
   provides(provides: (s: C) => Record<string, Reference>): ArchetypeBuilder<N, C, H, R, E, P>;
   description(description: string): ArchetypeBuilder<N, C, H, R, E, P>;
-  tests(layer: Archetype<undefined, any, C, any>): ArchetypeBuilder<N, C, With<H, 'tests', ModuleHandle>, R, E, P>;
-  tests(
-    locator: Selector,
-    layer?: Archetype<undefined, any, C, any>,
-  ): ArchetypeBuilder<N, C, With<H, 'tests', ModuleHandle>, R, E, P>;
+  testUsing(using: TestUsing<C, R>): ArchetypeBuilder<N, C, H, R, E, P>;
   using<P2 = any>(using: Using<P2>): ArchetypeBuilder<N, C, H, R, E, P2>;
 }
 
@@ -161,7 +162,7 @@ export type RecordedRef =
   | { kind: 'package'; pattern: string };
 
 export interface RecordedSelector {
-  kind: 'dir' | 'files';
+  kind: 'dir' | 'files' | 'mirror';
   patterns: readonly unknown[];
 }
 
@@ -170,6 +171,7 @@ export interface RecordedModule {
   selector: unknown;
   archetype?: unknown;
   extra: readonly unknown[];
+  test?: true;
 }
 
 export interface RecordedDefinition {
@@ -181,7 +183,7 @@ export interface RecordedDefinition {
   entry?: unknown;
   provides?: unknown;
   description?: unknown;
-  tests?: { locator?: unknown; layer?: unknown; extra: readonly unknown[] };
+  testUsing?: unknown;
 }
 
 export interface RecordedArchetype {
@@ -232,35 +234,33 @@ const modules = (entries: readonly RecordedModule[]): unknown => ({
   ...record('modules', entries),
   module: (name: unknown, selector: unknown, archetype?: unknown, ...extra: unknown[]) =>
     modules([...entries, { name, selector, archetype, extra }]),
+  testModule: (name: unknown, selector: unknown, archetype?: unknown, ...extra: unknown[]) =>
+    modules([...entries, { name, selector, archetype, extra, test: true }]),
 });
 
 export const inlineName = (holder: string, module: string): string => `${holder}.${module}`;
 
-const handles = (holder: unknown, entries: unknown, tests?: unknown): Record<string, unknown> => ({
-  ...Object.fromEntries(
+const handles = (holder: unknown, entries: unknown): Record<string, unknown> =>
+  Object.fromEntries(
     (Array.isArray(entries) ? (entries as RecordedModule[]) : [])
       .filter((entry) => typeof entry.name === 'string')
       .map((entry) => {
         const handle = record('handle', { archetype: holder, module: entry.name });
         const anonymous = recordedAs(entry.archetype, 'archetype')?.definition;
         const nested =
-          anonymous && anonymous.name === undefined
-            ? {
-                modules: handles(inlineName(String(holder), entry.name as string), anonymous.modules, anonymous.tests),
-              }
+          anonymous && anonymous.name === undefined && !entry.test
+            ? { modules: handles(inlineName(String(holder), entry.name as string), anonymous.modules) }
             : {};
         return [entry.name, Object.freeze({ ...handle, ...nested })];
       }),
-  ),
-  ...(tests === undefined ? {} : { tests: Object.freeze(record('handle', { archetype: holder, module: 'tests' })) }),
-});
+  );
 
 const builder = (state: RecordedArchetype): unknown => {
   const { definition } = state;
   const define = (field: keyof RecordedDefinition) => (value: unknown) =>
     builder({ ...state, definition: { ...definition, [field]: value } });
   return {
-    modules: handles(definition.name, definition.modules, definition.tests),
+    modules: handles(definition.name, definition.modules),
     name: definition.name,
     ...record('archetype', state),
     identify: define('identify'),
@@ -271,11 +271,7 @@ const builder = (state: RecordedArchetype): unknown => {
     entry: define('entry'),
     provides: define('provides'),
     description: define('description'),
-    tests: (first: unknown, ...rest: unknown[]) => {
-      const located = recordedAs(first, 'selector') !== undefined;
-      const [layer, ...extra] = located ? rest : [first, ...rest];
-      return define('tests')({ ...(located ? { locator: first } : {}), layer, extra });
-    },
+    testUsing: define('testUsing'),
     using: (using: unknown) => builder({ ...state, using }),
   };
 };
@@ -315,6 +311,9 @@ export function files(...patterns: [string, ...string[]]): Selector<'files'>;
 export function files(...patterns: string[]): Shape | Selector<'files'> {
   return selector('files', patterns) as never;
 }
+
+export const mirror = (from: string, to: string): Selector<'mirror'> =>
+  Object.freeze(record('selector', { kind: 'mirror', patterns: [from, to] })) as never;
 
 export const pkg = (pattern: string): Package => ref({ kind: 'package', pattern }) as never;
 

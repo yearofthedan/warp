@@ -14,10 +14,11 @@ export const modelText = (model: Model, rules?: RulesOf): string => {
     for (const child of module.children) visit(child, depth + 1);
   };
   visit(model.root, 0);
-  const files = model.modules.reduce((sum, module) => sum + module.files.length, 0);
+  const total = (modules: readonly ModuleView[]) => modules.reduce((sum, module) => sum + module.files.length, 0);
+  const files = total(model.modules.filter((module) => module.kind !== 'test'));
+  const tests = total(model.modules.filter((module) => module.kind === 'test'));
   const loose = model.modules.reduce((sum, module) => sum + module.looseFiles.length, 0);
-  const tests = model.modules.reduce((sum, module) => sum + module.tests.length, 0);
-  const tested = tests > 0 ? `, ${count(tests, 'test')}` : '';
+  const tested = tests > 0 ? `, ${count(tests, 'test file')}` : '';
   lines.push('', `${model.modules.length} modules, ${files} files${tested}, ${loose} loose.`);
   return lines.join('\n');
 };
@@ -36,14 +37,12 @@ const count = (n: number, noun = 'file'): string => `${n} ${noun}${n === 1 ? '' 
 const heading = (module: ModuleView): string => {
   const owned = module.files.length - module.looseFiles.length;
   if (module.kind === 'files') return count(owned);
+  if (module.kind === 'test') return count(owned, 'test file');
   const captures = Object.entries(module.captures)
     .map(([key, value]) => ` {${key}=${value}}`)
     .join('');
-  const contents = [
-    ...(owned > 0 ? [count(owned)] : []),
-    ...(module.tests.length > 0 ? [count(module.tests.length, 'test')] : []),
-  ];
-  return `${module.name ?? 'root'}: ${module.archetype}${captures}${contents.map((part) => `, ${part}`).join('')}`;
+  const contents = owned > 0 ? `, ${count(owned)}` : '';
+  return `${module.name ?? 'root'}: ${module.archetype}${captures}${contents}`;
 };
 
 export const modelJson = (model: Model, rules?: RulesOf): string =>
@@ -59,7 +58,6 @@ export const modelJson = (model: Model, rules?: RulesOf): string =>
         children: module.children.map((child) => child.id),
         files: module.files,
         looseFiles: module.looseFiles,
-        tests: module.tests,
         ...(rules ? { rules: rules.module(module) } : {}),
       })),
     },

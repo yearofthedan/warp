@@ -63,6 +63,7 @@ export const verdicts = (config: ConfigData, model: Model): Verdicts => {
 const exposes = ({ config }: State, module: ModuleView): ExposesData | undefined => {
   if (module.kind === 'dir') return config.archetypes[module.archetype!]!.exposes;
   const declared = declarationOf(config, module);
+  if (declared?.kind === 'test') return declared.exposes ?? { kind: 'all' };
   return declared?.kind === 'files' ? declared.exposes : undefined;
 };
 
@@ -83,7 +84,10 @@ const exposed = (state: State, module: ModuleView, name: string | undefined): Re
     const refs = name === undefined ? Object.values(declared.surfaces).flat() : (declared.surfaces[name] ?? []);
     return union(refs.map((ref) => resolve(state, module, ref)));
   }
-  const all = union([new Set(module.files), ...module.children.map((child) => surface(state, child))]);
+  const all = union([
+    new Set(module.files),
+    ...module.children.filter((child) => child.kind !== 'test').map((child) => surface(state, child)),
+  ]);
   if (declared.kind === 'all') return all;
   const patterns = declared.patterns.flatMap((pattern) => fillPattern(pattern, module.captures) ?? []);
   const inside = (file: string) => (module.dir === '' ? file : file.slice(module.dir.length + 1));
@@ -133,101 +137,50 @@ const grants = (state: State, holder: ModuleView, owner: string, refs: readonly 
 const reach = (state: State, file: string): readonly Grant[] | undefined => {
   const module = state.model.moduleOf(file);
   if (!module || module.looseFiles.includes(file)) return undefined;
-  if (state.model.isTest(file)) return testReach(state, module);
   let found = state.reaches.get(module.id);
   if (!found) {
-    const granted = [
-      { owner: `own module ${module.id}`, files: new Set(module.files) },
-      ...module.children
-        .filter((child) => !child.test)
-        .map((child) => ({ owner: module.id, ref: child.id, files: surface(state, child) })),
-      ...using(state, module),
-    ];
-    if (module.kind === 'files') granted.push(...using(state, module.parent!));
-    found = granted;
+    found = module.kind === 'test' ? testReach(state, module) : productionReach(state, module);
     state.reaches.set(module.id, found);
   }
   return found;
 };
 
-const testReach = (state: State, module: ModuleView): readonly Grant[] => {
-  const owner = module.test ? module.parent! : module;
-  const key = `tests\0${owner.id}`;
-  let found = state.reaches.get(key);
-  if (!found) {
-    found = owner.kind === 'dir' ? folderTests(state, owner) : filesTests(state, owner);
-    state.reaches.set(key, found);
-  }
-  return found;
-};
+const productionReach = (state: State, module: ModuleView): Grant[] => [
+  { owner: `own module ${module.id}`, files: new Set(module.files) },
+  ...module.children
+    .filter((child) => child.kind !== 'test')
+    .map((child) => ({ owner: module.id, ref: child.id, files: surface(state, child) })),
+  ...using(state, module),
+  ...(module.kind === 'files' ? using(state, module.parent!) : []),
+];
 
-const folderTests = (state: State, owner: ModuleView): Grant[] => {
-  const by = `tests of ${owner.id}`;
-  const own = owner.children.filter((child) => child.kind === 'files');
+const testReach = (state: State, module: ModuleView): Grant[] => {
+  const holder = module.parent!;
+  const own = holder.children.filter((child) => child.kind === 'files');
   return [
+    { owner: `own module ${module.id}`, files: new Set(module.files) },
     {
-      owner: by,
-      files: union([new Set([...owner.files, ...owner.tests]), ...own.map((child) => new Set(child.files))]),
+      owner: module.id,
+      ref: holder.id,
+      files: union([new Set(holder.files), ...own.map((child) => new Set(child.files))]),
     },
-    ...owner.children
+    ...holder.children
       .filter((child) => child.kind === 'dir')
-      .map((child) => ({ owner: by, ref: child.id, files: union([surface(state, child), testSurface(state, child)]) })),
-    ...(owner.parent ? using(state, owner) : []),
-    ...own.filter((child) => !child.test).flatMap((child) => using(state, child)),
-    ...layerUsing(state, owner, owner, by),
-    ...[...ancestors(owner)].flatMap((above) => layer(state, above, by)),
+      .map((child) => ({ owner: holder.id, ref: child.id, files: surface(state, child) })),
+    ...using(state, holder),
+    ...own.flatMap((child) => using(state, child)),
+    ...using(state, module),
+    ...[holder, ...ancestors(holder)].flatMap((at) => testKit(state, at)),
   ];
 };
 
-const filesTests = (state: State, owner: ModuleView): Grant[] => {
-  const by = `tests of ${owner.id}`;
-  const folder = owner.parent!;
-  const declared = declarationOf(state.config, owner);
-  const tests = declared?.kind === 'files' ? declared.tests : undefined;
-  return [
-    { owner: by, files: new Set([...owner.files, ...owner.tests]) },
-    ...using(state, owner),
-    ...using(state, folder),
-    ...(tests ? grants(state, folder, by, tests.using) : []),
-    ...[folder, ...ancestors(folder)].flatMap((above) => layer(state, above, by)),
-  ];
-};
-
-const layerOf = ({ config }: State, module: ModuleView) =>
-  module.archetype === undefined ? undefined : config.archetypes[module.archetype]!.tests;
-
-const layerUsing = (state: State, holder: ModuleView, at: ModuleView, by: string): Grant[] =>
-  grants(state, holder, by, layerOf(state, at)?.using ?? []);
-
-const layer = (state: State, above: ModuleView, by: string): Grant[] => {
-  const tests = above.children.filter((child) => child.test).map((child) => new Set(child.files));
-  return [
-    ...(tests.length > 0 ? [{ owner: by, ref: `${above.id} tests`, files: union(tests) }] : []),
-    ...layerUsing(state, above, above, by),
-  ];
-};
-
-const testSurface = (state: State, module: ModuleView): ReadonlySet<string> => {
-  const exposes = layerOf(state, module)?.exposes;
-  if (!exposes) return none;
-  const testModules = module.children.filter((child) => child.test);
-  if (exposes.kind !== 'surfaces')
-    return union([
-      ...testModules.map((child) => new Set(child.files)),
-      ...module.children.filter((child) => child.kind === 'dir').map((child) => testSurface(state, child)),
-    ]);
-  const named = new Set(
-    Object.values(exposes.surfaces)
-      .flat()
-      .flatMap((ref) => (ref.kind === 'module' ? [`tests.${ref.module}`] : [])),
-  );
-  return union(testModules.filter((child) => named.has(child.name!)).map((child) => new Set(child.files)));
-};
+const testKit = (state: State, at: ModuleView): Grant[] =>
+  grants(state, at, `${at.archetype}.testUsing`, state.config.archetypes[at.archetype!]!.testUsing ?? []);
 
 const using = (state: State, module: ModuleView): Grant[] => {
   const declared = declarationOf(state.config, module);
   if (!declared) return [];
-  const owner = module.kind === 'files' ? declared.name : `${module.parent!.archetype}.${declared.name}`;
+  const owner = module.kind === 'dir' ? `${module.parent!.archetype}.${declared.name}` : declared.name;
   return grants(state, module.parent!, owner, declared.using);
 };
 
@@ -235,22 +188,17 @@ const verdict = (state: State, from: string, to: string): Verdict | undefined =>
   const granted = reach(state, from);
   const target = state.model.moduleOf(to);
   if (!granted || !target) return undefined;
+  if (state.model.isTest(to) && !state.model.isTest(from)) return { allowed: false, reason: 'test' };
   const grant = granted.find((candidate) => candidate.files.has(to));
   if (grant) return { allowed: true, grant };
-  if (state.model.isTest(to) && !state.model.isTest(from)) return { allowed: false, reason: 'test' };
   return { allowed: false, ...refusal(state, state.model.moduleOf(from)!, target, from, to) };
 };
 
 const refusal = (state: State, source: ModuleView, target: ModuleView, from: string, to: string): Refusal => {
   const above = new Set(ancestors(source));
   if (above.has(target)) return { reason: 'above' };
-  if (target.kind === 'files' && target.parent !== source.parent && above.has(target.parent!))
-    return { reason: 'above' };
-  const tested = state.model.isTest(from);
-  const start = target.test ? target.parent! : target;
-  for (let at = start; !above.has(at) && at !== source; at = at.parent!) {
-    const open = tested ? union([surface(state, at), testSurface(state, at)]) : surface(state, at);
-    if (!open.has(to)) return { reason: 'private', hiddenBy: at };
-  }
+  if (target.kind !== 'dir' && target.parent !== source.parent && above.has(target.parent!)) return { reason: 'above' };
+  for (let at = target; !above.has(at) && at !== source; at = at.parent!)
+    if (!surface(state, at).has(to)) return { reason: 'private', hiddenBy: at };
   return { reason: 'not-in-using' };
 };

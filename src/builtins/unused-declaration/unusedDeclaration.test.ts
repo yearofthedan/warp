@@ -4,7 +4,6 @@ import {
   all,
   type AnyArchetype,
   archetype,
-  contains,
   dir,
   exposes,
   files,
@@ -70,9 +69,14 @@ const card = () =>
 
 const ui = (cards: AnyArchetype = card()) =>
   archetype('ui')
-    .contains((m) => m.module('cards', dir('{name}'), cards).module('view', files('view.ts'), exposes(all())))
-    .exposes((m) => ({ cards: m.cards, view: m.view }))
-    .tests(contains((t) => t.module('driver', files('*.driver.ts'))).exposes(all()));
+    .contains((m) =>
+      m
+        .module('cards', dir('{name}'), cards)
+        .module('view', files('view.ts'), exposes(all()))
+        .testModule('driver', files('*.driver.ts'))
+        .testModule('tests', files('*.test.ts')),
+    )
+    .exposes((m) => ({ cards: m.cards, view: m.view, driver: m.driver }));
 
 const app = (extra: (m: any) => any = (m) => m, uiArchetype: AnyArchetype = ui()) =>
   archetype('app')
@@ -89,12 +93,13 @@ const app = (extra: (m: any) => any = (m) => m, uiArchetype: AnyArchetype = ui()
           .module(
             'main',
             files('main.ts'),
-            using((m) => [m.ui, m.ports, pkg('react')]).tests(files('main.test.ts'), using([pkg('jsdom')])),
-          ),
+            using((m) => [m.ui, m.ports, pkg('react')]),
+          )
+          .testModule('mainTests', files('main.test.ts'), using([pkg('jsdom')])),
       ),
     )
     .exposes(all())
-    .tests(using([pkg('vitest')]));
+    .testUsing([pkg('vitest')]);
 
 const used: FileFacts[] = [
   facts('ports/store.ts', ['domain/order.ts']),
@@ -161,14 +166,14 @@ describe(rule, () => {
     );
   });
 
-  it("flags a test layer's using that no test below imports through", () => {
+  it('flags a testUsing entry that no test below imports through', () => {
     const test = facts('main.test.ts', ['ui/view.driver.ts'], ['jsdom']);
     assert.deepEqual(
       check(app(), [...without('main.test.ts'), test]).map((finding) => [finding.key, finding.message]),
       [
         [
-          `${rule}:grant:app.tests->pkg('vitest')`,
-          "app.tests uses pkg('vitest'), but nothing in tests of the root imports through it. Remove it from the using.",
+          `${rule}:grant:app.testUsing->pkg('vitest')`,
+          "app.testUsing uses pkg('vitest'), but nothing in the tests of the root imports through it. Remove it from the using.",
         ],
       ],
     );
@@ -212,11 +217,9 @@ describe(rule, () => {
     );
   });
 
-  it("flags a test layer's surface no test outside imports", () => {
+  it('flags a surface naming a test module that no test outside imports', () => {
     const test = facts('main.test.ts', [], ['vitest', 'jsdom']);
-    assert.deepEqual(keys(check(app(), [...without('main.test.ts'), test])), [
-      `${rule}:surface:ui.tests:exposes(all())`,
-    ]);
+    assert.deepEqual(keys(check(app(), [...without('main.test.ts'), test])), [`${rule}:surface:ui:exposes driver`]);
   });
 
   it('flags a module whose selector matches no files, without reporting its own using or surface', () => {
@@ -233,8 +236,8 @@ describe(rule, () => {
       findings.map((finding) => [finding.key, finding.message]),
       [
         [
-          `${rule}:surface:ui.tests:exposes(all())`,
-          'ui.tests exposes(all()), but no test outside ui imports it. Remove it, or use the module where it is needed.',
+          `${rule}:surface:ui:exposes driver`,
+          'ui exposes driver, but nothing outside ui imports it. Remove it, or use the module where it is needed.',
         ],
         [
           `${rule}:empty:app.legacy`,
@@ -245,19 +248,19 @@ describe(rule, () => {
           "app.styles matches no files: files('*.css') finds nothing in the root. Fix the selector, or remove the module.",
         ],
         [
-          `${rule}:empty:ui.tests.driver`,
-          "ui.tests.driver matches no files: files('*.driver.ts') finds nothing in ui. Fix the selector, or remove the module.",
+          `${rule}:empty:ui.driver`,
+          "ui.driver matches no files: files('*.driver.ts') finds nothing in ui. Fix the selector, or remove the module.",
         ],
       ],
     );
   });
 
-  it("flags a files module's own test layer using that its tests don't import through", () => {
+  it("flags a test module's using that its files don't import through", () => {
     const test = facts('main.test.ts', ['ui/view.driver.ts'], ['vitest']);
     assert.deepEqual(
       check(app(), [...without('main.test.ts'), test]).map((finding) => finding.message),
       [
-        "app.main.tests uses pkg('jsdom'), but nothing in tests of .:main imports through it. Remove it from the using.",
+        "app.mainTests uses pkg('jsdom'), but nothing in (root):mainTests imports through it. Remove it from the using.",
       ],
     );
   });
@@ -285,16 +288,15 @@ describe(rule, () => {
     );
   });
 
-  it('shows a files surface and named test surfaces as written', () => {
+  it("shows a files surface and a test module's surface as written", () => {
     const shelf = archetype('ui')
-      .contains((m) => m.module('src', files('*.ts'), exposes(files('view.ts'))))
-      .entry(files('index.ts'))
-      .tests(
-        contains((t) => t.module('driver', files('*.driver.ts')).module('fake', files('*.fake.ts'))).exposes((t) => ({
-          driver: t.driver,
-          fake: t.fake,
-        })),
-      );
+      .contains((m) =>
+        m
+          .module('src', files('*.ts'), exposes(files('view.ts')))
+          .testModule('driver', files('*.driver.ts'))
+          .testModule('fake', files('*.fake.ts'), exposes(files('view.fake.ts'))),
+      )
+      .entry(files('index.ts'));
     const all = [
       ...paths.filter((path) => !path.startsWith('ui/')),
       'ui/index.ts',
@@ -307,7 +309,7 @@ describe(rule, () => {
     const findings = check(app(undefined, shelf), [...rest, test], { files: all });
     assert.deepEqual(
       keys(findings).filter((key) => key.includes(':surface:ui')),
-      [`${rule}:surface:ui.src:exposes(files('view.ts'))`, `${rule}:surface:ui.tests:exposes fake`],
+      [`${rule}:surface:ui.src:exposes(files('view.ts'))`, `${rule}:surface:ui.fake:exposes(files('view.fake.ts'))`],
     );
   });
 

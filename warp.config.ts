@@ -33,16 +33,17 @@ const builtins = archetype('builtins')
   .description("warp's own rules: one folder per rule, holding its rule, its tests and its page")
   .requires({ model: dir(), rules, app: dir() })
   .contains((c, { required }) =>
-    c.module(
-      'code',
-      files('**'),
-      exposes(all())
-        .description('Each rule, the list of built-ins with their docs links, and the helpers rules share')
-        .using([required.rules, required.model]),
-    ),
+    c
+      .module(
+        'code',
+        files('**'),
+        exposes(all())
+          .description('Each rule, the list of built-ins with their docs links, and the helpers rules share')
+          .using([required.rules, required.model]),
+      )
+      .testModule('tests', files('**/*.test.ts'), using([required.app])),
   )
-  .exposes(all())
-  .tests(using((m, { required }) => [required.app]));
+  .exposes(all());
 
 const pkgArchetype = archetype('package')
   .description("warp's source: the model, the rules, the app behind its ports, its adapters and the CLI")
@@ -98,29 +99,36 @@ const pkgArchetype = archetype('package')
         archetype()
           .description('The CLI, which wires adapters, reporters and the built-in rules together')
           .using((m) => [m.analysis, m.config, m.git, m.reporters, m.app, m.rules, m.model, m.builtins, pkg('node:*')]),
-      ),
+      )
+      .testModule('tests', files('**/*.test.ts')),
   )
   .entry(files('index.ts'))
-  .provides((m) => ({ model: m.model, rules: m.rules, app: m.app }))
-  .tests(using((m) => [m.app, m.builtins, m.reporters, m.analysis, m.config]));
+  .provides((m) => ({ model: m.model, rules: m.rules, app: m.app }));
 
 const warp = archetype('warp')
   .description('warp: checks a TypeScript codebase against a declared model of its modules')
   .contains((c) =>
-    c.module('package', dir('src'), pkgArchetype).module(
-      'tooling',
-      files('*.ts', 'scripts/*.ts'),
-      exposes(all())
-        .description('The scripts behind ./do and the tool configs')
-        .using([pkg('node:*'), pkg('vite-plus'), pkg('typescript')]),
-    ),
+    c
+      .module('package', dir('src'), pkgArchetype)
+      .module(
+        'tooling',
+        files('*.ts', 'scripts/*.ts'),
+        exposes(all())
+          .description('The scripts behind ./do and the tool configs')
+          .using([pkg('node:*'), pkg('vite-plus'), pkg('typescript')]),
+      )
+      .testModule('tests', files('*.test.ts', 'scripts/*.test.ts', 'e2e/*.test.ts')),
   )
-  .tests(using([pkg('vite-plus/test'), pkg('node:*')]));
+  .testUsing([pkg('vite-plus/test'), pkg('node:*')]);
 
-const base = ruleset().on(warp.modules.tests, { 'function-cohesion': false });
+const testsOff = { 'function-cohesion': false };
+const base = ruleset()
+  .on(warp.modules.tests, testsOff)
+  .on(pkgArchetype.modules.tests, testsOff)
+  .on(builtins.modules.tests, testsOff);
 
 export default defineConfig({
   root: warp,
-  tests: files('**/*.test.ts', 'do.test.ts'),
+  tests: files('**/*.test.ts'),
   rulesets: { default: base },
 });

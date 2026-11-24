@@ -9,6 +9,7 @@ import {
   dir,
   exposes,
   files,
+  mirror,
   pkg,
   ruleset,
   using,
@@ -336,6 +337,31 @@ describe('archetype builders', () => {
       'c exposes render as dmo; c has modules dom, kids',
       "c exposes lib as pkg('lit'); exposes and provides name the archetype’s own modules",
       'c provides render as kids.render; name the whole module, without a surface',
+    ]);
+  });
+
+  it('type test modules as modules, testUsing on the own modules, and mirror only for a test module', () => {
+    const child = archetype('c')
+      .contains((m) =>
+        m
+          .module('logic', files('*.ts'), exposes(all()))
+          .testModule('kit', files('*.kit.ts'))
+          .testModule(
+            'tests',
+            mirror('src', 'test'),
+            using((m) => [m.logic, m.kit]),
+          )
+          // @ts-expect-error a test module's name is taken like any other
+          .testModule('kit', files('x.ts'))
+          // @ts-expect-error mirror() finds a test module's folder, not a production module's
+          .module('mirrored', mirror('src', 'test')),
+      )
+      // @ts-expect-error misspelt module in testUsing
+      .testUsing((m) => [m.kti, pkg('vitest')]);
+    assert.deepEqual(errorsIn(child), [
+      "c: module 'kit' is already declared",
+      "c.mirrored: expected a selector, files('*.ts') or dir('src/ui')",
+      'c testUsing kti; c has modules logic, kit, tests, mirrored',
     ]);
   });
 });
