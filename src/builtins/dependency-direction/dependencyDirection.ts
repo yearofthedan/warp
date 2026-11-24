@@ -1,8 +1,11 @@
 import type { ConfigData } from '../../model/archetype/data.ts';
 import { exposesText } from '../../model/archetype/references.ts';
+import { fixSteps, reachSize, sentence } from '../advice.ts';
 import { place } from '../place.ts';
+import { title } from '../shared.ts';
+import { fixesFor } from '../../model/archetype/fixes.ts';
 import type { Refusal, Verdicts } from '../../model/archetype/reach.ts';
-import type { Model } from '../../model/archetype/resolve.ts';
+import type { Model, ModuleView } from '../../model/archetype/resolve.ts';
 import type { ImportEdge } from '../../model/facts.ts';
 import { type Finding, noOptions, type ProjectRule } from '../../rules/rule.ts';
 
@@ -54,46 +57,43 @@ const refused = (context: Context, from: string, to: string, refusal: Refusal, e
 };
 
 const explain = ({ config, model, verdicts }: Context, from: string, to: string, refusal: Refusal): string => {
-  const source = model.moduleOf(from)!;
   if (isLoose(model, to))
     return `which is in no module yet. Add a module that holds ${to}, then add it to a using if the dependency is intended.`;
   if (refusal.reason === 'test')
     return 'a test file. Production code never imports tests: move what both need out of the test file into the module it tests.';
+  const instead =
+    refusal.reason === 'private' ? throughSurface({ config, model, verdicts }, from, to, refusal.hiddenBy) : '';
+  return `${why(config, model, verdicts, from, to, refusal)}. ${instead || advise(config, model, verdicts, from, to)}`;
+};
+
+const why = (config: ConfigData, model: Model, verdicts: Verdicts, from: string, to: string, refusal: Refusal) => {
+  const source = model.moduleOf(from)!;
   if (refusal.reason === 'private') {
     const { hiddenBy } = refusal;
-    return (
-      `which ${hiddenBy.id} keeps private (it exposes ${exposesText(verdicts.exposes(hiddenBy))}). ` +
-      `Import what ${hiddenBy.id} exposes, or expose ${to} from ${hiddenBy.archetype ?? hiddenBy.name} if other modules should reach it.`
-    );
+    return `which ${hiddenBy.id} keeps private (it exposes ${exposesText(verdicts.exposes(hiddenBy))})`;
   }
-  if (refusal.reason === 'above') {
-    const folder = source.kind === 'dir' ? source : source.parent!;
-    if (source.kind === 'test')
-      return (
-        `which is above ${folder.id}. A test reaches up through testUsing: ` +
-        `name what holds ${to} in the testUsing of a module above ${folder.id}, or move it below.`
-      );
-    return (
-      `which is above ${folder.id}. A module reaches up only through what it requires: ` +
-      `require it in ${namedArchetype(config, folder.archetype!)} and have an ancestor provide it, or move it below.`
-    );
+  if (refusal.reason === 'above') return `which is above ${(source.kind === 'dir' ? source : source.parent!).id}`;
+  return `which is outside ${source.name ?? source.id}'s reach`;
+};
+
+const throughSurface = ({ config, model, verdicts }: Context, from: string, to: string, hiddenBy: ModuleView) => {
+  if (model.isTest(to)) return '';
+  for (const file of verdicts.surface(hiddenBy)) {
+    const fixes = fixesFor(config, model, from, file);
+    if (!fixes) continue;
+    const once = fixes.length > 0 ? `, once you ${sentence(fixSteps(model, fixes))}` : '';
+    return `Import what ${hiddenBy.id} exposes instead${once}.`;
   }
-  const owner = source.name ?? source.id;
-  const uses = Map.groupBy(
-    verdicts.reach(from)!.filter((grant) => grant.ref !== undefined),
-    (grant) => grant.owner,
-  );
-  const reaches =
-    uses.size > 0
-      ? `: ${[...uses].map(([by, grants]) => `${by} uses ${grants.map((grant) => grant.ref).join(', ')}`).join('; ')}`
-      : `: ${owner} may use nothing`;
-  return (
-    `which is outside ${owner}'s reach${reaches}. ` +
-    `Add what holds ${to} to a using if the dependency is intended, or move the code.`
-  );
+  return '';
+};
+
+const advise = (config: ConfigData, model: Model, verdicts: Verdicts, from: string, to: string): string => {
+  const fixes = fixesFor(config, model, from, to);
+  if (!fixes) return 'No declared path allows this: either the import or the structure is wrong.';
+  const steps = fixSteps(model, fixes);
+  const size = reachSize(verdicts, from);
+  const more = size > 0 && fixes.some((fix) => fix.kind === 'using') ? ` (+${size} more in reach)` : '';
+  return `${title(sentence(steps))}, or move the code.${more}`;
 };
 
 const isLoose = (model: Model, file: string): boolean => model.moduleOf(file)!.looseFiles.includes(file);
-
-const namedArchetype = (config: ConfigData, name: string): string =>
-  config.archetypes[name]!.inline ? namedArchetype(config, name.slice(0, name.lastIndexOf('.'))) : name;

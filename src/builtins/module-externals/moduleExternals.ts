@@ -1,5 +1,7 @@
 import { listsPackage } from '../packages.ts';
 import { place } from '../place.ts';
+import type { ConfigData } from '../../model/archetype/data.ts';
+import { sitesOf } from '../../model/archetype/fixes.ts';
 import type { Grant } from '../../model/archetype/reach.ts';
 import type { Model } from '../../model/archetype/resolve.ts';
 import type { ExternalImport } from '../../model/facts.ts';
@@ -11,7 +13,7 @@ export const moduleExternals: ProjectRule = {
   id,
   scope: 'project',
   parseOptions: noOptions,
-  check: ({ model, verdicts, project, atFile }) =>
+  check: ({ config, model, verdicts, project, atFile }) =>
     project.files.flatMap((file) => {
       const reach = verdicts.reach(file.path);
       if (!reach || !atFile(file.path).on) return [];
@@ -19,12 +21,13 @@ export const moduleExternals: ProjectRule = {
       const byPackage = Map.groupBy(file.externals, (external) => external.package);
       return [...byPackage].flatMap(([name, edges]) => {
         const outside = edges.filter((edge) => !packages.some((grant) => listsPackage(grant.package!, edge)));
-        return outside.length === 0 ? [] : [refused(model, file.path, name, outside, packages)];
+        return outside.length === 0 ? [] : [refused(config, model, file.path, name, outside, packages)];
       });
     }),
 };
 
 const refused = (
+  config: ConfigData,
   model: Model,
   from: string,
   name: string,
@@ -36,11 +39,10 @@ const refused = (
   const names = [...new Set(edges.flatMap((edge) => edge.names))];
   const specifiers = [...new Set(edges.map((edge) => edge.specifier))];
   const imports = edges.every((edge) => edge.typeOnly) ? 'imports types from' : 'imports';
-  const uses = Map.groupBy(packages, (grant) => grant.owner);
-  const lists =
-    uses.size > 0
-      ? `: ${[...uses].map(([by, grants]) => `${by} uses ${grants.map((grant) => grant.ref).join(', ')}`).join('; ')}`
-      : ': no using in its reach lists a package';
+  const site = sitesOf(config, model, from)[0];
+  const where = site?.label ?? 'a using';
+  const listed = new Set(packages.map((grant) => grant.ref)).size;
+  const more = listed > 0 ? ` (+${listed} more in reach)` : '';
   return {
     rule: id,
     key: `${id}:${from}->${name}`,
@@ -48,8 +50,8 @@ const refused = (
     line: edges[0]!.line,
     value: Math.max(1, names.length),
     message:
-      `${from} (${place(model, from, module)}) ${imports} ${specifiers.join(', ')}, a package outside ${owner}'s reach${lists}. ` +
-      `Add pkg('${name}') to a using if the dependency is intended, or move the code.`,
+      `${from} (${place(model, from, module)}) ${imports} ${specifiers.join(', ')}, a package outside ${owner}'s reach. ` +
+      `Add pkg('${name}') to ${where}, or move the code.${more}`,
     details: { from: module.id, package: name, edges },
   };
 };

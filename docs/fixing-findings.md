@@ -6,7 +6,7 @@
 ## Read the finding
 
 ```text
-src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach: utils may use nothing. Add what holds src/db/client.ts to a using if the dependency is intended, or move the code.
+src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach. Declare db above utils in app and add m.db to the using of app.utils, or move the code.
 ```
 
 | Part | Here | Means |
@@ -14,8 +14,8 @@ src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/util
 | Location | `src/utils/slug.ts:1` | The file and line to change, for a code fix. |
 | Rule | `[dependency-direction]` | The rule that reports it. Its page is in [the rules table](rules.md). |
 | Each file's module | `(app.utils src/utils)` | The module's archetype and name, then its folder. |
-| Why | `outside utils's reach: utils may use nothing` | What the config allows the importer. |
-| Fixes | `Add … to a using …, or move the code.` | The config fix first, then the code fix. |
+| Why | `outside utils's reach` | Why the config refuses the import. |
+| Fixes | `Declare db above utils … and add m.db to the using of app.utils, or move the code.` | A config change that would let the import through, then the code fix. When none exists, the message says the import or the structure is wrong. |
 
 `diff` puts `new:` or `worse (was N):` in front of the line. The `json` reporter gives the same finding with `key`,
 `value` and `details`, which [rules.md](rules.md#findings) describes.

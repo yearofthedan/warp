@@ -20,7 +20,10 @@ names imported, so importing more across the same boundary is worse. Type-only i
 
 [config.md](../../../docs/config.md#reach) says how an import is judged, barrels included. The message says why the
 import is outside the reach: the target is private to its module, the importer's `using` lacks it, or it is above the
-importer. Package imports are [`module-externals`](../module-externals/README.md)'s.
+importer. Then it gives the smallest change to the config that would load and let the import through, such as the one
+`using` to extend, or importing what the target's module exposes instead. When no change to `using`, `testUsing`, `exposes`,
+`requires` or declaration order allows it, the message says so: the import or the structure is wrong. Package imports
+are [`module-externals`](../module-externals/README.md)'s.
 
 ## Example
 
@@ -55,8 +58,8 @@ import { save } from '../db/orders.ts'; // api's using lists only domain
 ```
 
 ```text
-src/api/orders.ts:2 [dependency-direction] src/api/orders.ts (app.api src/api) imports src/domain/pricing.ts (app.domain src/domain), which src/domain keeps private (it exposes files('order.ts')). Import what src/domain exposes, or expose src/domain/pricing.ts from app.domain if other modules should reach it.
-src/api/orders.ts:3 [dependency-direction] src/api/orders.ts (app.api src/api) imports src/db/orders.ts (app.db src/db), which is outside api's reach: app.api uses m.domain. Add what holds src/db/orders.ts to a using if the dependency is intended, or move the code.
+src/api/orders.ts:2 [dependency-direction] src/api/orders.ts (app.api src/api) imports src/domain/pricing.ts (app.domain src/domain), which src/domain keeps private (it exposes files('order.ts')). Import what src/domain exposes instead.
+src/api/orders.ts:3 [dependency-direction] src/api/orders.ts (app.api src/api) imports src/db/orders.ts (app.db src/db), which is outside api's reach. Add m.db to the using of app.api, or move the code. (+1 more in reach)
 ```
 
 Correct code:

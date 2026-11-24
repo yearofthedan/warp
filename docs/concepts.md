@@ -160,7 +160,7 @@ rule runs with its defaults. See [config.md](config.md#rulesets).
 One thing a rule reports, at a file and line:
 
 ```text
-src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/lib/format.ts (app.lib src/lib), which is outside utils's reach: utils may use nothing. Add what holds src/lib/format.ts to a using if the dependency is intended, or move the code.
+src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/lib/format.ts (app.lib src/lib), which is outside utils's reach. Add m.lib to the using of app.utils, or move the code.
 ```
 
 Its **key**, `dependency-direction:src/utils/slug.ts->src/lib/format.ts`, identifies it across commits, and its

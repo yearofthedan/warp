@@ -41,7 +41,7 @@ import { Pool } from 'pg';
 ```
 
 ```text
-src/domain/order.ts:1 [module-externals] src/domain/order.ts (app.domain src/domain) imports pg, a package outside domain's reach: no using in its reach lists a package. Add pkg('pg') to a using if the dependency is intended, or move the code.
+src/domain/order.ts:1 [module-externals] src/domain/order.ts (app.domain src/domain) imports pg, a package outside domain's reach. Add pkg('pg') to the using of app.domain, or move the code.
 ```
 
 Correct code:

@@ -268,7 +268,7 @@ const claimsOf = (resolution: Resolution, module: ModuleView, declared: DirModul
   const child = resolution.config.archetypes[declared.archetype]!;
   return declared.paths.flatMap((path) =>
     matchFolders(resolution.folders, module.dir, path).flatMap((match) => {
-      const captures = identify(resolution, child, match.dir, match.captures, module);
+      const captures = identify(resolution, child, match.dir, match.captures, module, { declared, path });
       return captures ? [{ module: declared, path, archetype: child, ...match, captures }] : [];
     }),
   );
@@ -298,6 +298,7 @@ const identify = (
   dir: string,
   captures: Record<string, string>,
   parent: ModuleView,
+  claim: { declared: DirModuleData; path: string },
 ): Record<string, string> | undefined => {
   const how = archetype.identify;
   if (how === undefined) return captures;
@@ -308,11 +309,36 @@ const identify = (
   const marker = fill(how.marker, captures);
   if ('missing' in marker) {
     resolution.errors.add(
-      `${dir}: ${archetype.name}'s marker '${how.marker}' names {${marker.missing}}, which its dir path doesn't capture`,
+      `${dir}: ${archetype.name}'s marker '${how.marker}' names {${marker.missing}}, which its dir path doesn't capture` +
+        sharedHint(resolution, parent, claim, marker.missing),
     );
     return undefined;
   }
   return resolution.folders.exists(join(dir, marker.filled)) ? captures : undefined;
+};
+
+const sharedHint = (
+  resolution: Resolution,
+  parent: ModuleView,
+  { declared, path }: { declared: DirModuleData; path: string },
+  missing: string,
+): string => {
+  if (path.includes('{')) return '';
+  const sibling = resolution.config.archetypes[parent.archetype!]!.modules.find(
+    (module) =>
+      module.kind === 'dir' &&
+      module !== declared &&
+      module.archetype === declared.archetype &&
+      module.paths.some((candidate) => candidate.includes(`{${missing}}`)),
+  ) as DirModuleData | undefined;
+  if (!sibling) return '';
+  const folder = path.slice(path.lastIndexOf('/') + 1);
+  const shown = sibling.paths.map((candidate) => `'${candidate}'`).join(', ');
+  return (
+    `. A literal dir() binds no placeholders. If ${sibling.name} use ${declared.name}, it is shared: move ${folder} ` +
+    `out of the folders dir(${shown}) matches, for example into shared/${folder}, and declare it as its own module ` +
+    `with dir('shared/{${missing}}')`
+  );
 };
 
 const chain = (module: ModuleView): ModuleView[] => (module.parent ? [...chain(module.parent), module] : [module]);

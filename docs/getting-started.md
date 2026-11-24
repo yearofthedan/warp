@@ -141,7 +141,7 @@ pnpm exec warp diff HEAD
 ```
 
 ```text
-new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach: utils may use nothing. Add what holds src/db/client.ts to a using if the dependency is intended, or move the code.
+new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach. Declare db above utils in app and add m.db to the using of app.utils, or move the code.
 
 1 new finding, 0 worsened, 0 resolved.
 ```
@@ -154,7 +154,7 @@ Each change to a `using` makes the config stricter. Replacing `pkg('*')` with `p
 package it uses, so a new package becomes a decision. `warp check` then reports the test's import of vitest:
 
 ```text
-src/api/orders.test.ts:1 [module-externals] src/api/orders.test.ts (app.api src/api) imports vitest, a package outside api's reach: app.api uses pkg('zod'). Add pkg('vitest') to a using if the dependency is intended, or move the code.
+src/api/orders.test.ts:1 [module-externals] src/api/orders.test.ts (app.api src/api) imports vitest, a package outside api's reach. Add pkg('vitest') to the using of app.api, or move the code. (+1 more in reach)
 ```
 
 ## 8. Tell warp which files are tests

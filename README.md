@@ -51,7 +51,7 @@ pnpm exec warp diff HEAD  # what changed since the last commit made new or worse
 ```
 
 ```text
-new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach: utils may use nothing. Add what holds src/db/client.ts to a using if the dependency is intended, or move the code.
+new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach. Declare db above utils in app and add m.db to the using of app.utils, or move the code.
 ```
 
 ## Read next

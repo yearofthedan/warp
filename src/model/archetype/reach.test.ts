@@ -357,7 +357,7 @@ describe('checkModel', () => {
         module: 'src/ui/a:logic',
         value: 2,
         message:
-          "src/ui/a/a.ts (logic of card src/ui/a) imports src/ui/a/a.dom.ts (dom of card src/ui/a), which is outside logic's reach: logic uses required.strings (from src/ui). Add what holds src/ui/a/a.dom.ts to a using if the dependency is intended, or move the code.",
+          "src/ui/a/a.ts (logic of card src/ui/a) imports src/ui/a/a.dom.ts (dom of card src/ui/a), which is outside logic's reach. No declared path allows this: either the import or the structure is wrong.",
         details: {
           from: 'src/ui/a:logic',
           to: 'src/ui/a:dom',
@@ -378,7 +378,7 @@ describe('checkModel', () => {
     assert.equal(finding?.value, 1);
     assert.equal(
       finding?.message,
-      'src/main.ts (main of app (root)) imports types from src/ui/a/a.ts (logic of card src/ui/a), which src/ui/a keeps private (it exposes render, page). Import what src/ui/a exposes, or expose src/ui/a/a.ts from card if other modules should reach it.',
+      'src/main.ts (main of app (root)) imports types from src/ui/a/a.ts (logic of card src/ui/a), which src/ui/a keeps private (it exposes render, page). Import what src/ui/a exposes instead.',
     );
     assert.deepEqual(finding?.details, {
       from: '(root):main',
@@ -389,22 +389,22 @@ describe('checkModel', () => {
     });
   });
 
-  it('tells a module that reaches above itself to require what it needs, and one that reaches a sibling that it keeps it private', () => {
+  it('tells a module that reaches above itself to require what it needs, and says when no declared path allows an import', () => {
     const [domain, card] = check([
       facts('src/domain/order.ts', [edge('src/domain/order.ts', 'src/main.ts')]),
       facts('src/ui/a/a.dom.ts', [edge('src/ui/a/a.dom.ts', 'src/ui/shared.ts', { typeOnly: true })]),
     ]);
     assert.equal(
       domain?.message,
-      'src/domain/order.ts (app.domain src/domain) imports src/main.ts (main of app (root)), which (root):main keeps private (it exposes nothing). Import what (root):main exposes, or expose src/main.ts from main if other modules should reach it.',
+      'src/domain/order.ts (app.domain src/domain) imports src/main.ts (main of app (root)), which (root):main keeps private (it exposes nothing). No declared path allows this: either the import or the structure is wrong.',
     );
     assert.equal(
       card?.message,
-      'src/ui/a/a.dom.ts (dom of card src/ui/a) imports types from src/ui/shared.ts (shared of ui src/ui), which is above src/ui/a. A module reaches up only through what it requires: require it in card and have an ancestor provide it, or move it below.',
+      'src/ui/a/a.dom.ts (dom of card src/ui/a) imports types from src/ui/shared.ts (shared of ui src/ui), which is above src/ui/a. Declare shared above cards in ui and add m.shared to the using of ui.cards, or move the code. (+2 more in reach)',
     );
   });
 
-  it('names every using that grants reach, by the module that holds it, or says there are none', () => {
+  it('names the nearest using that would grant reach, and counts the rest of the reach', () => {
     const [shared, test, runner] = check([
       facts('src/ui/shared.ts', [edge('src/ui/shared.ts', 'src/runner/driver.ts')]),
       facts('src/ui/a/a.test.ts', [edge('src/ui/a/a.test.ts', 'src/runner/driver.ts')]),
@@ -412,13 +412,13 @@ describe('checkModel', () => {
     ]);
     assert.equal(
       shared!.message,
-      "src/ui/shared.ts (shared of ui src/ui) imports src/runner/driver.ts (rest of runner src/runner), which is outside shared's reach: shared uses m.strings; app.ui uses m.domain. Add what holds src/runner/driver.ts to a using if the dependency is intended, or move the code.",
+      "src/ui/shared.ts (shared of ui src/ui) imports src/runner/driver.ts (rest of runner src/runner), which is outside shared's reach. Add m.runner.rest to the using of app.ui, or move the code. (+2 more in reach)",
     );
     assert.match(
       test!.message,
-      /reach: test uses m\.logic, m\.page, required\.runner\.contract \(from \(root\)\), pkg\('vitest'\)\. Add/,
+      /reach\. Add required\.runner\.rest to the using of card\.test, or move the code\. \(\+4 more/,
     );
-    assert.match(runner!.message, /which is outside contract's reach: contract may use nothing\. /);
+    assert.match(runner!.message, /outside contract's reach\. No declared path allows this/);
   });
 
   it('says a loose target is in no module yet, so the fix is giving it one', () => {
@@ -547,26 +547,29 @@ describe('module-externals', () => {
         module: 'src/ui/a:test',
         value: 2,
         message:
-          "src/ui/a/a.test.ts (test of card src/ui/a) imports react, react/jsx-runtime, a package outside test's reach: test uses pkg('vitest'). Add pkg('react') to a using if the dependency is intended, or move the code.",
+          "src/ui/a/a.test.ts (test of card src/ui/a) imports react, react/jsx-runtime, a package outside test's reach. Add pkg('react') to the using of card.test, or move the code. (+1 more in reach)",
         details: { from: 'src/ui/a:test', package: 'react', edges },
       },
     ]);
   });
 
-  it("grants a dir module's packages to its files, and says when no using lists one", () => {
+  it("grants a dir module's packages to its files, and names the using to add a package to", () => {
     const [logic, domain] = check([
       facts('src/ui/a/a.ts', [], [external('src/ui/a/a.ts', 'node:fs', { names: [], typeOnly: true })]),
       facts('src/domain/order.ts', [], [external('src/domain/order.ts', 'lodashxget')]),
     ]);
     assert.equal(
       logic?.message,
-      "src/ui/a/a.ts (logic of card src/ui/a) imports types from node:fs, a package outside logic's reach: no using in its reach lists a package. Add pkg('node:fs') to a using if the dependency is intended, or move the code.",
+      "src/ui/a/a.ts (logic of card src/ui/a) imports types from node:fs, a package outside logic's reach. Add pkg('node:fs') to the using of card.logic, or move the code.",
     );
     assert.equal(logic?.value, 1);
-    assert.match(domain!.message, /outside domain's reach: app\.domain uses pkg\('node:\*'\), pkg\('lodash\.get'\)\./);
+    assert.match(
+      domain!.message,
+      /Add pkg\('lodashxget'\) to the using of app\.domain, or move the code\. \(\+2 more in reach\)$/,
+    );
   });
 
-  it('reports only the imports of a package outside reach, naming each using that lists packages', () => {
+  it('reports only the imports of a package outside reach, naming the nearest using', () => {
     const leaf = archetype('leaf').contains((m) => m.module('src', files('*.ts'), using([pkg('vite-plus/*')])));
     const root = archetype('root').contains((m) => m.module('leaf', dir('leaf'), leaf.using([pkg('node:*')])));
     const data = loadConfigData({ root }).config;
@@ -579,7 +582,10 @@ describe('module-externals', () => {
       package: 'vite-plus',
       edges: [edges[1]],
     });
-    assert.match(finding!.message, /reach: src uses pkg\('vite-plus\/\*'\); root\.leaf uses pkg\('node:\*'\)\. Add/);
+    assert.match(
+      finding!.message,
+      /Add pkg\('vite-plus'\) to the using of leaf\.src, or move the code\. \(\+2 more in reach\)$/,
+    );
   });
 
   it('judges nothing from a loose file or a file outside the model, and attaches docs when given', () => {

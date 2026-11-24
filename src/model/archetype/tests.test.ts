@@ -235,7 +235,7 @@ describe('test modules', () => {
     );
     assert.equal(
       finding!.message,
-      'src/a/a.test.ts (test module tests of card src/a) imports src/main.ts (main of app (root)), which is above src/a. A test reaches up through testUsing: name what holds src/main.ts in the testUsing of a module above src/a, or move it below.',
+      "src/a/a.test.ts (test module tests of card src/a) imports src/main.ts (main of app (root)), which is above src/a. Add 'src/main.ts' to what app.main exposes and add m.main to the testUsing of app, or move the code. (+8 more in reach)",
     );
   });
 
