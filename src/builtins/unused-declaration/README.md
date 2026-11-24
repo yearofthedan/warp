@@ -20,7 +20,8 @@ The rule judges the model as a whole and reports one finding per declaration, on
 - `grant`: a `using` entry, a test layer's included, that no file it covers imports through. An archetype's `using` is
   judged across all its modules: one that imports through it is enough.
 - `surface`: an `exposes`, `.entry()` or named surface, a test layer's included, that no file outside the module
-  imports. The root module's surface is what the project offers its own users, so it always counts as used.
+  imports. The root module's surface, and the `.entry()` of a module directly below it, are what the project offers
+  its own users, so they always count as used.
 - `empty`: a module whose `dir(...)` or `files(...)` matches no files. Its own `using` and surface are covered by
   this one finding.
 

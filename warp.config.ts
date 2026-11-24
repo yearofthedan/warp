@@ -100,6 +100,7 @@ const pkgArchetype = archetype('package')
           .using((m) => [m.analysis, m.config, m.git, m.reporters, m.app, m.rules, m.model, m.builtins, pkg('node:*')]),
       ),
   )
+  .entry(files('index.ts'))
   .provides((m) => ({ model: m.model, rules: m.rules, app: m.app }))
   .tests(using((m) => [m.app, m.builtins, m.reporters, m.analysis, m.config]));
 
