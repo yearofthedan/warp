@@ -159,8 +159,8 @@ src/api/orders.test.ts:1 [module-externals] src/api/orders.test.ts (app.api src/
 
 ## 8. Tell warp which files are tests
 
-warp treats `orders.test.ts` as production code until the config names the test files. Name them, and give every
-test the test runner:
+warp treats `orders.test.ts` as production code until a test module holds it. Declare one, and give every test the
+test runner:
 
 ```ts
 // warp.config.ts
@@ -172,25 +172,29 @@ const app = archetype('app')
       .module('lib', dir('src/lib'), exposes(all()))
       .module('utils', dir('src/utils'), exposes(all()))
       .module('db', dir('src/db'), exposes(all()))
-      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.lib, m.utils, pkg('zod')])),
+      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.lib, m.utils, pkg('zod')]))
+      .testModule('tests', files('src/**/*.test.ts')),
   )
   .entry(files('src/index.ts'))
-  .tests(using([pkg('vitest')]));
+  .testUsing([pkg('vitest')]);
 
 const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
 
 export default defineConfig({ root: app, tests: files('src/**/*.test.ts'), rulesets: { default: base } });
 ```
 
-- `tests: files('src/**/*.test.ts')` names the test files, and `.tests(using([pkg('vitest')]))` lets every test
-  import vitest.
-- [Test layers](concepts.md#test-layer) nest: a module's tests get what its ancestors' test layers use, plus their
-  own. With `exposes(all()).tests(using([pkg('testcontainers')]))` on `db`, the tests in `src/db` import vitest and
-  testcontainers, and the tests in `src/api` import vitest alone.
-- The ruleset turns `function-cohesion` off for tests, since a `describe` callback holds `it` calls that share no
-  locals, which that rule would report as a function to split.
+- `.testModule('tests', files('src/**/*.test.ts'))` makes the test files a [test module](concepts.md#test-module) of
+  the root. Its tests reach what the root reaches, each module's surface, and nothing in production may import them.
+- `.testUsing([pkg('vitest')])` is the [test kit](concepts.md#test-kit): every test module at and below the root may
+  import vitest. A module deeper down adds to it for its own tests: with
+  `contains((c) => c.testModule('tests', files('*.test.ts'))).exposes(all()).testUsing([pkg('testcontainers')])` on
+  `db`, the tests in `src/db` import vitest and testcontainers, and the tests in `src/api` import vitest alone.
+- `tests: files('src/**/*.test.ts')` names what a test file looks like, so one that no test module claims is a config
+  error rather than production code.
+- The ruleset turns `function-cohesion` off for the root's tests, since a `describe` callback holds `it` calls that
+  share no locals, which that rule would report as a function to split.
 
-`warp check` reports no findings again, and `warp model` counts `orders.test.ts` as a test of `src/api`.
+`warp check` reports no findings again, and `warp model` lists `orders.test.ts` under `(root):tests`.
 
 The [hexagonal layout](examples/hexagonal.md) shows a stricter config, and the [config reference](config.md) has every
 option.

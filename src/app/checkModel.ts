@@ -25,7 +25,7 @@ export const checkModel = (
 const placed = (model: Model, finding: Finding): Finding => {
   const module = model.moduleOf(finding.file);
   if (!module) return finding;
-  return { ...finding, module: model.isTest(finding.file) ? `${module.id}:tests` : module.id };
+  return { ...finding, module: module.id };
 };
 
 type Shared = Omit<ProjectContext<object>, 'atFile' | 'atModule'>;

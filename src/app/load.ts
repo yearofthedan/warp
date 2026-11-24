@@ -74,9 +74,19 @@ const archetypeData = ({
   modules,
   exposes,
   provides,
-  tests,
+  testUsing,
 }: ArchetypeData) =>
-  defined({ name, inline, description, identify, requires, modules: modules.map(defined), exposes, provides, tests });
+  defined({
+    name,
+    inline,
+    description,
+    identify,
+    requires,
+    modules: modules.map(defined),
+    exposes,
+    provides,
+    testUsing,
+  });
 
 const plugins = (value: unknown, fail: Fail): Record<string, unknown> => {
   if (value === undefined) return {};
@@ -90,7 +100,7 @@ const testPatterns = (value: unknown, fail: Fail): { tests?: string[] } => {
   const selector = recordedAs(value, 'selector');
   if (selector?.kind === 'files' && selector.patterns.every(isName))
     return { tests: [...selector.patterns] as string[] };
-  fail("config.tests: expected the test entry files, files('**/*.test.ts', ...)");
+  fail("config.tests: expected the test files, files('**/*.test.ts', ...)");
   return {};
 };
 

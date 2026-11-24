@@ -67,7 +67,12 @@ const explain = ({ config, model, verdicts }: Context, from: string, to: string,
     );
   }
   if (refusal.reason === 'above') {
-    const folder = source.kind === 'files' ? source.parent! : source;
+    const folder = source.kind === 'dir' ? source : source.parent!;
+    if (source.kind === 'test')
+      return (
+        `which is above ${folder.id}. A test reaches up through testUsing: ` +
+        `name what holds ${to} in the testUsing of a module above ${folder.id}, or move it below.`
+      );
     return (
       `which is above ${folder.id}. A module reaches up only through what it requires: ` +
       `require it in ${namedArchetype(config, folder.archetype!)} and have an ancestor provide it, or move it below.`

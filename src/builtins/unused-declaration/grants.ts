@@ -11,17 +11,18 @@ interface Declared {
   declaredIn: string;
   layer: Layer;
   holders: ModuleView[];
+  kit?: true;
 }
 
 export const unusedGrants = (context: Context): Finding[] => {
   const used = usedRefs(context);
   return declared(context)
     .filter(({ ref, holders }) => !used.has(ref) && holders.some((holder) => context.atModule(holder).on))
-    .map(({ ref, declaredIn, layer, holders }) => {
+    .map(({ ref, declaredIn, layer, holders, kit }) => {
       const using = show(ref);
       const modules = holders.map((holder) => holder.id);
       const names = holders.map(named).join(', ');
-      const files = layer === 'test' ? `tests of ${names}` : names;
+      const files = kit ? `the tests of ${names}` : names;
       return unused(
         context.config,
         `${declaredIn}->${using}`,
@@ -36,20 +37,17 @@ const declared = (context: Context): Declared[] =>
     const instances = instancesOf(context, archetype.name);
     const modules = archetype.modules.flatMap((module) => {
       const holders = childrenNamed(context, instances, module.name);
-      const declaredIn = `${archetype.name}.${module.name}`;
-      const tests = module.kind === 'files' ? (module.tests?.using ?? []) : [];
-      return [
-        ...module.using.map((ref) => ({ ref, declaredIn, layer: 'production' as const, holders })),
-        ...tests.map((ref) => ({ ref, declaredIn: `${declaredIn}.tests`, layer: 'test' as const, holders })),
-      ];
+      const layer: Layer = module.kind === 'test' ? 'test' : 'production';
+      return module.using.map((ref) => ({ ref, declaredIn: `${archetype.name}.${module.name}`, layer, holders }));
     });
-    const layer = (archetype.tests?.using ?? []).map((ref) => ({
+    const kit = (archetype.testUsing ?? []).map((ref) => ({
       ref,
-      declaredIn: `${archetype.name}.tests`,
+      declaredIn: `${archetype.name}.testUsing`,
       layer: 'test' as const,
       holders: instances,
+      kit: true as const,
     }));
-    return [...modules, ...layer];
+    return [...modules, ...kit];
   });
 
 const usedRefs = ({ project, verdicts }: Context): Set<RefData> => {

@@ -4,7 +4,8 @@ const layer = archetype('layer')
   .contains((m) =>
     m
       .module('src', files('**'), exposes(all()))
-      .module('index', files('index.ts'), exposes(all()).using((m) => [m.src])),
+      .module('index', files('index.ts'), exposes(all()).using((m) => [m.src]))
+      .testModule('tests', files('**/*.test.ts')),
   )
   .exposes((m) => ({ api: m.index }));
 
@@ -33,7 +34,7 @@ const app = archetype('app')
       .module('ui', dir('src/ui'), ui.using((m) => [m.domain]))
       .module('main', files('src/main.ts'), using((m) => [m.domain, m.ui])),
   )
-  .tests(using([pkg('node:*')]));
+  .testUsing([pkg('node:*')]);
 
 export default defineConfig({
   root: app,

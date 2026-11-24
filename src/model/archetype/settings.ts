@@ -1,4 +1,4 @@
-import type { ConfigData, RuleSettingsData, TestLayerData } from './data.ts';
+import type { ConfigData, RuleSettingsData } from './data.ts';
 import { declarationOf, type Model, type ModuleView } from './resolve.ts';
 import { isRecord } from './shared.ts';
 
@@ -15,36 +15,20 @@ export interface Settings {
 
 type Levels = readonly (RuleSettingsData | undefined)[];
 
-const layerOf = (config: ConfigData, module: ModuleView): TestLayerData | undefined => {
-  if (module.archetype !== undefined) return config.archetypes[module.archetype]!.tests;
-  const declared = declarationOf(config, module);
-  return declared?.kind === 'files' ? declared.tests : undefined;
-};
-
 const own = (config: ConfigData, module: ModuleView): Levels => [
   declarationOf(config, module)?.rules,
   module.archetype === undefined ? undefined : config.archetypes[module.archetype]!.rules,
 ];
 
-const testModuleRules = (config: ConfigData, module: ModuleView): RuleSettingsData | undefined =>
-  layerOf(config, module.parent!)?.modules.find((data) => `tests.${data.name}` === module.name)?.rules;
-
-const levels = (config: ConfigData, module: ModuleView): Levels => {
-  if (module.test) return [testModuleRules(config, module), ...testLevels(config, module.parent!)];
-  return [...own(config, module), ...(module.parent ? levels(config, module.parent) : [config.rules])];
-};
-
-const testLevels = (config: ConfigData, owner: ModuleView): Levels => [
-  layerOf(config, owner)?.rules,
-  ...own(config, owner),
-  ...(owner.parent ? testLevels(config, owner.parent) : [config.rules]),
+const levels = (config: ConfigData, module: ModuleView): Levels => [
+  ...own(config, module),
+  ...(module.parent ? levels(config, module.parent) : [config.rules]),
 ];
 
 export const settings = (config: ConfigData, model: Model): Settings => {
   const fileLevels = (file: string): Levels => {
     const module = model.moduleOf(file);
-    if (!module) return [config.rules];
-    return model.isTest(file) && !module.test ? testLevels(config, module) : levels(config, module);
+    return module ? levels(config, module) : [config.rules];
   };
   return {
     atFile: (file, id, defaults) => ruleAt(fileLevels(file), id, defaults),

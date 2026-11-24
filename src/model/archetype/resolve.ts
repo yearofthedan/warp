@@ -1,5 +1,5 @@
 import { ConfigError } from '../configError.ts';
-import type { ArchetypeData, ConfigData, DirModuleData, FilesModuleData, LocatorData, ModuleData } from './data.ts';
+import type { ArchetypeData, ConfigData, DirModuleData, LocatorData, ModuleData, TestModuleData } from './data.ts';
 
 export interface Folders {
   folders(dir: string): string[];
@@ -9,7 +9,7 @@ export interface Folders {
 export interface ModuleView {
   id: string;
   name?: string;
-  kind: 'dir' | 'files';
+  kind: 'dir' | 'files' | 'test';
   dir: string;
   archetype?: string;
   captures: Record<string, string>;
@@ -17,8 +17,6 @@ export interface ModuleView {
   children: ModuleView[];
   files: string[];
   looseFiles: string[];
-  tests: string[];
-  test?: true;
 }
 
 export interface Model {
@@ -44,8 +42,11 @@ interface Resolution {
   config: ConfigData;
   folders: Folders;
   byDir: Map<string, ModuleView>;
+  mirrors: Map<string, { holder: ModuleView; name: string }>;
   errors: Set<string>;
 }
+
+export const rootId = '(root)';
 
 const placeholders = /\{(\w+)\}/g;
 
@@ -64,42 +65,59 @@ export const fillPattern = (pattern: string, captures: Record<string, string>): 
 };
 
 export const resolveModel = (config: ConfigData, folders: Folders, files: readonly string[]): Model => {
-  const resolution: Resolution = { config, folders, byDir: new Map(), errors: new Set() };
+  const resolution: Resolution = { config, folders, byDir: new Map(), mirrors: new Map(), errors: new Set() };
   const root = build(resolution, { dir: '', archetype: config.archetypes[config.root]!, captures: {} });
+  for (const module of walk(root)) mirrorsOf(resolution, module);
   const moduleOf = new Map<string, ModuleView>();
-  const tests = new Set<string>();
   const isTest = testMatcher(config.tests);
-  for (const file of [...files].sort()) {
-    const { module, test } = assign(resolution, file, isTest(file));
-    if (test) tests.add(file);
-    moduleOf.set(file, module);
-  }
+  for (const file of [...files].sort()) moduleOf.set(file, assign(resolution, file, isTest(file)));
   if (resolution.errors.size > 0) throw new ConfigError([...resolution.errors].join('\n'));
   order(config, root);
   return {
     root,
     modules: [...walk(root)],
     moduleOf: (file) => moduleOf.get(file),
-    isTest: (file) => tests.has(file),
+    isTest: (file) => moduleOf.get(file)?.kind === 'test',
   };
 };
 
-const assign = (resolution: Resolution, file: string, entry: boolean): { module: ModuleView; test: boolean } => {
+const assign = (resolution: Resolution, file: string, test: boolean): ModuleView => {
   const folder = deepest(resolution.byDir, file);
-  const claim = claimOf(resolution, folder, file);
-  if (claim) {
-    const support = claim.kind === 'dir' ? place(resolution, claim, file, 'tests') : claim;
-    if (support.test) support.files.push(file);
-    else claim.tests.push(file);
-    return { module: support.test ? support : claim, test: true };
-  }
-  if (entry) {
-    folder.tests.push(file);
-    return { module: folder, test: true };
-  }
-  const module = place(resolution, folder, file, 'all');
+  const module = mirrorClaim(resolution, file) ?? claimOf(resolution, folder, file) ?? place(resolution, folder, file);
+  if (test && module.kind !== 'test')
+    resolution.errors.add(
+      `${file}: a test file no test module claims; give ${folder.archetype} a test module that matches it, .testModule('tests', files('*.test.ts'))`,
+    );
   module.files.push(file);
-  return { module, test: module.test === true };
+  return module;
+};
+
+const mirrorsOf = (resolution: Resolution, holder: ModuleView) => {
+  if (holder.kind !== 'dir') return;
+  for (const declared of resolution.config.archetypes[holder.archetype!]!.modules) {
+    if (declared.kind !== 'test' || declared.locator.kind !== 'mirror') continue;
+    const { from, to } = declared.locator;
+    const where = `${holder.id}: ${holder.archetype}.${declared.name} mirror('${from}', '${to}')`;
+    if (holder.dir !== from && !holder.dir.startsWith(`${from}/`)) {
+      resolution.errors.add(`${where} needs a folder under ${from}; this module is not in it`);
+      continue;
+    }
+    const target = `${to}${holder.dir.slice(from.length)}`;
+    const taken = resolution.mirrors.get(target);
+    if (taken)
+      resolution.errors.add(
+        `${target}: mirrored by ${taken.holder.id} and ${holder.id}; one folder mirrors one module`,
+      );
+    else resolution.mirrors.set(target, { holder, name: declared.name });
+  }
+};
+
+const mirrorClaim = (resolution: Resolution, file: string): ModuleView | undefined => {
+  for (let dir = parentDir(file); dir !== ''; dir = parentDir(dir)) {
+    const mirror = resolution.mirrors.get(dir);
+    if (mirror) return childModule(mirror.holder, mirror.name, 'test');
+  }
+  return undefined;
 };
 
 const testMatcher = (patterns: readonly string[] = []) => {
@@ -115,27 +133,21 @@ const walk = function* (module: ModuleView): Generator<ModuleView> {
 const order = (config: ConfigData, module: ModuleView) => {
   if (module.archetype === undefined) return;
   const archetype = config.archetypes[module.archetype]!;
-  const declared = [
-    ...archetype.modules.map((data) => data.name),
-    ...(archetype.tests?.modules ?? []).map((data) => `tests.${data.name}`),
-  ];
+  const declared = archetype.modules.map((data) => data.name);
   module.children.sort((a, b) => declared.indexOf(a.name!) - declared.indexOf(b.name!) || a.dir.localeCompare(b.dir));
   for (const child of module.children) order(config, child);
 };
 
-const place = (resolution: Resolution, folder: ModuleView, file: string, among: 'all' | 'tests'): ModuleView => {
+const place = (resolution: Resolution, folder: ModuleView, file: string): ModuleView => {
   const archetype = resolution.config.archetypes[folder.archetype!]!;
-  const candidates = [
-    ...(among === 'all' ? archetype.modules : []),
-    ...(archetype.tests?.modules ?? []).map((module) => ({ ...module, name: `tests.${module.name}` })),
-  ];
-  if (candidates.length === 0 || (among === 'all' && isEntry(archetype, folder, file))) return folder;
-  const name = filesModule(resolution, folder, archetype, candidates, file);
+  const production = archetype.modules.filter((module) => module.kind !== 'test');
+  if (production.length === 0 || isEntry(archetype, folder, file)) return folder;
+  const name = filesModule(resolution, folder, archetype, production, file);
   if (name === undefined) {
-    if (among === 'all' && archetype.modules.length > 0) folder.looseFiles.push(file);
+    folder.looseFiles.push(file);
     return folder;
   }
-  return childModule(folder, name);
+  return childModule(folder, name, 'files');
 };
 
 const isEntry = (archetype: ArchetypeData, folder: ModuleView, file: string): boolean => {
@@ -148,22 +160,20 @@ const isEntry = (archetype: ArchetypeData, folder: ModuleView, file: string): bo
   });
 };
 
-const childModule = (folder: ModuleView, name: string): ModuleView => {
+const childModule = (folder: ModuleView, name: string, kind: 'files' | 'test'): ModuleView => {
   const id = `${folder.id}:${name}`;
   let module = folder.children.find((child) => child.id === id);
   if (!module) {
     module = {
       id,
       name,
-      kind: 'files',
+      kind,
       dir: folder.dir,
       captures: folder.captures,
       parent: folder,
       children: [],
       files: [],
       looseFiles: [],
-      tests: [],
-      ...(name.startsWith('tests.') ? { test: true as const } : {}),
     };
     folder.children.push(module);
   }
@@ -174,30 +184,34 @@ const claimOf = (resolution: Resolution, folder: ModuleView, file: string): Modu
   for (let at: ModuleView | undefined = folder; at; at = at.parent) {
     const archetype = resolution.config.archetypes[at.archetype!]!;
     const level = at;
-    const claims = [
-      ...(locates(level, archetype.tests?.locator, file) ? [level] : []),
-      ...archetype.modules
-        .filter((declared): declared is FilesModuleData => declared.kind === 'files')
-        .filter((declared) => locates(level, declared.tests?.locator, file))
-        .map((declared) => childModule(level, declared.name)),
-    ];
-    if (claims.length > 1)
+    const claims = archetype.modules
+      .filter((declared): declared is TestModuleData => declared.kind === 'test')
+      .flatMap((declared) => {
+        const score = locates(level, declared.locator, file);
+        return score === undefined ? [] : [{ name: declared.name, score }];
+      });
+    if (claims.length === 0) continue;
+    const best = claims.reduce((top, claim) => (claim.score > top.score ? claim : top));
+    const tied = claims.filter((claim) => claim !== best && claim.score === best.score);
+    if (tied.length > 0)
       resolution.errors.add(
-        `${file}: claimed as tests by ${claims.map((claim) => claim.id).join(' and ')}; narrow one of their locators`,
+        `${file}: claimed by ${archetype.name}'s test modules ${[best, ...tied].map((claim) => claim.name).join(' and ')}, which are equally specific; narrow one of their selectors`,
       );
-    if (claims.length > 0) return claims[0];
+    return childModule(level, best.name, 'test');
   }
   return undefined;
 };
 
-const locates = (module: ModuleView, locator: LocatorData | undefined, file: string): boolean => {
-  if (!locator) return false;
+const locates = (module: ModuleView, locator: LocatorData, file: string): number | undefined => {
+  if (locator.kind === 'mirror') return undefined;
   const path = module.dir === '' ? file : file.slice(module.dir.length + 1);
-  return locator.patterns.some((pattern) => {
+  const scores = locator.patterns.flatMap((pattern) => {
     const filled = fillPattern(pattern, module.captures);
-    if (filled === undefined) return false;
-    return locator.kind === 'dir' ? path.startsWith(`${filled}/`) : globRegex(filled).test(path);
+    if (filled === undefined) return [];
+    const glob = locator.kind === 'dir' ? `${filled}/**` : filled;
+    return globRegex(glob).test(path) ? [specificity(glob)] : [];
   });
+  return scores.length === 0 ? undefined : Math.max(...scores);
 };
 
 interface Found {
@@ -213,7 +227,7 @@ const pathOf = (module: ModuleView): string =>
 
 const build = (resolution: Resolution, { dir, archetype, captures, parent, name }: Found): ModuleView => {
   const module: ModuleView = {
-    id: dir === '' ? '.' : dir,
+    id: dir === '' ? rootId : dir,
     ...(name === undefined ? {} : { name }),
     kind: 'dir',
     dir,
@@ -223,7 +237,6 @@ const build = (resolution: Resolution, { dir, archetype, captures, parent, name 
     children: [],
     files: [],
     looseFiles: [],
-    tests: [],
   };
   resolution.byDir.set(dir, module);
   for (const [childDir, claims] of [...claimsIn(resolution, module, archetype)].sort(([a], [b]) =>

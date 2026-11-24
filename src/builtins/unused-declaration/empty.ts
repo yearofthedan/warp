@@ -7,21 +7,18 @@ export const emptyModules = (context: Context): Finding[] =>
   Object.values(context.config.archetypes).flatMap((archetype) => {
     const instances = instancesOf(context, archetype.name);
     const on = instances.some((instance) => context.atModule(instance).on);
-    const declared = [
-      ...archetype.modules.map((module) => ({ module, name: module.name, layer: 'production' as const })),
-      ...(archetype.tests?.modules ?? []).map((module) => ({
-        module,
-        name: `tests.${module.name}`,
-        layer: 'test' as const,
-      })),
-    ];
+    const declared = archetype.modules.map((module) => ({
+      module,
+      name: module.name,
+      layer: module.kind === 'test' ? ('test' as const) : ('production' as const),
+    }));
     return declared
       .filter(({ name }) => on && childrenNamed(context, instances, name).length === 0)
       .map(({ module, name, layer }) => empty(context, `${archetype.name}.${name}`, module, layer, instances));
   });
 
 const empty = (context: Context, declaredIn: string, module: ModuleData, layer: Layer, instances: ModuleView[]) => {
-  const selector = module.kind === 'dir' ? `dir(${quoted(module.paths)})` : `files(${quoted(module.patterns)})`;
+  const selector = selectorText(module);
   const where = instances.map(named).join(', ');
   return unused(
     context.config,
@@ -32,3 +29,11 @@ const empty = (context: Context, declaredIn: string, module: ModuleData, layer: 
 };
 
 const quoted = (patterns: readonly string[]): string => patterns.map((pattern) => `'${pattern}'`).join(', ');
+
+const selectorText = (module: ModuleData): string => {
+  if (module.kind === 'dir') return `dir(${quoted(module.paths)})`;
+  if (module.kind === 'files') return `files(${quoted(module.patterns)})`;
+  const { locator } = module;
+  if (locator.kind === 'mirror') return `mirror('${locator.from}', '${locator.to}')`;
+  return `${locator.kind}(${quoted(locator.patterns)})`;
+};

@@ -1,11 +1,11 @@
-import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
+import { all, archetype, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
 
 const layer = archetype('layer')
   .description('A folder of code whose tests need the runner: domain, application, adapters, lint')
   .requires({ methods: dir() })
-  .contains((m) => m.module('src', files('**'), exposes(all())))
+  .contains((m) => m.module('src', files('**'), exposes(all())).testModule('tests', files('**/*.test.ts')))
   .exposes((m) => ({ code: m.src }))
-  .tests(using((m, { required }) => [required.methods]));
+  .testUsing((m, { required }) => [required.methods]);
 
 const component = archetype('component')
   .identify({ marker: '{name}.dom.ts' })
@@ -26,19 +26,14 @@ const component = archetype('component')
           required.application,
           required.ports,
         ]),
-      ),
+      )
+      .testModule('dsl', files('*.dsl.ts'))
+      .testModule('testPage', files('*.test-page.ts'))
+      .testModule('harness', files('*.harness.ts'))
+      .testModule('tests', files('*.test.ts')),
   )
-  .exposes((m) => ({ render: m.dom }))
-  .tests(
-    contains((t) =>
-      t
-        .module('dsl', files('*.dsl.ts'))
-        .module('testPage', files('*.test-page.ts'))
-        .module('harness', files('*.harness.ts')),
-    )
-      .exposes((t) => ({ dsl: t.dsl, testPage: t.testPage }))
-      .using((m, { required }) => [required.ports, pkg('@playwright/*')]),
-  );
+  .exposes((m) => ({ render: m.dom, dsl: m.dsl, testPage: m.testPage }))
+  .testUsing((m, { required }) => [m.dsl, m.testPage, m.harness, required.ports, pkg('@playwright/*')]);
 
 const ui = archetype('ui')
   .contains((m) =>
@@ -46,11 +41,16 @@ const ui = archetype('ui')
       .module('components', dir('{name}'), component)
       .module('strings', dir('strings'), exposes(all()).description("The app's words"))
       .module('icons', dir('icons'), exposes(all()))
-      .module('transition', files('transition.ts'), exposes(all())),
+      .module('transition', files('transition.ts'), exposes(all()))
+      .testModule('tests', files('*.test.ts')),
   )
   .provides((m) => ({ strings: m.strings, icons: m.icons, transition: m.transition }))
-  .exposes((m) => ({ render: m.components.render, strings: m.strings }))
-  .tests(exposes(all()));
+  .exposes((m) => ({
+    render: m.components.render,
+    strings: m.strings,
+    dsl: m.components.dsl,
+    testPage: m.components.testPage,
+  }));
 
 const workingTitle = archetype('working-title')
   .contains((m) =>
@@ -107,41 +107,41 @@ const workingTitle = archetype('working-title')
         'tooling',
         files('*.ts', 'scripts/**/*.ts'),
         using((m) => [m.lint, pkg('*')]),
-      ),
+      )
+      .testModule(
+        'contract',
+        files(
+          'src/test-helpers/driver.ts',
+          'src/test-helpers/steps.ts',
+          'src/test-helpers/seed.ts',
+          'src/test-helpers/narrowing.ts',
+          'src/test-helpers/scenario-file.ts',
+          'src/test-helpers/ids.ts',
+        ),
+      )
+      .testModule('runner', dir('src/test-helpers'))
+      .testModule('journeys', files('e2e/*.dsl.ts'))
+      .testModule('e2e', dir('e2e'))
+      .testModule('tests', files('*.test.ts', 'scripts/**/*.test.ts')),
   )
   .provides((m) => ({
     application: m.application,
     ports: m.ports,
     methods: m.methods,
   }))
-  .tests(
-    dir('e2e'),
-    contains((t) =>
-      t
-        .module(
-          'contract',
-          files(
-            'src/test-helpers/driver.ts',
-            'src/test-helpers/steps.ts',
-            'src/test-helpers/seed.ts',
-            'src/test-helpers/narrowing.ts',
-            'src/test-helpers/scenario-file.ts',
-            'src/test-helpers/ids.ts',
-          ),
-        )
-        .module('runner', files('src/test-helpers/**'))
-        .module('journeys', files('e2e/*.dsl.ts')),
-    ).using((m) => [
-      m.domain,
-      m.application,
-      m.adapters,
-      m.methods,
-      m.app,
-      m.shell,
-      m.ports,
-      pkg('vite-plus/*'),
-      pkg('*'),
-    ]),
-  );
+  .testUsing((m) => [
+    m.domain,
+    m.application,
+    m.adapters,
+    m.methods,
+    m.app,
+    m.shell,
+    m.ports,
+    m.contract,
+    m.runner,
+    m.journeys,
+    pkg('vite-plus/*'),
+    pkg('*'),
+  ]);
 
 export default defineConfig({ root: workingTitle, tests: files('**/*.test.ts', 'e2e/**/*.spec.ts') });

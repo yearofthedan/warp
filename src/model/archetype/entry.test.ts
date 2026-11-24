@@ -97,7 +97,7 @@ describe('a module entry', () => {
     );
   });
 
-  it('refuses an entry beside exposes, an entry that is not files, and an entry on a files module or test layer', () => {
+  it('refuses an entry beside exposes, an entry that is not files, and an entry on a files module or test module', () => {
     const failures = (root: unknown): string[] => {
       try {
         loadConfigData({ root });
@@ -112,14 +112,16 @@ describe('a module entry', () => {
     const onFiles = archetype('onFiles').contains((m) =>
       m.module('x', files('x.ts'), using([]).entry(files('x.ts')) as never),
     );
-    const onLayer = archetype('onLayer').tests(using([]).entry(files('x.ts')) as never);
+    const onTest = archetype('onTest').contains((m) =>
+      m.testModule('x', files('x.test.ts'), using([]).entry(files('x.ts')) as never),
+    );
     assert.deepEqual(
-      [both, notFiles, onFiles, onLayer].flatMap((root) => failures(root)),
+      [both, notFiles, onFiles, onTest].flatMap((root) => failures(root)),
       [
         "both: an entry is the module's whole surface; give it .entry(...) or .exposes(...)",
         "notFiles.entry: expected the module's entry files, files('index.ts')",
         'onFiles.x.entry: a files module has no modules; use dir(...) for entry',
-        'onLayer.tests.entry: a test layer holds test modules, its using and what it exposes',
+        'onTest.x.entry: a test module holds test code; its archetype takes using(...), exposes(...) and description(...)',
       ],
     );
   });
