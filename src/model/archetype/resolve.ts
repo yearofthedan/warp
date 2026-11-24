@@ -69,8 +69,7 @@ export const resolveModel = (config: ConfigData, folders: Folders, files: readon
   const root = build(resolution, { dir: '', archetype: config.archetypes[config.root]!, captures: {} });
   for (const module of walk(root)) mirrorsOf(resolution, module);
   const moduleOf = new Map<string, ModuleView>();
-  const isTest = testMatcher(config.tests);
-  for (const file of [...files].sort()) moduleOf.set(file, assign(resolution, file, isTest(file)));
+  for (const file of [...files].sort()) moduleOf.set(file, assign(resolution, file));
   if (resolution.errors.size > 0) throw new ConfigError([...resolution.errors].join('\n'));
   order(config, root);
   return {
@@ -81,13 +80,9 @@ export const resolveModel = (config: ConfigData, folders: Folders, files: readon
   };
 };
 
-const assign = (resolution: Resolution, file: string, test: boolean): ModuleView => {
+const assign = (resolution: Resolution, file: string): ModuleView => {
   const folder = deepest(resolution.byDir, file);
   const module = mirrorClaim(resolution, file) ?? claimOf(resolution, folder, file) ?? place(resolution, folder, file);
-  if (test && module.kind !== 'test')
-    resolution.errors.add(
-      `${file}: a test file no test module claims; give ${folder.archetype} a test module that matches it, .testModule('tests', files('*.test.ts'))`,
-    );
   module.files.push(file);
   return module;
 };
@@ -118,11 +113,6 @@ const mirrorClaim = (resolution: Resolution, file: string): ModuleView | undefin
     if (mirror) return childModule(mirror.holder, mirror.name, 'test');
   }
   return undefined;
-};
-
-const testMatcher = (patterns: readonly string[] = []) => {
-  const regexes = patterns.map(globRegex);
-  return (file: string): boolean => regexes.some((regex) => regex.test(file));
 };
 
 const walk = function* (module: ModuleView): Generator<ModuleView> {

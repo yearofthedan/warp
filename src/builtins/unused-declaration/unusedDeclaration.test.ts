@@ -112,7 +112,6 @@ const check = (root: AnyArchetype, analyzed: FileFacts[], options: { rules?: Rul
   const all = options.files ?? paths;
   const { config } = loadConfigData({
     root,
-    tests: files('**/*.test.ts'),
     ...(options.rules ? { rulesets: { default: options.rules } } : {}),
   });
   const project = {

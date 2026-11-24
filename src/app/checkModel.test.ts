@@ -196,7 +196,7 @@ describe('placing findings', () => {
           using((m) => [m.domain]),
         ),
     );
-    const { config } = loadConfigData({ root: app, tests: files('**/*.test.ts') });
+    const { config } = loadConfigData({ root: app });
     const paths = ['domain/order.ts', 'domain/order.test.ts', 'infra/db.ts', 'loose.ts'];
     const model = resolveModel(config, folders(paths), paths);
     const facts = project({

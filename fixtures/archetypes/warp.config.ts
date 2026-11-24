@@ -39,5 +39,4 @@ const app = archetype('app')
 export default defineConfig({
   root: app,
   tsconfig: ['tsconfig.json', 'tsconfig.test.json'],
-  tests: files('**/*.test.ts'),
 });

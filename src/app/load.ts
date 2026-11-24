@@ -34,9 +34,7 @@ export const loadConfigData = (
     if (errors.length > 0) throw new ConfigError(errors.join('\n'));
   };
   if (!isRecord(raw)) throw new ConfigError('config: expected an object, defineConfig({ root })');
-  const unknownKeys = Object.keys(raw).filter(
-    (key) => !['root', 'tsconfig', 'tests', 'plugins', 'rulesets'].includes(key),
-  );
+  const unknownKeys = Object.keys(raw).filter((key) => !['root', 'tsconfig', 'plugins', 'rulesets'].includes(key));
   if (unknownKeys.length > 0) fail(`config: unknown key ${unknownKeys.join(', ')}`);
   const root = recordedAs(raw.root, 'archetype');
   if (!root) throw new ConfigError("config.root: expected an archetype, archetype('name')...");
@@ -55,7 +53,6 @@ export const loadConfigData = (
     root: root.definition.name as string,
     archetypes: Object.fromEntries(drafts.map(({ data }) => [data.name, archetypeData(data)])),
     tsconfig: tsconfigs(raw.tsconfig, fail),
-    ...testPatterns(raw.tests, fail),
   };
   const config = withRuleset(structure, raw.rulesets, ruleset, (value, at) => toRules(check, value, at), fail);
   checkUnused(drafts, fail);
@@ -92,15 +89,6 @@ const plugins = (value: unknown, fail: Fail): Record<string, unknown> => {
   if (value === undefined) return {};
   if (isRecord(value)) return value;
   fail('config.plugins: expected plugins by namespace');
-  return {};
-};
-
-const testPatterns = (value: unknown, fail: Fail): { tests?: string[] } => {
-  if (value === undefined) return {};
-  const selector = recordedAs(value, 'selector');
-  if (selector?.kind === 'files' && selector.patterns.every(isName))
-    return { tests: [...selector.patterns] as string[] };
-  fail("config.tests: expected the test files, files('**/*.test.ts', ...)");
   return {};
 };
 

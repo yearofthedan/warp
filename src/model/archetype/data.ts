@@ -82,6 +82,5 @@ export interface ConfigData {
   root: string;
   archetypes: Record<string, ArchetypeData>;
   tsconfig: string[];
-  tests?: string[];
   rules?: RuleSettingsData;
 }

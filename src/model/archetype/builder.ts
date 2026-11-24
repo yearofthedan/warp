@@ -149,7 +149,6 @@ export interface Ruleset {
 export interface WarpConfig {
   root: Archetype<string, any, any, any>;
   tsconfig?: string | readonly string[];
-  tests?: Selector<'files'>;
   plugins?: Record<string, unknown>;
   rulesets?: Record<string, Ruleset>;
 }

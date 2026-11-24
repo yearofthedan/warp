@@ -129,6 +129,5 @@ const base = ruleset()
 
 export default defineConfig({
   root: warp,
-  tests: files('**/*.test.ts'),
   rulesets: { default: base },
 });
