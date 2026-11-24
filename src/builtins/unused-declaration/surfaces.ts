@@ -44,7 +44,10 @@ const reached = (context: Context, edges: readonly Edge[], holder: ModuleView, f
 const declared = (context: Context): Declared[] =>
   Object.values(context.config.archetypes).flatMap((archetype) => {
     const instances = instancesOf(context, archetype.name).filter((instance) => instance !== context.model.root);
-    const own = archetype.exposes ? production(context, archetype.name, archetype.exposes, instances) : [];
+    const judged = isEntry(archetype.exposes)
+      ? instances.filter((instance) => !isTopLevel(context, instance))
+      : instances;
+    const own = archetype.exposes ? production(context, archetype.name, archetype.exposes, judged) : [];
     const modules = archetype.modules.flatMap((module) => {
       const holders = childrenNamed(context, instances, module.name);
       return module.kind === 'files' && module.exposes
@@ -54,6 +57,10 @@ const declared = (context: Context): Declared[] =>
     const tests = archetype.tests?.exposes ? test(`${archetype.name}.tests`, archetype.tests.exposes, instances) : [];
     return [...own, ...modules, ...tests];
   });
+
+const isEntry = (exposes: ExposesData | undefined): boolean => exposes?.kind === 'files' && exposes.entry === true;
+
+const isTopLevel = (context: Context, module: ModuleView): boolean => module.parent === context.model.root;
 
 const production = (context: Context, declaredIn: string, exposes: ExposesData, holders: ModuleView[]): Declared[] => {
   const layer = 'production';

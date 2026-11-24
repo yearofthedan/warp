@@ -285,7 +285,7 @@ describe(rule, () => {
     );
   });
 
-  it('shows an entry, a files surface and named test surfaces as written', () => {
+  it('shows a files surface and named test surfaces as written', () => {
     const shelf = archetype('ui')
       .contains((m) => m.module('src', files('*.ts'), exposes(files('view.ts'))))
       .entry(files('index.ts'))
@@ -307,12 +307,27 @@ describe(rule, () => {
     const findings = check(app(undefined, shelf), [...rest, test], { files: all });
     assert.deepEqual(
       keys(findings).filter((key) => key.includes(':surface:ui')),
-      [
-        `${rule}:surface:ui:.entry(files('index.ts'))`,
-        `${rule}:surface:ui.src:exposes(files('view.ts'))`,
-        `${rule}:surface:ui.tests:exposes fake`,
-      ],
+      [`${rule}:surface:ui.src:exposes(files('view.ts'))`, `${rule}:surface:ui.tests:exposes fake`],
     );
+  });
+
+  it("counts a top-level module's entry as used, since the package's users import it", () => {
+    const pkgArchetype = archetype('package')
+      .contains((c) => c.module('lib', dir('lib'), archetype('lib').entry(files('index.ts'))))
+      .entry(files('index.ts'));
+    const root = archetype('repo').contains((c) => c.module('package', dir('src'), pkgArchetype));
+    const tree = ['src/index.ts', 'src/lib/index.ts'];
+    const findings = check(root, [facts('src/index.ts', ['src/lib/index.ts'])], { files: tree });
+    assert.deepEqual(findings, []);
+  });
+
+  it('judges an entry below the top level, shown as written', () => {
+    const lib = archetype('lib').entry(files('index.ts'));
+    const pkgArchetype = archetype('package').contains((c) => c.module('lib', dir('lib'), lib));
+    const root = archetype('repo').contains((c) => c.module('package', dir('src'), pkgArchetype));
+    const tree = ['src/index.ts', 'src/lib/index.ts'];
+    const findings = check(root, [], { files: tree });
+    assert.deepEqual(keys(findings), [`${rule}:surface:lib:.entry(files('index.ts'))`]);
   });
 
   it('reports nothing where a ruleset turns it off everywhere', () => {
