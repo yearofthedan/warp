@@ -4,8 +4,8 @@
 **Purpose:** warp's commands, flags, reporters and exit codes.
 
 ```sh
-warp check                 # every finding in the working tree
-warp diff HEAD             # new or worse findings in the working tree since HEAD
+warp check                 # every finding in the working tree: CI and the project's check script
+warp diff HEAD             # new or worse findings in the working tree since HEAD: an agent's edit hook
 warp diff main..feature    # new or worse findings between two refs
 warp diff main...          # new or worse findings since the working tree's branch left main
 warp model                 # the modules the config finds, and the module each file is in

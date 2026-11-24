@@ -3,9 +3,9 @@
 **Audience:** anyone wiring warp into a coding agent or a CI pipeline.
 **Purpose:** the setups for Claude Code, omp and GitHub code scanning.
 
-An agent sees the findings its edit made new or worse while it still has the code in context, and CI reports the same
-delta on the pull request. Both run [`warp diff`](diff.md), with the [reporter](cli.md#reporters) for the tool that
-reads it.
+An agent runs [`warp diff`](diff.md) after each edit, so it sees the findings that edit made new or worse while it
+still has the code in context. CI runs `warp check`, so the whole codebase is judged on every pull request. Each uses
+the [reporter](cli.md#reporters) for the tool that reads it.
 
 ## Claude Code
 
@@ -77,7 +77,10 @@ before any edit that names a `warp.config.*` file, and blocks it when omp has no
 ```yaml
 # .github/workflows/warp.yml
 name: warp
-on: pull_request
+on:
+  push:
+    branches: [main]
+  pull_request:
 permissions:
   contents: read
   security-events: write
@@ -86,24 +89,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec warp diff "origin/$BASE..." --reporter sarif > warp.sarif
-        env:
-          BASE: ${{ github.base_ref }}
+      - run: pnpm exec warp check --reporter sarif > warp.sarif
       - uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: warp.sarif
 ```
 
-Code scanning shows each new or worse finding on the pull request's diff. Each result's `partialFingerprints` holds
-the finding's key, so code scanning tracks a finding across commits the same way `diff` does. To block a merge on
-findings, add a code scanning rule to the branch's ruleset in the repository settings, or replace the upload with
-`pnpm exec warp diff "origin/$BASE..." --fail`. The branch name reaches the shell through `env`, so the shell never
-reads it as code.
+Code scanning keeps the findings on `main` as alerts, and shows a pull request the ones it adds. Each result's
+`partialFingerprints` holds the finding's key, so code scanning tracks a finding across commits the same way `diff`
+does. To block a merge on new findings, add a code scanning rule to the branch's ruleset in the repository settings.
+Once `main` has no findings, `pnpm exec warp check --fail` blocks on any finding without code scanning.

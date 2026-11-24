@@ -9,8 +9,8 @@ what each may use, and warp reports the code that steps outside it:
 - files and functions that are too large or too tangled to follow.
 - parts of the config that the code no longer uses.
 
-`warp diff` reports only what a change made new or worse, so it can run on a pull request or after every edit of a
-coding agent.
+`warp check` judges the whole codebase, for CI. `warp diff` reports only what a change made new or worse, so it can
+run after every edit of a coding agent.
 
 ## Quick start
 
@@ -46,8 +46,8 @@ export default defineConfig({ root: app, rulesets: { default: base } });
 Then check it, and after an edit, see what the edit broke:
 
 ```sh
-pnpm exec warp check      # every finding in the working tree
-pnpm exec warp diff HEAD  # what changed since the last commit made new or worse
+pnpm exec warp check      # every finding in the working tree, for CI
+pnpm exec warp diff HEAD  # what changed since the last commit made new or worse, for an edit hook
 ```
 
 ```text

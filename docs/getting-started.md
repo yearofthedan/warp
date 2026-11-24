@@ -128,13 +128,21 @@ and you choose which is wrong: change the config if the design allows what the c
 doesn't. If `src/utils/slug.ts` imported `db` today, either declare `utils` after `db` and add `m.db` to its `using`,
 or move the query out of `slug.ts`. [Fixing findings](fixing-findings.md) helps with the choice.
 
-They needn't all be settled before you commit the config. `warp diff` reports only what a change makes new or worse,
-so the findings there today can be worked through one at a time.
+They needn't all be settled before you commit the config. Code scanning shows a pull request only the findings it
+adds, and `warp diff` shows an agent only those its edit adds, so the findings there today can be worked through one
+at a time.
 
-## 6. Check each change
+## 6. Check the project, and each edit
 
-`warp diff HEAD` reports what the working tree made new or worse since the last commit. Here an edit made
-`src/utils/slug.ts` import from `db`:
+`warp check` judges the whole codebase, so it is the check for CI and the project's own check script. With `--fail`
+it exits 1 on any finding:
+
+```sh
+pnpm exec warp check --fail
+```
+
+`warp diff` is for the edit loop. `warp diff HEAD` reports what the working tree made new or worse since the last
+commit. Here an edit made `src/utils/slug.ts` import from `db`:
 
 ```sh
 pnpm exec warp diff HEAD
@@ -146,7 +154,7 @@ new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src
 1 new finding, 0 worsened, 0 resolved.
 ```
 
-[Agents and CI](agents-and-ci.md) runs the same command after each edit of a coding agent, and on pull requests.
+[Agents and CI](agents-and-ci.md) runs it after each edit of a coding agent, and `warp check` on pull requests.
 
 ## 7. Tighten one `using` at a time
 
@@ -189,8 +197,9 @@ export default defineConfig({ root: app, rulesets: { default: base } });
   import vitest. A module deeper down adds to it for its own tests: with
   `contains((c) => c.testModule('tests', files('*.test.ts'))).exposes(all()).testUsing([pkg('testcontainers')])` on
   `db`, the tests in `src/db` import vitest and testcontainers, and the tests in `src/api` import vitest alone.
-- The ruleset turns `function-cohesion` off for the root's tests, since a `describe` callback holds `it` calls that
-  share no locals, which that rule would report as a function to split.
+- The ruleset turns `function-cohesion` off for the root's tests alone, since a `describe` callback holds `it` calls
+  that share no locals, which that rule would report as a function to split. Production code keeps the rule. Quiet a
+  rule for tests the same way, with `.on()` on the test module, and the rule still judges the code it was made for.
 
 `warp check` reports no findings again, and `warp model` lists `orders.test.ts` under `(root):tests`.
 
