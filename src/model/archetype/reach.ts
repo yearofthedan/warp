@@ -64,8 +64,10 @@ export const verdicts = (config: ConfigData, model: Model): Verdicts => {
 };
 
 const exposes = ({ config }: State, module: ModuleView): ExposesData | undefined => {
-  if (module.kind === 'dir')
-    return config.archetypes[module.archetype!]!.exposes ?? (module.test ? { kind: 'all' } : undefined);
+  if (module.kind === 'dir') {
+    const { exposes, testExposes } = config.archetypes[module.archetype!]!;
+    return exposes ?? (module.test && !testExposes ? { kind: 'all' } : undefined);
+  }
   const declared = declarationOf(config, module);
   if (declared?.kind === 'test') return declared.exposes ?? { kind: 'all' };
   return declared?.kind === 'files' ? declared.exposes : undefined;
@@ -252,7 +254,7 @@ const filesTests = (state: State, module: ModuleView, of: string): Grant[] => {
 const subtree = (module: ModuleView): ModuleView[] => [module, ...module.children.flatMap(subtree)];
 
 const testKit = (state: State, at: ModuleView): Grant[] =>
-  grants(state, at, `${at.archetype}.testUsing`, state.config.archetypes[at.archetype!]!.testUsing ?? [], 'test');
+  grants(state, at, `${at.archetype}.test.provides`, state.config.archetypes[at.archetype!]!.testUsing ?? [], 'test');
 
 const using = (state: State, module: ModuleView, view: View): Grant[] => {
   const declared = declarationOf(state.config, module);

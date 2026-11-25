@@ -51,6 +51,8 @@ export const rootId = '(root)';
 
 const placeholders = /\{(\w+)\}/g;
 
+const asWritten = (path: string): string => path.replaceAll('{name}', '*');
+
 const join = (dir: string, name: string): string => (dir === '' ? name : `${dir}/${name}`);
 const parentDir = (path: string): string => path.slice(0, Math.max(path.lastIndexOf('/'), 0));
 
@@ -190,7 +192,7 @@ const claimOf = (resolution: Resolution, folder: ModuleView, file: string): Modu
     const tied = claims.filter((claim) => claim !== best && claim.score === best.score);
     if (tied.length > 0)
       resolution.errors.add(
-        `${file}: claimed by ${archetype.name}'s test modules ${[best, ...tied].map((claim) => claim.name).join(' and ')}, which are equally specific; narrow one of their selectors`,
+        `${file}: claimed by ${archetype.name}'s test modules ${[best, ...tied].map((claim) => claim.name).join(' and ')}, which are equally specific; narrow one of their patterns`,
       );
     return childModule(level, best.name, 'test');
   }
@@ -336,11 +338,11 @@ const sharedHint = (
   ) as DirModuleData | undefined;
   if (!sibling) return '';
   const folder = path.slice(path.lastIndexOf('/') + 1);
-  const shown = sibling.paths.map((candidate) => `'${candidate}'`).join(', ');
+  const shown = sibling.paths.map((candidate) => `'${asWritten(candidate)}'`).join(', ');
   return (
-    `. A literal dir() binds no placeholders. If ${sibling.name} use ${declared.name}, it is shared: move ${folder} ` +
-    `out of the folders dir(${shown}) matches, for example into shared/${folder}, and declare it as its own module ` +
-    `with dir('shared/{${missing}}')`
+    `. A literal dir binds no placeholders. If ${sibling.name} use ${declared.name}, it is shared: move ${folder} ` +
+    `out of the folders dir: ${shown} matches, for example into shared/${folder}, and declare it as its own module ` +
+    `with dir: 'shared/*'`
   );
 };
 
@@ -353,7 +355,7 @@ const mostSpecific = (resolution: Resolution, archetype: ArchetypeData, dir: str
   const best = claims.reduce((top, claim) => (compareRanks(claim.rank, top.rank) > 0 ? claim : top));
   const tied = claims.filter((claim) => claim.module !== best.module && compareRanks(claim.rank, best.rank) === 0);
   if (tied.length > 0) {
-    const names = [best, ...tied].map((claim) => `${claim.module.name} ('${claim.path}')`).join(' and ');
+    const names = [best, ...tied].map((claim) => `${claim.module.name} ('${asWritten(claim.path)}')`).join(' and ');
     resolution.errors.add(
       `${dir}: ${archetype.name}'s dir modules ${names} are equally specific; narrow one of the paths`,
     );
@@ -399,7 +401,7 @@ const filesModule = (
 const tie = (clash: readonly { module: string; pattern: string }[]): string => {
   const names = clash.map((match) => `${match.module} ('${match.pattern}')`).join(' and ');
   const folders = clash.every((match) => match.pattern.endsWith('/**'));
-  const fix = folders ? 'declare the folders with dir(), where the deeper folder wins' : 'narrow one of the patterns';
+  const fix = folders ? 'declare the folders with dir, where the deeper folder wins' : 'narrow one of the patterns';
   return `files modules ${names} are equally specific; ${fix}`;
 };
 
