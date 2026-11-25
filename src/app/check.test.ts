@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import { archetype, files } from '../model/archetype/builder.ts';
+import { parse } from 'yaml';
 import type { FileFacts } from '../model/facts.ts';
 import { modelProject } from './check.ts';
 import { loadConfigData } from './load.ts';
@@ -22,13 +22,12 @@ const analyzed = (paths: readonly string[]) => ({
 
 describe('modelProject', () => {
   it("leaves warp's own config file out of the project and the model", () => {
-    const root = archetype('app').contains((c) => c.module('code', files('*.ts')));
-    const { config } = loadConfigData({ root }, { file: 'warp.config.ts' });
-    const { model, project } = modelProject(analyzed(['warp.config.ts', 'main.ts']), '.', config);
+    const { config } = loadConfigData(parse("root: { modules: { code: { files: '*.ts' } } }"));
+    const { model, project } = modelProject(analyzed(['warp.yaml', 'main.ts']), '.', config);
     assert.deepEqual(
       project.files.map((file) => file.path),
       ['main.ts'],
     );
-    assert.equal(model.moduleOf('warp.config.ts'), undefined);
+    assert.equal(model.moduleOf('warp.yaml'), undefined);
   });
 });
