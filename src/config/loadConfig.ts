@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ConfigError } from '../model/configError.ts';
+import { translateYaml } from './yaml.ts';
 
 export const configNames = ['warp.config.ts', 'warp.config.mts', 'warp.config.js', 'warp.config.mjs'];
 
@@ -22,6 +23,12 @@ const entry = new URL(import.meta.url.endsWith('.ts') ? '../index.ts' : '../inde
 const ownFiles = new URL('../../', import.meta.url).href;
 
 export const loadConfig = async (file: string): Promise<LoadedConfig> => {
+  if (file.endsWith('.yaml')) {
+    const text = readFileSync(file, 'utf8');
+    const { raw, notes } = translateYaml(text, file);
+    for (const line of notes) console.error(`warp yaml spike: ${line}`);
+    return { raw, digest: createHash('sha256').update(text).digest('hex') };
+  }
   const digest = createHash('sha256');
   const hooks = registerHooks({
     resolve: (specifier, context, nextResolve) =>

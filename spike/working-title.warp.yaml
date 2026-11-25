@@ -1,0 +1,204 @@
+# working title's config as plain YAML 1.2. Design artefact: the same model as working-title.warp.config.ts.
+# A bare name is a sibling in the same scope or one of the archetype's inputs. Anything else is a path down the tree
+# from a sibling (helpers.seed) or, with top., from the top of the archetype or root it is written in (top.domain).
+# An archetype reaches outside itself only through requires.
+# given is what a module's own code may reach. On a module with an archetype it fills the archetype's requires,
+# and each inner module takes what its own given names. An inline module's children name their own.
+# test.given on a module fills test.requires the same way. test.provides is what every test module inside may reach.
+# A list entry keeps its own name, a path its last part. A map in given binds an input under another name.
+# npm:x is a package, node:* Node's built-ins, virtual:x a Vite virtual module.
+
+root:
+  description: working title's repository, the app and the tooling around it
+  modules:
+    app:
+      dir: src
+      archetype: app
+    lint:
+      description: The lint rules the repository's standards enforce, one module per concern
+      dir: lint
+      given: [npm:vite-plus, 'node:*']
+      exposes: all
+      test: { modules: { tests: { files: '*.test.ts', given: [npm:vite-plus, 'npm:@playwright/test'] } } }
+    tooling:
+      description: The build, test and lint settings
+      files: '*.ts'
+      given:
+        - lint
+        - npm:vite-plus
+        - npm:vite-plugin-pwa
+        - 'npm:@vitest/browser-playwright'
+        - 'npm:@playwright/test'
+        - 'npm:@yearofthedan/warp'
+        - 'node:*'
+      test: { modules: { tests: { files: ['*.test.ts', 'scripts/*.test.ts'], given: [npm:vite-plus, 'node:*'] } } }
+  test:
+    modules:
+      e2e:
+        description: The journeys, played against the built app
+        dir: e2e
+        given:
+          - app.helpers
+          - app.dsl
+          - app.browserWorkingCopy
+          - npm:vite-plus
+          - 'npm:@playwright/test'
+          - 'npm:@axe-core/playwright'
+          - 'node:*'
+
+archetypes:
+  app:
+    description: working title, a local-first planning and drafting tool for novelists
+    modules:
+      domain:
+        description: Pieces, facets, links, chapters and the engine that runs a method
+        dir: domain
+        exposes: all
+        test: { modules: { tests: { files: '*.test.ts' } } }
+      ports:
+        description: What the application asks of storage
+        dir: ports
+        exposes: [projectStore, projectsFolder]
+        modules:
+          projectStore:
+            description: Loads and saves the project
+            files: project-store.ts
+            given: [domain]
+            exposes: all
+          projectsFolder:
+            description: The folder the writer chooses, and a project's folder started in it
+            files: projects-folder.ts
+            exposes: all
+      methods:
+        description: Snowflake, extended, as data the engine reads
+        dir: methods
+        given: [domain]
+        exposes: all
+        test: { modules: { tests: { files: '*.test.ts' } } }
+      application:
+        description: The use cases and the queries
+        dir: application
+        given: [domain, ports]
+        exposes: all
+        test: { modules: { tests: { files: '*.test.ts' } } }
+      adapters:
+        description: What implements the ports in the browser; each adapter knows only its port
+        dir: adapters
+        exposes: [browserWorkingCopy, fileSystemFolders]
+        modules:
+          browserWorkingCopy:
+            description: The project store, saving every change in the browser first
+            files: local-storage-project-store.ts
+            given: [ports.projectStore]
+            exposes: all
+          fileSystemFolders:
+            description: The projects folder, through the browser's folder picker
+            files: [file-system-folders.ts, folder-name.ts]
+            given: [ports.projectsFolder]
+            exposes: { files: file-system-folders.ts }
+        test: { modules: { tests: { files: '*.test.ts', given: [domain, methods, ports] } } }
+      ui:
+        description: What the writer sees and does
+        dir: ui
+        archetype: ui
+        given: [application]
+        test: { given: [domain, ports, adapters, methods] }
+      main:
+        description: The entry index.html loads; registers the service worker and starts the app
+        files: main.ts
+        given: [bootstrap, 'virtual:pwa-register']
+      bootstrap:
+        description: Wires the adapters, the application and the UI, and places the screen
+        files: app.ts
+        given: [adapters, application, methods, ports, ui]
+        exposes: all
+    test:
+      provides: [helpers, npm:vite-plus]
+      exposes: [helpers, ui.dsl, adapters.browserWorkingCopy]
+      modules:
+        helpers:
+          description: Test code that reaches beyond the UI; its own files are what every browser test loads
+          dir: test-helpers
+          exposes: [seed, drivers, folders, runner, staging]
+          modules:
+            seed: { dir: seed, given: [top.domain, top.methods, top.ports] }
+            drivers: { dir: drivers, given: [top.adapters, 'npm:@playwright/test'] }
+            folders:
+              description: The folder the writer chose, and the folders on the writer's machine standing in for it
+              dir: folders
+              given: [drivers, top.adapters, top.methods, top.ports]
+            runner: { dir: runner, given: [drivers, folders, 'node:*'] }
+            staging:
+              description: The page and the app the writer cannot make
+              dir: staging
+              given: [drivers, seed, top.adapters, top.ports, top.ui, top.bootstrap]
+
+  component:
+    description: A UI component's folder, holding the component and its test code, each file named after it
+    identify: '{name}.dom.ts'
+    requires: [strings, icons, transition, application]
+    exposes: [render]
+    modules:
+      subcomponent:
+        description: A component used only inside this one, in a folder inside it
+        dir: '*'
+        archetype: component
+        given: [strings, icons, transition, application]
+        test: { given: [domain, ports, adapters, methods] }
+      logic:
+        description: The component's logic, with no DOM
+        files: '*.ts'
+        given: [strings, application]
+        exposes: all
+      render:
+        description: The component's DOM code, whose one exported value is its render function
+        files: '{name}.dom.ts'
+        given: [logic, subcomponent.render, strings, icons, transition, application]
+        exposes: all
+    test:
+      requires: [domain, ports, adapters, methods]
+      provides: [helpers]
+      exposes: [dsl, testPage]
+      modules:
+        helpers: { dir: test-helpers }
+        dsl: { files: '*.dsl.ts', given: [subcomponent.dsl] }
+        testPage: { files: '*.test-page.ts', given: [subcomponent.testPage] }
+        tests:
+          files: ['*.test.ts', '*.harness.ts']
+          given: [logic, render, dsl, testPage, subcomponent.testPage, application, methods, domain, ports, adapters]
+
+  ui:
+    description: What the writer sees and does, in plain HTML and CSS with no framework
+    requires: [application]
+    exposes: all
+    modules:
+      strings:
+        description: The app's words, every sentence and label the UI shows
+        dir: strings
+        exposes: { files: strings.ts }
+      icons:
+        description: The app's icons
+        dir: icons
+        exposes: all
+      transition:
+        description: The move between screens
+        files: transition.ts
+        exposes: all
+      components:
+        description: The header, the screens, and the components inside them
+        dir: '*'
+        archetype: component
+        given: [strings, icons, transition, application]
+        test: { given: [domain, ports, adapters, methods] }
+    test:
+      requires: [domain, ports, adapters, methods]
+      provides: [helpers]
+      exposes: [components.dsl]
+      modules:
+        helpers: { dir: test-helpers }
+        tests: { files: '*.test.ts', given: [transition] }
+
+rulesets:
+  default:
+    extends: [warp:recommended]
+    test: { function-cohesion: off, cognitive-complexity: off, file-cohesion: off }
