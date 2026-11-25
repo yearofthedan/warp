@@ -32,3 +32,7 @@ archetypes:
     modules:
       strings: { dir: strings, exposes: all }
       components: { dir: '*', archetype: component, dependencies: [strings] }
+
+rulesets:
+  default:
+    extends: [warp:recommended]

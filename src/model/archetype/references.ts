@@ -79,7 +79,7 @@ export const exposesText = (exposes: ExposesData | undefined): string => {
   if (exposes === undefined) return 'nothing';
   if (exposes.kind === 'all') return 'all its files';
   if (exposes.kind === 'files') return `{ files: [${exposes.patterns.join(', ')}] }`;
-  return `[${Object.keys(exposes.surfaces).join(', ')}]`;
+  return Object.keys(exposes.surfaces).join(', ');
 };
 
 export const toRules = (check: Check, value: unknown, where: string): RuleSettingsData | undefined => {

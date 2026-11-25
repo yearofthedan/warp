@@ -55,10 +55,10 @@ describe('warp diff', () => {
     git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'head');
     const run = warp('diff', 'HEAD~1..HEAD', '--fail');
     assert.equal(run.status, 1);
-    assert.match(run.stdout, /1 new finding, 2 worsened, 0 resolved\./);
+    assert.match(run.stdout, /1 new finding, 2 worsened, 1 resolved\./);
     assert.match(
       run.stdout,
-      /src\/domain\/audit.ts \(src of layer src\/domain\) imports src\/app\/handle.ts \(src of layer src\/app\), which is outside src's reach/,
+      /src\/domain\/audit.ts \(root.domain src\/domain\) imports src\/app\/handle.ts \(root.app src\/app\), which is outside domain's reach/,
     );
   });
 
@@ -84,7 +84,7 @@ describe('warp diff', () => {
   it('resolves the project path when reached through a symlink', () => {
     const link = join(mkdtempSync(join(tmpdir(), 'warp-link-')), 'repo');
     symlinkSync(repo, link);
-    const config = join(link, 'app/warp.config.ts');
+    const config = join(link, 'app/warp.yaml');
     const run = spawnSync(process.execPath, [cli, 'diff', 'HEAD~1..HEAD', '--reporter', 'json', '--config', config], {
       cwd: project,
       encoding: 'utf8',
@@ -108,7 +108,7 @@ describe('warp diff', () => {
       encoding: 'utf8',
     });
     assert.equal(diffed.status, 0, diffed.stderr);
-    assert.equal(JSON.parse(diffed.stdout).added.length, 13);
+    assert.equal(JSON.parse(diffed.stdout).added.length, 14);
     assert.equal(run(['worktree', 'list']).trim().split('\n').length, 1);
   });
 
@@ -147,7 +147,7 @@ describe('warp diff --since-last-run', () => {
   it('starts again from HEAD when HEAD moves, so a pulled finding is not put on the next edit', () => {
     const audit = readFileSync(join(dir, 'src/domain/audit.ts'), 'utf8');
     rmSync(join(dir, 'src/domain/audit.ts'));
-    assert.deepEqual(added(), []);
+    assert.ok(!added().includes('dependency-direction:src/domain/audit.ts->src/app/handle.ts'));
     write('src/domain/audit.ts', audit);
     commit('add', '.');
     commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'audit');
@@ -201,7 +201,7 @@ describe('warp diff from a linked checkout', () => {
   });
 });
 
-describe('a warp.config.ts with a plugin', () => {
+describe('a warp.yaml with a plugin', () => {
   let dir: string;
   const run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: dir, encoding: 'utf8' });
   const commit = (...args: string[]) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
@@ -241,11 +241,15 @@ describe('a warp.config.ts with a plugin', () => {
     assert.deepEqual([delta.added, delta.resolved], [[], []]);
   });
 
-  it('reports a config without a default export', () => {
-    writeFileSync(join(dir, 'empty.config.ts'), 'export const config = {};\n');
-    const checked = run('check', '--config', 'empty.config.ts');
+  it('reports a plugin without a default export', () => {
+    writeFileSync(join(dir, 'rules/empty.ts'), 'export const rules = [];\n');
+    writeFileSync(
+      join(dir, 'empty.yaml'),
+      "plugins: { e: ./rules/empty.ts }\nroot: { modules: { src: { files: '**' } } }\n",
+    );
+    const checked = run('check', '--config', 'empty.yaml');
     assert.equal(checked.status, 2);
-    assert.match(checked.stderr, /warp config: .*empty.config.ts: expected the config as its default export/);
+    assert.match(checked.stderr, /warp config: .*empty.yaml: plugins\.e: \.\/rules\/empty\.ts has no default export/);
   });
 });
 
@@ -261,29 +265,29 @@ describe('warp check', () => {
   });
 
   it('reports a config error', () => {
-    writeFileSync(join(project, 'bad.config.ts'), 'export default {};\n');
-    const run = warp('check', '--config', 'bad.config.ts');
+    writeFileSync(join(project, 'bad.yaml'), 'root: 3\n');
+    const run = warp('check', '--config', 'bad.yaml');
     assert.equal(run.status, 2);
-    assert.match(run.stderr, /warp config: config\.root: expected an archetype/);
+    assert.match(run.stderr, /warp config: root: expected the repository/);
   });
 
   it('tells Claude once that a claude-hook run failed, then exits 1 so the hook warns without blocking', () => {
-    writeFileSync(join(project, 'bad.config.ts'), 'export default {};\n');
-    writeFileSync(join(project, 'worse.config.ts'), 'export default 1;\n');
+    writeFileSync(join(project, 'bad.yaml'), 'root: 3\n');
+    writeFileSync(join(project, 'worse.yaml'), 'root: [\n');
     const hook = (config: string) => warp('diff', 'HEAD', '--config', config, '--reporter=claude-hook');
     const context = (run: ReturnType<typeof warp>) => JSON.parse(run.stdout).hookSpecificOutput.additionalContext;
 
-    const first = hook('bad.config.ts');
+    const first = hook('bad.yaml');
     assert.equal(first.status, 0, first.stderr);
     assert.match(
       context(first),
-      /^Warp architecture feedback is unavailable, so edits are not checked: warp config: config\.root: expected an archetype/,
+      /^Warp architecture feedback is unavailable, so edits are not checked: warp config: root: expected the repository/,
     );
-    const again = hook('bad.config.ts');
+    const again = hook('bad.yaml');
     assert.deepEqual([again.status, again.stdout], [1, '']);
-    assert.match(context(hook('worse.config.ts')), /unavailable.*warp config: config: expected an object/);
-    assert.equal(hook('warp.config.ts').status, 0);
-    assert.match(context(hook('bad.config.ts')), /unavailable/);
+    assert.match(context(hook('worse.yaml')), /unavailable.*warp config: .*worse\.yaml:2: /);
+    assert.equal(hook('warp.yaml').status, 0);
+    assert.match(context(hook('bad.yaml')), /unavailable/);
   });
 });
 
@@ -297,20 +301,19 @@ describe('rulesets', () => {
     dir = join(mkdtempSync(join(tmpdir(), 'warp-ruleset-')), 'app');
     cpSync(join(import.meta.dirname, '../fixtures/hexagonal-app'), dir, { recursive: true });
     writeFileSync(
-      join(dir, 'warp.config.ts'),
-      readFileSync(join(dir, 'warp.config.ts'), 'utf8')
-        .replace('export default', 'const plain =')
+      join(dir, 'warp.yaml'),
+      readFileSync(join(dir, 'warp.yaml'), 'utf8')
         .replace(
-          'const base = ruleset().rules({',
-          "const base = ruleset().on(hexagon.modules.app, { 'cognitive-complexity': false }).rules({",
+          '      cognitive-complexity: { max: 4 }\n',
+          '      cognitive-complexity: { max: 4 }\n    on: { root.app: { cognitive-complexity: off } }\n',
         )
         .concat(
-          'const edit = ruleset()\n',
-          '  .extends(base)\n',
-          "  .rules({ 'file-cohesion': { maxLines: 10 } })\n",
-          "  .on(hexagon.modules.app, { 'cognitive-complexity': true, 'function-cohesion': false });\n",
-          "const stray = ruleset().on(archetype('stranger'), { 'no-cycle': false });\n",
-          'export default defineConfig({ ...plain, rulesets: { default: base, edit, stray } });\n',
+          '  edit:\n',
+          '    extends: [default]\n',
+          '    rules: { file-cohesion: { maxLines: 10 } }\n',
+          '    on: { root.app: { cognitive-complexity: on, function-cohesion: off } }\n',
+          '  stray:\n',
+          '    on: { stranger: { no-cycle: off } }\n',
         ),
     );
     writeFileSync(join(dir, 'package.json'), '{ "type": "module" }\n');
@@ -338,13 +341,13 @@ describe('rulesets', () => {
   it('shows the rules each module resolves to under the ruleset', () => {
     const { modules } = JSON.parse(run('model', '--ruleset', 'edit', '--json').stdout);
     const rules = (id: string) => modules.find((module: { id: string }) => module.id === id).rules;
-    assert.deepEqual(rules('src/app:src')['file-cohesion'], { maxLines: 10 });
-    assert.deepEqual(rules('src/app:src')['cognitive-complexity'], { max: 4 });
-    assert.equal(rules('src/app:src')['function-cohesion'], false);
-    assert.deepEqual(rules('src/domain:src')['function-cohesion'], { maxLines: 6 });
+    assert.deepEqual(rules('src/app')['file-cohesion'], { maxLines: 10 });
+    assert.deepEqual(rules('src/app')['cognitive-complexity'], { max: 4 });
+    assert.equal(rules('src/app')['function-cohesion'], false);
+    assert.deepEqual(rules('src/domain')['function-cohesion'], { maxLines: 6 });
     assert.match(
       run('model', '--ruleset', 'edit', '--rules').stdout,
-      /src\/app {2}app: layer\n {4}rules: function-cohesion off\n {4}src\/app:src {2}2 files\n/,
+      /src\/app {2}app: root\.app, 2 files\n {4}rules: function-cohesion off\n/,
     );
   });
 
@@ -357,11 +360,11 @@ describe('rulesets', () => {
   it('refuses a ruleset that names an archetype outside the config', () => {
     const checked = run('check', '--ruleset', 'stray');
     assert.equal(checked.status, 2);
-    assert.match(checked.stderr, /warp config: rulesets\.stray\.on\(stranger\): stranger is not in the config/);
+    assert.match(checked.stderr, /warp config: rulesets\.stray\.on\.stranger: no archetype or module called stranger/);
   });
 });
 
-describe('a warp.config.ts with archetypes', () => {
+describe('a warp.yaml with archetypes', () => {
   let dir: string;
   const run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: dir, encoding: 'utf8' });
   const commit = (...args: string[]) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
@@ -380,17 +383,17 @@ describe('a warp.config.ts with archetypes', () => {
     assert.equal(
       modelled.stdout,
       [
-        '(root)  root: app',
+        '(root)  root: root',
         '  loose: src/stray.ts',
         '  src/domain  domain: layer',
         '    src/domain:src  1 file',
-        '    src/domain:index  1 file',
+        '    src/domain:api  1 file',
         '    src/domain:tests  1 test file',
         '  src/ui  ui: ui',
         '    src/ui/strings  strings: ui.strings, 1 file',
         '    src/ui/card  components: component {name=card}',
         '      src/ui/card:logic  1 file',
-        '      src/ui/card:dom  1 file',
+        '      src/ui/card:render  1 file',
         '  (root):main  1 file',
         '',
         '11 modules, 7 files, 1 test file, 1 loose.',
@@ -399,7 +402,7 @@ describe('a warp.config.ts with archetypes', () => {
     );
     const { modules } = JSON.parse(run('model', '--json').stdout);
     const filesOf = (id: string) => modules.find((module: { id: string }) => module.id === id).files;
-    assert.deepEqual(['src/domain:src', 'src/domain:index'].map(filesOf), [
+    assert.deepEqual(['src/domain:src', 'src/domain:api'].map(filesOf), [
       ['src/domain/order.ts'],
       ['src/domain/index.ts'],
     ]);
@@ -417,17 +420,15 @@ describe('a warp.config.ts with archetypes', () => {
         'dependency-direction:src/ui/card/card.ts->src/domain/order.ts',
         'module-externals:src/ui/card/card.ts->node:util',
         'no-cross-module-reexport:src/domain/index.ts->src/domain/order.ts',
-        'unused-declaration:grant:app.ui->domain',
-        'unused-declaration:grant:component.dom->subcomponent.render',
+        'unused-declaration:grant:component.render.dependencies->subcomponent.render',
+        'unused-declaration:grant:root.ui.dependencies->domain',
         'unused-declaration:empty:component.subcomponent',
       ],
     );
     assert.match(findings[2].docs, /src\/builtins\/module-externals\/README\.md$/);
     assert.equal(
       findings[1].message,
-      'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes instead, once you ' +
-        'require domain in component, have app provide m.domain as domain and add required.domain to the using of ' +
-        'component.logic.',
+      'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). No declared path allows this: either the import or the structure is wrong.',
     );
     assert.match(findings[1].docs, /src\/builtins\/dependency-direction\/README\.md$/);
   });
@@ -444,42 +445,36 @@ describe('a warp.config.ts with archetypes', () => {
       [
         'unclassified:src/loose.ts',
         'dependency-direction:src/domain/order.test.ts->src/main.ts',
-        "unused-declaration:grant:app.testUsing->pkg('node:*')",
+        'unused-declaration:grant:root.test.provides->node:*',
       ],
     );
   });
 
   it('names the problem when the config cannot place a file', () => {
-    writeFileSync(
-      join(dir, 'tied.config.ts'),
-      [
-        "import { archetype, defineConfig, files } from '@yearofthedan/warp';",
-        "export default defineConfig({ root: archetype('app').contains((m) => m.module('a', files('src/*.ts')).module('b', files('**/*.ts'))) });",
-        '',
-      ].join('\n'),
-    );
-    const modelled = run('model', '--config', 'tied.config.ts');
+    writeFileSync(join(dir, 'tied.yaml'), "root: { modules: { a: { files: 'src/*.ts' }, b: { files: '**/*.ts' } } }\n");
+    const modelled = run('model', '--config', 'tied.yaml');
     assert.equal(modelled.status, 2);
-    assert.match(modelled.stderr, /src\/main\.ts: app's files modules a \('src\/\*\.ts'\) and b \('\*\*\/\*\.ts'\)/);
+    assert.match(modelled.stderr, /src\/main\.ts: root's files modules a \('src\/\*\.ts'\) and b \('\*\*\/\*\.ts'\)/);
   });
 
   it("checks a ruleset's rule ids and each rule's options against the rules the config runs", () => {
     writeFileSync(
-      join(dir, 'rules.config.ts'),
+      join(dir, 'rules.yaml'),
       [
-        "import { archetype, defineConfig, files } from '@yearofthedan/warp';",
-        "import { ruleset } from '@yearofthedan/warp';",
-        "const app = archetype('app').contains((m) => m.module('src', files('**')));",
-        "const base = ruleset().rules({ 'module-cycle': { types: 'always' } }).on(app.modules.src, { 'no-such-rule': false });",
-        'export default defineConfig({ root: app, rulesets: { default: base } });',
+        "root: { modules: { src: { files: '**' } } }",
+        'rulesets:',
+        '  default:',
+        '    extends: [warp:recommended]',
+        '    rules: { module-cycle: { types: always } }',
+        '    on: { root.src: { no-such-rule: off } }',
         '',
       ].join('\n'),
     );
-    const checked = run('check', '--config', 'rules.config.ts');
+    const checked = run('check', '--config', 'rules.yaml');
     assert.equal(checked.status, 2);
     assert.equal(
       checked.stderr,
-      "warp config: rulesets.default.rules.module-cycle.types: expected 'count' or 'ignore'\nrulesets.default.on(app.modules.src): no rule called no-such-rule\n",
+      "warp config: rulesets.default.rules.module-cycle.types: expected 'count' or 'ignore'\nrulesets.default.on.root.src: no rule called no-such-rule\n",
     );
   });
 });
