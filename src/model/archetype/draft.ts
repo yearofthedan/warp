@@ -26,6 +26,7 @@ export interface Draft {
   data: ArchetypeData;
   modules: DraftModule[];
   exposes?: DraftExposes;
+  testExposes?: Record<string, unknown[]>;
   provides: Record<string, unknown>;
   testUsing: unknown[];
 }
@@ -99,6 +100,7 @@ export const draft = (name: string, state: Collected, fail: Fail): Draft => {
   const requires = requirements(name, state.requires, fail);
   const modules = draftModules(name, state.modules, fail);
   const exposes = surfaceOf(name, state, fail);
+  const testExposes = testSurfaceOf(name, state.testExposes, fail);
   const provides = state.provides === undefined ? {} : callback(state.provides);
   if (!isRecord(provides))
     fail(`${name}.provides: expected a callback returning modules by name, (m) => ({ strings: m.strings })`);
@@ -115,6 +117,7 @@ export const draft = (name: string, state: Collected, fail: Fail): Draft => {
     },
     modules,
     ...(exposes ? { exposes } : {}),
+    ...(testExposes ? { testExposes } : {}),
     provides: isRecord(provides) ? provides : {},
     testUsing,
   };
@@ -128,6 +131,15 @@ const surfaceOf = (name: string, state: Collected, fail: Fail): DraftExposes | u
   if (selector?.kind === 'files' && selector.patterns.every(isName))
     return { kind: 'files', patterns: selector.patterns as string[], entry: true };
   fail(`${name}.entry: expected the module's entry files, files('index.ts')`);
+  return undefined;
+};
+
+const testSurfaceOf = (name: string, value: unknown, fail: Fail): Record<string, unknown[]> | undefined => {
+  if (value === undefined) return undefined;
+  const returned = callback(value);
+  if (isRecord(returned))
+    return Object.fromEntries(Object.entries(returned).map(([surface, refs]) => [surface, [refs].flat()]));
+  fail(`${name}.testExposes: expected a callback returning test surfaces by name, (m) => ({ dsl: m.dsl })`);
   return undefined;
 };
 
@@ -244,7 +256,9 @@ const checkAnonymous = (where: string, kind: 'dir' | 'files' | 'test', definitio
   const hasModules = Array.isArray(definition.modules) && definition.modules.length > 0;
   const folderOnly = [
     ...(hasModules ? ['contains'] : []),
-    ...(['identify', 'provides', 'entry', 'testUsing'] as const).filter((field) => definition[field] !== undefined),
+    ...(['identify', 'provides', 'entry', 'testExposes', 'testUsing'] as const).filter(
+      (field) => definition[field] !== undefined,
+    ),
   ];
   for (const field of folderOnly)
     fail(

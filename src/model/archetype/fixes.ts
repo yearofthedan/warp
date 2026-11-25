@@ -16,6 +16,7 @@ export type Fix =
   | { kind: 'declare'; archetype: string; module: string; above: string }
   | { kind: 'require'; archetype: string; name: string; provider: string; module: string }
   | { kind: 'expose'; archetype: string; ref: RefData }
+  | { kind: 'test-expose'; archetype: string; ref: RefData }
   | { kind: 'expose-file'; archetype: string; pattern: string };
 
 interface Change {
@@ -80,11 +81,15 @@ export const sitesOf = (config: ConfigData, model: Model, file: string): Site[] 
   return owners.filter((owner) => owner.parent).map((owner) => declarationSite(config, owner));
 };
 
-const surfacesOf = (exposes: ExposesData | undefined): string[] =>
-  exposes?.kind === 'surfaces' ? Object.keys(exposes.surfaces) : [];
+const surfacesOf = ({ exposes, testExposes }: ArchetypeData, tests: boolean): string[] => [
+  ...new Set([
+    ...(exposes?.kind === 'surfaces' ? Object.keys(exposes.surfaces) : []),
+    ...(tests ? Object.keys(testExposes ?? {}) : []),
+  ]),
+];
 
-const moduleRefs = (config: ConfigData, module: ModuleView): RefData[] => {
-  const surfaces = module.kind === 'dir' ? surfacesOf(config.archetypes[module.archetype!]!.exposes) : [];
+const moduleRefs = (config: ConfigData, module: ModuleView, tests: boolean): RefData[] => {
+  const surfaces = module.kind === 'dir' ? surfacesOf(config.archetypes[module.archetype!]!, tests) : [];
   const name = module.name!;
   return [
     ...surfaces.map((surface): RefData => ({ kind: 'module', module: name, surface })),
@@ -92,9 +97,8 @@ const moduleRefs = (config: ConfigData, module: ModuleView): RefData[] => {
   ];
 };
 
-const requiredRefs = (config: ConfigData, name: string, requirement: RequirementData): RefData[] => {
-  const surfaces =
-    requirement.kind === 'archetype' ? surfacesOf(config.archetypes[requirement.archetype]!.exposes) : [];
+const requiredRefs = (config: ConfigData, name: string, requirement: RequirementData, tests: boolean): RefData[] => {
+  const surfaces = requirement.kind === 'archetype' ? surfacesOf(config.archetypes[requirement.archetype]!, tests) : [];
   return [...surfaces.map((surface): RefData => ({ kind: 'required', name, surface })), { kind: 'required', name }];
 };
 
@@ -125,9 +129,9 @@ const usingChanges = function* (search: Search, config: ConfigData): Generator<C
     const own = targets.filter((module) => nameable(site, module) && site.visible.has(module.name!));
     const named = namedArchetype(config, site.holder.archetype!);
     const required = Object.entries(config.archetypes[named]!.requires).flatMap(([name, requirement]) =>
-      requiredRefs(config, name, requirement),
+      requiredRefs(config, name, requirement, site.tests),
     );
-    for (const ref of [...own.flatMap((module) => moduleRefs(config, module)), ...required])
+    for (const ref of [...own.flatMap((module) => moduleRefs(config, module, site.tests)), ...required])
       yield [{ fix: { kind: 'using', site: site.label, ref }, config: site.add(config, ref) }];
   }
 };
@@ -140,7 +144,7 @@ const declareChanges = function* (search: Search, config: ConfigData): Generator
     )) {
       const declared = declare(config, site, module);
       if (!declared) continue;
-      for (const ref of moduleRefs(declared.config, module))
+      for (const ref of moduleRefs(declared.config, module, site.tests))
         yield [declared, { fix: { kind: 'using', site: site.label, ref }, config: site.add(declared.config, ref) }];
     }
 };
@@ -210,6 +214,7 @@ const relative = (module: ModuleView, file: string): string =>
 
 const exposeChange = (search: Search, config: ConfigData, hiddenBy: ModuleView): Change | undefined => {
   if (hiddenBy.kind !== 'dir') return exposeFilesModule(search, config, hiddenBy);
+  if (search.model.isTest(search.to)) return testExposeChange(search, config, hiddenBy);
   const archetype = hiddenBy.archetype!;
   const exposes = config.archetypes[archetype]!.exposes;
   const child = targetLineage(search).find((module) => module.parent === hiddenBy);
@@ -222,12 +227,25 @@ const exposeChange = (search: Search, config: ConfigData, hiddenBy: ModuleView):
       config: withArchetype(config, archetype, (data) => ({ ...data, exposes: { kind: 'surfaces', surfaces } })),
     };
   }
-  if (exposes?.kind === 'all' || exposes?.entry || child?.kind === 'test') return undefined;
+  if (exposes?.kind === 'all' || exposes?.entry) return undefined;
   const pattern = relative(hiddenBy, search.to);
   const opened: ExposesData = { kind: 'files', patterns: [...(exposes?.patterns ?? []), pattern] };
   return {
     fix: { kind: 'expose-file', archetype, pattern },
     config: withArchetype(config, archetype, (data) => ({ ...data, exposes: opened })),
+  };
+};
+
+const testExposeChange = (search: Search, config: ConfigData, hiddenBy: ModuleView): Change | undefined => {
+  const child = targetLineage(search).find((module) => module.parent === hiddenBy);
+  if (!child) return undefined;
+  const archetype = hiddenBy.archetype!;
+  const ref: RefData = { kind: 'module', module: child.name! };
+  const surfaces = config.archetypes[archetype]!.testExposes ?? {};
+  const testExposes = { ...surfaces, [child.name!]: [...(surfaces[child.name!] ?? []), ref] };
+  return {
+    fix: { kind: 'test-expose', archetype, ref },
+    config: withArchetype(config, archetype, (data) => ({ ...data, testExposes })),
   };
 };
 
@@ -293,9 +311,10 @@ const search = (state: Search, config: ConfigData, fixes: Fix[]): Fix[] | undefi
 const hiddenOnTheWay = ({ model, from, to }: Search, config: ConfigData): ModuleView | undefined => {
   const judge = verdicts(config, model);
   const above = lineage(model.moduleOf(from)!);
+  const view = model.isTest(from) ? 'test' : 'production';
   return lineage(model.moduleOf(to)!)
     .filter((module) => !above.includes(module))
-    .find((module) => !judge.surface(module).has(to));
+    .find((module) => !judge.surface(module, undefined, view).has(to));
 };
 
 export const fixesFor = (config: ConfigData, model: Model, from: string, to: string): Fix[] | undefined =>

@@ -69,6 +69,7 @@ Archetype methods. Each returns a new archetype, so one archetype can be wired d
 | `.requires({ name: archetype \| dir() \| files() })` | What it needs from the modules above it. | [Requires](#requires-provides-identify-and-self) |
 | `.provides((m) => ({ name: m.x }))` | One of its modules, for those below that require it. | [Requires](#requires-provides-identify-and-self) |
 | `.identify({ marker } \| { match })` | Which folders that match its `dir` count. | [Identify](#requires-provides-identify-and-self) |
+| `.testExposes((m) => ({ ... }))` | What tests in other modules may import from it, beside its `exposes`. | [Tests](#tests) |
 | `.testUsing((m) => [...])` or `.testUsing([...])` | What every test module at and below its modules may import. | [Tests](#tests) |
 | `.description(text)` | What it is for, as a note for whoever reads the config. | |
 
@@ -226,7 +227,8 @@ const page = archetype('page')
       .testModule('driver', files('*.driver.ts'))
       .testModule('tests', files('*.test.ts'), using((m) => [m.driver])),
   )
-  .exposes((m) => ({ render: m.dom, driver: m.driver }));
+  .exposes((m) => ({ render: m.dom }))
+  .testExposes((m) => ({ driver: m.driver }));
 
 const site = archetype('site')
   .contains((c) =>
@@ -259,10 +261,16 @@ e2e/checkout.test.ts        (root):e2e         reaches each page's render and dr
 - `.testUsing(...)` is an archetype's test kit: every test module of its modules and of the modules below them reaches
   it, so the root names the runner and the shared fixtures once. Its callback gets the archetype's own modules, test
   modules included, and its requirements: `.testUsing((m, { required }) => [required.seed])`.
-- Only test code reaches a test module: through a test module's `using`, a `testUsing`, or a surface that names it.
-  `page` exposes `driver: m.driver`, so `e2e/checkout.test.ts` imports `cart.driver.ts` through `pages`, and a
-  production file that does is a [`dependency-direction`](../src/builtins/dependency-direction/README.md) finding.
-  Naming a test module in a production `using` or in `.provides()` is a config error.
+- Only test code reaches a test module: through a test module's `using`, a `testUsing`, or a test surface.
+  Naming a test module in a production `using`, in `.exposes()` or in `.provides()` is a config error, and a
+  production file that imports one is a [`dependency-direction`](../src/builtins/dependency-direction/README.md)
+  finding.
+- `.testExposes((m) => ({ ... }))` declares an archetype's test surfaces: what tests outside the module may import
+  from it, on top of what it exposes. `page` test-exposes `driver: m.driver`, so `e2e/checkout.test.ts` imports
+  `cart.driver.ts` through `pages`. A test surface may share a name with a surface in `exposes`, and a test then
+  reaches both under that name. Only test code may name a test surface.
+- A test surface passes up one module at a time. Had `pages` sat inside a `ui` module, `ui` would pass the drivers
+  on with `.testExposes((m) => ({ pages: m.pages }))`, since `.exposes(all())` carries production files alone.
 - A test module claims its files ahead of any production module. Where several match, the deepest module's wins,
   then the more specific selector, as for files modules: `dir('e2e')` counts as `files('e2e/**')`, so
   `files('e2e/*.dsl.ts')` beside it takes the DSLs.

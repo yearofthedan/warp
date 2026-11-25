@@ -1,7 +1,19 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import type { ImportEdge, FileFacts } from '../facts.ts';
-import { all, archetype, contains, dir, exposes, files, mirror, pkg, ruleset, using } from './builder.ts';
+import {
+  all,
+  type AnyArchetype,
+  archetype,
+  contains,
+  dir,
+  exposes,
+  files,
+  mirror,
+  pkg,
+  ruleset,
+  using,
+} from './builder.ts';
 import { builtinRules } from '../../builtins/index.ts';
 import { checkModel } from '../../app/checkModel.ts';
 import { loadConfigData } from '../../app/load.ts';
@@ -97,7 +109,8 @@ const shop = () => {
           using((m) => [m.dsl, m.fixture, m.sub.dsl]),
         ),
     )
-    .exposes((m) => ({ render: m.dom, dsl: m.dsl }));
+    .exposes((m) => ({ render: m.dom }))
+    .testExposes((m) => ({ dsl: m.dsl }));
 
   const app = archetype('app')
     .contains((c) =>
@@ -175,13 +188,40 @@ describe('test modules', () => {
     assert.equal(verdict('src/domain/order.test.ts', 'src/seed/orders.ts'), 'allowed: app.testUsing uses m.seed');
   });
 
-  it("let a test reach another module's test code through a surface naming it, which production code never may", () => {
+  it("let a test reach another module's test code through a test surface, which production code never may", () => {
     const { verdict } = shop();
     assert.equal(verdict('e2e/flow.test.ts', 'src/a/a.dsl.ts'), 'allowed: (root) uses src/a');
     assert.equal(verdict('e2e/flow.test.ts', 'src/a/a.dom.ts'), 'allowed: (root) uses src/a');
     assert.equal(verdict('src/main.ts', 'src/a/a.dom.ts'), 'allowed: main uses m.cards.render');
     assert.equal(verdict('src/main.ts', 'src/a/a.dsl.ts'), 'test');
     assert.equal(verdict('src/a/a.ts', 'src/a/a.test.ts'), 'test');
+  });
+
+  it('reach a test surface below another module only where that module passes it up in its own testExposes', () => {
+    const files_ = ['src/ui/card/card.ts', 'src/ui/card/card.dsl.ts', 'e2e/flow.test.ts'];
+    const component = archetype('component')
+      .contains((c) => c.module('code', files('*.ts'), exposes(all())).testModule('dsl', files('*.dsl.ts')))
+      .exposes((m) => ({ render: m.code }))
+      .testExposes((m) => ({ render: m.dsl }));
+    const site = (ui: AnyArchetype) =>
+      archetype('site').contains((c) => c.module('ui', dir('src/ui'), ui).testModule('e2e', dir('e2e')));
+    const judge = (ui: AnyArchetype) => {
+      const { config } = loadConfigData({ root: site(ui) });
+      const found = verdicts(config, resolveModel(config, folders(files_), files_));
+      return ['src/ui/card/card.ts', 'src/ui/card/card.dsl.ts'].map(
+        (to) => found.verdict('e2e/flow.test.ts', to)!.allowed,
+      );
+    };
+    const ui = () => archetype('ui').contains((c) => c.module('components', dir('{name}'), component));
+    assert.deepEqual(judge(ui().exposes(all())), [true, false]);
+    assert.deepEqual(
+      judge(
+        ui()
+          .exposes(all())
+          .testExposes((m) => ({ components: m.components.render })),
+      ),
+      [true, true],
+    );
   });
 
   it("pass each archetype's testUsing to every test module at and below its modules, never to production code", () => {
@@ -359,6 +399,34 @@ describe('test modules', () => {
         "odd.misplaced: expected a selector, files('*.ts') or dir('src/ui')",
         'odd.code uses kit; kit is a test module, which only test modules and testUsing may name',
         'odd provides kit as kit; kit is a test module, which only test modules and testUsing may name',
+      ],
+    );
+  });
+
+  it('refuse test code on a production surface, and production code naming a test surface', () => {
+    const part = archetype('part')
+      .contains((c) => c.module('code', files('*.ts'), exposes(all())).testModule('kit', files('*.kit.ts')))
+      .exposes((m) => ({ code: m.code, kit: m.kit }))
+      .testExposes((m) => ({ dsl: m.kit }));
+    const odd = archetype('odd').contains((c) =>
+      c
+        .module('parts', dir('{name}'), part)
+        .module(
+          'main',
+          files('main.ts'),
+          using((m) => [m.parts.dsl]),
+        )
+        .testModule(
+          'e2e',
+          dir('e2e'),
+          using((m) => [m.parts.dsl]),
+        ),
+    );
+    assert.deepEqual(
+      failures(() => loadConfigData({ root: odd })),
+      [
+        'odd.main uses parts.dsl; dsl is a test surface of parts (part), which only test modules and testUsing may name',
+        'part exposes kit as kit; kit is a test module, and exposes is production code: name it in testExposes',
       ],
     );
   });

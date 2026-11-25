@@ -138,8 +138,11 @@ describe('fixes for an import outside reach', () => {
     assert.equal(advice('src/log/log.test.ts', 'src/ui/shared.ts'), 'add m.ui to the testUsing of app');
   });
 
-  it('names a test module in a surface for test code that passes up through modules', () => {
-    assert.equal(advice('e2e/flow.test.ts', 'src/ui/a/a.page.ts'), 'expose m.pages from card (all 3 card modules)');
+  it('passes test code up through each module above it in a test surface, never in exposes', () => {
+    assert.equal(
+      advice('e2e/flow.test.ts', 'src/ui/a/a.page.ts'),
+      'add m.pages to the testExposes of card (all 3 card modules) and add m.cards to the testExposes of ui',
+    );
   });
 
   it('finds no path between modules declared from one folder pattern, or to a module declared below', () => {

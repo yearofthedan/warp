@@ -71,4 +71,4 @@ unused-declaration:grant:working-title.app->shell
 unused-declaration:grant:working-title.app->styles
 unused-declaration:grant:working-title.testUsing->shell
 unused-declaration:grant:working-title.ui->application
-unused-declaration:surface:ui:exposes testPage
+unused-declaration:surface:ui:testExposes testPage

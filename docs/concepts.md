@@ -138,6 +138,12 @@ what the module that declares it reaches, and that module's own files. Only test
 file that does is a [`dependency-direction`](../src/builtins/dependency-direction/README.md) finding. See
 [config.md](config.md#tests).
 
+### Test surface
+
+What a module offers tests outside it, declared with `.testExposes(...)` beside its `exposes`. A component's DSL goes
+on its test surface, so an end-to-end test may drive the component while its production surface stays production
+code. See [config.md](config.md#tests).
+
 ### Test kit
 
 What every test module at and below an archetype's modules may import, declared with `.testUsing(...)`. `app`'s kit is
