@@ -252,7 +252,6 @@ const exposeFilesModule = (search: Search, config: ConfigData, hiddenBy: ModuleV
 
 const subtree = (module: ModuleView): ModuleView[] => [module, ...module.children.flatMap(subtree)];
 
-// The modules under one holder that a module's files reach, each named by the holder's child that holds it.
 const uses = (config: ConfigData, model: Model, from: ModuleView, under: ModuleView): Set<ModuleView> => {
   const judge = verdicts(config, model);
   const found = new Set<ModuleView>();
