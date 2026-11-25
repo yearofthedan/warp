@@ -123,8 +123,8 @@ describe('verdicts', () => {
     assert.equal(verdict('src/runner/driver.ts', 'src/runner/driver.ts'), 'allowed: own module src/runner:rest');
     assert.equal(verdict('src/domain/order.ts', 'src/domain/price.ts'), 'allowed: own module src/domain');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/a/a.ts'), 'allowed: render uses logic');
-    assert.equal(verdict('src/ui/a/a.ts', 'src/ui/a/a.dom.ts'), 'not-in-using');
-    assert.equal(verdict('src/ui/a/a.ts', 'src/ui/a/b/b.dom.ts'), 'not-in-using');
+    assert.equal(verdict('src/ui/a/a.ts', 'src/ui/a/a.dom.ts'), 'not-in-dependencies');
+    assert.equal(verdict('src/ui/a/a.ts', 'src/ui/a/b/b.dom.ts'), 'not-in-dependencies');
   });
 
   it('reaches a child through what it exposes, and finds the module that keeps a deeper file private', () => {
@@ -136,8 +136,8 @@ describe('verdicts', () => {
   });
 
   it("refuses modules of one dir module each other, and a file anywhere above the importer's module", () => {
-    assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/d/d.dom.ts'), 'not-in-using');
-    assert.equal(verdict('src/ui/a/b/b.dom.ts', 'src/ui/d/d.dom.ts'), 'not-in-using');
+    assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/d/d.dom.ts'), 'not-in-dependencies');
+    assert.equal(verdict('src/ui/a/b/b.dom.ts', 'src/ui/d/d.dom.ts'), 'not-in-dependencies');
     assert.equal(verdict('src/ui/a/b/b.dom.ts', 'src/ui/a/a.dom.ts'), 'above');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/ui/shared.ts'), 'above');
     assert.equal(verdict('src/ui/a/a.dom.ts', 'src/main.ts'), 'above');
@@ -153,12 +153,12 @@ describe('verdicts', () => {
       verdict('src/ui/a/b/b.ts', 'src/ui/strings/en.ts'),
       'allowed: logic uses strings (input of src/ui/a/b = strings in src/ui)',
     );
-    assert.equal(verdict('src/ui/a/a.ts', 'src/strings/root.ts'), 'not-in-using');
+    assert.equal(verdict('src/ui/a/a.ts', 'src/strings/root.ts'), 'not-in-dependencies');
     assert.equal(
       verdict('src/ui/a/a.test.ts', 'src/runner/contract.ts'),
       'allowed: spec uses runner.contract (input of src/ui/a = runner.contract in (root))',
     );
-    assert.equal(verdict('src/ui/a/a.test.ts', 'src/runner/driver.ts'), 'not-in-using');
+    assert.equal(verdict('src/ui/a/a.test.ts', 'src/runner/driver.ts'), 'not-in-dependencies');
   });
 
   it("grants a dir module's using to its folder's files and files modules, and to nothing nested in folders below", () => {
@@ -166,7 +166,7 @@ describe('verdicts', () => {
       verdict('src/ui/shared.ts', 'src/domain/order.ts'),
       'allowed: shared uses domain (input of src/ui = domain in (root))',
     );
-    assert.equal(verdict('src/ui/a/a.ts', 'src/domain/order.ts'), 'not-in-using');
+    assert.equal(verdict('src/ui/a/a.ts', 'src/domain/order.ts'), 'not-in-dependencies');
   });
 
   it("lets a module that names one exposing 'all' reach its own files and what its modules expose", () => {
@@ -337,7 +337,7 @@ describe('checkModel', () => {
         details: {
           from: 'src/ui/a:logic',
           to: 'src/ui/a:render',
-          reason: 'not-in-using',
+          reason: 'not-in-dependencies',
           edges: [
             edge('src/ui/a/a.ts', 'src/ui/a/a.dom.ts', { names: ['render'], line: 3, typeOnly: true }),
             edge('src/ui/a/a.ts', 'src/ui/a/a.dom.ts', { names: ['render', 'mount'], line: 4 }),
@@ -398,7 +398,7 @@ describe('checkModel', () => {
     const [finding] = check([facts('src/ui/a/a.ts', [edge('src/ui/a/a.ts', 'src/ui/notes.md')])]);
     assert.equal(
       finding!.message,
-      'src/ui/a/a.ts (logic of card src/ui/a) imports src/ui/notes.md (loose in ui src/ui), which is in no module yet. Add a module that holds src/ui/notes.md, then add it to a using if the dependency is intended.',
+      "src/ui/a/a.ts (logic of card src/ui/a) imports src/ui/notes.md (loose in ui src/ui), which is in no module yet. Add a module that holds src/ui/notes.md, then add it to the importer's dependencies if the dependency is intended.",
     );
     assert.equal((finding!.details as { reason: string }).reason, 'loose');
   });

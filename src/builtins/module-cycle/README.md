@@ -33,14 +33,15 @@ that cross, so a loop that gains an import or a module is worse.
 
 ## Example
 
-```ts
-import { all, archetype, defineConfig, dir, exposes, using } from '@yearofthedan/warp';
+```yaml
+root:
+  modules:
+    domain: { dir: src/domain, exposes: all }
+    infra: { dir: src/infra, dependencies: [domain] }
 
-const app = archetype('app').contains((c) =>
-  c.module('domain', dir('src/domain'), exposes(all())).module('infra', dir('src/infra'), using((m) => [m.domain])),
-);
-
-export default defineConfig({ root: app });
+rulesets:
+  default:
+    extends: [warp:recommended]
 ```
 
 Incorrect code:
@@ -87,4 +88,4 @@ implements.
 ## When not to use it
 
 For modules that are meant to use each other, such as plugins. Turn the rule off on the module that holds them:
-`.on(app.modules.plugins, { 'module-cycle': false })`.
+`on: { root.plugins: { module-cycle: off } }`.

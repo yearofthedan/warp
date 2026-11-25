@@ -62,13 +62,17 @@ function-cohesion:src/ui/project/project.dsl.test.ts:<callback to describe("the 
 function-cohesion:src/ui/your-projects/project-list/start-a-project/start-a-project.component.test.ts:<callback to describe("starting a project")>
 no-cross-module-reexport:src/application/project.ts->src/ports/projects-folder.ts
 no-double-export:src/test-helpers/driver.ts->src/test-helpers/narrowing.ts
-unused-declaration:empty:working-title.shell
-unused-declaration:empty:working-title.styles
-unused-declaration:grant:component.dom->required.ports
-unused-declaration:grant:component.testUsing->pkg('@playwright/*')
-unused-declaration:grant:component.testUsing->required.ports
-unused-declaration:grant:working-title.app->shell
-unused-declaration:grant:working-title.app->styles
-unused-declaration:grant:working-title.testUsing->shell
-unused-declaration:grant:working-title.ui->application
-unused-declaration:surface:ui:testExposes testPage
+unused-declaration:empty:root.shell
+unused-declaration:empty:root.styles
+unused-declaration:grant:component.dom.dependencies->ports
+unused-declaration:grant:component.subcomponent.dependencies->ports
+unused-declaration:grant:component.test.provides->npm:@playwright/*
+unused-declaration:grant:component.test.provides->ports
+unused-declaration:grant:root.app.dependencies->shell
+unused-declaration:grant:root.app.dependencies->styles
+unused-declaration:grant:root.domain.test.provides->methods
+unused-declaration:grant:root.lint.test.provides->methods
+unused-declaration:grant:root.test.provides->shell
+unused-declaration:grant:root.ui.dependencies->ports
+unused-declaration:grant:ui.components.dependencies->ports
+unused-declaration:surface:ui:test.exposes testPage

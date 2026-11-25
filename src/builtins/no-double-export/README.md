@@ -25,16 +25,15 @@ the first re-export. Its value is the number of names re-exported.
 
 `domain` exposes both its barrel and the file the barrel re-exports:
 
-```ts
-import { archetype, defineConfig, dir, exposes, files, using } from '@yearofthedan/warp';
+```yaml
+root:
+  modules:
+    domain: { dir: src/domain, exposes: { files: [index.ts, order.ts] } }
+    ui: { dir: src/ui, dependencies: [domain] }
 
-const app = archetype('app').contains((c) =>
-  c
-    .module('domain', dir('src/domain'), exposes(files('index.ts', 'order.ts')))
-    .module('ui', dir('src/ui'), using((m) => [m.domain])),
-);
-
-export default defineConfig({ root: app });
+rulesets:
+  default:
+    extends: [warp:recommended]
 ```
 
 Incorrect code:
@@ -45,10 +44,10 @@ export { order } from './order.ts';
 ```
 
 ```text
-src/domain/index.ts:1 [no-double-export] src/domain/index.ts (app.domain src/domain) re-exports src/domain/order.ts (app.domain src/domain), and src/domain exposes both, so importers have two ways to the same names. Keep one: stop re-exporting it, or stop exposing it.
+src/domain/index.ts:1 [no-double-export] src/domain/index.ts (root.domain src/domain) re-exports src/domain/order.ts (root.domain src/domain), and src/domain exposes both, so importers have two ways to the same names. Keep one: stop re-exporting it, or stop exposing it.
 ```
 
-Correct config: `domain` exposes `files('index.ts')`, so the barrel is the one way in. Or it keeps exposing both
+Correct config: `domain` exposes `{ files: [index.ts] }`, so the barrel is the one way in. Or it keeps exposing both
 files, and `index.ts` is deleted.
 
 ## How to fix

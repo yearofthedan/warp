@@ -3,7 +3,8 @@
 **Audience:** anyone writing a rule of their own for warp.
 **Purpose:** how to add a rule as a plugin, and the facts and context a rule reads.
 
-A project adds its own rules as plugins: objects with a `rules` list, imported in the config. Each plugin gets a
+A project adds its own rules as plugins: files whose default export is an object with a `rules` list, named under
+`plugins` in the config by a path from the config's folder or an `npm:` package. Each plugin gets a
 namespace, and its rules are `namespace/id` in rulesets. They go through the same option checks as the built-in
 rules, and two rules with the same id are refused.
 
@@ -42,23 +43,25 @@ const noPortsThroughApplication: FileRule<{ ports: string[] }> = {
 export default { rules: [noPortsThroughApplication] } satisfies Plugin;
 ```
 
-```ts
-// warp.config.ts
-import { all, archetype, defineConfig, exposes, files, ruleset, using } from '@yearofthedan/warp';
-import local from './warp/rules.ts';
+```yaml
+# warp.yaml
+plugins:
+  local: ./warp/rules.ts
 
-const app = archetype('app').contains((c) =>
-  c
-    .module('domain', files('src/domain/**'), exposes(all()))
-    .module('application', files('src/application/**'), exposes(files('src/application/index.ts')).using((m) => [m.domain]))
-    .module('ui', files('src/ui/**'), using((m) => [m.application, m.domain])),
-);
+root:
+  modules:
+    domain: { files: 'src/domain/**', exposes: all }
+    application:
+      files: 'src/application/**'
+      dependencies: [domain]
+      exposes: { files: [src/application/index.ts] }
+    ui: { files: 'src/ui/**', dependencies: [application, domain] }
 
-const base = ruleset()
-  .rules({ 'local/no-ports-through-application': false })
-  .on(app.modules.ui, { 'local/no-ports-through-application': true });
-
-export default defineConfig({ root: app, plugins: { local }, rulesets: { default: base } });
+rulesets:
+  default:
+    extends: [warp:recommended]
+    rules: { local/no-ports-through-application: off }
+    on: { root.ui: { local/no-ports-through-application: on } }
 ```
 
 - The plugin's rules are on everywhere by default. This ruleset turns the rule off, then on for `ui` alone.
@@ -69,7 +72,7 @@ export default defineConfig({ root: app, plugins: { local }, rulesets: { default
   `ConfigError` are exported for writing `parseOptions`.
 - A rule's findings get the namespaced `rule`, and keys prefixed with the namespace. They link to the rule's `docs`
   when it has one.
-- `diff` caches findings by the config and every file it imports, so editing a rule redoes the base.
+- `diff` caches findings by the config and every file its plugins import, so editing a rule redoes the base.
 
 ## A rule that requires an import
 
@@ -102,7 +105,7 @@ const dslOnDriver: FileRule = {
 export default { rules: [dslOnDriver] } satisfies Plugin;
 ```
 
-It loads like the plugin above, as `plugins: { local, dsl }`, and its rule is `dsl/dsl-on-driver`.
+It loads like the plugin above, as `dsl: ./warp/dsl.ts` under `plugins`, and its rule is `dsl/dsl-on-driver`.
 
 ## What a rule reads
 

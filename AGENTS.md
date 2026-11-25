@@ -20,11 +20,11 @@ for the config language.
 
 Every task runs through `./do`, never the tools underneath: `./do` alone lists them. A new task is a file in
 `scripts/`, never a `package.json` script. A dependency is added with `./do add`, never `pnpm add`: it audits what the
-resolution brought in first, and whatever warp depends on ships to its users. `typescript` is the only runtime
-dependency; adding a second needs an ADR.
+resolution brought in first, and whatever warp depends on ships to its users. `typescript` and `yaml` are the only
+runtime dependencies; adding another needs an ADR.
 
 `./do check` is the one local check, and CI runs it. It ends with warp checking itself from source against
-[warp.config.ts](warp.config.ts).
+[warp.yaml](warp.yaml).
 
 ## Tests
 

@@ -11,34 +11,34 @@ e2e/scenarios.spec.ts e2e (test)
 e2e/the-keys-on-the-current-card.spec.ts e2e (test)
 e2e/writer.ts e2e (test)
 lint/component-stays-in-its-root.test.ts lint:tests (test)
-lint/component-stays-in-its-root.ts lint:src
+lint/component-stays-in-its-root.ts lint
 lint/dom-in-dom-files.test.ts lint:tests (test)
-lint/dom-in-dom-files.ts lint:src
+lint/dom-in-dom-files.ts lint
 lint/find-elements.test.ts lint:tests (test)
-lint/find-elements.ts lint:src
-lint/index.ts lint:src
-lint/override.ts lint:src
-lint/sample-lint.ts lint:src
+lint/find-elements.ts lint
+lint/index.ts lint
+lint/override.ts lint
+lint/sample-lint.ts lint
 lint/test-through-owner.test.ts lint:tests (test)
-lint/test-through-owner.ts lint:src
+lint/test-through-owner.ts lint
 lint/wait-on-the-page.test.ts lint:tests (test)
-lint/wait-on-the-page.ts lint:src
+lint/wait-on-the-page.ts lint
 lint/words-from-the-strings.test.ts lint:tests (test)
-lint/words-from-the-strings.ts lint:src
+lint/words-from-the-strings.ts lint
 playwright.config.ts (root):tooling
 pnpm-workspace.test.ts (root):tests (test)
 scripts/_lint-comments.test.ts (root):tests (test)
 src/adapters/file-system-folders.component.test.ts src/adapters:tests (test)
-src/adapters/file-system-folders.ts src/adapters:src
+src/adapters/file-system-folders.ts src/adapters
 src/adapters/folder-name.test.ts src/adapters:tests (test)
-src/adapters/folder-name.ts src/adapters:src
+src/adapters/folder-name.ts src/adapters
 src/adapters/local-storage-project-store.test.ts src/adapters:tests (test)
-src/adapters/local-storage-project-store.ts src/adapters:src
+src/adapters/local-storage-project-store.ts src/adapters
 src/app.ts (root):app
 src/application/project.test.ts src/application:tests (test)
-src/application/project.ts src/application:src
+src/application/project.ts src/application
 src/domain/project.test.ts src/domain:tests (test)
-src/domain/project.ts src/domain:src
+src/domain/project.ts src/domain
 src/main.ts (root):app
 src/methods/snowflake-extended.ts src/methods
 src/ports/project-store.ts src/ports

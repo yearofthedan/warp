@@ -16,7 +16,7 @@ export const grantText = ({ owner, ref }: Grant): string => (ref === undefined ?
 export type Refusal =
   | { reason: 'private'; hiddenBy: ModuleView }
   | { reason: 'above' }
-  | { reason: 'not-in-using' }
+  | { reason: 'not-in-dependencies' }
   | { reason: 'test' };
 
 export type View = 'production' | 'test';
@@ -280,5 +280,5 @@ const refusal = (state: State, source: ModuleView, target: ModuleView, to: strin
   if (target.kind !== 'dir' && target.parent !== source.parent && above.has(target.parent!)) return { reason: 'above' };
   for (let at = target; !above.has(at) && at !== source; at = at.parent!)
     if (!surface(state, at, undefined, view).has(to)) return { reason: 'private', hiddenBy: at };
-  return { reason: 'not-in-using' };
+  return { reason: 'not-in-dependencies' };
 };

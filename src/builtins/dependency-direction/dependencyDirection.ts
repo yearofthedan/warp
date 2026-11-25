@@ -58,7 +58,7 @@ const refused = (context: Context, from: string, to: string, refusal: Refusal, e
 
 const explain = ({ config, model, verdicts }: Context, from: string, to: string, refusal: Refusal): string => {
   if (isLoose(model, to))
-    return `which is in no module yet. Add a module that holds ${to}, then add it to a using if the dependency is intended.`;
+    return `which is in no module yet. Add a module that holds ${to}, then add it to the importer's dependencies if the dependency is intended.`;
   if (refusal.reason === 'test')
     return 'a test file. Production code never imports tests: move what both need out of the test file into the module it tests.';
   const instead =

@@ -60,8 +60,8 @@ describe('examplePath', () => {
 });
 
 describe('configsIn', () => {
-  it('finds each yaml block, leaving out a yaml fragment', () => {
-    const text = '# A\n\n```yaml\nroot: {}\n```\n\n```yaml fragment\nmodules: {}\n```\n';
+  it('finds each yaml block that declares a root, leaving out a fragment and other yaml', () => {
+    const text = '# A\n\n```yaml\nroot: {}\n```\n\n```yaml fragment\nroot: {}\n```\n\n```yaml\non: push\n```\n';
     assert.deepEqual(configsIn(text), [{ line: 4, code: 'root: {}' }]);
   });
 });
@@ -90,11 +90,11 @@ describe('fragmentProblems', () => {
 
 describe('plan', () => {
   const doc = 'docs/a.md';
-  const text = '# A\n\n```ts\n// warp.config.ts\nconst a = 1;\n```\n\n```ts\n// warp.config.ts\nconst b = 1;\n```\n';
+  const text = '# A\n\n```ts\n// rule.ts\nconst a = 1;\n```\n\n```ts\n// rule.ts\nconst b = 1;\n```\n';
 
   it('writes each example at the file it names, and a second one with that name apart', () => {
     const { files, problems } = plan([{ doc, text }], []);
-    assert.deepEqual([...files.keys()], ['docs/a.md/warp.config.ts', 'docs/a.md/example-9/warp.config.ts']);
+    assert.deepEqual([...files.keys()], ['docs/a.md/rule.ts', 'docs/a.md/example-9/rule.ts']);
     assert.deepEqual(problems, [
       'docs/a.md:1: has an **Audience:** line after its title',
       'docs/a.md:1: has a **Purpose:** line after its Audience',
@@ -103,10 +103,7 @@ describe('plan', () => {
 
   it("points tsc's diagnostics at the doc's own lines", () => {
     const { files } = plan([{ doc, text }], []);
-    assert.equal(
-      located('docs/a.md/example-9/warp.config.ts(2,7): error TS1: no.', files),
-      'docs/a.md:10: error TS1: no.',
-    );
+    assert.equal(located('docs/a.md/example-9/rule.ts(2,7): error TS1: no.', files), 'docs/a.md:10: error TS1: no.');
     assert.equal(located('error TS5: elsewhere.', files), 'error TS5: elsewhere.');
   });
 });

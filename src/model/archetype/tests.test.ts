@@ -170,7 +170,7 @@ describe('test modules', () => {
     assert.equal(verdict('src/a/a.test.ts', 'src/a/a.dsl.ts'), 'allowed: tests uses dsl');
     assert.equal(verdict('src/a/a.test.ts', 'src/a/b/b.dsl.ts'), 'allowed: src/a uses src/a/b');
     assert.equal(verdict('src/a/a.test.ts', 'src/a/b/b.fixture.ts'), 'private to src/a/b');
-    assert.equal(verdict('src/a/a.dsl.ts', 'src/a/a.test.ts'), 'not-in-using');
+    assert.equal(verdict('src/a/a.dsl.ts', 'src/a/a.test.ts'), 'not-in-dependencies');
     assert.equal(verdict('src/a/b/b.test.ts', 'src/seed/orders.ts'), 'allowed: root.test.provides uses seed');
     assert.equal(verdict('src/domain/order.test.ts', 'src/seed/orders.ts'), 'allowed: root.test.provides uses seed');
   });
@@ -475,8 +475,11 @@ archetypes:
       verdict('test-helpers/drivers/order.driver.ts', 'test-helpers/order.fixture.ts'),
       'allowed: kit.drivers uses fixtures',
     );
-    assert.equal(verdict('test-helpers/drivers/order.driver.ts', 'test-helpers/clock.ts'), 'not-in-using');
-    assert.equal(verdict('test-helpers/order.fixture.ts', 'test-helpers/drivers/order.driver.ts'), 'not-in-using');
+    assert.equal(verdict('test-helpers/drivers/order.driver.ts', 'test-helpers/clock.ts'), 'not-in-dependencies');
+    assert.equal(
+      verdict('test-helpers/order.fixture.ts', 'test-helpers/drivers/order.driver.ts'),
+      'not-in-dependencies',
+    );
     assert.equal(verdict('test-helpers/order.fixture.ts', 'src/domain/order.ts'), 'allowed: (root) uses src/domain');
     assert.equal(
       verdict('test-helpers/setup.ts', 'test-helpers/drivers/order.driver.ts'),

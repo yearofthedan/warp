@@ -11,7 +11,7 @@ its options.
 | [`unclassified`](../src/builtins/unclassified/README.md) | A loose file. On at the root module, off below, unless a ruleset says otherwise. | |
 | [`unresolved-import`](../src/builtins/unresolved-import/README.md) | A relative import that resolves to no file. | |
 | [`dependency-direction`](../src/builtins/dependency-direction/README.md) | An import outside the importer's reach. | |
-| [`module-externals`](../src/builtins/module-externals/README.md) | A package import that no `using` in the importer's reach lists. | |
+| [`module-externals`](../src/builtins/module-externals/README.md) | A package import that no `dependencies` in the importer's reach lists. | |
 | [`no-double-export`](../src/builtins/no-double-export/README.md) | A re-export, in a file on its module's surface, of another file on that surface. | |
 | [`module-cycle`](../src/builtins/module-cycle/README.md) | A loop among sibling modules. | `types` |
 | [`no-cycle`](../src/builtins/no-cycle/README.md) | A loop among files. | `types` |
@@ -19,7 +19,7 @@ its options.
 | [`file-cohesion`](../src/builtins/file-cohesion/README.md) | A file over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
 | [`function-cohesion`](../src/builtins/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
 | [`cognitive-complexity`](../src/builtins/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |
-| [`unused-declaration`](../src/builtins/unused-declaration/README.md) | A `using` entry, a surface or a module the code doesn't use. | |
+| [`unused-declaration`](../src/builtins/unused-declaration/README.md) | A `dependencies` entry, a surface or a module the code doesn't use. | |
 
 A project adds its own rules as plugins: see [custom-rules.md](custom-rules.md).
 
@@ -35,8 +35,8 @@ gives every field:
   "file": "src/utils/slug.ts",
   "line": 1,
   "value": 1,
-  "message": "src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach. ...",
-  "details": { "from": "src/utils", "to": "src/db", "reason": "not-in-using", "edges": ["..."] },
+  "message": "src/utils/slug.ts (root.utils src/utils) imports src/db/client.ts (root.db src/db), which is outside utils's reach. ...",
+  "details": { "from": "src/utils", "to": "src/db", "reason": "not-in-dependencies", "edges": ["..."] },
   "docs": "https://github.com/yearofthedan/warp/blob/main/src/builtins/dependency-direction/README.md",
   "module": "src/utils"
 }
