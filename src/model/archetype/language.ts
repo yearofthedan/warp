@@ -198,7 +198,7 @@ const testFiles = (
   return {
     kind: 'test',
     name,
-    locator: { kind: 'files', patterns: patterns(state, `${where}.files`, def.files) },
+    patterns: patterns(state, `${where}.files`, def.files),
     ...(of === undefined ? {} : { of }),
     using: references(state, scope, `${where}.dependencies`, def.dependencies, true),
     ...(exposed && exposed.kind !== 'surfaces' ? { exposes: exposed } : {}),

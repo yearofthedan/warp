@@ -1,5 +1,5 @@
 import { ConfigError } from '../configError.ts';
-import type { ArchetypeData, ConfigData, DirModuleData, LocatorData, ModuleData, TestModuleData } from './data.ts';
+import type { ArchetypeData, ConfigData, DirModuleData, ModuleData, TestModuleData } from './data.ts';
 
 export interface Folders {
   folders(dir: string): string[];
@@ -43,7 +43,6 @@ interface Resolution {
   config: ConfigData;
   folders: Folders;
   byDir: Map<string, ModuleView>;
-  mirrors: Map<string, { holder: ModuleView; name: string }>;
   errors: Set<string>;
 }
 
@@ -68,9 +67,8 @@ export const fillPattern = (pattern: string, captures: Record<string, string>): 
 };
 
 export const resolveModel = (config: ConfigData, folders: Folders, files: readonly string[]): Model => {
-  const resolution: Resolution = { config, folders, byDir: new Map(), mirrors: new Map(), errors: new Set() };
+  const resolution: Resolution = { config, folders, byDir: new Map(), errors: new Set() };
   const root = build(resolution, { dir: '', archetype: config.archetypes[config.root]!, captures: {} });
-  for (const module of walk(root)) mirrorsOf(resolution, module);
   const moduleOf = new Map<string, ModuleView>();
   for (const file of [...files].sort()) moduleOf.set(file, assign(resolution, file));
   if (resolution.errors.size > 0) throw new ConfigError([...resolution.errors].join('\n'));
@@ -85,37 +83,9 @@ export const resolveModel = (config: ConfigData, folders: Folders, files: readon
 
 const assign = (resolution: Resolution, file: string): ModuleView => {
   const folder = deepest(resolution.byDir, file);
-  const module = mirrorClaim(resolution, file) ?? claimOf(resolution, folder, file) ?? place(resolution, folder, file);
+  const module = claimOf(resolution, folder, file) ?? place(resolution, folder, file);
   module.files.push(file);
   return module;
-};
-
-const mirrorsOf = (resolution: Resolution, holder: ModuleView) => {
-  if (holder.kind !== 'dir') return;
-  for (const declared of resolution.config.archetypes[holder.archetype!]!.modules) {
-    if (declared.kind !== 'test' || declared.locator.kind !== 'mirror') continue;
-    const { from, to } = declared.locator;
-    const where = `${holder.id}: ${holder.archetype}.${declared.name} mirror('${from}', '${to}')`;
-    if (holder.dir !== from && !holder.dir.startsWith(`${from}/`)) {
-      resolution.errors.add(`${where} needs a folder under ${from}; this module is not in it`);
-      continue;
-    }
-    const target = `${to}${holder.dir.slice(from.length)}`;
-    const taken = resolution.mirrors.get(target);
-    if (taken)
-      resolution.errors.add(
-        `${target}: mirrored by ${taken.holder.id} and ${holder.id}; one folder mirrors one module`,
-      );
-    else resolution.mirrors.set(target, { holder, name: declared.name });
-  }
-};
-
-const mirrorClaim = (resolution: Resolution, file: string): ModuleView | undefined => {
-  for (let dir = parentDir(file); dir !== ''; dir = parentDir(dir)) {
-    const mirror = resolution.mirrors.get(dir);
-    if (mirror) return childModule(mirror.holder, mirror.name, 'test');
-  }
-  return undefined;
 };
 
 const walk = function* (module: ModuleView): Generator<ModuleView> {
@@ -181,7 +151,7 @@ const claimOf = (resolution: Resolution, folder: ModuleView, file: string): Modu
     const claims = archetype.modules
       .filter((declared): declared is TestModuleData => declared.kind === 'test')
       .flatMap((declared) => {
-        const score = locates(level, declared.locator, file);
+        const score = locates(level, declared.patterns, file);
         return score === undefined ? [] : [{ name: declared.name, score }];
       });
     if (claims.length === 0) {
@@ -199,10 +169,9 @@ const claimOf = (resolution: Resolution, folder: ModuleView, file: string): Modu
   return undefined;
 };
 
-const locates = (module: ModuleView, locator: LocatorData, file: string): number | undefined => {
-  if (locator.kind === 'mirror') return undefined;
+const locates = (module: ModuleView, patterns: readonly string[], file: string): number | undefined => {
   const path = module.dir === '' ? file : file.slice(module.dir.length + 1);
-  const scores = locator.patterns.flatMap((pattern) => {
+  const scores = patterns.flatMap((pattern) => {
     const filled = fillPattern(pattern, module.captures);
     if (filled === undefined) return [];
     return globRegex(filled).test(path) ? [specificity(filled)] : [];

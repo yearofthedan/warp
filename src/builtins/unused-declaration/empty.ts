@@ -37,8 +37,5 @@ const shown = (patterns: readonly string[]): string => {
 
 const selectorText = (module: ModuleData): string => {
   if (module.kind === 'dir') return `dir: ${shown(module.paths)}`;
-  if (module.kind === 'files') return `files: ${shown(module.patterns)}`;
-  const { locator } = module;
-  if (locator.kind === 'mirror') return `mirror: ${locator.from} to ${locator.to}`;
-  return `files: ${shown(locator.patterns)}`;
+  return `files: ${shown(module.patterns)}`;
 };
