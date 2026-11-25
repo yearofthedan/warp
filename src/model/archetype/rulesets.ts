@@ -1,7 +1,6 @@
 import { ConfigError } from '../configError.ts';
-import { type RecordedRuleset, recordedAs } from './builder.ts';
-import type { ArchetypeData, ConfigData, RuleSettingsData } from './data.ts';
-import { type Fail, isName, isRecord, list } from './shared.ts';
+import { type ArchetypeData, type ConfigData, isTestData, type RuleSettingsData } from './data.ts';
+import { type Fail, isRecord, list } from './shared.ts';
 
 export type ParseRules = (value: unknown, at: string) => RuleSettingsData | undefined;
 
@@ -30,58 +29,87 @@ export const withRuleset = (
       `no ruleset called ${name}. ${names.length > 0 ? `Rulesets: ${names.join(', ')}` : 'The config declares none'}`,
     );
   }
-  const chosen = named.get(name ?? 'default');
-  return chosen ? applied(config, layersOf(chosen, named, fail), parse, fail) : config;
+  const chosen = name ?? 'default';
+  if (!named.has(chosen)) return applied(config, [{ settings: 'off', at: 'rulesets' }], parse, fail);
+  const { layers, recommends } = layersOf(config, chosen, named, fail);
+  const base: Layer[] = recommends ? [] : [{ settings: 'off', at: `rulesets.${chosen}` }];
+  return applied(config, [...base, ...layers], parse, fail);
 };
 
-const rulesetsOf = (value: unknown, fail: Fail): Map<string, RecordedRuleset> => {
-  const named = new Map<string, RecordedRuleset>();
+export const recommended = 'warp:recommended';
+
+const rulesetKeys = ['extends', 'rules', 'test', 'on'];
+
+const rulesetsOf = (value: unknown, fail: Fail): Map<string, Record<string, unknown>> => {
+  const named = new Map<string, Record<string, unknown>>();
   if (value === undefined) return named;
   if (!isRecord(value)) {
-    fail('config.rulesets: expected rulesets by name, { default: base, edit }');
+    fail('rulesets: expected rulesets by name, { default: { extends: [warp:recommended] } }');
     return named;
   }
   for (const [name, ruleset] of Object.entries(value)) {
-    const recorded = recordedAs(ruleset, 'ruleset');
-    if (recorded) named.set(name, recorded);
-    else fail(`config.rulesets.${name}: expected a ruleset, ruleset().rules(...)`);
+    if (!isRecord(ruleset)) {
+      fail(`rulesets.${name}: expected a ruleset, { extends: [warp:recommended], rules: {...} }`);
+      continue;
+    }
+    for (const key of Object.keys(ruleset).filter((key) => !rulesetKeys.includes(key)))
+      fail(`rulesets.${name}: unknown key ${key}; a ruleset takes ${rulesetKeys.join(', ')}`);
+    named.set(name, ruleset);
   }
   return named;
 };
 
-const layersOf = (ruleset: RecordedRuleset, named: Map<string, RecordedRuleset>, fail: Fail): Layer[] => {
-  const label = (of: RecordedRuleset) => [...named].find(([, candidate]) => candidate === of)?.[0] ?? 'extends';
-  const chain: RecordedRuleset[] = [];
-  for (let current: RecordedRuleset | undefined = ruleset; current;) {
-    chain.unshift(current);
-    if (current.base === undefined) break;
-    const base: RecordedRuleset | undefined = recordedAs(current.base, 'ruleset');
-    if (!base) fail(`rulesets.${label(current)}.extends: expected a ruleset`);
-    current = base;
+const layersOf = (
+  config: ConfigData,
+  name: string,
+  named: Map<string, Record<string, unknown>>,
+  fail: Fail,
+  seen: readonly string[] = [],
+): { layers: Layer[]; recommends: boolean } => {
+  const ruleset = named.get(name)!;
+  const at = `rulesets.${name}`;
+  const layers: Layer[] = [];
+  let recommends = false;
+  const bases = ruleset.extends === undefined ? [] : [ruleset.extends].flat();
+  for (const base of bases) {
+    if (base === recommended) recommends = true;
+    else if (typeof base !== 'string' || !named.has(base))
+      fail(`${at}.extends: '${String(base)}' is no ruleset; extend ${list([recommended, ...named.keys()], 'nothing')}`);
+    else if (seen.includes(base)) fail(`${at}.extends: ${[...seen, name, base].join(' extends ')}, a loop`);
+    else {
+      const extended = layersOf(config, base, named, fail, [...seen, name]);
+      layers.push(...extended.layers);
+      recommends ||= extended.recommends;
+    }
   }
-  return chain.flatMap((of) => {
-    const at = `rulesets.${label(of)}`;
-    return of.entries.map(({ target, settings }): Layer => {
-      if (target === undefined) return { settings, at: `${at}.rules` };
-      const resolved = targetOf(target);
-      if (!resolved) {
-        fail(`${at}.on: expected an archetype or one of its modules, such as component or component.modules.logic`);
-        return { settings: undefined, at };
+  if (ruleset.rules !== undefined) layers.push({ settings: ruleset.rules, at: `${at}.rules` });
+  if (ruleset.test !== undefined)
+    for (const target of testTargets(config)) layers.push({ target, settings: ruleset.test, at: `${at}.test` });
+  if (ruleset.on !== undefined) {
+    if (!isRecord(ruleset.on)) fail(`${at}.on: expected settings by archetype or module, { app.adapters: {...} }`);
+    else
+      for (const [path, settings] of Object.entries(ruleset.on)) {
+        const target = targetOf(config, path);
+        if (target) layers.push({ target, settings, at: `${at}.on.${path}` });
+        else fail(`${at}.on.${path}: no archetype or module called ${path}; name an archetype, or archetype.module`);
       }
-      const shown =
-        resolved.module === undefined
-          ? resolved.archetype
-          : `${resolved.archetype.replaceAll('.', '.modules.')}.modules.${resolved.module}`;
-      return { target: resolved, settings, at: `${at}.on(${shown})` };
-    });
-  });
+  }
+  return { layers, recommends };
 };
 
-const targetOf = (value: unknown): Target | undefined => {
-  const archetype = recordedAs(value, 'archetype');
-  if (archetype) return isName(archetype.definition.name) ? { archetype: archetype.definition.name } : undefined;
-  const handle = recordedAs(value, 'handle');
-  return handle && { archetype: handle.archetype as string, module: handle.module as string };
+const testTargets = (config: ConfigData): Target[] =>
+  Object.values(config.archetypes).flatMap((archetype) =>
+    archetype.modules.filter(isTestData).map((module) => ({ archetype: archetype.name, module: module.name })),
+  );
+
+const targetOf = (config: ConfigData, path: string): Target | undefined => {
+  if (config.archetypes[path]) return { archetype: path };
+  const at = path.lastIndexOf('.');
+  const archetype = config.archetypes[path.slice(0, at)];
+  const module = path.slice(at + 1);
+  return at > 0 && archetype?.modules.some((declared) => declared.name === module)
+    ? { archetype: archetype.name, module }
+    : undefined;
 };
 
 const applied = (config: ConfigData, layers: readonly Layer[], parse: ParseRules, fail: Fail): ConfigData => {

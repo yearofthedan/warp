@@ -1,0 +1,108 @@
+root:
+  description: 'warp: checks a TypeScript codebase against a declared model of its modules'
+  modules:
+    package:
+      dir: src
+      archetype: package
+    tooling:
+      description: The scripts behind ./do and the tool configs
+      files: ['*.ts', 'scripts/*.ts']
+      dependencies: ['node:*', npm:vite-plus, npm:typescript]
+      exposes: all
+      test: { modules: { tests: { files: ['*.test.ts', 'scripts/*.test.ts'] } } }
+  test:
+    provides: [npm:vite-plus/test, 'node:*']
+    modules:
+      e2e: { files: 'e2e/*.test.ts' }
+
+archetypes:
+  package:
+    description: "warp's source: the model, the rules, the app behind its ports, its adapters and the CLI"
+    entry: index.ts
+    modules:
+      model:
+        description: 'The declared model: config data, resolving files to modules, and reach'
+        dir: model
+        exposes: all
+      rules:
+        dir: rules
+        archetype: rules
+        dependencies: [model]
+      builtins:
+        dir: builtins
+        archetype: builtins
+        dependencies: [model, rules]
+        test: { dependencies: [app] }
+      app:
+        description: Loading a config, running the rules on a model, and diffing two commits, behind ports
+        dir: app
+        dependencies: [rules, model, 'node:*']
+        exposes: all
+      reporters:
+        description: 'Formats for findings and the model: text, JSON, SARIF and agent hooks'
+        dir: reporters
+        dependencies: [rules, model]
+        exposes: all
+      analysis:
+        description: Reading TypeScript into facts, and the project folders
+        dir: analysis
+        dependencies: [app, model, 'node:*', npm:typescript]
+        exposes: all
+      config:
+        description: Reading a warp.yaml file and loading its plugins
+        dir: config
+        dependencies: [model, 'node:*', npm:yaml]
+        exposes: all
+      git:
+        description: 'Git: the facts cache and the files at a commit'
+        dir: git
+        dependencies: [app, 'node:*']
+        exposes: all
+      cli:
+        description: The CLI, which wires adapters, reporters and the built-in rules together
+        files: cli.ts
+        dependencies: [analysis, config, git, reporters, app, rules, model, builtins, 'node:*']
+    test:
+      modules:
+        tests: { files: '**/*.test.ts' }
+
+  rules:
+    description: 'The rules API: what a rule implements, how rules are registered, and how findings compare'
+    requires: [model]
+    exposes: [rule, registry, findings]
+    modules:
+      rule:
+        description: The contract a rule implements and the findings it returns
+        files: rule.ts
+        dependencies: [model]
+        exposes: all
+      registry:
+        description: Rules by id, with plugin rules namespaced
+        files: registry.ts
+        dependencies: [rule, model]
+        exposes: all
+      findings:
+        description: Comparing two sets of findings
+        files: diff.ts
+        dependencies: [rule]
+        exposes: all
+
+  builtins:
+    description: "warp's own rules: one folder per rule, holding its rule, its tests and its page"
+    requires: [model, rules]
+    exposes: all
+    modules:
+      code:
+        description: Each rule, the list of built-ins with their docs links, and the helpers rules share
+        files: '**'
+        dependencies: [rules, model]
+        exposes: all
+    test:
+      requires: [app]
+      modules:
+        tests: { files: '**/*.test.ts', dependencies: [app] }
+
+rulesets:
+  default:
+    extends: [warp:recommended]
+    test: { function-cohesion: off }

@@ -1,20 +1,18 @@
-import type { ArchetypeData, ConfigData, ExposesData, ModuleData, RefData, RequirementData } from './data.ts';
-import { verdicts } from './reach.ts';
+import type { ArchetypeData, ConfigData, DirModuleData, ExposesData, ModuleData, RefData } from './data.ts';
+import { instanceOf, verdicts } from './reach.ts';
 import type { Model, ModuleView } from './resolve.ts';
 
 export interface Site {
   label: string;
   holder: ModuleView;
   add(config: ConfigData, ref: RefData): ConfigData;
-  visible: ReadonlySet<string>;
   self?: string;
   tests: boolean;
 }
 
 export type Fix =
   | { kind: 'using'; site: string; ref: RefData }
-  | { kind: 'declare'; archetype: string; module: string; above: string }
-  | { kind: 'require'; archetype: string; name: string; provider: string; module: string }
+  | { kind: 'require'; archetype: string; name: string; sites: string[]; module: string }
   | { kind: 'expose'; archetype: string; ref: RefData }
   | { kind: 'test-expose'; archetype: string; ref: RefData }
   | { kind: 'expose-file'; archetype: string; pattern: string };
@@ -47,27 +45,23 @@ const withModule = (config: ConfigData, archetype: string, name: string, change:
 const declarationSite = (config: ConfigData, module: ModuleView): Site => {
   const holder = module.parent!;
   const archetype = holder.archetype!;
-  const declared = config.archetypes[archetype]!.modules;
-  const index = declared.findIndex((data) => data.name === module.name);
   return {
-    label: `the using of ${archetype}.${module.name}`,
+    label: `${archetype}.${module.name}.dependencies`,
     holder,
     add: (from, ref) =>
       withModule(from, archetype, module.name!, (data) => ({ ...data, using: [...data.using, ref] }) as ModuleData),
-    visible: new Set(declared.slice(0, index).map((data) => data.name)),
     self: module.name!,
     tests: module.test === true,
   };
 };
 
-const kitSite = (config: ConfigData, at: ModuleView): Site => {
+const kitSite = (at: ModuleView): Site => {
   const archetype = at.archetype!;
   return {
-    label: `the testUsing of ${archetype}`,
+    label: `${archetype}.test.provides`,
     holder: at,
     add: (from, ref) =>
       withArchetype(from, archetype, (data) => ({ ...data, testUsing: [...(data.testUsing ?? []), ref] })),
-    visible: new Set(config.archetypes[archetype]!.modules.map((data) => data.name)),
     tests: true,
   };
 };
@@ -75,7 +69,7 @@ const kitSite = (config: ConfigData, at: ModuleView): Site => {
 export const sitesOf = (config: ConfigData, model: Model, file: string): Site[] => {
   const module = model.moduleOf(file);
   if (!module || module.looseFiles.includes(file)) return [];
-  if (module.test) return lineage(module).map((at) => (at.test ? declarationSite(config, at) : kitSite(config, at)));
+  if (module.test) return lineage(module).map((at) => (at.test ? declarationSite(config, at) : kitSite(at)));
   const owners = module.kind === 'files' ? [module, module.parent!] : [module];
   return owners.filter((owner) => owner.parent).map((owner) => declarationSite(config, owner));
 };
@@ -87,18 +81,27 @@ const surfacesOf = ({ exposes, testExposes }: ArchetypeData, tests: boolean): st
   ]),
 ];
 
-const moduleRefs = (config: ConfigData, module: ModuleView, tests: boolean): RefData[] => {
+const moduleRefs = (config: ConfigData, module: ModuleView, tests: boolean, up = 0): RefData[] => {
   const surfaces = module.kind === 'dir' ? surfacesOf(config.archetypes[module.archetype!]!, tests) : [];
   const name = module.name!;
+  const out = up > 0 ? { up } : {};
   return [
-    ...surfaces.map((surface): RefData => ({ kind: 'module', module: name, surface })),
-    { kind: 'module', module: name },
+    ...surfaces.map((surface): RefData => ({ kind: 'module', module: name, surface, ...out })),
+    { kind: 'module', module: name, ...out },
   ];
 };
 
-const requiredRefs = (config: ConfigData, name: string, requirement: RequirementData, tests: boolean): RefData[] => {
-  const surfaces = requirement.kind === 'archetype' ? surfacesOf(config.archetypes[requirement.archetype]!, tests) : [];
-  return [...surfaces.map((surface): RefData => ({ kind: 'required', name, surface })), { kind: 'required', name }];
+// The levels a site names modules at: its holder, then each holder above it inside the same archetype.
+const levels = (config: ConfigData, holder: ModuleView): ModuleView[] => {
+  const found = [holder];
+  for (let at = holder; config.archetypes[at.archetype!]!.inline && at.parent; at = at.parent) found.push(at.parent);
+  return found;
+};
+
+const inputsOf = (config: ConfigData, site: Site): RefData[] => {
+  const named = config.archetypes[namedArchetype(config, site.holder.archetype!)]!;
+  const names = [...named.requires, ...(site.tests ? (named.testRequires ?? []) : [])];
+  return names.map((name): RefData => ({ kind: 'required', name }));
 };
 
 interface Search {
@@ -120,90 +123,68 @@ const reachable = (search: Search): ModuleView[] => {
 };
 
 const nameable = (site: Site, module: ModuleView): boolean =>
-  module.parent === site.holder && module.name !== site.self && (site.tests || !module.test);
+  !(module.parent === site.holder && module.name === site.self) && (site.tests || !module.test);
 
 const usingChanges = function* (search: Search, config: ConfigData): Generator<Change[]> {
   const targets = reachable(search);
   for (const site of sitesOf(config, search.model, search.from)) {
-    const own = targets.filter((module) => nameable(site, module) && site.visible.has(module.name!));
-    const named = namedArchetype(config, site.holder.archetype!);
-    const required = Object.entries(config.archetypes[named]!.requires).flatMap(([name, requirement]) =>
-      requiredRefs(config, name, requirement, site.tests),
+    const own = levels(config, site.holder).flatMap((level, up) =>
+      targets
+        .filter((module) => module.parent === level && nameable(site, module))
+        .flatMap((module) => moduleRefs(config, module, site.tests, up)),
     );
-    for (const ref of [...own.flatMap((module) => moduleRefs(config, module, site.tests)), ...required])
+    for (const ref of [...own, ...inputsOf(config, site)])
       yield [{ fix: { kind: 'using', site: site.label, ref }, config: site.add(config, ref) }];
   }
 };
 
-const declareChanges = function* (search: Search, config: ConfigData): Generator<Change[]> {
-  const targets = reachable(search);
-  for (const site of sitesOf(config, search.model, search.from))
-    for (const module of targets.filter(
-      (candidate) => nameable(site, candidate) && !site.visible.has(candidate.name!),
-    )) {
-      const declared = declare(config, site, module);
-      if (!declared) continue;
-      for (const ref of moduleRefs(declared.config, module, site.tests))
-        yield [declared, { fix: { kind: 'using', site: site.label, ref }, config: site.add(declared.config, ref) }];
-    }
-};
+const instancesOf = (config: ConfigData, model: Model, archetype: string): ModuleView[] =>
+  model.modules.filter(
+    (module) => module.archetype === archetype && !config.archetypes[archetype]!.inline && module.parent,
+  );
 
-const declare = (config: ConfigData, site: Site, module: ModuleView): Change | undefined => {
-  if (site.self === undefined) return undefined;
-  const archetype = site.holder.archetype!;
-  const modules = config.archetypes[archetype]!.modules;
-  const moved = modules.find((data) => data.name === module.name)!;
-  const sees = moved.using.every((ref) => ref.kind !== 'module' || site.visible.has(ref.module));
-  if (!sees) return undefined;
-  const rest = modules.filter((data) => data !== moved);
-  const at = rest.findIndex((data) => data.name === site.self);
-  return {
-    fix: { kind: 'declare', archetype, module: module.name!, above: site.self },
-    config: withArchetype(config, archetype, (data) => ({
-      ...data,
-      modules: [...rest.slice(0, at), moved, ...rest.slice(at)],
-    })),
-  };
-};
-
-const providedEverywhere = (config: ConfigData, model: Model, archetype: string, name: string): boolean =>
-  model.modules
-    .filter((module) => module.archetype !== undefined && namedArchetype(config, module.archetype) === archetype)
-    .every((module) => [...ancestors(module)].some((at) => config.archetypes[at.archetype!]!.provides[name]));
-
+// Requires the target as a new input of the site's archetype, bound where every instance sits beside it.
 const requireChanges = function* (search: Search, config: ConfigData): Generator<Change[]> {
   const targets = reachable(search);
-  for (const site of sitesOf(config, search.model, search.from))
-    for (const provider of ancestors(site.holder))
-      for (const module of targets.filter((target) => target.parent === provider && !target.test)) {
-        const changes = requirement(search, config, site, provider, module);
-        if (changes) yield changes;
-      }
+  for (const site of sitesOf(config, search.model, search.from)) {
+    const instance = instanceOf({ config }, site.holder);
+    const archetype = instance.archetype!;
+    if (config.archetypes[archetype]!.inline || !instance.parent) continue;
+    const instances = instancesOf(config, search.model, archetype);
+    for (const module of targets.filter((target) => target.parent === instance.parent && !target.test)) {
+      const changes = requirement(config, site, archetype, instances, module);
+      if (changes) yield changes;
+    }
+  }
 };
 
 const requirement = (
-  search: Search,
   config: ConfigData,
   site: Site,
-  provider: ModuleView,
+  archetype: string,
+  instances: readonly ModuleView[],
   module: ModuleView,
 ): Change[] | undefined => {
-  const archetype = namedArchetype(config, site.holder.archetype!);
   const name = module.name!;
-  const providing = config.archetypes[provider.archetype!]!.provides[name];
-  if (config.archetypes[archetype]!.requires[name] || (providing && providing.module !== name)) return undefined;
-  const required = withArchetype(
-    withArchetype(config, archetype, (data) => ({
-      ...data,
-      requires: { ...data.requires, [name]: { kind: module.kind === 'dir' ? 'dir' : 'files' } },
-    })),
-    provider.archetype!,
-    (data) => ({ ...data, provides: { ...data.provides, [name]: { kind: 'module', module: name } } }),
-  );
-  if (!providedEverywhere(required, search.model, archetype, name)) return undefined;
+  const data = config.archetypes[archetype]!;
+  if (
+    data.requires.includes(name) ||
+    !instances.every((at) => at.parent!.children.some((child) => child.name === name))
+  )
+    return undefined;
+  const sites = [...new Set(instances.map((at) => `${at.parent!.archetype}.${at.name}`))];
+  let required = withArchetype(config, archetype, (archetypeData) => ({
+    ...archetypeData,
+    requires: [...archetypeData.requires, name],
+  }));
+  for (const at of instances)
+    required = withModule(required, at.parent!.archetype!, at.name!, (declared) => {
+      const dir = declared as DirModuleData;
+      return { ...dir, inputs: { ...dir.inputs, [name]: { kind: 'module', module: name } } };
+    });
   const ref: RefData = { kind: 'required', name };
   return [
-    { fix: { kind: 'require', archetype, name, provider: provider.archetype!, module: name }, config: required },
+    { fix: { kind: 'require', archetype, name, sites, module: name }, config: required },
     { fix: { kind: 'using', site: site.label, ref }, config: site.add(required, ref) },
   ];
 };
@@ -297,7 +278,7 @@ const search = (state: Search, config: ConfigData, fixes: Fix[]): Fix[] | undefi
     const change = exposeChange(state, config, verdict.hiddenBy);
     return change && search(state, change.config, [...fixes, change.fix]);
   }
-  for (const candidates of [usingChanges, declareChanges, requireChanges])
+  for (const candidates of [usingChanges, requireChanges])
     for (const changes of candidates(state, config)) {
       const changed = changes.at(-1)!.config;
       if (allowed(state, changed) && !loops(state, changed)) return [...fixes, ...changes.map((change) => change.fix)];

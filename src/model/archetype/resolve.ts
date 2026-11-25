@@ -309,10 +309,6 @@ const identify = (
 ): Record<string, string> | undefined => {
   const how = archetype.identify;
   if (how === undefined) return captures;
-  if ('match' in how) {
-    const matched = how.match(dir, chain(parent));
-    return matched === false ? undefined : { ...captures, ...matched };
-  }
   const marker = fill(how.marker, captures);
   if ('missing' in marker) {
     resolution.errors.add(
@@ -347,8 +343,6 @@ const sharedHint = (
     `with dir('shared/{${missing}}')`
   );
 };
-
-const chain = (module: ModuleView): ModuleView[] => (module.parent ? [...chain(module.parent), module] : [module]);
 
 const compareRanks = (a: readonly number[], b: readonly number[]): number => {
   const index = a.findIndex((value, at) => value !== b[at]);

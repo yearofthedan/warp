@@ -26,7 +26,7 @@ export const unusedGrants = (context: Context): Finding[] => {
       return unused(
         context.config,
         `${declaredIn}->${using}`,
-        `${declaredIn} uses ${using}, but nothing in ${files} imports through it. Remove it from the using.`,
+        `${declaredIn} names ${using}, but nothing in ${files} imports through it. Remove it.`,
         { kind: 'grant', declaredIn, layer, using, modules },
       );
     });
@@ -38,11 +38,16 @@ const declared = (context: Context): Declared[] =>
     const modules = archetype.modules.flatMap((module) => {
       const holders = childrenNamed(context, instances, module.name);
       const layer: Layer = isTestData(module) ? 'test' : 'production';
-      return module.using.map((ref) => ({ ref, declaredIn: `${archetype.name}.${module.name}`, layer, holders }));
+      return module.using.map((ref) => ({
+        ref,
+        declaredIn: `${archetype.name}.${module.name}.dependencies`,
+        layer,
+        holders,
+      }));
     });
     const kit = (archetype.testUsing ?? []).map((ref) => ({
       ref,
-      declaredIn: `${archetype.name}.testUsing`,
+      declaredIn: `${archetype.name}.test.provides`,
       layer: 'test' as const,
       holders: instances,
       kit: true as const,
@@ -55,7 +60,11 @@ const usedRefs = ({ project, verdicts }: Context): Set<RefData> => {
   for (const file of project.files) {
     const reach = verdicts.reach(file.path) ?? [];
     const targets = file.imports.map((edge) => edge.via ?? edge.to);
-    for (const grant of reach) if (grant.declared && permits(grant, targets, file.externals)) used.add(grant.declared);
+    for (const grant of reach) {
+      if (!grant.declared || !permits(grant, targets, file.externals)) continue;
+      used.add(grant.declared);
+      for (const bound of grant.via ?? []) used.add(bound);
+    }
   }
   return used;
 };

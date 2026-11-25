@@ -95,14 +95,14 @@ const help = (code: number): number => {
 const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail' | 'since-last-run'>): Promise<Resolved> => {
   const configFile = realpathSync(options.config ? resolve(options.config) : findConfig(process.cwd()));
   const root = dirname(configFile);
-  const { raw, digest } = await loadConfig(configFile);
+  const { raw, plugins, digest } = await loadConfig(configFile);
   const builtins = [...builtinRegistry.values()];
-  const { config, rules, warnings } = loadConfigData(raw, {
+  const { config, rules } = loadConfigData(raw, {
     builtins,
+    plugins,
     ruleset: options.ruleset,
     file: basename(configFile),
   });
-  for (const warning of warnings) console.error(`warp config: ${warning}`);
   return { root, config, rules, digest };
 };
 
