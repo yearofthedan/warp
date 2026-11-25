@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import { archetype, dir, files, ruleset } from '../model/archetype/builder.ts';
+import { parse } from 'yaml';
 import { loadConfigData } from '../app/load.ts';
 import { resolveModel } from '../model/archetype/resolve.ts';
 import { rulesOf } from '../model/archetype/settings.ts';
@@ -16,21 +16,29 @@ const paths = [
 ];
 
 const resolved = () => {
-  const component = archetype('component')
-    .identify({ marker: '{name}.dom.ts' })
-    .contains((m) => m.module('logic', files('*.ts')).module('dom', files('{name}.dom.ts')));
-  const root = archetype('app').contains((m) =>
-    m
-      .module('strings', dir('src/strings'))
-      .module('features', dir('lib/{area}/{name}'))
-      .module('components', dir('src/{name}'), component)
-      .module('main', files('src/main.ts')),
+  const { config } = loadConfigData(
+    parse(`
+root:
+  modules:
+    strings: { dir: src/strings }
+    features: { dir: 'lib/orders/*' }
+    components: { dir: 'src/*', archetype: component }
+    main: { files: src/main.ts }
+archetypes:
+  component:
+    marker: '{name}.dom.ts'
+    modules:
+      logic: { files: '*.ts' }
+      dom: { files: '{name}.dom.ts' }
+rulesets:
+  default:
+    extends: [warp:recommended]
+    rules: { max-lines: { max: 200 } }
+    on:
+      root.components: { max-lines: { max: 300 } }
+      component.dom: { no-cycle: off }
+`),
   );
-  const rules = ruleset()
-    .rules({ 'max-lines': { max: 200 } })
-    .on(root.modules.components, { 'max-lines': { max: 300 } })
-    .on(component.modules.dom, { 'no-cycle': false });
-  const { config } = loadConfigData({ root, rulesets: { default: rules } });
   const model = resolveModel(
     config,
     {
@@ -49,10 +57,10 @@ describe('modelText', () => {
     assert.equal(
       modelText(model),
       [
-        '(root)  root: app',
+        '(root)  root: root',
         '  loose: src/stray.ts',
-        '  src/strings  strings: app.strings, 1 file',
-        '  lib/orders/list  features: app.features {area=orders} {name=list}, 1 file',
+        '  src/strings  strings: root.strings, 1 file',
+        '  lib/orders/list  features: root.features {name=list}, 1 file',
         '  src/card  components: component {name=card}',
         '    src/card:logic  1 file',
         '    src/card:dom  1 file',
@@ -72,11 +80,11 @@ describe('modelText with rules', () => {
     assert.equal(
       modelText(model, rules),
       [
-        '(root)  root: app',
+        '(root)  root: root',
         '  rules: max-lines {"max":200}',
         '  loose: src/stray.ts',
-        '  src/strings  strings: app.strings, 1 file',
-        '  lib/orders/list  features: app.features {area=orders} {name=list}, 1 file',
+        '  src/strings  strings: root.strings, 1 file',
+        '  lib/orders/list  features: root.features {name=list}, 1 file',
         '  src/card  components: component {name=card}',
         '    rules: max-lines {"max":300}',
         '    src/card:logic  1 file',
@@ -108,7 +116,7 @@ describe('modelJson', () => {
     assert.deepEqual(modules[0], {
       id: '(root)',
       kind: 'dir',
-      archetype: 'app',
+      archetype: 'root',
       captures: {},
       children: ['src/strings', 'lib/orders/list', 'src/card', 'src/empty', '(root):main'],
       files: ['src/stray.ts'],

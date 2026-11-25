@@ -23,17 +23,20 @@ const empty = (context: Context, declaredIn: string, module: ModuleData, layer: 
   return unused(
     context.config,
     declaredIn,
-    `${declaredIn} matches no files: ${selector} finds nothing in ${where}. Fix the selector, or remove the module.`,
+    `${declaredIn} matches no files: ${selector} finds nothing in ${where}. Fix the pattern, or remove the module.`,
     { kind: 'empty', declaredIn, layer, selector },
   );
 };
 
-const quoted = (patterns: readonly string[]): string => patterns.map((pattern) => `'${pattern}'`).join(', ');
+const shown = (patterns: readonly string[]): string => {
+  const items = patterns.map((pattern) => pattern.replaceAll('{name}', '*'));
+  return items.length === 1 ? items[0]! : `[${items.join(', ')}]`;
+};
 
 const selectorText = (module: ModuleData): string => {
-  if (module.kind === 'dir') return `dir(${quoted(module.paths)})`;
-  if (module.kind === 'files') return `files(${quoted(module.patterns)})`;
+  if (module.kind === 'dir') return `dir: ${shown(module.paths)}`;
+  if (module.kind === 'files') return `files: ${shown(module.patterns)}`;
   const { locator } = module;
-  if (locator.kind === 'mirror') return `mirror('${locator.from}', '${locator.to}')`;
-  return `${locator.kind}(${quoted(locator.patterns)})`;
+  if (locator.kind === 'mirror') return `mirror: ${locator.from} to ${locator.to}`;
+  return `files: ${shown(locator.patterns)}`;
 };

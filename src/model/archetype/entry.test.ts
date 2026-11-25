@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import { all, archetype, dir, exposes, files, using } from './builder.ts';
+import { parse } from 'yaml';
 import { ConfigError } from '../configError.ts';
 import { loadConfigData } from '../../app/load.ts';
 import { grantText, verdicts } from './reach.ts';
@@ -28,27 +28,19 @@ const folders = (paths: readonly string[]): Folders => {
 };
 
 const repoWithEntry = () => {
-  const lib = archetype('lib')
-    .contains((m) =>
-      m
-        .module('core', dir('core'), exposes(all()))
-        .module('hidden', dir('hidden'))
-        .module(
-          'cli',
-          files('*.ts'),
-          using((m) => [m.core]),
-        ),
-    )
-    .entry(files('index.ts'));
-
-  const repo = archetype('repo').contains((m) =>
-    m.module('lib', dir('src'), lib).module(
-      'tooling',
-      files('scripts/*.ts'),
-      using((m) => [m.lib]),
-    ),
-  );
-
+  const yaml = `
+root:
+  modules:
+    lib: { dir: src, archetype: lib }
+    tooling: { files: 'scripts/*.ts', dependencies: [lib] }
+archetypes:
+  lib:
+    entry: index.ts
+    modules:
+      core: { dir: core, exposes: all }
+      hidden: { dir: hidden }
+      cli: { files: '*.ts', dependencies: [core] }
+`;
   const paths = [
     'src/index.ts',
     'src/cli.ts',
@@ -57,7 +49,7 @@ const repoWithEntry = () => {
     'src/hidden/b.ts',
     'scripts/build.ts',
   ];
-  const { config } = loadConfigData({ root: repo });
+  const { config } = loadConfigData(parse(yaml));
   const model = resolveModel(config, folders(paths), paths);
   const judge = verdicts(config, model);
 
@@ -85,7 +77,7 @@ describe('a module entry', () => {
         core: verdict('scripts/build.ts', 'src/core/a.ts'),
         cli: verdict('scripts/build.ts', 'src/cli.ts'),
       },
-      { entry: 'allowed: tooling uses m.lib', core: 'private to src', cli: 'private to src:cli' },
+      { entry: 'allowed: tooling uses lib', core: 'private to src', cli: 'private to src:cli' },
     );
   });
 
@@ -97,32 +89,24 @@ describe('a module entry', () => {
     );
   });
 
-  it('refuses an entry beside exposes, an entry that is not files, and an entry on a files module or test module', () => {
-    const failures = (root: unknown): string[] => {
+  it('refuses an entry beside exposes, and an entry on a files module or a test module', () => {
+    const failures = (yaml: string): string[] => {
       try {
-        loadConfigData({ root });
+        loadConfigData(parse(yaml));
       } catch (error) {
         assert.ok(error instanceof ConfigError);
         return error.message.split('\n');
       }
       assert.fail('expected a ConfigError');
     };
-    const both = archetype('both').entry(files('index.ts')).exposes(all());
-    const notFiles = archetype('notFiles').entry(dir('x') as never);
-    const onFiles = archetype('onFiles').contains((m) =>
-      m.module('x', files('x.ts'), using([]).entry(files('x.ts')) as never),
-    );
-    const onTest = archetype('onTest').contains((m) =>
-      m.testModule('x', files('x.test.ts'), using([]).entry(files('x.ts')) as never),
-    );
-    assert.deepEqual(
-      [both, notFiles, onFiles, onTest].flatMap((root) => failures(root)),
-      [
-        "both: an entry is the module's whole surface; give it .entry(...) or .exposes(...)",
-        "notFiles.entry: expected the module's entry files, files('index.ts')",
-        'onFiles.x.entry: a files module has no modules; use dir(...) for entry',
-        'onTest.x.entry: a files test module has no modules; use dir(...) for entry',
-      ],
-    );
+    assert.deepEqual(failures('root: { modules: { x: { dir: x, entry: index.ts, exposes: all } } }'), [
+      "root.x.exposes: an entry is the module's whole surface; give it entry or exposes",
+    ]);
+    assert.deepEqual(failures('root: { modules: { x: { files: x.ts, entry: x.ts } } }'), [
+      'root.x.entry: a files module has no modules; use dir for a folder of them',
+    ]);
+    assert.deepEqual(failures('root: { test: { modules: { x: { files: x.test.ts, entry: x.ts } } } }'), [
+      'root.x: unknown key entry; a module takes description, dir, files, archetype, dependencies, exposes, modules',
+    ]);
   });
 });

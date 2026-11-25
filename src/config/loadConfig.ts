@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { createRequire, registerHooks } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isAlias, isMap, isNode, isPair, isScalar, parseDocument, visit } from 'yaml';
@@ -48,25 +48,39 @@ export const parseConfig = (text: string, file: string): { raw: unknown; lines: 
   return { raw: doc.toJS() ?? {}, lines };
 };
 
+const entry = new URL(import.meta.url.endsWith('.ts') ? '../index.ts' : '../index.js', import.meta.url).href;
+const ownFiles = new URL('../../', import.meta.url).href;
+
 export const loadConfig = async (file: string): Promise<LoadedConfig> => {
   const text = readFileSync(file, 'utf8');
   const digest = createHash('sha256').update(text);
   const { raw, lines } = parseConfig(text, file);
   const declared = (raw as { plugins?: unknown }).plugins;
-  const plugins: Record<string, unknown> = {};
-  if (declared && typeof declared === 'object' && !Array.isArray(declared))
-    for (const [namespace, spec] of Object.entries(declared)) {
+  const specs = declared && typeof declared === 'object' && !Array.isArray(declared) ? Object.entries(declared) : [];
+  const hooks = registerHooks({
+    resolve: (specifier, context, nextResolve) =>
+      specifier === '@yearofthedan/warp' ? { url: entry, shortCircuit: true } : nextResolve(specifier, context),
+    load: (url, context, nextLoad) => {
+      const loaded = nextLoad(url, context);
+      if (url.startsWith('file:') && !url.startsWith(ownFiles)) digest.update(url).update(String(loaded.source ?? ''));
+      return loaded;
+    },
+  });
+  try {
+    const plugins: Record<string, unknown> = {};
+    for (const [namespace, spec] of specs) {
       if (typeof spec !== 'string') continue;
-      const path = pluginPath(file, spec);
-      digest.update(path).update(readFileSync(path));
-      const module: Record<string, unknown> = await import(pathToFileURL(path).href);
+      const module: Record<string, unknown> = await import(pathToFileURL(pluginPath(file, spec)).href);
       if (module.default === undefined)
         throw new ConfigError(
           `${file}: plugins.${namespace}: ${spec} has no default export; export the plugin as default`,
         );
       plugins[namespace] = module.default;
     }
-  return { raw, plugins, lines, digest: digest.digest('hex') };
+    return { raw, plugins, lines, digest: digest.digest('hex') };
+  } finally {
+    hooks.deregister();
+  }
 };
 
 const pluginPath = (file: string, spec: string): string => {

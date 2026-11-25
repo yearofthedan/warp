@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import { all, archetype, contains, dir, exposes, files, using } from './builder.ts';
+import { parse } from 'yaml';
 import { fixSteps, sentence } from '../../builtins/advice.ts';
 import { loadConfigData } from '../../app/load.ts';
 import { fixesFor, sitesOf } from './fixes.ts';
@@ -47,48 +47,42 @@ const paths = [
   'e2e/flow.test.ts',
 ];
 
+const yaml = `
+root:
+  modules:
+    helpers: { files: 'src/help/*.ts', exposes: { files: src/help/a.ts } }
+    domain: { dir: src/domain, exposes: { files: order.ts } }
+    ui: { dir: src/ui, archetype: ui, dependencies: [log] }
+    main: { files: src/main.ts, dependencies: [ui] }
+    log:
+      dir: src/log
+      exposes: all
+      test: { modules: { tests: { files: '*.test.ts' } } }
+  test:
+    modules:
+      e2e: { dir: e2e }
+archetypes:
+  card:
+    marker: '{name}.dom.ts'
+    requires: [log]
+    exposes: [render]
+    modules:
+      sub: { dir: '*', archetype: card, dependencies: [log] }
+      logic: { files: '*.ts', dependencies: [log], exposes: all }
+      render: { files: '{name}.dom.ts', dependencies: [logic, sub.render], exposes: all }
+    test:
+      modules:
+        pages: { files: '*.page.ts' }
+  ui:
+    requires: [log]
+    exposes: all
+    modules:
+      cards: { dir: '*', archetype: card, dependencies: [log] }
+      shared: { files: shared.ts, exposes: all }
+`;
+
 const setup = () => {
-  const card = archetype('card')
-    .identify({ marker: '{name}.dom.ts' })
-    .requires({ log: dir() })
-    .contains((c, { self, required }) =>
-      c
-        .module('sub', dir('{name}'), self)
-        .module('logic', files('*.ts'), exposes(all()).using([required.log]))
-        .module(
-          'dom',
-          files('{name}.dom.ts'),
-          exposes(all()).using((m) => [m.logic, m.sub.render]),
-        )
-        .testModule('pages', files('*.page.ts')),
-    )
-    .exposes((m) => ({ render: m.dom }));
-
-  const ui = archetype('ui')
-    .contains((c) => c.module('cards', dir('{name}'), card).module('shared', files('shared.ts'), exposes(all())))
-    .exposes(all());
-
-  const app = archetype('app')
-    .contains((c) =>
-      c
-        .module('helpers', files('src/help/*.ts'), exposes(files('src/help/a.ts')))
-        .module('domain', dir('src/domain'), exposes(files('order.ts')))
-        .module(
-          'ui',
-          dir('src/ui'),
-          ui.using((m) => [m.domain, m.helpers]),
-        )
-        .module(
-          'main',
-          files('src/main.ts'),
-          using((m) => [m.ui]),
-        )
-        .module('log', dir('src/log'), contains((d) => d.testModule('tests', files('*.test.ts'))).exposes(all()))
-        .testModule('e2e', dir('e2e')),
-    )
-    .provides((m) => ({ log: m.log }));
-
-  const { config } = loadConfigData({ root: app });
+  const { config } = loadConfigData(parse(yaml));
   return { config, model: resolveModel(config, folders(paths), paths) };
 };
 
@@ -99,80 +93,76 @@ const advice = (from: string, to: string): string => {
 };
 
 describe('fixes for an import outside reach', () => {
-  it('names the first using, nearest first, whose module can name the target', () => {
-    assert.equal(advice('src/main.ts', 'src/domain/order.ts'), 'add m.domain to the using of app.main');
+  it('names the dependencies, nearest first, whose module can name the target', () => {
+    assert.equal(advice('src/main.ts', 'src/domain/order.ts'), 'add domain to root.main.dependencies');
   });
 
-  it('opens the module that keeps the file private, then names the using to extend', () => {
+  it('opens the module that keeps the file private, then names the dependencies to extend', () => {
     assert.equal(
       advice('src/main.ts', 'src/domain/price.ts'),
-      "add 'price.ts' to what app.domain exposes and add m.domain to the using of app.main",
+      "add 'price.ts' to root.domain.exposes files and add domain to root.main.dependencies",
     );
     assert.equal(
       advice('src/main.ts', 'src/help/b.ts'),
-      "add 'src/help/b.ts' to what app.helpers exposes and add m.helpers to the using of app.main",
+      "add 'src/help/b.ts' to root.helpers.exposes files and add helpers to root.main.dependencies",
     );
   });
 
   it('opens a surface on the archetype, and names every module that shares it', () => {
-    assert.equal(advice('src/main.ts', 'src/ui/a/a.ts'), 'expose m.logic from card (all 3 card modules)');
-    assert.equal(advice('src/main.ts', 'src/ui/a/c/c.ts'), 'expose m.logic and m.sub from card (all 3 card modules)');
+    assert.equal(advice('src/main.ts', 'src/ui/a/a.ts'), 'add logic to card.exposes (all 3 card modules)');
+    assert.equal(advice('src/main.ts', 'src/ui/a/c/c.ts'), 'add logic and sub to card.exposes (all 3 card modules)');
   });
 
-  it('declares the target above the importer when nothing it uses is in between', () => {
-    assert.equal(
-      advice('src/ui/a/a.dom.ts', 'src/ui/shared.ts'),
-      'declare shared above cards in ui and add m.shared to the using of ui.cards',
-    );
+  it("requires what sits beside the archetype's modules, bound where each one is used", () => {
+    const required =
+      'add shared to card.requires, bound in the dependencies of ui.cards and card.sub and add shared to card.render.dependencies';
+    assert.equal(advice('src/ui/a/a.dom.ts', 'src/ui/shared.ts'), required);
+    assert.equal(advice('src/ui/a/c/c.dom.ts', 'src/ui/shared.ts'), required);
   });
 
-  it('requires what sits above the importer and has an ancestor provide it', () => {
-    assert.equal(
-      advice('src/ui/a/c/c.dom.ts', 'src/ui/shared.ts'),
-      'require shared in card, have ui provide m.shared as shared and add required.shared to the using of card.dom',
-    );
+  it('names a module beside a holder inside the same archetype', () => {
+    assert.equal(advice('src/log/log.test.ts', 'src/ui/shared.ts'), 'add ui to root.log.tests.dependencies');
   });
 
   it('offers no fix that would make the two modules use each other', () => {
     assert.equal(advice('src/log/log.ts', 'src/ui/shared.ts'), 'no declared path');
-    assert.equal(advice('src/log/log.test.ts', 'src/ui/shared.ts'), 'add m.ui to the testUsing of app');
   });
 
   it('passes test code up through each module above it in a test surface, never in exposes', () => {
     assert.equal(
       advice('e2e/flow.test.ts', 'src/ui/a/a.page.ts'),
-      'add m.pages to the testExposes of card (all 3 card modules) and add m.cards to the testExposes of ui',
+      'add pages to card.test.exposes (all 3 card modules) and add cards to ui.test.exposes',
     );
   });
 
-  it('finds no path between modules declared from one folder pattern, or to a module declared below', () => {
+  it('finds no path between modules declared from one folder pattern, or from a module to one that uses it', () => {
     assert.equal(advice('src/ui/a/a.ts', 'src/ui/b/b.ts'), 'no declared path');
     assert.equal(advice('src/ui/a/a.page.ts', 'src/ui/b/b.page.ts'), 'no declared path');
-    assert.equal(advice('src/domain/order.ts', 'src/main.ts'), 'no declared path');
+    assert.equal(advice('src/ui/shared.ts', 'src/main.ts'), 'no declared path');
   });
 
-  it('lists the usings that grant a file its reach, nearest first', () => {
+  it('lists the dependencies that grant a file its reach, nearest first', () => {
     const { config, model } = setup();
     const labels = (file: string) => sitesOf(config, model, file).map((site) => site.label);
-    assert.deepEqual(labels('src/ui/a/a.ts'), ['the using of card.logic', 'the using of ui.cards']);
+    assert.deepEqual(labels('src/ui/a/a.ts'), ['card.logic.dependencies']);
     assert.deepEqual(labels('src/ui/a/a.page.ts'), [
-      'the using of card.pages',
-      'the testUsing of card',
-      'the testUsing of ui',
-      'the testUsing of app',
+      'card.pages.dependencies',
+      'card.test.provides',
+      'ui.test.provides',
+      'root.test.provides',
     ]);
-    assert.deepEqual(labels('e2e/flow.test.ts'), ['the using of app.e2e', 'the testUsing of app']);
+    assert.deepEqual(labels('e2e/flow.test.ts'), ['root.e2e.dependencies', 'root.test.provides']);
     assert.deepEqual(labels('src/ui/notes.md'), []);
   });
 
-  it('adds a reference to the one using a site names', () => {
+  it('adds a reference to the one list a site names', () => {
     const { config, model } = setup();
     const ref = { kind: 'package', pattern: 'x' } as const;
     const [logic] = sitesOf(config, model, 'src/ui/a/a.ts');
     const declared = logic!.add(config, ref);
     assert.deepEqual(
       declared.archetypes.card!.modules.map((module) => module.using.at(-1)),
-      [undefined, ref, { kind: 'module', module: 'sub', surface: 'render' }, undefined],
+      [{ kind: 'required', name: 'log' }, ref, { kind: 'module', module: 'sub', surface: 'render' }, undefined],
     );
     assert.equal(declared.archetypes.ui, config.archetypes.ui);
     const [, card] = sitesOf(config, model, 'src/ui/a/a.page.ts');

@@ -64,7 +64,7 @@ archetypes:
         dependencies: [analysis, config, git, reporters, app, rules, model, builtins, 'node:*']
     test:
       modules:
-        tests: { files: '**/*.test.ts' }
+        tests: { files: '**/*.test.ts', dependencies: [npm:yaml] }
 
   rules:
     description: 'The rules API: what a rule implements, how rules are registered, and how findings compare'

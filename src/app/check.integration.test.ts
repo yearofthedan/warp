@@ -13,8 +13,8 @@ const root = join(import.meta.dirname, '../../fixtures/hexagonal-app');
 let findings: Finding[];
 
 beforeAll(async () => {
-  const { raw } = await loadConfig(join(root, 'warp.config.ts'));
-  const { config, rules } = loadConfigData(raw, { builtins: [...builtinRegistry.values()] });
+  const { raw, plugins } = await loadConfig(join(root, 'warp.yaml'));
+  const { config, rules } = loadConfigData(raw, { builtins: [...builtinRegistry.values()], plugins });
   const adapters = { analyzer: typescriptAnalyzer, foldersAt: diskFolders };
   findings = projectCheck(adapters, config, { rules, unclassifiedDocs }).check(root);
 });
@@ -36,7 +36,8 @@ describe('check', () => {
       'no-double-export:src/adapters/index.ts->src/adapters/db/orderRepo.ts',
       'no-double-export:src/app/index.ts->src/app/handle.ts',
       'unclassified:src/stray.ts',
-      'unused-declaration:grant:hexagon.adapters->app',
+      'unused-declaration:grant:root.adapters.dependencies->app',
+      'unused-declaration:surface:root.app:exposes: all',
     ]);
   });
 

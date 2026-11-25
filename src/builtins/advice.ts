@@ -22,7 +22,7 @@ const step = (model: Model, fix: Fix, refs: readonly RefData[]): string => {
     case 'using':
       return `add ${refText(fix.ref)} to ${fix.site}`;
     case 'require':
-      return `add ${fix.name} to ${fix.archetype}.requires and to ${sentence(fix.sites.map((site) => `${site}.dependencies`))}`;
+      return `add ${fix.name} to ${fix.archetype}.requires, bound in the dependencies of ${sentence(fix.sites)}`;
     case 'expose':
       return `add ${sentence(refs.map(refText))} to ${fix.archetype}.exposes${instances(model, fix.archetype)}`;
     case 'test-expose':

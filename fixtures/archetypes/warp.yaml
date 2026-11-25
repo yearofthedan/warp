@@ -1,0 +1,34 @@
+tsconfig: [tsconfig.json, tsconfig.test.json]
+
+root:
+  modules:
+    domain: { dir: src/domain, archetype: layer }
+    ui: { dir: src/ui, archetype: ui, dependencies: [domain] }
+    main: { files: src/main.ts, dependencies: [domain, ui] }
+  test:
+    provides: ['node:*']
+
+archetypes:
+  layer:
+    exposes: [api]
+    modules:
+      src: { files: '**', exposes: all }
+      api: { files: index.ts, dependencies: [src], exposes: all }
+    test:
+      modules:
+        tests: { files: '**/*.test.ts' }
+
+  component:
+    marker: '{name}.dom.ts'
+    requires: [strings]
+    exposes: [render]
+    modules:
+      subcomponent: { dir: '*', archetype: component, dependencies: [strings] }
+      logic: { files: '*.ts', exposes: all }
+      render: { files: '{name}.dom.ts', dependencies: [logic, subcomponent.render, strings], exposes: all }
+
+  ui:
+    exposes: all
+    modules:
+      strings: { dir: strings, exposes: all }
+      components: { dir: '*', archetype: component, dependencies: [strings] }

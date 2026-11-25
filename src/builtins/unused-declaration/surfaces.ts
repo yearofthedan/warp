@@ -53,7 +53,7 @@ const declared = (context: Context): Declared[] =>
     const tests = Object.entries(archetype.testExposes ?? {}).map(([name, refs]) => ({
       declaredIn: archetype.name,
       layer: 'test' as const,
-      exposes: `testExposes ${name}`,
+      exposes: `test.exposes ${name}`,
       holders: instances,
       files: (holder: ModuleView) => new Set(refs.flatMap((ref) => [...context.verdicts.files(holder, ref, 'test')])),
     }));
@@ -92,7 +92,7 @@ const surfaces = (
 };
 
 const whole = (exposes: Exclude<ExposesData, { kind: 'surfaces' }>): string => {
-  if (exposes.kind === 'all') return 'exposes(all())';
-  const selector = `files(${exposes.patterns.map((pattern) => `'${pattern}'`).join(', ')})`;
-  return exposes.entry ? `.entry(${selector})` : `exposes(${selector})`;
+  if (exposes.kind === 'all') return 'exposes: all';
+  const patterns = exposes.patterns.join(', ');
+  return exposes.entry ? `entry: ${patterns}` : `exposes: { files: [${patterns}] }`;
 };

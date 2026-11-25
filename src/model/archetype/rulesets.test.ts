@@ -1,34 +1,36 @@
 import assert from 'node:assert/strict';
-import { beforeEach, describe, it } from 'vite-plus/test';
+import { describe, it } from 'vite-plus/test';
+import { parse } from 'yaml';
 import { builtinRegistry } from '../../builtins/index.ts';
 import { ConfigError } from '../configError.ts';
-import { archetype, dir, files, ruleset } from './builder.ts';
 import { loadConfigData } from '../../app/load.ts';
 
 const builtins = [...builtinRegistry.values()];
 
-const tree = () => {
-  const leaf = archetype('leaf').contains((m) => m.module('src', files('*.ts')).module('test', files('*.test.ts')));
-  const root = archetype('root').contains((m) => m.module('leaves', dir('{name}'), leaf));
-  const base = ruleset()
-    .rules({ 'cognitive-complexity': { max: 15 }, 'module-cycle': false })
-    .on(leaf, { 'file-cohesion': { maxLines: 300 } })
-    .on(leaf.modules.test, 'off');
-  return { leaf, root, base };
-};
+const structure = `
+root:
+  modules:
+    leaves: { dir: '*', archetype: leaf }
+    core:
+      dir: core
+      modules:
+        ports: { files: ports.ts }
+archetypes:
+  leaf:
+    modules:
+      src: { files: '*.ts' }
+    test:
+      modules:
+        tests: { files: '*.test.ts' }
+`;
 
-type Tree = ReturnType<typeof tree>;
-let leaf: Tree['leaf'];
-let root: Tree['root'];
-let base: Tree['base'];
-beforeEach(() => {
-  ({ leaf, root, base } = tree());
-});
+const load = (rulesets: string | undefined, name?: string) =>
+  loadConfigData(parse(`${structure}${rulesets === undefined ? '' : `rulesets:\n${rulesets}`}`), {
+    builtins,
+    ...(name ? { ruleset: name } : {}),
+  }).config;
 
-const load = (rulesets: Record<string, unknown> | undefined, name?: string) =>
-  loadConfigData({ root, ...(rulesets ? { rulesets } : {}) }, { builtins, ...(name ? { ruleset: name } : {}) }).config;
-
-const failures = (rulesets: Record<string, unknown>, name?: string): string[] => {
+const failures = (rulesets: string, name?: string): string[] => {
   try {
     load(rulesets, name);
   } catch (error) {
@@ -38,9 +40,18 @@ const failures = (rulesets: Record<string, unknown>, name?: string): string[] =>
   assert.fail('expected a ConfigError');
 };
 
+const base = `
+  default:
+    extends: [warp:recommended]
+    rules: { cognitive-complexity: { max: 15 }, module-cycle: off }
+    on:
+      leaf: { file-cohesion: { maxLines: 300 } }
+      leaf.tests: off
+`;
+
 describe('rulesets', () => {
-  it('apply the default ruleset at each level its lines name: global, an archetype, a module', () => {
-    const config = load({ default: base });
+  it('apply the default ruleset at each level it names: the whole config, an archetype, a module', () => {
+    const config = load(base);
     assert.deepEqual(config.rules, { 'cognitive-complexity': { max: 15 }, 'module-cycle': false });
     assert.deepEqual(config.archetypes.leaf!.rules, { 'file-cohesion': { maxLines: 300 } });
     assert.deepEqual(
@@ -50,23 +61,34 @@ describe('rulesets', () => {
     assert.equal(config.archetypes.root!.rules, undefined);
   });
 
-  it('leave every level unset with no default, and apply a named one only when asked', () => {
-    const config = load({ edit: base });
-    assert.equal(config.rules, undefined);
-    assert.equal(config.archetypes.leaf!.rules, undefined);
-    assert.deepEqual(load({ edit: base }, 'edit').archetypes.leaf!.rules, { 'file-cohesion': { maxLines: 300 } });
-    assert.equal(load(undefined).rules, undefined);
+  it('run nothing unless the chosen ruleset extends warp:recommended', () => {
+    assert.equal(load(undefined).rules, 'off');
+    assert.deepEqual(load('  default: { rules: { no-cycle: on } }').rules, { '*': false, 'no-cycle': true });
   });
 
-  it('merge an extending ruleset after its base: options into options, false off, true on with the options kept', () => {
-    const edit = ruleset()
-      .extends(base)
-      .rules({ 'cognitive-complexity': { max: 12 }, 'module-cycle': true, 'no-cycle': false })
-      .rules({ 'cognitive-complexity': true, 'file-cohesion': { maxLines: 100 } })
-      .on(leaf, { 'file-cohesion': false })
-      .on(leaf.modules.test, { 'no-cycle': true })
-      .on(root.modules.leaves, 'off');
-    const config = load({ default: base, edit }, 'edit');
+  it('apply a named ruleset only when asked', () => {
+    const edit = base.replace('default:', 'edit:');
+    assert.equal(load(edit).rules, 'off');
+    assert.deepEqual(load(edit, 'edit').archetypes.leaf!.rules, { 'file-cohesion': { maxLines: 300 } });
+  });
+
+  it('merge an extending ruleset after its base: options into options, off off, on on with the options kept', () => {
+    const config = load(
+      `${base}
+  edit:
+    extends: [default]
+    rules:
+      cognitive-complexity: { max: 12 }
+      module-cycle: on
+      no-cycle: off
+      file-cohesion: { maxLines: 100 }
+    on:
+      leaf: { file-cohesion: off }
+      leaf.tests: { no-cycle: on }
+      root.leaves: off
+`,
+      'edit',
+    );
     assert.deepEqual(config.rules, {
       'cognitive-complexity': { max: 12 },
       'module-cycle': true,
@@ -78,79 +100,50 @@ describe('rulesets', () => {
     assert.equal(config.archetypes.root!.modules[0]!.rules, 'off');
   });
 
-  it('extend a base the config does not list', () => {
-    const shared = ruleset().rules({ 'no-cycle': false });
-    assert.deepEqual(load({ default: ruleset().extends(shared) }).rules, { 'no-cycle': false });
+  it('set every test module with test', () => {
+    const config = load('  default: { extends: [warp:recommended], test: { function-cohesion: off } }');
+    assert.deepEqual(config.archetypes.leaf!.modules[1]!.rules, { 'function-cohesion': false });
+    assert.equal(config.archetypes.leaf!.modules[0]!.rules, undefined);
+  });
+
+  it('name a module inside an inline module by its path', () => {
+    const config = load('  default: { extends: [warp:recommended], on: { root.core.ports: off } }');
+    assert.equal(config.archetypes['root.core']!.modules[0]!.rules, 'off');
   });
 
   it('refuse an unknown name, listing the ones there are', () => {
-    assert.throws(() => load({ default: base, edit: base }, 'pr'), /no ruleset called pr\. Rulesets: default, edit/);
+    assert.throws(() => load(`${base}  edit: {}\n`, 'pr'), /no ruleset called pr\. Rulesets: default, edit/);
     assert.throws(() => load(undefined, 'pr'), /no ruleset called pr\. The config declares none/);
   });
 
-  it('refuse what is not a ruleset, and a target that is not an archetype or one of its modules', () => {
-    const stranger = archetype('stranger').contains((m) => m.module('src', files('**')));
-    const odd = ruleset()
-      .extends({} as never)
-      .on('leaf' as never, {})
-      .on(stranger, {})
-      .on(stranger.modules.src, {});
-    assert.deepEqual(failures({ default: odd, plain: { rules: {} } }), [
-      'config.rulesets.plain: expected a ruleset, ruleset().rules(...)',
-      'rulesets.default.extends: expected a ruleset',
-      'rulesets.default.on: expected an archetype or one of its modules, such as component or component.modules.logic',
-      'rulesets.default.on(stranger): stranger is not in the config',
-      'rulesets.default.on(stranger.modules.src): stranger is not in the config',
-    ]);
-    assert.deepEqual(failures([] as never), ['config.rulesets: expected rulesets by name, { default: base, edit }']);
-  });
-
-  it('refuse a module the archetype does not have', () => {
-    const renamed = archetype('leaf').contains((m) => m.module('lib', files('*.ts')));
-    assert.deepEqual(failures({ default: ruleset().on(renamed.modules.lib, {}) }), [
-      'rulesets.default.on(leaf.modules.lib): leaf has modules src, test',
-    ]);
-  });
-
-  it('take one base', () => {
-    assert.throws(() => ruleset().extends(base).extends(base), /a ruleset extends one base/);
-  });
-});
-
-describe('module handles', () => {
-  it('are typed after the modules, under modules, so a module may take any name', () => {
-    // @ts-expect-error no module called lib
-    assert.equal(leaf.modules.lib, undefined);
-    const named = archetype('named').contains((m) => m.module('exposes', files('*.ts')));
-    assert.equal(typeof named.exposes, 'function');
-    assert.equal(typeof named.modules.exposes, 'object');
-    assert.doesNotThrow(() => loadConfigData({ root: named }));
-  });
-
-  it('nest through an inline contains, and name the module in a ruleset by the path to it', () => {
-    const app = archetype('app').contains((m) =>
-      m.module(
-        'core',
-        dir('core'),
-        archetype().contains((q) => q.module('ports', files('ports.ts'))),
-      ),
+  it('refuse what is not a ruleset, an unknown base, a loop and a target the config does not have', () => {
+    assert.deepEqual(
+      failures(`
+  default:
+    extends: [shared, edit]
+    on: { stranger: {}, leaf.lib: {} }
+    only: {}
+  edit: { extends: [default] }
+  plain: [on]
+`),
+      [
+        'rulesets.default: unknown key only; a ruleset takes extends, rules, test, on',
+        'rulesets.plain: expected a ruleset, { extends: [warp:recommended], rules: {...} }',
+        "rulesets.default.extends: 'shared' is no ruleset; extend warp:recommended, default, edit",
+        'rulesets.edit.extends: default extends edit extends default, a loop',
+        'rulesets.default.on.stranger: no archetype or module called stranger; name an archetype, or archetype.module',
+        'rulesets.default.on.leaf.lib: no archetype or module called leaf.lib; name an archetype, or archetype.module',
+      ],
     );
-    // @ts-expect-error no module called adapters inside core
-    assert.equal(app.modules.core.modules.adapters, undefined);
-    const config = loadConfigData(
-      { root: app, rulesets: { default: ruleset().on(app.modules.core.modules.ports, 'off') } },
-      { builtins },
-    ).config;
-    assert.equal(config.archetypes['app.core']!.modules[0]!.rules, 'off');
-    const stray = archetype('stray').contains((m) =>
-      m.module(
-        'core',
-        dir('core'),
-        archetype().contains((q) => q.module('ports', files('ports.ts'))),
-      ),
-    );
-    assert.deepEqual(failures({ default: ruleset().on(stray.modules.core.modules.ports, {}) }), [
-      'rulesets.default.on(stray.modules.core.modules.ports): stray.core is not in the config',
+    assert.deepEqual(failures('  - default'), [
+      'rulesets: expected rulesets by name, { default: { extends: [warp:recommended] } }',
+    ]);
+  });
+
+  it('refuse a rule warp does not have, and a setting that is not on, off or options', () => {
+    assert.deepEqual(failures('  default: { rules: { no-such-rule: on, no-cycle: 3 } }'), [
+      'rulesets.default.rules: no rule called no-such-rule',
+      'rulesets.default.rules.no-cycle: expected on, off or options',
     ]);
   });
 });
