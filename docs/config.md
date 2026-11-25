@@ -255,7 +255,7 @@ export default defineConfig({ root: site });
 src/cart/cart.ts                   src/cart:logic
 src/cart/cart.driver.ts            src/cart:driver
 src/cart/cart.test.ts              src/cart:tests              reaches logic, dom, the driver, the seeds and vitest
-src/test-helpers/order.builder.ts  src/test-helpers:builders   reaches domain, the seeds and vitest
+src/test-helpers/order.builder.ts  src/test-helpers:builders   reaches domain and vitest
 src/test-helpers/order.seed.ts     src/test-helpers:seeds      reaches the builders, domain and vitest
 e2e/checkout.dsl.ts                e2e:journeys                reaches each page's render and driver, the seeds and vitest
 e2e/checkout.test.ts               e2e                         reaches the journeys and what they reach
@@ -269,7 +269,8 @@ e2e/checkout.test.ts               e2e                         reaches the journ
 - Everything inside a test module is test code. Its `.contains()` declares `.testModule(...)` only, and an archetype
   given to a test module is given to no production module and takes no `testUsing` or `testExposes`: what it exposes
   is for tests already. Its test modules reach what their `using` names and what the test module holding them
-  reaches, and the folder's own files reach its test modules' surfaces, as in a dir module. `seeds` reaches
+  reaches, and the folder's own files reach its test modules' surfaces, as in a dir module. What it reaches from a
+  test kit leaves out its own folder, so the kit's `m.fixtures.seeds` gives `builders` nothing. `seeds` reaches
   `builders` because its `using` names it, and `checkout.test.ts` reaches `journeys` because `e2e` holds it.
 - A test module reaches its own files, every file of the module that declares it and of that module's files modules,
   what that module reaches, and what its own `using` names. `cart.test.ts` reaches `logic` and `dom` because they
