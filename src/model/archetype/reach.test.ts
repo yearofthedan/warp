@@ -354,7 +354,7 @@ describe('checkModel', () => {
     assert.equal(finding?.value, 1);
     assert.equal(
       finding?.message,
-      'src/main.ts (main of root (root)) imports types from src/ui/a/a.ts (logic of card src/ui/a), which src/ui/a keeps private (it exposes [render, page]). Import what src/ui/a exposes instead.',
+      'src/main.ts (main of root (root)) imports types from src/ui/a/a.ts (logic of card src/ui/a), which src/ui/a keeps private (it exposes render, page). Import what src/ui/a exposes instead.',
     );
     assert.deepEqual(finding?.details, {
       from: '(root):main',
