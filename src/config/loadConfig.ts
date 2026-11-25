@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire, registerHooks } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { isAlias, isMap, isNode, isPair, isScalar, parseDocument, visit } from 'yaml';
+import { type Document, isAlias, isMap, isNode, isPair, isScalar, parseDocument, visit } from 'yaml';
 import { ConfigError } from '../model/configError.ts';
 
 export const configName = 'warp.yaml';
@@ -24,24 +24,18 @@ export interface LoadedConfig {
 export const parseConfig = (text: string, file: string): { raw: unknown; lines: Map<string, number> } => {
   const doc = parseDocument(text, { version: '1.2', merge: false, uniqueKeys: true });
   const lineOf = (offset: number) => text.slice(0, offset).split('\n').length;
-  const problems = doc.errors.map(
-    (error) =>
-      `${file}:${lineOf(error.pos[0])}: ${error.message.split('\n')[0]!.replace(/ at line \d+, column \d+:?$/, '')}`,
-  );
-  visit(doc, {
-    Node: (_, node) => {
-      if (isAlias(node) || (isNode(node) && node.anchor))
-        problems.push(
-          `${file}:${lineOf(node.range?.[0] ?? 0)}: anchors and aliases are not part of warp.yaml; write it out`,
-        );
-    },
-  });
+  const problems = [
+    ...doc.errors.map((error) => `${file}:${lineOf(error.pos[0])}: ${firstLine(error.message)}`),
+    ...anchors(doc).map(
+      (offset) => `${file}:${lineOf(offset)}: anchors and aliases are not part of warp.yaml; write it out`,
+    ),
+  ];
   if (problems.length > 0) throw new ConfigError(problems.join('\n'));
   const lines = new Map<string, number>();
   const walk = (node: unknown, at: (key: string) => Place) => {
     if (!isMap(node)) return;
-    for (const pair of node.items) {
-      if (!isPair(pair) || !isScalar(pair.key)) continue;
+    for (const pair of node.items.filter(isPair)) {
+      if (!isScalar(pair.key)) continue;
       const place = at(String(pair.key.value));
       if (place.path !== undefined) lines.set(place.path, lineOf(pair.key.range?.[0] ?? 0));
       walk(pair.value, place.inside);
@@ -49,6 +43,18 @@ export const parseConfig = (text: string, file: string): { raw: unknown; lines: 
   };
   walk(doc.contents, top);
   return { raw: doc.toJS() ?? {}, lines };
+};
+
+const firstLine = (message: string): string => message.split('\n')[0]!.replace(/ at line \d+, column \d+:?$/, '');
+
+const anchors = (doc: Document): number[] => {
+  const offsets: number[] = [];
+  visit(doc, {
+    Node: (_, node) => {
+      if (isAlias(node) || (isNode(node) && node.anchor)) offsets.push(node.range?.[0] ?? 0);
+    },
+  });
+  return offsets;
 };
 
 interface Place {

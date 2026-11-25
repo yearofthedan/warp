@@ -100,7 +100,7 @@ archetypes:
     test:
       requires: [app]
       modules:
-        tests: { files: '**/*.test.ts', dependencies: [app] }
+        tests: { files: '**/*.test.ts', dependencies: [app, npm:yaml] }
 
 rulesets:
   default:

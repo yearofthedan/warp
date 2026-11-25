@@ -90,7 +90,6 @@ const moduleRefs = (config: ConfigData, module: ModuleView, tests: boolean, up =
   ];
 };
 
-// The levels a site names modules at: its holder, then each holder above it inside the same archetype.
 const levels = (config: ConfigData, holder: ModuleView): ModuleView[] => {
   const found = [holder];
   for (let at = holder; config.archetypes[at.archetype!]!.inline && at.parent; at = at.parent) found.push(at.parent);
@@ -137,7 +136,6 @@ const usingChanges = function* (search: Search, config: ConfigData): Generator<C
   }
 };
 
-// An instance beside the target names it; one inside another instance of the same archetype passes it on.
 const bindingAt = (config: ConfigData, archetype: string, at: ModuleView, name: string): RefData | undefined => {
   const holder = at.parent!;
   if (holder.children.some((child) => child.name === name)) return { kind: 'module', module: name };
@@ -149,7 +147,6 @@ const instancesOf = (config: ConfigData, model: Model, archetype: string): Modul
     (module) => module.archetype === archetype && !config.archetypes[archetype]!.inline && module.parent,
   );
 
-// Requires the target as a new input of the site's archetype, bound where every instance sits beside it.
 const requireChanges = function* (search: Search, config: ConfigData): Generator<Change[]> {
   const targets = reachable(search);
   for (const site of sitesOf(config, search.model, search.from)) {
@@ -254,14 +251,14 @@ const subtree = (module: ModuleView): ModuleView[] => [module, ...module.childre
 
 const uses = (config: ConfigData, model: Model, from: ModuleView, under: ModuleView): Set<ModuleView> => {
   const judge = verdicts(config, model);
+  const reached = subtree(from).flatMap((module) =>
+    module.files.slice(0, 1).flatMap((file) => (judge.reach(file) ?? []).flatMap((grant) => [...grant.files])),
+  );
   const found = new Set<ModuleView>();
-  for (const module of subtree(from))
-    for (const file of module.files.slice(0, 1))
-      for (const grant of judge.reach(file) ?? [])
-        for (const to of grant.files) {
-          const target = model.moduleOf(to);
-          if (target && lineage(target).includes(under)) found.add(topOf(target, under));
-        }
+  for (const to of reached) {
+    const target = model.moduleOf(to);
+    if (target && lineage(target).includes(under)) found.add(topOf(target, under));
+  }
   found.delete(from);
   return found;
 };

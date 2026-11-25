@@ -101,58 +101,92 @@ interface Options {
 const archetype = (state: State, name: string, def: Record<string, unknown>, options: Options): ArchetypeData => {
   const where = options.parent ? `${options.parent.archetype}.${name.slice(name.lastIndexOf('.') + 1)}` : name;
   if (!options.parent) checkKeys(state, where, def, options.keys);
-  const named = options.parent === undefined;
-  const test = isRecord(def.test) ? def.test : {};
-  if (def.test !== undefined && !isRecord(def.test)) state.fail(`${where}.test: expected a test block`);
-  const requires = named ? strings(state, `${where}.requires`, def.requires) : [];
-  const testRequires = named ? strings(state, `${where}.test.requires`, test.requires) : [];
-  if (!named && test.requires !== undefined)
-    state.fail(`${where}.test.requires: only an archetype requires; its modules see what it requires`);
+  const test = testBlock(state, where, def.test);
   const modules = def.modules === undefined ? {} : record(state, `${where}.modules`, def.modules);
   const testModules = test.modules === undefined ? {} : record(state, `${where}.test.modules`, test.modules);
-  const filesTests = Object.entries(modules).flatMap(([module, raw]) =>
+  const data = options.parent ? inlineData(state, name, where, test) : namedData(state, name, def, test);
+  if (options.test) data.test = true;
+  const scope: Scope = {
+    archetype: name,
+    names: new Set([...Object.keys(modules), ...Object.keys(testModules), ...filesTestNames(modules)]),
+    ...(options.parent ? { parent: options.parent } : {}),
+    inputs: options.parent?.inputs ?? new Set(data.requires),
+    testInputs: options.parent?.testInputs ?? new Set(data.testRequires),
+  };
+  state.archetypes[name] = data;
+  const build = options.test ? testModule : productionModule;
+  for (const [module, raw] of Object.entries(modules)) data.modules.push(...build(state, scope, module, raw));
+  for (const [module, raw] of Object.entries(testModules)) data.modules.push(...testModule(state, scope, module, raw));
+  const exposed = exposes(state, scope, `${where}.exposes`, def.exposes, def.entry, true, options.test === true);
+  if (exposed) data.exposes = exposed;
+  Object.assign(data, testSurfaces(state, scope, where, test, options.test === true));
+  return data;
+};
+
+const namedData = (
+  state: State,
+  name: string,
+  def: Record<string, unknown>,
+  test: Record<string, unknown>,
+): ArchetypeData => {
+  const testRequires = strings(state, `${name}.test.requires`, test.requires);
+  return {
+    name,
+    ...description(state, name, def.description),
+    requires: strings(state, `${name}.requires`, def.requires),
+    ...(testRequires.length > 0 ? { testRequires } : {}),
+    ...marker(state, name, def.marker),
+    modules: [],
+  };
+};
+
+const inlineData = (state: State, name: string, where: string, test: Record<string, unknown>): ArchetypeData => {
+  if (test.requires !== undefined)
+    state.fail(`${where}.test.requires: only an archetype requires; its modules see what it requires`);
+  return { name, inline: true, requires: [], modules: [] };
+};
+
+const testBlock = (state: State, where: string, value: unknown): Record<string, unknown> => {
+  if (value === undefined) return {};
+  if (!isRecord(value)) {
+    state.fail(`${where}.test: expected a test block`);
+    return {};
+  }
+  for (const key of Object.keys(value).filter((key) => !testKeys.includes(key)))
+    state.fail(`${where}.test: unknown key ${key}; a test block takes ${testKeys.join(', ')}`);
+  if (value.dependencies !== undefined)
+    state.fail(`${where}.test.dependencies: fills an archetype's test.requires, where a module uses one`);
+  return value;
+};
+
+const filesTestNames = (modules: Record<string, unknown>): string[] =>
+  Object.entries(modules).flatMap(([module, raw]) =>
     isRecord(raw) && raw.files !== undefined && isRecord(raw.test) && isRecord(raw.test.modules)
       ? Object.keys(raw.test.modules).map((inner) => `${module}.${inner}`)
       : [],
   );
-  const scope: Scope = {
-    archetype: name,
-    names: new Set([...Object.keys(modules), ...Object.keys(testModules), ...filesTests]),
-    ...(options.parent ? { parent: options.parent } : {}),
-    inputs: named ? new Set(requires) : options.parent!.inputs,
-    testInputs: named ? new Set(testRequires) : options.parent!.testInputs,
-  };
-  const data: ArchetypeData = {
-    name,
-    ...(named ? {} : { inline: true as const }),
-    ...(options.test ? { test: true as const } : {}),
-    ...(named ? description(state, where, def.description) : {}),
-    requires,
-    ...(testRequires.length > 0 ? { testRequires } : {}),
-    modules: [],
-  };
-  if (named && def.marker !== undefined) {
-    if (isName(def.marker)) data.identify = { marker: def.marker };
-    else state.fail(`${where}.marker: expected a file pattern, such as '{name}.dom.ts'`);
-  }
-  for (const key of Object.keys(test).filter((key) => !testKeys.includes(key)))
-    state.fail(`${where}.test: unknown key ${key}; a test block takes ${testKeys.join(', ')}`);
-  if (test.dependencies !== undefined)
-    state.fail(`${where}.test.dependencies: fills an archetype's test.requires, where a module uses one`);
-  state.archetypes[name] = data;
-  for (const [module, raw] of Object.entries(modules)) {
-    const built = options.test ? testModule(state, scope, module, raw) : productionModule(state, scope, module, raw);
-    data.modules.push(...built);
-  }
-  for (const [module, raw] of Object.entries(testModules)) data.modules.push(...testModule(state, scope, module, raw));
-  const exposed = exposes(state, scope, `${where}.exposes`, def.exposes, def.entry, true, options.test === true);
-  if (exposed) data.exposes = exposed;
+
+const marker = (state: State, where: string, value: unknown): Pick<ArchetypeData, 'identify'> => {
+  if (value === undefined) return {};
+  if (isName(value)) return { identify: { marker: value } };
+  state.fail(`${where}.marker: expected a file pattern, such as '{name}.dom.ts'`);
+  return {};
+};
+
+const testSurfaces = (
+  state: State,
+  scope: Scope,
+  where: string,
+  test: Record<string, unknown>,
+  isTest: boolean,
+): Pick<ArchetypeData, 'testExposes' | 'testUsing'> => {
+  const data: Pick<ArchetypeData, 'testExposes' | 'testUsing'> = {};
   if (test.exposes !== undefined) {
-    if (options.test) state.fail(`${where}.test.exposes: ${where} is test code; what it exposes is for tests already`);
+    if (isTest) state.fail(`${where}.test.exposes: ${where} is test code; what it exposes is for tests already`);
     else data.testExposes = surfaces(state, scope, `${where}.test.exposes`, test.exposes, true);
   }
   if (test.provides !== undefined) {
-    if (options.test) state.fail(`${where}.test.provides: ${where} is test code; give its modules dependencies`);
+    if (isTest) state.fail(`${where}.test.provides: ${where} is test code; give its modules dependencies`);
     else data.testUsing = references(state, scope, `${where}.test.provides`, test.provides, true);
   }
   return data;
@@ -306,7 +340,6 @@ const filesModule = (state: State, scope: Scope, name: string, def: Record<strin
   return [module, ...lifted];
 };
 
-// A list entry is a name or a path, kept under its last part; a map binds an entry under its key.
 const entries = (state: State, where: string, value: unknown): [string, string][] => {
   if (value === undefined) return [];
   if (Array.isArray(value)) {
@@ -365,30 +398,67 @@ const resolveName = (state: State, scope: Scope, entry: string, tests: boolean, 
   if (parts.length === 0 || parts.length > 2 || !parts.every(isName))
     return fail(state, where, entry, 'a name is a module, a module and one of its surfaces, or an input');
   const [module, surface] = parts as [string, string | undefined];
+  const name: Name = { module, ...(surface === undefined ? {} : { surface }), top, tests, where, entry };
+  const named = moduleRef(state, scope, name);
+  if (named !== undefined) return named ?? undefined;
+  return inputRef(state, scope, name) ?? outOfScope(state, scope, name);
+};
+
+interface Name {
+  module: string;
+  surface?: string;
+  top: boolean;
+  tests: boolean;
+  where: string;
+  entry: string;
+}
+
+const levelsOf = (scope: Scope): Scope[] => {
   const levels: Scope[] = [];
   for (let at: Scope | undefined = scope; at; at = at.parent) levels.push(at);
-  const searched = top ? [levels.at(-1)!] : levels;
-  const found = searched.find((level) => level.names.has(module));
-  if (found) {
-    if (found === scope && module === scope.own && !top)
-      return fail(state, where, entry, `a module reaches its own files already`);
-    const up = levels.indexOf(found);
-    const ref: RefData = {
-      kind: 'module',
-      module,
-      ...(surface === undefined ? {} : { surface }),
-      ...(up > 0 ? { up } : {}),
-    };
-    state.pending.push({ ref, where, archetype: found.archetype, tests });
-    return ref;
+  return levels;
+};
+
+const searchedFrom = (scope: Scope, top: boolean): Scope[] => {
+  const levels = levelsOf(scope);
+  return top ? [levels.at(-1)!] : levels;
+};
+
+const moduleRef = (state: State, scope: Scope, name: Name): RefData | null | undefined => {
+  const found = searchedFrom(scope, name.top).find((level) => level.names.has(name.module));
+  if (!found) return undefined;
+  if (found === scope && name.module === scope.own && !name.top) {
+    fail(state, name.where, name.entry, `a module reaches its own files already`);
+    return null;
   }
-  if (!top && (scope.inputs.has(module) || (tests && scope.testInputs.has(module)))) {
-    const ref: RefData = { kind: 'required', name: module, ...(surface === undefined ? {} : { surface }) };
-    state.pending.push({ ref, where, archetype: scope.archetype, tests });
-    return ref;
-  }
+  const up = levelsOf(scope).indexOf(found);
+  const ref: RefData = {
+    kind: 'module',
+    module: name.module,
+    ...(name.surface === undefined ? {} : { surface: name.surface }),
+    ...(up > 0 ? { up } : {}),
+  };
+  state.pending.push({ ref, where: name.where, archetype: found.archetype, tests: name.tests });
+  return ref;
+};
+
+const inputRef = (state: State, scope: Scope, name: Name): RefData | undefined => {
+  const isInput = scope.inputs.has(name.module) || (name.tests && scope.testInputs.has(name.module));
+  if (name.top || !isInput) return undefined;
+  const ref: RefData = {
+    kind: 'required',
+    name: name.module,
+    ...(name.surface === undefined ? {} : { surface: name.surface }),
+  };
+  state.pending.push({ ref, where: name.where, archetype: scope.archetype, tests: name.tests });
+  return ref;
+};
+
+const outOfScope = (state: State, scope: Scope, { module, top, tests, where, entry }: Name): undefined => {
   const inputs = top ? [] : [...scope.inputs, ...(tests ? scope.testInputs : [])];
-  const names = searched.flatMap((level) => [...level.names].filter((name) => level !== scope || name !== scope.own));
+  const names = searchedFrom(scope, top).flatMap((level) =>
+    [...level.names].filter((name) => level !== scope || name !== scope.own),
+  );
   const inScope = [...new Set([...names, ...inputs])];
   const testInput =
     !tests && scope.testInputs.has(module) ? `; ${module} is a test input, which only test code may name` : '';
