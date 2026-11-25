@@ -141,6 +141,49 @@ describe('fixes for an import outside reach', () => {
     assert.equal(advice('src/ui/shared.ts', 'src/main.ts'), 'no declared path');
   });
 
+  it('names a module beside the holder of an inline module, from the module inside it', () => {
+    const files = ['src/domain/order.ts', 'src/adapters/db/db.ts', 'src/adapters/db/db.test.ts'];
+    const { config } = loadConfigData(
+      parse(`
+root:
+  modules:
+    domain: { dir: src/domain, exposes: all }
+    adapters:
+      dir: src/adapters
+      modules:
+        db:
+          dir: db
+          test: { modules: { tests: { files: '*.test.ts' } } }
+`),
+    );
+    const model = resolveModel(config, folders(files), files);
+    const fixed = (from: string) => sentence(fixSteps(model, fixesFor(config, model, from, 'src/domain/order.ts')!));
+    assert.equal(fixed('src/adapters/db/db.ts'), 'add domain to root.adapters.db.dependencies');
+    assert.equal(fixed('src/adapters/db/db.test.ts'), 'add domain to root.adapters.db.tests.dependencies');
+  });
+
+  it('names the one surface that holds the target, ahead of the whole module', () => {
+    const files = ['src/main.ts', 'src/ui/view.tsx'];
+    const { config } = loadConfigData(
+      parse(`
+root:
+  modules:
+    ui: { dir: src/ui, archetype: ui }
+    main: { files: src/main.ts }
+archetypes:
+  ui:
+    exposes: [render]
+    modules:
+      render: { files: '*.tsx', exposes: all }
+`),
+    );
+    const model = resolveModel(config, folders(files), files);
+    assert.equal(
+      sentence(fixSteps(model, fixesFor(config, model, 'src/main.ts', 'src/ui/view.tsx')!)),
+      'add ui.render to root.main.dependencies',
+    );
+  });
+
   it('lists the dependencies that grant a file its reach, nearest first', () => {
     const { config, model } = setup();
     const labels = (file: string) => sitesOf(config, model, file).map((site) => site.label);

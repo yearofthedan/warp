@@ -210,6 +210,14 @@ describe('verdicts', () => {
     ]);
   });
 
+  it('refuses a file of a folder module above the importer, and describes and resolves an input', () => {
+    assert.equal(verdict('src/ui/a/a.ts', 'src/ui/notes.md'), 'above');
+    const input = { kind: 'required', name: 'strings' } as const;
+    assert.equal(judge().describe(module('src/ui/a'), input), 'strings (input of src/ui/a = strings in src/ui)');
+    assert.deepEqual([...judge().files(module('src/ui/a'), input)], ['src/ui/strings/en.ts']);
+    assert.deepEqual([...judge().files(module('src/ui/a'), { kind: 'package', pattern: 'react' })], []);
+  });
+
   it('gives each surface of a module, or all of them', () => {
     assert.deepEqual([...judge().surface(module('src/ui/a'), 'page')], ['src/ui/a/a.page.ts']);
     assert.deepEqual([...judge().surface(module('src/ui/a'))].sort(), ['src/ui/a/a.dom.ts', 'src/ui/a/a.page.ts']);
@@ -673,5 +681,115 @@ describe('no-double-export', () => {
     const files = [facts('src/ui/a/a.page.ts', [reExport('src/ui/a/a.page.ts', 'src/ui/a/a.dom.ts')])];
     assert.equal(check(files, { 'no-double-export': 'https://docs' })[0]?.docs, 'https://docs');
     assert.ok(!('docs' in check(files)[0]!));
+  });
+});
+
+describe('inputs and test code', () => {
+  const files = [
+    'src/log/log.ts',
+    'src/kit/kit.ts',
+    'src/ui/a/a.dom.ts',
+    'src/ui/a/a.ts',
+    'src/ui/a/a.test.ts',
+    'src/ui/a/a.driver.ts',
+    'src/lib/a.ts',
+    'src/lib/a.test.ts',
+    'src/lib/b.ts',
+    'e2e/flow.test.ts',
+  ];
+  const yaml = `
+root:
+  modules:
+    log: { dir: src/log, exposes: all }
+    ui: { dir: src/ui, archetype: ui, dependencies: { logger: log, react: npm:react }, test: { dependencies: [kit] } }
+    lib:
+      dir: src/lib
+      modules:
+        a: { files: a.ts, dependencies: [b], test: { modules: { spec: { files: a.test.ts } } } }
+        b: { files: b.ts, exposes: all }
+  test:
+    provides: [npm:vitest]
+    modules:
+      kit: { dir: src/kit }
+      e2e: { dir: e2e, dependencies: [ui] }
+archetypes:
+  ui:
+    requires: [logger, react]
+    exposes: all
+    test: { requires: [kit], exposes: [cards.driver] }
+    modules:
+      cards: { dir: '*', archetype: card, dependencies: [logger, react], test: { dependencies: [kit] } }
+  card:
+    marker: '{name}.dom.ts'
+    requires: [logger, react]
+    exposes: [render]
+    modules:
+      logic: { files: '*.ts', dependencies: [logger], exposes: all }
+      render: { files: '{name}.dom.ts', dependencies: [logic, react], exposes: all }
+    test:
+      requires: [kit]
+      exposes: [driver]
+      modules:
+        driver: { files: '*.driver.ts' }
+        spec: { files: '*.test.ts', dependencies: [driver, kit] }
+`;
+  const setupInputs = () => {
+    const loaded = load(yaml);
+    const resolved = resolveModel(loaded, folders(files), files);
+    return { judged: verdicts(loaded, resolved), at: (id: string) => resolved.modules.find((x) => x.id === id)! };
+  };
+  const said = (from: string, to: string): string => {
+    const found = setupInputs().judged.verdict(from, to)!;
+    return found.allowed ? grantText(found.grant) : found.reason;
+  };
+
+  it('follows an input through each archetype that passes it on, to what the use binds', () => {
+    const { judged } = setupInputs();
+    const found = judged.verdict('src/ui/a/a.ts', 'src/log/log.ts');
+    assert.ok(found?.allowed);
+    assert.equal(grantText(found.grant), 'logic uses logger (input of src/ui/a = log in (root))');
+    assert.deepEqual(found.grant.via, [
+      { kind: 'required', name: 'logger' },
+      { kind: 'module', module: 'log' },
+    ]);
+    assert.deepEqual(
+      judged
+        .reach('src/ui/a/a.dom.ts')!
+        .map((grant) => [grantText(grant), [...grant.files], grant.package, grant.via?.length]),
+      [
+        ['own module src/ui/a:render', ['src/ui/a/a.dom.ts'], undefined, undefined],
+        ['render uses logic', ['src/ui/a/a.ts'], undefined, undefined],
+        ['render uses react (input of src/ui/a = npm:react in (root))', [], 'react', 2],
+      ],
+    );
+  });
+
+  it('binds a test input for test code alone, and lets only test code reach a test surface', () => {
+    assert.equal(said('src/ui/a/a.test.ts', 'src/kit/kit.ts'), 'spec uses kit (input of src/ui/a = kit in (root))');
+    assert.equal(said('src/ui/a/a.ts', 'src/kit/kit.ts'), 'test');
+    assert.equal(said('e2e/flow.test.ts', 'src/ui/a/a.driver.ts'), '(root) uses src/ui');
+    assert.equal(said('src/log/log.ts', 'src/ui/a/a.driver.ts'), 'test');
+    const { judged, at } = setupInputs();
+    assert.deepEqual([...judged.surface(at('src/ui'), 'driver', 'test')], ['src/ui/a/a.driver.ts']);
+    assert.deepEqual(
+      [...judged.surface(at('src/ui'), undefined, 'test')],
+      ['src/ui/a/a.dom.ts', 'src/ui/a/a.driver.ts'],
+    );
+    assert.deepEqual([...judged.surface(at('src/ui'))], ['src/ui/a/a.dom.ts']);
+    assert.deepEqual([...judged.surface(at('src/ui/a'), 'render', 'test')], ['src/ui/a/a.dom.ts']);
+    assert.deepEqual([...judged.surface(at('src/ui/a'), 'driver')], []);
+  });
+
+  it("gives a files module's tests that module, what it reaches and the test kits above, and nothing beside it", () => {
+    assert.equal(said('src/lib/a.test.ts', 'src/lib/a.ts'), 'src/lib:a.spec uses src/lib:a');
+    assert.equal(said('src/lib/a.test.ts', 'src/lib/b.ts'), 'a uses b');
+    assert.equal(said('src/lib/a.test.ts', 'src/log/log.ts'), 'not-in-dependencies');
+    assert.equal(said('src/lib/b.ts', 'src/lib/a.test.ts'), 'test');
+    assert.deepEqual(setupInputs().judged.reach('src/lib/a.test.ts')!.map(grantText), [
+      'own module src/lib:a.spec',
+      'src/lib:a.spec uses src/lib:a',
+      'a uses b',
+      'root.test.provides uses npm:vitest',
+    ]);
   });
 });
