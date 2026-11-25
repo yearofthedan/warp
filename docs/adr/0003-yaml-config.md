@@ -1,6 +1,6 @@
 # 3. The config is a YAML file
 
-Status: Proposed, 2026-11-25
+Status: Accepted, 2026-11-25
 
 ## Context
 
