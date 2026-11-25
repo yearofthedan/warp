@@ -4,7 +4,7 @@ import type { Verdicts } from '../model/archetype/reach.ts';
 import { show } from '../model/archetype/references.ts';
 import type { Model } from '../model/archetype/resolve.ts';
 
-export const refText = (ref: RefData): string => (ref.kind === 'module' ? `m.${show(ref)}` : show(ref));
+export const refText = (ref: RefData): string => show(ref);
 
 export const sentence = (parts: readonly string[]): string =>
   parts.length < 2 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
@@ -21,16 +21,14 @@ const step = (model: Model, fix: Fix, refs: readonly RefData[]): string => {
   switch (fix.kind) {
     case 'using':
       return `add ${refText(fix.ref)} to ${fix.site}`;
-    case 'declare':
-      return `declare ${fix.module} above ${fix.above} in ${fix.archetype}`;
     case 'require':
-      return `require ${fix.name} in ${fix.archetype}, have ${fix.provider} provide m.${fix.module} as ${fix.name}`;
+      return `add ${fix.name} to ${fix.archetype}.requires and to ${sentence(fix.sites.map((site) => `${site}.dependencies`))}`;
     case 'expose':
-      return `expose ${sentence(refs.map(refText))} from ${fix.archetype}${instances(model, fix.archetype)}`;
+      return `add ${sentence(refs.map(refText))} to ${fix.archetype}.exposes${instances(model, fix.archetype)}`;
     case 'test-expose':
-      return `add ${sentence(refs.map(refText))} to the testExposes of ${fix.archetype}${instances(model, fix.archetype)}`;
+      return `add ${sentence(refs.map(refText))} to ${fix.archetype}.test.exposes${instances(model, fix.archetype)}`;
     case 'expose-file':
-      return `add '${fix.pattern}' to what ${fix.archetype} exposes`;
+      return `add '${fix.pattern}' to ${fix.archetype}.exposes files`;
   }
 };
 

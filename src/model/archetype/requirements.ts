@@ -1,105 +1,96 @@
-import { recordedAs } from './builder.ts';
-import type { ArchetypeData, ModuleData, RequirementData } from './data.ts';
-import type { Draft } from './draft.ts';
+import type { ArchetypeData, DirModuleData, RefData } from './data.ts';
+import type { PendingRef } from './language.ts';
+import { exposedProblem, show } from './references.ts';
 import type { Fail } from './shared.ts';
 
-interface Provision {
-  archetype: string;
-  name: string;
-  module: ModuleData;
-  used: boolean;
+interface Site {
+  holder: ArchetypeData;
+  module: DirModuleData;
 }
 
-interface Walk {
-  archetypes: Record<string, ArchetypeData>;
-  provisions: Provision[];
-  fail: Fail;
-  missing: Set<string>;
-  visited: Set<string>;
-}
+const namedOf = (archetype: string): string => archetype.split('.')[0]!;
 
-const usedRequirements = (drafts: readonly Draft[]): Set<unknown> =>
-  new Set(
-    drafts
-      .flatMap((draft) => [...draft.modules.flatMap((module) => module.using), ...draft.testUsing])
-      .map((value) => recordedAs(value, 'ref'))
-      .map((ref) => ref?.kind === 'required' && ref.name),
+const sitesOf = (archetypes: Record<string, ArchetypeData>): Site[] =>
+  Object.values(archetypes).flatMap((holder) =>
+    holder.modules
+      .filter((module): module is DirModuleData => module.kind === 'dir' && !archetypes[module.archetype]?.inline)
+      .map((module) => ({ holder, module })),
   );
 
-export const checkUnused = (drafts: readonly Draft[], fail: Fail) => {
-  for (const draft of drafts.filter((candidate) => !candidate.data.inline)) {
-    const inline = drafts.filter((candidate) => candidate.data.name.startsWith(`${draft.data.name}.`));
-    const used = usedRequirements([draft, ...inline]);
-    for (const name of Object.keys(draft.data.requires)) {
-      if (!used.has(name)) fail(`${draft.data.name} requires ${name}, which no module lists in using`);
-    }
+// An archetype given only to test modules holds test code.
+export const markTests = (archetypes: Record<string, ArchetypeData>, fail: Fail) => {
+  const sites = sitesOf(archetypes);
+  for (const archetype of Object.values(archetypes).filter((candidate) => !candidate.inline)) {
+    const using = sites.filter((site) => site.module.archetype === archetype.name);
+    const tests = using.filter((site) => site.module.test).length;
+    if (tests === 0) continue;
+    if (tests < using.length)
+      fail(`${archetype.name} is used by production and test modules; an archetype holds one or the other`);
+    else archetype.test = true;
   }
+  for (const archetype of Object.values(archetypes))
+    if (archetype.inline && archetypes[namedOf(archetype.name)]?.test) archetype.test = true;
 };
 
-export const checkRequirements = (archetypes: Record<string, ArchetypeData>, root: string, fail: Fail): string[] => {
-  const provisions = Object.values(archetypes).flatMap((archetype) =>
-    Object.entries(archetype.provides).map(([name, ref]) => ({
-      archetype: archetype.name,
-      name,
-      module: archetype.modules.find((module) => module.name === ref.module)!,
-      used: false,
-    })),
-  );
-  walk({ archetypes, provisions, fail, missing: new Set(), visited: new Set() }, archetypes[root]!, '', new Map());
-  return provisions
-    .filter((p) => !p.used)
-    .map((p) => `${p.archetype} provides ${p.name}, which nothing below requires`);
-};
-
-const walk = (state: Walk, archetype: ArchetypeData, path: string, above: ReadonlyMap<string, Provision>) => {
-  const at = path === '' ? archetype.name : `${path} (${archetype.name})`;
-  if (!archetype.inline) {
-    for (const [name, requirement] of Object.entries(archetype.requires)) {
-      answer(state, at, archetype.name, name, requirement, above.get(name));
-    }
-  }
-  const below = new Map(above);
-  for (const provision of state.provisions.filter((p) => p.archetype === archetype.name))
-    below.set(provision.name, provision);
-  const signature = JSON.stringify([...below].map(([name, provision]) => [name, provision.archetype]));
-  for (const module of archetype.modules) {
-    if (module.kind !== 'dir' || state.visited.has(`${module.archetype}|${signature}`)) continue;
-    state.visited.add(`${module.archetype}|${signature}`);
-    walk(state, state.archetypes[module.archetype]!, path === '' ? module.name : `${path}.${module.name}`, below);
-  }
-};
-
-const answer = (
-  state: Walk,
-  at: string,
-  archetype: string,
-  name: string,
-  requirement: RequirementData,
-  provider: Provision | undefined,
-) => {
-  if (!provider) {
-    if (!state.missing.has(`${archetype}.${name}`))
-      state.fail(`${at} requires ${name}, which nothing above it provides`);
-    state.missing.add(`${archetype}.${name}`);
-    return;
-  }
-  provider.used = true;
-  if (!fits(requirement, provider.module)) {
-    state.fail(
-      `${at} requires ${name} as ${requirementText(requirement)}; ${provider.archetype} provides ${name} from ${provider.module.name}, ${moduleText(state, provider.module)}`,
+export const checkInputs = (archetypes: Record<string, ArchetypeData>, pending: readonly PendingRef[], fail: Fail) => {
+  const uses = pending.filter((entry) => entry.ref.kind === 'required');
+  for (const archetype of Object.values(archetypes).filter((candidate) => !candidate.inline)) {
+    const used = new Set(
+      uses
+        .filter((entry) => namedOf(entry.archetype) === archetype.name)
+        .map((entry) => (entry.ref as { name: string }).name),
     );
+    for (const name of [...archetype.requires, ...(archetype.testRequires ?? [])].filter((input) => !used.has(input)))
+      fail(`${archetype.name} requires ${name}, which none of its modules names in dependencies`);
+  }
+  for (const { holder, module } of sitesOf(archetypes)) {
+    const archetype = archetypes[module.archetype];
+    if (!archetype) continue;
+    const where = `${holder.name}.${module.name}`;
+    for (const name of archetype.requires.filter((input) => !module.inputs?.[input]))
+      fail(`${where} uses ${archetype.name}, which requires ${name}; name it in ${where}.dependencies`);
+    for (const name of (archetype.testRequires ?? []).filter((input) => !module.testInputs?.[input]))
+      fail(`${where} uses ${archetype.name}, whose tests require ${name}; name it in ${where}.test.dependencies`);
+    const bound = { ...module.inputs, ...module.testInputs };
+    for (const entry of uses.filter((use) => namedOf(use.archetype) === archetype.name)) {
+      const ref = entry.ref as { name: string; surface?: string };
+      const binding = bound[ref.name];
+      if (!binding || ref.surface === undefined) continue;
+      const problem = surfaceProblem(archetypes, holder, binding, ref.surface, entry.tests);
+      if (problem)
+        fail(
+          `${entry.where}: '${ref.name}.${ref.surface}': ${where} binds ${ref.name} to ${show(binding)}; ${problem}`,
+        );
+    }
   }
 };
 
-const moduleText = (state: Walk, module: ModuleData): string => {
-  if (module.kind !== 'dir') return `a ${module.kind} module`;
-  return state.archetypes[module.archetype]!.inline ? 'a dir module' : `modules of ${module.archetype}`;
+const archetypeAt = (archetypes: Record<string, ArchetypeData>, holder: ArchetypeData, up: number): ArchetypeData =>
+  archetypes[
+    holder.name
+      .split('.')
+      .slice(0, Math.max(holder.name.split('.').length - up, 1))
+      .join('.')
+  ]!;
+
+const surfaceProblem = (
+  archetypes: Record<string, ArchetypeData>,
+  holder: ArchetypeData,
+  binding: RefData,
+  surface: string,
+  tests: boolean,
+): string | undefined => {
+  if (binding.kind === 'package') return `a package has no surfaces`;
+  if (binding.surface !== undefined) return `${show(binding)} is a surface already`;
+  if (binding.kind === 'required') return undefined;
+  const at = archetypeAt(archetypes, holder, binding.up ?? 0);
+  const module = at.modules.find((candidate) => candidate.name === binding.module);
+  if (module?.kind !== 'dir') return `${binding.module} has no named surfaces`;
+  const inside = archetypes[module.archetype]!;
+  return exposedProblem(
+    binding.module,
+    { exposes: inside.exposes, testExposes: Object.keys(inside.testExposes ?? {}) },
+    surface,
+    tests,
+  );
 };
-
-const requirementText = (requirement: RequirementData): string =>
-  requirement.kind === 'archetype' ? `modules of ${requirement.archetype}` : `${requirement.kind}()`;
-
-const fits = (requirement: RequirementData, module: ModuleData): boolean =>
-  requirement.kind === 'archetype'
-    ? module.kind === 'dir' && module.archetype === requirement.archetype
-    : module.kind === requirement.kind;

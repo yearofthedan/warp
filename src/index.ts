@@ -1,30 +1,3 @@
-export {
-  all,
-  archetype,
-  contains,
-  defineConfig,
-  dir,
-  exposes,
-  files,
-  mirror,
-  pkg,
-  ruleset,
-  using,
-  type ModuleHandle,
-  type Selector,
-  type Ruleset,
-  type RuleSettings,
-  type WarpConfig,
-  type All,
-  type Archetype,
-  type Exposed,
-  type Using,
-  type TestUsing,
-  type UsingContext,
-  type Package,
-  type Reference,
-  type Shape,
-} from './model/archetype/builder.ts';
 export { loadConfigData, type LoadedConfigData } from './app/load.ts';
 export type * from './model/archetype/data.ts';
 export type {

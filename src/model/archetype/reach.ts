@@ -1,4 +1,4 @@
-import type { ConfigData, ExposesData, ModuleRefData, RefData } from './data.ts';
+import type { ConfigData, DirModuleData, ExposesData, RefData } from './data.ts';
 import { show } from './references.ts';
 import { declarationOf, fillPattern, globRegex, type Model, type ModuleView } from './resolve.ts';
 
@@ -8,6 +8,7 @@ export interface Grant {
   files: ReadonlySet<string>;
   package?: string;
   declared?: RefData;
+  via?: readonly RefData[];
 }
 
 export const grantText = ({ owner, ref }: Grant): string => (ref === undefined ? owner : `${owner} uses ${ref}`);
@@ -117,45 +118,72 @@ const exposed = (state: State, module: ModuleView, name: string | undefined): Re
   return new Set([...all].filter((file) => patterns.some((pattern) => globRegex(pattern).test(inside(file)))));
 };
 
-const provider = (
-  state: State,
-  module: ModuleView,
-  name: string,
-): { at: ModuleView; ref: ModuleRefData } | undefined => {
-  for (const at of ancestors(module)) {
-    const ref = state.config.archetypes[at.archetype!]!.provides[name];
-    if (ref) return { at, ref };
+// The module that binds an archetype's inputs: the nearest holder, from `holder` up, whose archetype is named.
+export const instanceOf = (state: { config: ConfigData }, holder: ModuleView): ModuleView => {
+  let at = holder;
+  while (state.config.archetypes[at.archetype!]!.inline && at.parent) at = at.parent;
+  return at;
+};
+
+const bindingOf = (state: State, holder: ModuleView, name: string, view: View): RefData | undefined => {
+  const instance = instanceOf(state, holder);
+  const declared = declarationOf(state.config, instance) as DirModuleData | undefined;
+  return (view === 'test' ? declared?.testInputs?.[name] : undefined) ?? declared?.inputs?.[name];
+};
+
+interface Concrete {
+  holder: ModuleView;
+  ref: RefData;
+  via: RefData[];
+}
+
+// Follows a required ref to what its instance binds, through every archetype that passes it on.
+const concrete = (state: State, holder: ModuleView, ref: RefData, view: View): Concrete | undefined => {
+  if (ref.kind === 'module') {
+    let at: ModuleView | undefined = holder;
+    for (let up = ref.up ?? 0; up > 0 && at; up -= 1) at = at.parent;
+    return at && { holder: at, ref: { ...ref, up: 0 }, via: [] };
   }
-  return undefined;
+  if (ref.kind === 'package') return { holder, ref, via: [] };
+  const bound = bindingOf(state, holder, ref.name, view);
+  const instance = instanceOf(state, holder);
+  if (!bound || !instance.parent) return undefined;
+  const surface = ref.surface ?? (bound.kind === 'package' ? undefined : bound.surface);
+  const found = concrete(state, instance.parent, bound.kind === 'package' ? bound : { ...bound, surface }, view);
+  return found && { ...found, via: [bound, ...found.via] };
 };
 
 const resolve = (state: State, module: ModuleView, ref: RefData, view: View): ReadonlySet<string> => {
-  if (ref.kind === 'package') return none;
-  if (ref.kind === 'required') {
-    const found = provider(state, module, ref.name)!;
-    return resolve(state, found.at, { ...found.ref, surface: ref.surface }, view);
-  }
+  const found = concrete(state, module, ref, view);
+  if (!found || found.ref.kind !== 'module') return none;
+  const { holder, ref: target } = found;
   return union(
-    module.children
-      .filter((child) => child.name === ref.module)
-      .map((child) => surface(state, child, ref.surface, view)),
+    holder.children
+      .filter((child) => child.name === target.module)
+      .map((child) => surface(state, child, target.surface, view)),
   );
 };
 
-const describe = (state: State, module: ModuleView, ref: RefData): string => {
-  if (ref.kind === 'module') return `m.${show(ref)}`;
-  if (ref.kind === 'package') return show(ref);
-  return `${show(ref)} (from ${provider(state, module, ref.name)!.at.id})`;
+const describe = (state: State, module: ModuleView, ref: RefData, view: View = 'production'): string => {
+  if (ref.kind !== 'required') return show(ref);
+  const instance = instanceOf(state, module);
+  const found = concrete(state, module, ref, view);
+  const bound = found ? ` = ${show(found.ref)} in ${found.holder.id}` : '';
+  return `${show(ref)} (input of ${instance.id}${bound})`;
 };
 
 const grants = (state: State, holder: ModuleView, owner: string, refs: readonly RefData[], view: View): Grant[] =>
-  refs.map((ref) => ({
-    owner,
-    ref: describe(state, holder, ref),
-    files: resolve(state, holder, ref, view),
-    ...(ref.kind === 'package' ? { package: ref.pattern } : {}),
-    declared: ref,
-  }));
+  refs.map((ref) => {
+    const found = concrete(state, holder, ref, view);
+    return {
+      owner,
+      ref: describe(state, holder, ref, view),
+      files: resolve(state, holder, ref, view),
+      ...(found?.ref.kind === 'package' ? { package: found.ref.pattern } : {}),
+      declared: ref,
+      ...(found && found.via.length > 0 ? { via: found.via } : {}),
+    };
+  });
 
 const reach = (state: State, file: string): readonly Grant[] | undefined => {
   const module = state.model.moduleOf(file);
@@ -174,7 +202,6 @@ const productionReach = (state: State, module: ModuleView): Grant[] => [
     .filter((child) => !child.test)
     .map((child) => ({ owner: module.id, ref: child.id, files: surface(state, child, undefined, 'production') })),
   ...using(state, module, 'production'),
-  ...(module.kind === 'files' ? using(state, module.parent!, 'production') : []),
 ];
 
 const testReach = (state: State, module: ModuleView): Grant[] => [
@@ -190,6 +217,8 @@ const testReach = (state: State, module: ModuleView): Grant[] => [
 const inherited = (state: State, module: ModuleView): Grant[] => {
   const holder = module.parent!;
   if (holder.test) return [...using(state, module, 'test'), ...inherited(state, holder)];
+  const declared = declarationOf(state.config, module);
+  if (declared?.kind === 'test' && declared.of !== undefined) return filesTests(state, module, declared.of);
   const own = holder.children.filter((child) => child.kind === 'files');
   const inside = new Set(subtree(module).flatMap((at) => at.files));
   return [
@@ -206,6 +235,18 @@ const inherited = (state: State, module: ModuleView): Grant[] => {
     ...using(state, module, 'test'),
     ...[holder, ...ancestors(holder)].flatMap((at) => testKit(state, at)),
   ].map((grant) => ({ ...grant, files: new Set([...grant.files].filter((file) => !inside.has(file))) }));
+};
+
+// A files module's test modules see that module, what it reaches, and the test kits above.
+const filesTests = (state: State, module: ModuleView, of: string): Grant[] => {
+  const holder = module.parent!;
+  const tested = holder.children.filter((child) => child.kind === 'files' && child.name === of);
+  return [
+    { owner: module.id, ref: `${holder.id}:${of}`, files: union(tested.map((child) => new Set(child.files))) },
+    ...tested.flatMap((child) => using(state, child, 'test')),
+    ...using(state, module, 'test'),
+    ...[holder, ...ancestors(holder)].flatMap((at) => testKit(state, at)),
+  ];
 };
 
 const subtree = (module: ModuleView): ModuleView[] => [module, ...module.children.flatMap(subtree)];

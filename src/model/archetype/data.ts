@@ -2,6 +2,7 @@ export interface ModuleRefData {
   kind: 'module';
   module: string;
   surface?: string;
+  up?: number;
 }
 
 export interface RequiredRefData {
@@ -43,6 +44,8 @@ export interface DirModuleData {
   archetype: string;
   test?: true;
   using: RefData[];
+  inputs?: Record<string, RefData>;
+  testInputs?: Record<string, RefData>;
   rules?: RuleSettingsData;
   description?: string;
 }
@@ -51,6 +54,7 @@ export interface TestModuleData {
   kind: 'test';
   name: string;
   locator: LocatorData;
+  of?: string;
   using: RefData[];
   exposes?: Exclude<ExposesData, { kind: 'surfaces' }>;
   rules?: RuleSettingsData;
@@ -62,11 +66,9 @@ export type ModuleData = FilesModuleData | DirModuleData | TestModuleData;
 export const isTestData = (module: ModuleData): boolean =>
   module.kind === 'test' || (module.kind === 'dir' && module.test === true);
 
-export type RequirementData = { kind: 'archetype'; archetype: string } | { kind: 'dir' } | { kind: 'files' };
-
-export type IdentifyData =
-  | { marker: string }
-  | { match: (dir: string, chain: readonly unknown[]) => false | Record<string, string> };
+export interface IdentifyData {
+  marker: string;
+}
 
 export interface ArchetypeData {
   name: string;
@@ -74,11 +76,11 @@ export interface ArchetypeData {
   test?: true;
   description?: string;
   identify?: IdentifyData;
-  requires: Record<string, RequirementData>;
+  requires: string[];
+  testRequires?: string[];
   modules: ModuleData[];
   exposes?: ExposesData;
   testExposes?: Record<string, RefData[]>;
-  provides: Record<string, ModuleRefData>;
   testUsing?: RefData[];
   rules?: RuleSettingsData;
 }
