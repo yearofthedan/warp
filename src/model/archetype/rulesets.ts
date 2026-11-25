@@ -59,42 +59,65 @@ const rulesetsOf = (value: unknown, fail: Fail): Map<string, Record<string, unkn
   return named;
 };
 
+interface Layers {
+  layers: Layer[];
+  recommends: boolean;
+}
+
 const layersOf = (
   config: ConfigData,
   name: string,
   named: Map<string, Record<string, unknown>>,
   fail: Fail,
   seen: readonly string[] = [],
-): { layers: Layer[]; recommends: boolean } => {
+): Layers => {
   const ruleset = named.get(name)!;
   const at = `rulesets.${name}`;
-  const layers: Layer[] = [];
-  let recommends = false;
-  const bases = ruleset.extends === undefined ? [] : [ruleset.extends].flat();
+  const inherited = basesOf(config, name, named, fail, seen);
+  const layers = [...inherited.layers];
+  if (ruleset.rules !== undefined) layers.push({ settings: ruleset.rules, at: `${at}.rules` });
+  if (ruleset.test !== undefined)
+    for (const target of testTargets(config)) layers.push({ target, settings: ruleset.test, at: `${at}.test` });
+  if (ruleset.on !== undefined) layers.push(...onLayers(config, at, ruleset.on, fail));
+  return { layers, recommends: inherited.recommends };
+};
+
+const basesOf = (
+  config: ConfigData,
+  name: string,
+  named: Map<string, Record<string, unknown>>,
+  fail: Fail,
+  seen: readonly string[],
+): Layers => {
+  const at = `rulesets.${name}`;
+  const declared = named.get(name)!.extends;
+  const bases = declared === undefined ? [] : [declared].flat();
+  const found: Layers = { layers: [], recommends: false };
   for (const base of bases) {
-    if (base === recommended) recommends = true;
+    if (base === recommended) found.recommends = true;
     else if (typeof base !== 'string' || !named.has(base))
       fail(`${at}.extends: '${String(base)}' is no ruleset; extend ${list([recommended, ...named.keys()], 'nothing')}`);
     else if (seen.includes(base)) fail(`${at}.extends: ${[...seen, name, base].join(' extends ')}, a loop`);
     else {
       const extended = layersOf(config, base, named, fail, [...seen, name]);
-      layers.push(...extended.layers);
-      recommends ||= extended.recommends;
+      found.layers.push(...extended.layers);
+      found.recommends ||= extended.recommends;
     }
   }
-  if (ruleset.rules !== undefined) layers.push({ settings: ruleset.rules, at: `${at}.rules` });
-  if (ruleset.test !== undefined)
-    for (const target of testTargets(config)) layers.push({ target, settings: ruleset.test, at: `${at}.test` });
-  if (ruleset.on !== undefined) {
-    if (!isRecord(ruleset.on)) fail(`${at}.on: expected settings by archetype or module, { app.adapters: {...} }`);
-    else
-      for (const [path, settings] of Object.entries(ruleset.on)) {
-        const target = targetOf(config, path);
-        if (target) layers.push({ target, settings, at: `${at}.on.${path}` });
-        else fail(`${at}.on.${path}: no archetype or module called ${path}; name an archetype, or archetype.module`);
-      }
+  return found;
+};
+
+const onLayers = (config: ConfigData, at: string, on: unknown, fail: Fail): Layer[] => {
+  if (!isRecord(on)) {
+    fail(`${at}.on: expected settings by archetype or module, { app.adapters: {...} }`);
+    return [];
   }
-  return { layers, recommends };
+  return Object.entries(on).flatMap(([path, settings]) => {
+    const target = targetOf(config, path);
+    if (target) return [{ target, settings, at: `${at}.on.${path}` }];
+    fail(`${at}.on.${path}: no archetype or module called ${path}; name an archetype, or archetype.module`);
+    return [];
+  });
 };
 
 const testTargets = (config: ConfigData): Target[] =>

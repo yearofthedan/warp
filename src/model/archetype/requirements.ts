@@ -17,7 +17,6 @@ const sitesOf = (archetypes: Record<string, ArchetypeData>): Site[] =>
       .map((module) => ({ holder, module })),
   );
 
-// An archetype given only to test modules holds test code.
 export const markTests = (archetypes: Record<string, ArchetypeData>, fail: Fail) => {
   const sites = sitesOf(archetypes);
   for (const archetype of Object.values(archetypes).filter((candidate) => !candidate.inline)) {
@@ -34,34 +33,38 @@ export const markTests = (archetypes: Record<string, ArchetypeData>, fail: Fail)
 
 export const checkInputs = (archetypes: Record<string, ArchetypeData>, pending: readonly PendingRef[], fail: Fail) => {
   const uses = pending.filter((entry) => entry.ref.kind === 'required');
+  const usesOf = (archetype: string) => uses.filter((entry) => namedOf(entry.archetype) === archetype);
   for (const archetype of Object.values(archetypes).filter((candidate) => !candidate.inline)) {
-    const used = new Set(
-      uses
-        .filter((entry) => namedOf(entry.archetype) === archetype.name)
-        .map((entry) => (entry.ref as { name: string }).name),
-    );
+    const used = new Set(usesOf(archetype.name).map((entry) => (entry.ref as { name: string }).name));
     for (const name of [...archetype.requires, ...(archetype.testRequires ?? [])].filter((input) => !used.has(input)))
       fail(`${archetype.name} requires ${name}, which none of its modules names in dependencies`);
   }
-  for (const { holder, module } of sitesOf(archetypes)) {
-    const archetype = archetypes[module.archetype];
-    if (!archetype) continue;
-    const where = `${holder.name}.${module.name}`;
-    for (const name of archetype.requires.filter((input) => !module.inputs?.[input]))
-      fail(`${where} uses ${archetype.name}, which requires ${name}; ${binding(module.inputs, name, where)}`);
-    for (const name of (archetype.testRequires ?? []).filter((input) => !module.testInputs?.[input]))
-      fail(`${where} uses ${archetype.name}, whose tests require ${name}; name it in ${where}.test.dependencies`);
-    const bound = { ...module.inputs, ...module.testInputs };
-    for (const entry of uses.filter((use) => namedOf(use.archetype) === archetype.name)) {
-      const ref = entry.ref as { name: string; surface?: string };
-      const binding = bound[ref.name];
-      if (!binding || ref.surface === undefined) continue;
-      const problem = surfaceProblem(archetypes, holder, binding, ref.surface, entry.tests);
-      if (problem)
-        fail(
-          `${entry.where}: '${ref.name}.${ref.surface}': ${where} binds ${ref.name} to ${show(binding)}; ${problem}`,
-        );
-    }
+  for (const site of sitesOf(archetypes)) {
+    const archetype = archetypes[site.module.archetype];
+    if (archetype) checkSite(archetypes, site, archetype, usesOf(archetype.name), fail);
+  }
+};
+
+const checkSite = (
+  archetypes: Record<string, ArchetypeData>,
+  { holder, module }: Site,
+  archetype: ArchetypeData,
+  uses: readonly PendingRef[],
+  fail: Fail,
+) => {
+  const where = `${holder.name}.${module.name}`;
+  for (const name of archetype.requires.filter((input) => !module.inputs?.[input]))
+    fail(`${where} uses ${archetype.name}, which requires ${name}; ${binding(module.inputs, name, where)}`);
+  for (const name of (archetype.testRequires ?? []).filter((input) => !module.testInputs?.[input]))
+    fail(`${where} uses ${archetype.name}, whose tests require ${name}; name it in ${where}.test.dependencies`);
+  const bound = { ...module.inputs, ...module.testInputs };
+  for (const entry of uses) {
+    const ref = entry.ref as { name: string; surface?: string };
+    const given = bound[ref.name];
+    if (!given || ref.surface === undefined) continue;
+    const problem = surfaceProblem(archetypes, holder, given, ref.surface, entry.tests);
+    if (problem)
+      fail(`${entry.where}: '${ref.name}.${ref.surface}': ${where} binds ${ref.name} to ${show(given)}; ${problem}`);
   }
 };
 

@@ -120,7 +120,6 @@ const exposed = (state: State, module: ModuleView, name: string | undefined): Re
   return new Set([...all].filter((file) => patterns.some((pattern) => globRegex(pattern).test(inside(file)))));
 };
 
-// The module that binds an archetype's inputs: the nearest holder, from `holder` up, whose archetype is named.
 export const instanceOf = (state: { config: ConfigData }, holder: ModuleView): ModuleView => {
   let at = holder;
   while (state.config.archetypes[at.archetype!]!.inline && at.parent) at = at.parent;
@@ -139,7 +138,6 @@ interface Concrete {
   via: RefData[];
 }
 
-// Follows a required ref to what its instance binds, through every archetype that passes it on.
 const concrete = (state: State, holder: ModuleView, ref: RefData, view: View): Concrete | undefined => {
   if (ref.kind === 'module') {
     let at: ModuleView | undefined = holder;
@@ -239,7 +237,6 @@ const inherited = (state: State, module: ModuleView): Grant[] => {
   ].map((grant) => ({ ...grant, files: new Set([...grant.files].filter((file) => !inside.has(file))) }));
 };
 
-// A files module's test modules see that module, what it reaches, and the test kits above.
 const filesTests = (state: State, module: ModuleView, of: string): Grant[] => {
   const holder = module.parent!;
   const tested = holder.children.filter((child) => child.kind === 'files' && child.name === of);
