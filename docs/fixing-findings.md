@@ -6,7 +6,7 @@
 ## Read the finding
 
 ```text
-src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils src/utils) imports src/db/client.ts (root.db src/db), which is outside utils's reach. Add db to root.utils.dependencies, or move the code.
+src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils src/utils) imports src/db/client.ts (root.db src/db), which is outside utils's reach. Add db to root.utils.dependencies (warp.yaml:4), or move the code.
 ```
 
 | Part | Here | Means |
@@ -15,7 +15,7 @@ src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils src/uti
 | Rule | `[dependency-direction]` | The rule that reports it. Its page is in [the rules table](rules.md). |
 | Each file's module | `(root.utils src/utils)` | The module's path from its archetype or the root, then its folder. |
 | Why | `outside utils's reach` | Why the config refuses the import. |
-| Fixes | `Add db to root.utils.dependencies, or move the code.` | A config change that would let the import through, then the code fix. When none exists, the message says the import or the structure is wrong. |
+| Fixes | `Add db to root.utils.dependencies (warp.yaml:4), or move the code.` | A config change that would let the import through, at its line in `warp.yaml`, then the code fix. When none exists, the message says the import or the structure is wrong. |
 
 `diff` puts `new:` or `worse (was N):` in front of the line. The `json` reporter gives the same finding with `key`,
 `value` and `details`, which [rules.md](rules.md#findings) describes.

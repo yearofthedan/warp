@@ -58,7 +58,7 @@ import { save } from '../db/orders.ts'; // api's dependencies list only domain
 
 ```text
 src/api/orders.ts:2 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/domain/pricing.ts (root.domain src/domain), which src/domain keeps private (it exposes { files: [order.ts] }). Import what src/domain exposes instead.
-src/api/orders.ts:3 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/db/orders.ts (root.db src/db), which is outside api's reach. Add db to root.api.dependencies, or move the code. (+1 more in reach)
+src/api/orders.ts:3 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/db/orders.ts (root.db src/db), which is outside api's reach. Add db to root.api.dependencies (warp.yaml:5), or move the code. (+1 more in reach)
 ```
 
 Correct code:
