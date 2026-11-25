@@ -120,6 +120,13 @@ describe('fixes for an import outside reach', () => {
     assert.equal(advice('src/ui/a/c/c.dom.ts', 'src/ui/shared.ts'), required);
   });
 
+  it('requires what sits beside an archetype further out, through each archetype between', () => {
+    assert.equal(
+      advice('src/ui/a/a.dom.ts', 'src/domain/order.ts'),
+      'add domain to card.requires, bound in the dependencies of ui.cards and card.sub, add domain to ui.requires, bound in the dependencies of root.ui and add domain to card.render.dependencies',
+    );
+  });
+
   it('names a module beside a holder inside the same archetype', () => {
     assert.equal(advice('src/log/log.test.ts', 'src/ui/shared.ts'), 'add ui to root.log.tests.dependencies');
   });
