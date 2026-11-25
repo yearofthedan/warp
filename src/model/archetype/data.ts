@@ -25,8 +25,6 @@ export type ExposesData =
   | { kind: 'files'; patterns: string[]; entry?: true }
   | { kind: 'surfaces'; surfaces: Record<string, RefData[]> };
 
-export type LocatorData = { kind: 'files'; patterns: string[] } | { kind: 'mirror'; from: string; to: string };
-
 export interface FilesModuleData {
   kind: 'files';
   name: string;
@@ -53,7 +51,7 @@ export interface DirModuleData {
 export interface TestModuleData {
   kind: 'test';
   name: string;
-  locator: LocatorData;
+  patterns: string[];
   of?: string;
   using: RefData[];
   exposes?: Exclude<ExposesData, { kind: 'surfaces' }>;
