@@ -318,6 +318,242 @@ archetypes:
     );
   });
 
+  it("refuses a surface of an input that the input's binding does not have", () => {
+    assert.deepEqual(
+      failures(`
+root:
+  modules:
+    lib: { dir: src/lib, archetype: lib }
+    flat: { files: 'src/*.ts', exposes: all }
+    a: { dir: src/a, archetype: card, dependencies: { log: lib }, test: { dependencies: { kit: npm:vitest } } }
+    b: { dir: src/b, archetype: card, dependencies: { log: npm:log } }
+    c: { dir: src/c, archetype: card, dependencies: { log: lib.api }, test: { dependencies: { kit: npm:vitest } } }
+    d: { dir: src/d, archetype: card, dependencies: { log: flat }, test: { dependencies: { kit: npm:vitest } } }
+    nest:
+      dir: src/nest
+      modules:
+        inner: { dir: inner, archetype: card, dependencies: { log: lib }, test: { dependencies: { kit: npm:vitest } } }
+archetypes:
+  card:
+    requires: [log]
+    modules:
+      view: { files: '*.ts', dependencies: [log.render] }
+    test:
+      requires: [kit]
+      modules:
+        tests: { files: '*.test.ts', dependencies: [kit] }
+  lib:
+    exposes: [api]
+    modules:
+      api: { files: '*.ts', exposes: all }
+`),
+      [
+        "card.view.dependencies: 'log.render': root.a binds log to lib; lib exposes api",
+        'root.b uses card, whose tests require kit; name it in root.b.test.dependencies',
+        "card.view.dependencies: 'log.render': root.b binds log to npm:log; a package has no surfaces",
+        "card.view.dependencies: 'log.render': root.c binds log to lib.api; lib.api is a surface already",
+        "card.view.dependencies: 'log.render': root.d binds log to flat; flat has no named surfaces",
+        "card.view.dependencies: 'log.render': root.nest.inner binds log to lib; lib exposes api",
+      ],
+    );
+  });
+
+  it('makes an archetype that only test modules use test code, with the modules written inside it', () => {
+    const fixtures = `
+root:
+  modules:
+    src: { dir: src, exposes: all }
+  test:
+    modules:
+      fixtures: { dir: fixtures, archetype: fixture }
+archetypes:
+  fixture:
+    modules:
+      helpers: { dir: helpers, modules: { seeds: { files: '*.seed.ts' } } }
+`;
+    const { archetypes } = load(fixtures).config;
+    assert.equal(archetypes.fixture!.test, true);
+    assert.equal(archetypes['fixture.helpers']!.test, true);
+    assert.equal(archetypes['root.src']!.test, undefined);
+    assert.deepEqual(
+      failures(fixtures.replace('exposes: all }', 'exposes: all }\n    more: { dir: more, archetype: fixture }')),
+      ['fixture is used by production and test modules; an archetype holds one or the other'],
+    );
+  });
+
+  it('refuses archetype names and roots of the wrong shape', () => {
+    const one = '\nroot: { modules: { x: { dir: x } } }\n';
+    assert.deepEqual(failures(`${one}archetypes: [x]`), ['archetypes: expected archetypes by name']);
+    assert.deepEqual(failures(`${one}archetypes: { a.b: { modules: {} } }`), [
+      "archetypes: a name has no dots, not 'a.b'",
+    ]);
+  });
+
+  it('refuses modules, names and test blocks of the wrong shape', () => {
+    assert.deepEqual(
+      failures(`
+root:
+  bogus: 1
+  modules:
+    x: 3
+    a.b: { dir: ab }
+    f: { files: [] }
+    i: { dir: i, modules: {}, test: { requires: [y], dependencies: [y] } }
+    j: { dir: j, test: 3 }
+    k: { dir: k, dependencies: [k, 'npm:', 'virtual:', a.b.c, 'top.', x.y.z] }
+    l: { dir: l, dependencies: { a: 3 } }
+    m: { dir: m, dependencies: 3 }
+`),
+      [
+        'root: unknown key bogus; the root takes description, modules, test',
+        'root.x: expected a mapping',
+        'root.x: expected dir, files or an archetype',
+        "root: a module's name has no dots, not 'a.b'",
+        'root.f.files: expected a file pattern or a list of them',
+        "root.i.test.dependencies: fills an archetype's test.requires; i has no archetype",
+        "root.i.test.dependencies: fills an archetype's test.requires, where a module uses one",
+        'root.i.test.requires: only an archetype requires; its modules see what it requires',
+        'root.j.test: expected a test block',
+        "root.k.dependencies: 'k': a module reaches its own files already",
+        "root.k.dependencies: 'npm:': a package has a name",
+        "root.k.dependencies: 'virtual:': a package has a name",
+        "root.k.dependencies: 'a.b.c': a name is a module, a module and one of its surfaces, or an input",
+        "root.k.dependencies: 'top.': a name is a module, a module and one of its surfaces, or an input",
+        "root.k.dependencies: 'x.y.z': a name is a module, a module and one of its surfaces, or an input",
+        'root.l.dependencies: expected a name for each key',
+        'root.m.dependencies: expected a list of names, or a map from name to name',
+      ],
+    );
+  });
+
+  it('refuses a call site that binds one name twice, and test code that offers or provides', () => {
+    assert.deepEqual(
+      failures(`
+root:
+  modules:
+    a: { dir: a, exposes: all }
+    b: { dir: b, exposes: all, modules: { log: { files: log.ts, exposes: all } } }
+    c: { dir: c, archetype: card, dependencies: [a, b.log, a] }
+  test:
+    modules:
+      fx: { dir: fx, modules: { inner: { dir: i } }, test: { exposes: [inner], provides: [inner] } }
+archetypes:
+  card:
+    requires: [log, a]
+    modules:
+      view: { files: '*.ts', dependencies: [log, a] }
+`),
+      [
+        'root.c.dependencies: two entries are named a; rename one with a map',
+        'root.fx: unknown key test; a module takes description, dir, files, archetype, dependencies, exposes, modules',
+        'root.fx.test.exposes: root.fx is test code; what it exposes is for tests already',
+        'root.fx.test.provides: root.fx is test code; give its modules dependencies',
+      ],
+    );
+  });
+
+  it("refuses an archetype's surfaces of the wrong shape, and a test input in production code", () => {
+    assert.deepEqual(
+      failures(`
+root:
+  modules:
+    c: { dir: c, archetype: card, dependencies: [g], test: { dependencies: [g] } }
+    g: { dir: g, exposes: all }
+  test:
+    modules:
+      fx: { dir: fx, archetype: fixture }
+archetypes:
+  card:
+    requires: [log]
+    test: { requires: [kit] }
+    exposes: 3
+    modules:
+      view: { files: '*.ts', dependencies: [log, kit], exposes: all }
+  fixture:
+    exposes: [a, a, npm:x]
+    modules:
+      a: { files: '*.ts', exposes: { files: x.ts, other: 1 } }
+`),
+      [
+        "card.view.dependencies: 'kit': no module or input called kit here; kit is a test input, which only test code may name; in scope: log",
+        'card.exposes: expected all, a list of its modules, or { files: [...] }',
+        'fixture.a.exposes: expected all, or { files: [...] }',
+        "fixture.exposes: offers 'a' twice; rename the module at its source",
+        "fixture.exposes: 'npm:x': exposes names the module's own modules",
+      ],
+    );
+  });
+
+  it("gives a files module test modules of its own, which name the files module's siblings", () => {
+    const tests = `
+root:
+  modules:
+    g: { files: b.ts, exposes: all }
+    f:
+      files: a.ts
+      test: { modules: { u: { files: '*.test.ts', dependencies: [g] } } }
+`;
+    assert.deepEqual(load(tests).config.archetypes.root!.modules.at(-1), {
+      kind: 'test',
+      name: 'f.u',
+      patterns: ['*.test.ts'],
+      of: 'f',
+      using: [{ kind: 'module', module: 'g' }],
+    });
+    assert.deepEqual(
+      failures(tests.replace('test: { modules: { u:', 'test: { provides: [g], modules: { t: { dir: d }, u:')),
+      [
+        "root.f.test.provides: a files module's test block holds its test modules only",
+        "root.f.test.modules.t: a files module's tests are files; use files",
+        'root.f.t.files: expected a file pattern or a list of them',
+      ],
+    );
+  });
+
+  it('says what a referenced module exposes when a surface is missing, and keeps test surfaces for test code', () => {
+    assert.deepEqual(
+      failures(`
+root:
+  modules:
+    flat: { files: 'a/*.ts', exposes: all }
+    ui: { dir: src/ui, archetype: ui }
+    quiet: { dir: src/quiet, archetype: quiet }
+    main: { files: main.ts, dependencies: [flat.x, ui.driver, quiet] }
+  test:
+    modules:
+      helpers: { dir: helpers }
+      kit: { dir: kit, archetype: kit }
+      e2e: { dir: e2e, dependencies: [helpers.x, ui.nope, quiet.nope, kit.x, quiet.driver, ui.driver] }
+archetypes:
+  ui:
+    exposes: [render]
+    modules:
+      render: { files: '*.tsx', exposes: all }
+    test:
+      exposes: [driver]
+      modules:
+        driver: { files: '*.driver.ts' }
+  quiet:
+    test:
+      exposes: [driver]
+      modules:
+        driver: { files: '*.driver.ts' }
+  kit:
+    modules:
+      a: { files: '*.ts' }
+`),
+      [
+        "root.main.dependencies: 'flat.x': flat exposes all its files, not named surfaces",
+        "root.main.dependencies: 'ui.driver': driver is a test surface of ui (ui), which only test code may name",
+        "root.main.dependencies: 'quiet': quiet (quiet) exposes nothing: give it exposes, or drop the reference",
+        "root.e2e.dependencies: 'helpers.x': helpers exposes all its files, not named surfaces",
+        "root.e2e.dependencies: 'ui.nope': ui (ui) exposes render, driver",
+        "root.e2e.dependencies: 'quiet.nope': quiet (quiet) exposes driver",
+        "root.e2e.dependencies: 'kit.x': kit (kit) exposes all its files, not named surfaces",
+      ],
+    );
+  });
+
   it('defaults tsconfig to tsconfig.json, takes a list, and refuses anything else', () => {
     const root = "root: { modules: { src: { files: '**' } } }\n";
     assert.deepEqual(load(root).config.tsconfig, ['tsconfig.json']);

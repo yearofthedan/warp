@@ -100,6 +100,27 @@ describe('rulesets', () => {
     assert.equal(config.archetypes.root!.modules[0]!.rules, 'off');
   });
 
+  it('keep the options when a later ruleset turns the rule on, and merge options into options', () => {
+    const config = load(
+      `
+  default:
+    extends: [warp:recommended]
+    rules: { cognitive-complexity: { max: 15 }, file-cohesion: { maxLines: 300 } }
+  edit:
+    extends: [default]
+    rules: { cognitive-complexity: on, file-cohesion: { maxLines: 100 } }
+`,
+      'edit',
+    );
+    assert.deepEqual(config.rules, { 'cognitive-complexity': { max: 15 }, 'file-cohesion': { maxLines: 100 } });
+  });
+
+  it('refuse on that is not settings by place', () => {
+    assert.deepEqual(failures('  default: { extends: [warp:recommended], on: 3 }'), [
+      'rulesets.default.on: expected settings by archetype or module, { app.adapters: {...} }',
+    ]);
+  });
+
   it('set every test module with test', () => {
     const config = load('  default: { extends: [warp:recommended], test: { function-cohesion: off } }');
     assert.deepEqual(config.archetypes.leaf!.modules[1]!.rules, { 'function-cohesion': false });
