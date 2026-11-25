@@ -23,7 +23,7 @@ const note = (message: string) => {
   if (!notes.includes(message)) notes.push(message);
 };
 
-// A scope is the names a `given` entry may use: sibling modules, and the archetype's inputs.
+// A scope is the names a `dependencies` entry may use: sibling modules, and the archetype's inputs.
 interface Scope {
   siblings: Set<string>;
   inputs: Set<string>;
@@ -35,7 +35,7 @@ interface Scope {
 const isPackage = (name: string) => /^(npm|node|virtual):/.test(name);
 const packageOf = (name: string) => pkg(name.startsWith('npm:') ? name.slice(4) : name);
 
-// Turns given names into builder refs for `(m, required)`. Names it cannot reach in this scope are returned as hoisted.
+// Turns dependency names into builder refs for `(m, required)`. Names it cannot reach in this scope are returned as hoisted.
 const refs = (names: string[], scope: Scope, m: Node, required: Node) => {
   const out: unknown[] = [];
   const hoisted: string[] = [];
@@ -52,7 +52,7 @@ const refs = (names: string[], scope: Scope, m: Node, required: Node) => {
     }
     if (!scope.nested && !scope.siblings.has(head!) && !scope.inputs.has(head!))
       throw new ConfigError(
-        `given names '${name}', which is no module here and no input; in scope: ${[...scope.siblings, ...scope.inputs].sort().join(', ')}`,
+        `dependencies name '${name}', which is no module here and no input; in scope: ${[...scope.siblings, ...scope.inputs].sort().join(', ')}`,
       );
     if (scope.siblings.has(head!)) out.push(path(m, [head!, ...rest]));
     else if (scope.inputs.has(head!)) out.push(path(required, [head!, ...rest]));
@@ -106,7 +106,7 @@ const inline = (built: Built, def: Node, scope: Scope, test: boolean): unknown =
   const childModules = record(def.modules);
   const testModules = def.files === undefined ? record(testBlock.modules) : {};
   const hasChildren = Object.keys(childModules).length + Object.keys(testModules).length > 0;
-  const own = list(def.given);
+  const own = list(def.dependencies);
   let b: Builder = (
     hasChildren ? contains((c: unknown) => children(built, c, childModules, testModules, def, test)) : archetype()
   ) as never;
@@ -126,7 +126,7 @@ const inline = (built: Built, def: Node, scope: Scope, test: boolean): unknown =
   return b;
 };
 
-// warp's model wants a module declared before the siblings that use it; YAML has no order, so sort by given.
+// warp's model wants a module declared before the siblings that use it; YAML has no order, so sort by dependencies.
 const ordered = (modules: Node): [string, Node][] => {
   const names = Object.keys(modules);
   const done: string[] = [];
@@ -134,7 +134,7 @@ const ordered = (modules: Node): [string, Node][] => {
     if (done.includes(name) || seen.has(name)) return;
     seen.add(name);
     const m = record(modules[name]);
-    for (const ref of [...list(m.given), ...entries(m.given).map(([, v]) => v)]) {
+    for (const ref of [...list(m.dependencies), ...entries(m.dependencies).map(([, v]) => v)]) {
       const head = ref.split('.')[0]!;
       if (head !== name && names.includes(head)) visit(head, seen);
     }
@@ -170,7 +170,7 @@ const collectHoisted = function* (
 ): Generator<string> {
   const inner = names2(childModules, testModules);
   for (const [name, child] of Object.entries(childModules)) {
-    for (const ref of list(record(child).given)) {
+    for (const ref of list(record(child).dependencies)) {
       const head = ref.split('.')[0]!;
       if (isPackage(ref) || inner.has(head) || head === 'top') continue;
       note(`${name}: '${ref}' hoisted to its holder; a child of an inline module cannot name the holder's siblings`);
@@ -201,7 +201,7 @@ const children = (
 
 const testInline = (built: Built, def: Node, scope: Scope): unknown => {
   const kids = record(def.modules);
-  const own = list(def.given);
+  const own = list(def.dependencies);
   let b: Builder = (
     Object.keys(kids).length > 0
       ? contains((c: unknown) => {
@@ -218,7 +218,7 @@ const testInline = (built: Built, def: Node, scope: Scope): unknown => {
   return b;
 };
 
-// A named archetype, built once; its call sites' `given` become `provides` on the holder.
+// A named archetype, built once; its call sites' `dependencies` become `provides` on the holder.
 const named = (built: Built, name: string): Builder => {
   const existing = built.archetypes.get(name);
   if (existing) return existing;
@@ -237,7 +237,7 @@ const shape = (built: Built, name: string, def: Node, isRoot: boolean): Builder 
   const usedInputs = new Set(
     [...Object.values(modules), ...Object.values(testModules)]
       .filter((m) => record(m).archetype === undefined)
-      .flatMap((m) => list(record(m).given).map((n) => n.split('.')[0]!)),
+      .flatMap((m) => list(record(m).dependencies).map((n) => n.split('.')[0]!)),
   );
   const inputs = [...list(def.requires), ...list(testBlock.requires)];
   const kept = inputs.filter((input) => usedInputs.has(input));
@@ -255,7 +255,7 @@ const shape = (built: Built, name: string, def: Node, isRoot: boolean): Builder 
     for (const [moduleName, m] of ordered(modules)) {
       if (m.archetype !== undefined) {
         const target = String(m.archetype) === name ? record(ctx).self : named(built, String(m.archetype));
-        for (const [input, ref] of [...entries(m.given), ...entries(record(m.test).given)]) {
+        for (const [input, ref] of [...entries(m.dependencies), ...entries(record(m.test).dependencies)]) {
           const head = ref.split('.')[0]!;
           if (scope.siblings.has(head)) provides.set(input, ref);
         }
@@ -280,7 +280,7 @@ const shape = (built: Built, name: string, def: Node, isRoot: boolean): Builder 
     .flatMap((m) => {
       const own = names2(record(m.modules), record(record(m.test).modules));
       return Object.values(record(record(m.test).modules)).flatMap((t) =>
-        list(record(t).given).filter(
+        list(record(t).dependencies).filter(
           (ref) => !isPackage(ref) && !own.has(ref.split('.')[0]!) && scope.siblings.has(ref.split('.')[0]!),
         ),
       );
@@ -298,7 +298,9 @@ const kindOf = (built: Built, archetypeName: string, input: string): unknown => 
     for (const raw of Object.values(record(record(def).modules))) {
       const m = record(raw);
       if (String(m.archetype) !== archetypeName) continue;
-      const bound = [...entries(m.given), ...entries(record(m.test).given)].find(([name]) => name === input)?.[1];
+      const bound = [...entries(m.dependencies), ...entries(record(m.test).dependencies)].find(
+        ([name]) => name === input,
+      )?.[1];
       if (!bound) continue;
       const target = record(record(record(def).modules)[bound.split('.')[0]!]);
       if (target.files !== undefined) return files();
