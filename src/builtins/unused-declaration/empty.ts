@@ -29,7 +29,9 @@ const empty = (context: Context, declaredIn: string, module: ModuleData, layer: 
 };
 
 const shown = (patterns: readonly string[]): string => {
-  const items = patterns.map((pattern) => pattern.replaceAll('{name}', '*'));
+  const items = patterns
+    .map((pattern) => pattern.replaceAll('{name}', '*'))
+    .map((pattern) => (/^[\w./-]+$/.test(pattern) ? pattern : `'${pattern}'`));
   return items.length === 1 ? items[0]! : `[${items.join(', ')}]`;
 };
 

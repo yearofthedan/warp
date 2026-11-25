@@ -20,20 +20,18 @@ describe('advice', () => {
       { kind: 'expose', archetype: 'card', ref: { kind: 'module', module: 'logic' } },
       { kind: 'expose', archetype: 'card', ref: { kind: 'module', module: 'sub' } },
       { kind: 'expose', archetype: 'panel', ref: { kind: 'module', module: 'body' } },
-      { kind: 'declare', archetype: 'app', module: 'ui', above: 'main' },
-      { kind: 'using', site: 'the using of app.main', ref: { kind: 'required', name: 'log', surface: 'api' } },
-      { kind: 'expose', archetype: 'card', ref: { kind: 'module', module: 'dom' } },
-      { kind: 'expose-file', archetype: 'app.domain', pattern: 'price.ts' },
-      { kind: 'require', archetype: 'card', name: 'log', provider: 'app', module: 'log' },
+      { kind: 'using', site: 'root.main.dependencies', ref: { kind: 'required', name: 'log', surface: 'api' } },
+      { kind: 'expose', archetype: 'card', ref: { kind: 'module', module: 'render' } },
+      { kind: 'expose-file', archetype: 'root.domain', pattern: 'price.ts' },
+      { kind: 'require', archetype: 'card', name: 'log', sites: ['ui.cards', 'card.sub'], module: 'log' },
     ];
     assert.deepEqual(fixSteps(model(['card', 'card', 'panel']), fixes), [
-      'expose m.logic and m.sub from card (all 2 card modules)',
-      'expose m.body from panel',
-      'declare ui above main in app',
-      'add required.log.api to the using of app.main',
-      'expose m.dom from card (all 2 card modules)',
-      "add 'price.ts' to what app.domain exposes",
-      'require log in card, have app provide m.log as log',
+      'add logic and sub to card.exposes (all 2 card modules)',
+      'add body to panel.exposes',
+      'add log.api to root.main.dependencies',
+      'add render to card.exposes (all 2 card modules)',
+      "add 'price.ts' to root.domain.exposes files",
+      'add log to card.requires, bound in the dependencies of ui.cards and card.sub',
     ]);
   });
 });
