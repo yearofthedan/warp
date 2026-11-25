@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.4.0](https://github.com/yearofthedan/warp/compare/warp-v0.3.0...warp-v0.4.0) (2026-11-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* drop mirrored test modules, which the YAML language has no form for
+* read the config from warp.yaml, with names scoped like the language
+* **model:** a dir() test module no longer counts as files('x/**'), so a sibling files('x/*.dsl.ts') no longer reaches into its folder; declare it inside with contains().
+* **model:** give test code its own surface with testExposes
+
+### Features
+
+* **model:** give test code its own surface with testExposes ([a56a304](https://github.com/yearofthedan/warp/commit/a56a304e841dbe4c3c586deb7dcb57ec86a2850d))
+* **model:** let a dir() test module hold test modules of its own ([c5eaf70](https://github.com/yearofthedan/warp/commit/c5eaf704c90fd50c5a6c91daea6de7593c91a66c))
+* point load errors and finding advice at their lines in warp.yaml ([c26729b](https://github.com/yearofthedan/warp/commit/c26729bfd5910bbacdc066264fe5ca8b041d5039))
+* read the config from warp.yaml, with names scoped like the language ([5dbf57b](https://github.com/yearofthedan/warp/commit/5dbf57b5d7ff4d067f0abda8e64d05cf96992b74))
+
+
+### Bug Fixes
+
+* **model:** leave a test folder out of the test kit it inherits ([027d15d](https://github.com/yearofthedan/warp/commit/027d15de4df29d37b6b1c99a2c052149d0683285))
+* offer a require through each archetype between a module and what it needs ([c048b61](https://github.com/yearofthedan/warp/commit/c048b61abf7c42375707942d8afc079c6667b35a))
+* offer no fix that closes a cycle through other modules, and name packages as written ([96f5e0d](https://github.com/yearofthedan/warp/commit/96f5e0dd4b77ee038ae99a8c27e6a0ffe15a7a50))
+
+
+### Code Refactoring
+
+* drop mirrored test modules, which the YAML language has no form for ([b011713](https://github.com/yearofthedan/warp/commit/b0117130ed716c03c5b2921d2cb842a87550d57d))
+
 ## [0.3.0](https://github.com/yearofthedan/warp/compare/warp-v0.2.0...warp-v0.3.0) (2026-11-24)
 
 
