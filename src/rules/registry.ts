@@ -21,7 +21,7 @@ const namespaced = (namespace: string, plugin: unknown, at: string): Rule[] => {
   if (!name.test(namespace)) throw new ConfigError(`${at}: a namespace is lowercase letters, digits and dashes`);
   const rules = typeof plugin === 'object' && plugin !== null ? (plugin as { rules?: unknown }).rules : undefined;
   if (!Array.isArray(rules))
-    throw new ConfigError(`${at}: expected a plugin, { rules: Rule[] }, imported in a warp.config.ts`);
+    throw new ConfigError(`${at}: expected a plugin, { rules: Rule[] }, as the default export of its file`);
   return rules.map((rule: Rule, index): Rule => {
     const where = `${at}.rules[${index}]`;
     if (typeof rule?.id !== 'string' || !name.test(rule.id))

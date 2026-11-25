@@ -21,22 +21,32 @@ export const linkProblems = (path: string, text: string): string[] =>
         ([, target]) => `links to ${target}: AGENTS.md links into the docs, never the reverse`,
       );
 
-export const examplesIn = (text: string): Example[] => {
-  const examples: Example[] = [];
+type Block = { line: number; info: string; code: string };
+
+const blocksIn = (text: string): Block[] => {
+  const blocks: Block[] = [];
   let open: { line: number; info: string; code: string[] } | undefined;
   text.split('\n').forEach((line, index) => {
     const fence = /^\s*```(.*)$/.exec(line);
     if (!open) {
       if (fence) open = { line: index + 2, info: fence[1].trim(), code: [] };
     } else if (fence && fence[1].trim() === '') {
-      if (open.info === 'ts' || open.info === 'ts fragment') {
-        examples.push({ line: open.line, code: open.code.join('\n'), fragment: open.info !== 'ts' });
-      }
+      blocks.push({ line: open.line, info: open.info, code: open.code.join('\n') });
       open = undefined;
     } else open.code.push(line);
   });
-  return examples;
+  return blocks;
 };
+
+export const examplesIn = (text: string): Example[] =>
+  blocksIn(text)
+    .filter((block) => block.info === 'ts' || block.info === 'ts fragment')
+    .map(({ line, info, code }) => ({ line, code, fragment: info !== 'ts' }));
+
+export const configsIn = (text: string): { line: number; code: string }[] =>
+  blocksIn(text)
+    .filter((block) => block.info === 'yaml')
+    .map(({ line, code }) => ({ line, code }));
 
 export const valueExports = (indexSource: string): string[] =>
   [...indexSource.matchAll(/export\s*\{([^}]*)\}/g)]
@@ -66,9 +76,6 @@ const docProblems = (doc: string, text: string, api: string[]) => [
   ...headerProblems(doc, text).map((problem) => `${doc}:1: ${problem}`),
   ...linkProblems(doc, text).map((problem) => `${doc}: ${problem}`),
   ...examplesIn(text)
-    .filter((example) => !example.fragment)
-    .flatMap((example) => configProblems(example.code).map((problem) => `${doc}:${example.line}: ${problem}`)),
-  ...examplesIn(text)
     .filter((example) => example.fragment)
     .flatMap((example) =>
       fragmentProblems(doc, example.code, api).map((problem) => `${doc}:${example.line}: ${problem}`),
@@ -87,42 +94,29 @@ export const plan = (docs: { doc: string; text: string }[], api: string[]) => {
   return { files, problems: docs.flatMap(({ doc, text }) => docProblems(doc, text, api)) };
 };
 
-export const isConfig = (code: string): boolean => /^export default defineConfig\(/m.test(code);
-
-export const configProblems = (code: string): string[] =>
-  /(?<![.\w])archetype\s*\(/.test(code) && !isConfig(code)
-    ? ['builds an archetype, so it is a whole config: end it with export default defineConfig(...)']
-    : [];
-
 export const located = (diagnostic: string, files: Map<string, Planned>): string => {
   const match = /^(\S+\.ts)\((\d+),\d+\): (.*)$/.exec(diagnostic);
   const source = match && files.get(match[1]);
   return source ? `${source.doc}:${source.line + Number(match[2]) - 1}: ${match[3]}` : diagnostic;
 };
 
-const loadProblems = async (files: Map<string, Planned>): Promise<string[]> => {
-  const { mkdirSync, mkdtempSync, rmSync, writeFileSync } = await import('node:fs');
-  const { tmpdir } = await import('node:os');
-  const { dirname, join } = await import('node:path');
-  const { loadConfig } = await import('../src/config/loadConfig.ts');
+const loadProblems = async (docs: { doc: string; text: string }[]): Promise<string[]> => {
+  const { parseConfig } = await import('../src/config/loadConfig.ts');
   const { loadConfigData } = await import('../src/app/load.ts');
   const { builtinRegistry } = await import('../src/builtins/index.ts');
   const builtins = [...builtinRegistry.values()];
-  const out = mkdtempSync(join(tmpdir(), 'warp-doc-configs-'));
-  for (const [file, { code }] of files) {
-    mkdirSync(dirname(join(out, file)), { recursive: true });
-    writeFileSync(join(out, file), code);
-  }
   const problems: string[] = [];
-  for (const [file, { code, doc, line }] of files) {
-    if (!isConfig(code)) continue;
-    try {
-      loadConfigData((await loadConfig(join(out, file))).raw, { builtins });
-    } catch (error) {
-      for (const message of String((error as Error).message).split('\n')) problems.push(`${doc}:${line}: ${message}`);
+  for (const { doc, text } of docs)
+    for (const { line, code } of configsIn(text)) {
+      try {
+        const { raw } = parseConfig(code, doc);
+        const declared = (raw as { plugins?: Record<string, unknown> }).plugins ?? {};
+        const plugins = Object.fromEntries(Object.keys(declared).map((namespace) => [namespace, { rules: [] }]));
+        loadConfigData(raw, { ...(Object.keys(plugins).length === 0 ? { builtins } : {}), plugins, file: doc });
+      } catch (error) {
+        for (const message of String((error as Error).message).split('\n')) problems.push(`${doc}:${line}: ${message}`);
+      }
     }
-  }
-  rmSync(out, { recursive: true, force: true });
   return problems;
 };
 
@@ -153,10 +147,10 @@ const main = async () => {
   const diagnostics =
     run.status === 0 ? [] : `${run.stdout}${run.stderr}`.split('\n').filter((line) => line.trim() !== '');
   const failures = [...problems, ...diagnostics.map((line) => located(line, files))];
-  if (diagnostics.length === 0) failures.push(...(await loadProblems(files)));
+  failures.push(...(await loadProblems(docs)));
   for (const failure of failures) console.error(failure);
   console.log(
-    `${docs.length} docs, ${files.size} ts examples type-checked and configs loaded, ${failures.length} problems.`,
+    `${docs.length} docs, ${files.size} ts examples type-checked, yaml configs loaded, ${failures.length} problems.`,
   );
   process.exitCode = failures.length > 0 ? 1 : 0;
 };
