@@ -22,7 +22,7 @@ What does a warp config describe, and how much should it let a project bend the 
 ## Decision
 
 The config language is architectural and explicit: parts and archetypes, what each exposes, what each uses, as
-[docs/design/archetypes.md](../design/archetypes.md) sets out. A smell in the config is treated as a smell in the
+[docs/config.md](../config.md) sets out. A smell in the config is treated as a smell in the
 project's structure, and the fix is usually in the code, not in another escape hatch.
 
 ## Consequences
