@@ -194,7 +194,7 @@ const children = (
   let at = c as Builder;
   for (const [name, raw] of ordered(modules))
     at = at.module(name, selector(raw), inline(built, raw, scope, holderTest));
-  for (const [name, raw] of Object.entries(testModules))
+  for (const [name, raw] of ordered(testModules))
     at = at.testModule(name, selector(record(raw)), testInline(built, record(raw), scope));
   return at;
 };
@@ -262,7 +262,7 @@ const shape = (built: Built, name: string, def: Node, isRoot: boolean): Builder 
         at = at.module(moduleName, selector(m), target);
       } else at = at.module(moduleName, selector(m), inline(built, m, scope, false));
     }
-    for (const [moduleName, raw] of Object.entries(testModules))
+    for (const [moduleName, raw] of ordered(testModules))
       at = at.testModule(moduleName, selector(record(raw)), testInline(built, record(raw), scope));
     void required;
     return at;

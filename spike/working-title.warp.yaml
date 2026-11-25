@@ -19,7 +19,7 @@ root:
       dir: lint
       given: [npm:vite-plus, 'node:*']
       exposes: all
-      test: { modules: { tests: { files: '*.test.ts', given: [npm:vite-plus, 'npm:@playwright/test'] } } }
+      test: { modules: { tests: { files: '*.test.ts', given: [npm:vite-plus] } } }
     tooling:
       description: The build, test and lint settings
       files: '*.ts'
@@ -41,7 +41,6 @@ root:
           - app.helpers
           - app.dsl
           - app.browserWorkingCopy
-          - npm:vite-plus
           - 'npm:@playwright/test'
           - 'npm:@axe-core/playwright'
           - 'node:*'
@@ -74,27 +73,26 @@ archetypes:
         dir: methods
         given: [domain]
         exposes: all
-        test: { modules: { tests: { files: '*.test.ts' } } }
       application:
         description: The use cases and the queries
         dir: application
         given: [domain, ports]
         exposes: all
-        test: { modules: { tests: { files: '*.test.ts' } } }
+        test: { modules: { tests: { files: '*.test.ts', given: [methods] } } }
       adapters:
-        description: What implements the ports in the browser; each adapter knows only its port
+        description: What implements the ports in the browser; each adapter knows the domain and its own port
         dir: adapters
         exposes: [browserWorkingCopy, fileSystemFolders]
         modules:
           browserWorkingCopy:
             description: The project store, saving every change in the browser first
             files: local-storage-project-store.ts
-            given: [ports.projectStore]
+            given: [domain, ports.projectStore]
             exposes: all
           fileSystemFolders:
             description: The projects folder, through the browser's folder picker
             files: [file-system-folders.ts, folder-name.ts]
-            given: [ports.projectsFolder]
+            given: [domain, ports.projectsFolder]
             exposes: { files: file-system-folders.ts }
         test: { modules: { tests: { files: '*.test.ts', given: [domain, methods, ports] } } }
       ui:
@@ -160,12 +158,13 @@ archetypes:
       provides: [helpers]
       exposes: [dsl, testPage]
       modules:
-        helpers: { dir: test-helpers }
+        helpers:
+          { dir: test-helpers, given: [testPage, subcomponent.testPage, application, domain, ports, adapters, methods] }
         dsl: { files: '*.dsl.ts', given: [subcomponent.dsl] }
         testPage: { files: '*.test-page.ts', given: [subcomponent.testPage] }
         tests:
           files: ['*.test.ts', '*.harness.ts']
-          given: [logic, render, dsl, testPage, subcomponent.testPage, application, methods, domain, ports, adapters]
+          given: [logic, render, dsl, testPage, subcomponent.testPage, application]
 
   ui:
     description: What the writer sees and does, in plain HTML and CSS with no framework
