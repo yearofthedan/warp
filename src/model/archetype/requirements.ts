@@ -48,7 +48,7 @@ export const checkInputs = (archetypes: Record<string, ArchetypeData>, pending: 
     if (!archetype) continue;
     const where = `${holder.name}.${module.name}`;
     for (const name of archetype.requires.filter((input) => !module.inputs?.[input]))
-      fail(`${where} uses ${archetype.name}, which requires ${name}; name it in ${where}.dependencies`);
+      fail(`${where} uses ${archetype.name}, which requires ${name}; ${binding(module.inputs, name, where)}`);
     for (const name of (archetype.testRequires ?? []).filter((input) => !module.testInputs?.[input]))
       fail(`${where} uses ${archetype.name}, whose tests require ${name}; name it in ${where}.test.dependencies`);
     const bound = { ...module.inputs, ...module.testInputs };
@@ -64,6 +64,11 @@ export const checkInputs = (archetypes: Record<string, ArchetypeData>, pending: 
     }
   }
 };
+
+const binding = (inputs: Record<string, RefData> | undefined, name: string, where: string): string =>
+  inputs?.[`npm:${name}`]
+    ? `bind the package by name in ${where}.dependencies, { ${name}: npm:${name} }`
+    : `name it in ${where}.dependencies`;
 
 const archetypeAt = (archetypes: Record<string, ArchetypeData>, holder: ArchetypeData, up: number): ArchetypeData =>
   archetypes[

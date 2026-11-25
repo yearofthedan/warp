@@ -46,6 +46,11 @@ const moduleKeys = ['description', 'dir', 'files', 'entry', 'archetype', 'depend
 const archetypeKeys = ['description', 'marker', 'requires', 'entry', 'exposes', 'modules', 'test'];
 const rootKeys = ['description', 'modules', 'test'];
 const testKeys = ['requires', 'dependencies', 'provides', 'exposes', 'modules'];
+const kindOf = new Map<readonly string[], string>([
+  [archetypeKeys, 'an archetype'],
+  [rootKeys, 'the root'],
+  [testKeys, 'a test block'],
+]);
 const testModuleKeys = ['description', 'dir', 'files', 'archetype', 'dependencies', 'exposes', 'modules'];
 
 export const parseStructure = (root: unknown, archetypes: unknown, fail: Fail): Structure => {
@@ -71,9 +76,7 @@ const record = (state: State, where: string, value: unknown): Record<string, unk
 
 const checkKeys = (state: State, where: string, def: Record<string, unknown>, keys: readonly string[]) => {
   for (const key of Object.keys(def).filter((key) => !keys.includes(key)))
-    state.fail(
-      `${where}: unknown key ${key}; a ${keys === testKeys ? 'test block' : 'module'} takes ${keys.join(', ')}`,
-    );
+    state.fail(`${where}: unknown key ${key}; ${kindOf.get(keys) ?? 'a module'} takes ${keys.join(', ')}`);
 };
 
 const strings = (state: State, where: string, value: unknown): string[] => {
@@ -384,9 +387,9 @@ const resolveName = (state: State, scope: Scope, entry: string, tests: boolean, 
     state.pending.push({ ref, where, archetype: scope.archetype, tests });
     return ref;
   }
-  const inScope = [
-    ...new Set([...levels.flatMap((level) => [...level.names]), ...scope.inputs, ...(tests ? scope.testInputs : [])]),
-  ];
+  const inputs = top ? [] : [...scope.inputs, ...(tests ? scope.testInputs : [])];
+  const names = searched.flatMap((level) => [...level.names].filter((name) => level !== scope || name !== scope.own));
+  const inScope = [...new Set([...names, ...inputs])];
   const testInput =
     !tests && scope.testInputs.has(module) ? `; ${module} is a test input, which only test code may name` : '';
   return fail(
