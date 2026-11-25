@@ -32,7 +32,7 @@ diff    reports findings that are new or worse at <head> than at <base>. Without
         With --since-last-run, compares the working tree with the last such run, or with <base> if there is none.
 model   prints the modules the config finds, and which module each file is in.
 
---config          path to the config file (default: the first of warp.config.ts, .mts, .js, .mjs)
+--config          path to the config file (default: warp.yaml)
 --ruleset         one of the config's rulesets (default: the one named default, if any)
 --reporter        ${[...reporters.keys()].join(', ')} (default: text)
 --since-last-run  with diff, compare with the last diff run that had this flag

@@ -55,11 +55,11 @@ describe('pluginRules', () => {
     assert.equal(refused({ Mine: { rules: [] } }), `${at}.Mine: a namespace is lowercase letters, digits and dashes`);
     assert.equal(
       refused({ mine: {} }),
-      `${at}.mine: expected a plugin, { rules: Rule[] }, imported in a warp.config.ts`,
+      `${at}.mine: expected a plugin, { rules: Rule[] }, as the default export of its file`,
     );
     assert.equal(
       refused({ mine: null }),
-      `${at}.mine: expected a plugin, { rules: Rule[] }, imported in a warp.config.ts`,
+      `${at}.mine: expected a plugin, { rules: Rule[] }, as the default export of its file`,
     );
     assert.equal(
       refused({ mine: { rules: [{ id: 'Bad', check: () => [] }] } }),
