@@ -518,13 +518,14 @@ describe('test modules with modules inside', () => {
     assert.ok(tree.filter((file) => !file.startsWith('src/') || file.endsWith('.test.ts')).every(model.isTest));
   });
 
-  it("reach what their using names and what the module holding them reaches, and their own modules' surfaces", () => {
+  it("reach what their using names and what the module holding them reaches, never into their own folder through a test kit, and their own modules' surfaces", () => {
     const { verdict } = site();
     assert.equal(
       verdict('test-helpers/drivers/order.driver.ts', 'test-helpers/order.fixture.ts'),
       'allowed: kit.drivers uses m.fixtures',
     );
     assert.equal(verdict('test-helpers/drivers/order.driver.ts', 'test-helpers/clock.ts'), 'not-in-using');
+    assert.equal(verdict('test-helpers/order.fixture.ts', 'test-helpers/drivers/order.driver.ts'), 'not-in-using');
     assert.equal(verdict('test-helpers/order.fixture.ts', 'src/domain/order.ts'), 'allowed: (root) uses src/domain');
     assert.equal(
       verdict('test-helpers/setup.ts', 'test-helpers/drivers/order.driver.ts'),

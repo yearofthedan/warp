@@ -191,6 +191,7 @@ const inherited = (state: State, module: ModuleView): Grant[] => {
   const holder = module.parent!;
   if (holder.test) return [...using(state, module, 'test'), ...inherited(state, holder)];
   const own = holder.children.filter((child) => child.kind === 'files');
+  const inside = new Set(subtree(module).flatMap((at) => at.files));
   return [
     {
       owner: module.id,
@@ -204,8 +205,10 @@ const inherited = (state: State, module: ModuleView): Grant[] => {
     ...own.flatMap((child) => using(state, child, 'test')),
     ...using(state, module, 'test'),
     ...[holder, ...ancestors(holder)].flatMap((at) => testKit(state, at)),
-  ];
+  ].map((grant) => ({ ...grant, files: new Set([...grant.files].filter((file) => !inside.has(file))) }));
 };
+
+const subtree = (module: ModuleView): ModuleView[] => [module, ...module.children.flatMap(subtree)];
 
 const testKit = (state: State, at: ModuleView): Grant[] =>
   grants(state, at, `${at.archetype}.testUsing`, state.config.archetypes[at.archetype!]!.testUsing ?? [], 'test');
