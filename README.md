@@ -49,7 +49,7 @@ pnpm exec warp diff HEAD  # what changed since the last commit made new or worse
 ```
 
 ```text
-new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils src/utils) imports src/db/client.ts (root.db src/db), which is outside utils's reach. Add db to root.utils.dependencies, or move the code.
+new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils src/utils) imports src/db/client.ts (root.db src/db), which is outside utils's reach. Add db to root.utils.dependencies (warp.yaml:3), or move the code.
 ```
 
 ## Read next

@@ -24,7 +24,10 @@ export interface LoadedConfig {
 export const parseConfig = (text: string, file: string): { raw: unknown; lines: Map<string, number> } => {
   const doc = parseDocument(text, { version: '1.2', merge: false, uniqueKeys: true });
   const lineOf = (offset: number) => text.slice(0, offset).split('\n').length;
-  const problems = doc.errors.map((error) => `${file}:${lineOf(error.pos[0])}: ${error.message.split('\n')[0]}`);
+  const problems = doc.errors.map(
+    (error) =>
+      `${file}:${lineOf(error.pos[0])}: ${error.message.split('\n')[0]!.replace(/ at line \d+, column \d+:?$/, '')}`,
+  );
   visit(doc, {
     Node: (_, node) => {
       if (isAlias(node) || (isNode(node) && node.anchor))
@@ -35,17 +38,47 @@ export const parseConfig = (text: string, file: string): { raw: unknown; lines: 
   });
   if (problems.length > 0) throw new ConfigError(problems.join('\n'));
   const lines = new Map<string, number>();
-  const walk = (node: unknown, path: string) => {
+  const walk = (node: unknown, at: (key: string) => Place) => {
     if (!isMap(node)) return;
     for (const pair of node.items) {
       if (!isPair(pair) || !isScalar(pair.key)) continue;
-      const at = path === '' ? String(pair.key.value) : `${path}.${String(pair.key.value)}`;
-      lines.set(at, lineOf(pair.key.range?.[0] ?? 0));
-      walk(pair.value, at);
+      const place = at(String(pair.key.value));
+      if (place.path !== undefined) lines.set(place.path, lineOf(pair.key.range?.[0] ?? 0));
+      walk(pair.value, place.inside);
     }
   };
-  walk(doc.contents, '');
+  walk(doc.contents, top);
   return { raw: doc.toJS() ?? {}, lines };
+};
+
+interface Place {
+  path?: string;
+  inside: (key: string) => Place;
+}
+
+const plain =
+  (path: string) =>
+  (key: string): Place => ({ path: `${path}.${key}`, inside: plain(`${path}.${key}`) });
+
+const moduleAt = (path: string): Place => ({ path, inside: moduleKey(path) });
+
+const moduleKey =
+  (path: string) =>
+  (key: string): Place => {
+    if (key === 'modules') return { inside: (child) => moduleAt(`${path}.${child}`) };
+    if (key === 'test') return { path: `${path}.test`, inside: testKey(path) };
+    return plain(path)(key);
+  };
+
+const testKey =
+  (path: string) =>
+  (key: string): Place =>
+    key === 'modules' ? { inside: (child) => moduleAt(`${path}.${child}`) } : plain(`${path}.test`)(key);
+
+const top = (key: string): Place => {
+  if (key === 'root') return moduleAt('root');
+  if (key === 'archetypes') return { inside: moduleAt };
+  return { path: key, inside: plain(key) };
 };
 
 const entry = new URL(import.meta.url.endsWith('.ts') ? '../index.ts' : '../index.js', import.meta.url).href;
@@ -73,7 +106,7 @@ export const loadConfig = async (file: string): Promise<LoadedConfig> => {
       const module: Record<string, unknown> = await import(pathToFileURL(pluginPath(file, spec)).href);
       if (module.default === undefined)
         throw new ConfigError(
-          `${file}: plugins.${namespace}: ${spec} has no default export; export the plugin as default`,
+          `${file}:${lines.get(`plugins.${namespace}`) ?? 1}: plugins.${namespace}: ${spec} has no default export; export the plugin as default`,
         );
       plugins[namespace] = module.default;
     }

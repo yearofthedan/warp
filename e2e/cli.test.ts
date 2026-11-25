@@ -249,7 +249,7 @@ describe('a warp.yaml with a plugin', () => {
     );
     const checked = run('check', '--config', 'empty.yaml');
     assert.equal(checked.status, 2);
-    assert.match(checked.stderr, /warp config: .*empty.yaml: plugins\.e: \.\/rules\/empty\.ts has no default export/);
+    assert.match(checked.stderr, /warp config: .*empty.yaml:1: plugins\.e: \.\/rules\/empty\.ts has no default export/);
   });
 });
 
@@ -268,7 +268,7 @@ describe('warp check', () => {
     writeFileSync(join(project, 'bad.yaml'), 'root: 3\n');
     const run = warp('check', '--config', 'bad.yaml');
     assert.equal(run.status, 2);
-    assert.match(run.stderr, /warp config: root: expected the repository/);
+    assert.match(run.stderr, /warp config: bad.yaml:1: root: expected the repository/);
   });
 
   it('tells Claude once that a claude-hook run failed, then exits 1 so the hook warns without blocking', () => {
@@ -281,7 +281,7 @@ describe('warp check', () => {
     assert.equal(first.status, 0, first.stderr);
     assert.match(
       context(first),
-      /^Warp architecture feedback is unavailable, so edits are not checked: warp config: root: expected the repository/,
+      /^Warp architecture feedback is unavailable, so edits are not checked: warp config: bad.yaml:1: root: expected the repository/,
     );
     const again = hook('bad.yaml');
     assert.deepEqual([again.status, again.stdout], [1, '']);
@@ -360,7 +360,10 @@ describe('rulesets', () => {
   it('refuses a ruleset that names an archetype outside the config', () => {
     const checked = run('check', '--ruleset', 'stray');
     assert.equal(checked.status, 2);
-    assert.match(checked.stderr, /warp config: rulesets\.stray\.on\.stranger: no archetype or module called stranger/);
+    assert.match(
+      checked.stderr,
+      /warp config: warp.yaml:20: rulesets\.stray\.on\.stranger: no archetype or module called stranger/,
+    );
   });
 });
 
@@ -474,7 +477,7 @@ describe('a warp.yaml with archetypes', () => {
     assert.equal(checked.status, 2);
     assert.equal(
       checked.stderr,
-      "warp config: rulesets.default.rules.module-cycle.types: expected 'count' or 'ignore'\nrulesets.default.on.root.src: no rule called no-such-rule\n",
+      "warp config: rules.yaml:5: rulesets.default.rules.module-cycle.types: expected 'count' or 'ignore'\nrules.yaml:6: rulesets.default.on.root.src: no rule called no-such-rule\n",
     );
   });
 });

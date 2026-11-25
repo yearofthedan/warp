@@ -27,10 +27,9 @@ pnpm add -D @yearofthedan/warp
 ## 2. Describe the project as it is
 
 Start with a config that holds what the code already does: a module per folder, each exposing all its files, and
-each depending on what it imports today. Put it next to `tsconfig.json`:
+each depending on what it imports today. Put it in `warp.yaml`, next to `tsconfig.json`:
 
 ```yaml
-# warp.yaml
 root:
   modules:
     utils: { dir: src/utils, exposes: all }
@@ -142,7 +141,7 @@ pnpm exec warp diff HEAD
 ```
 
 ```text
-new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils src/utils) imports src/db/client.ts (root.db src/db), which is outside utils's reach. Add db to root.utils.dependencies, or move the code.
+new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils src/utils) imports src/db/client.ts (root.db src/db), which is outside utils's reach. Add db to root.utils.dependencies (warp.yaml:4), or move the code.
 
 1 new finding, 0 worsened, 0 resolved.
 ```
@@ -155,7 +154,7 @@ Each narrower `dependencies` makes the config stricter. Replacing `'npm:*'` with
 package it uses, so a new package becomes a decision. `warp check` then reports the test's import of vitest:
 
 ```text
-src/api/orders.test.ts:1 [module-externals] src/api/orders.test.ts (root.api src/api) imports vitest, a package outside api's reach. Add npm:vitest to root.api.dependencies, or move the code. (+1 more in reach)
+src/api/orders.test.ts:1 [module-externals] src/api/orders.test.ts (root.api src/api) imports vitest, a package outside api's reach. Add npm:vitest to root.api.dependencies (warp.yaml:6), or move the code. (+1 more in reach)
 ```
 
 ## 8. Tell warp which files are tests

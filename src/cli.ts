@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import { diskFolders } from './analysis/folders.ts';
 import { typescriptAnalyzer } from './analysis/typescript.ts';
 import { type Adapters, modelProject, type ProjectCheck, projectCheck } from './app/check.ts';
+import { type ConfigLines, placeProblems } from './app/configLines.ts';
 import { factsStore } from './app/facts.ts';
 import { diffProject, parseRange } from './app/diff.ts';
 import { builtinRegistry, unclassifiedDocs } from './builtins/index.ts';
@@ -47,6 +48,7 @@ interface Resolved {
   root: string;
   config: ConfigData;
   rules: Rule[];
+  lines: ConfigLines;
   digest: string;
 }
 
@@ -95,19 +97,20 @@ const help = (code: number): number => {
 const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail' | 'since-last-run'>): Promise<Resolved> => {
   const configFile = realpathSync(options.config ? resolve(options.config) : findConfig(process.cwd()));
   const root = dirname(configFile);
-  const { raw, plugins, digest } = await loadConfig(configFile);
+  const { raw, plugins, lines, digest } = await loadConfig(configFile);
   const builtins = [...builtinRegistry.values()];
-  const { config, rules } = loadConfigData(raw, {
-    builtins,
-    plugins,
-    ruleset: options.ruleset,
-    file: basename(configFile),
-  });
-  return { root, config, rules, digest };
+  const file = basename(configFile);
+  try {
+    const { config, rules } = loadConfigData(raw, { builtins, plugins, ruleset: options.ruleset, file });
+    return { root, config, rules, lines, digest };
+  } catch (error) {
+    if (error instanceof ConfigError) throw new ConfigError(placeProblems(lines, file, error.message));
+    throw error;
+  }
 };
 
-const checkOf = ({ root, config, rules }: Resolved): ProjectCheck =>
-  projectCheck(adaptersAt(root), config, { rules, unclassifiedDocs });
+const checkOf = ({ root, config, rules, lines }: Resolved): ProjectCheck =>
+  projectCheck(adaptersAt(root), config, { rules, unclassifiedDocs, lines });
 
 const run = async (options: Options, produce: Produce): Promise<number> => {
   const reporter = reporters.get(options.reporter);

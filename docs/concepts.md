@@ -19,7 +19,6 @@ src/
 ```
 
 ```yaml
-# warp.yaml
 root:
   modules:
     lib: { dir: src/lib, exposes: all }
@@ -166,7 +165,7 @@ rule runs with its defaults. See [config.md](config.md#rulesets).
 One thing a rule reports, at a file and line:
 
 ```text
-src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils src/utils) imports src/lib/format.ts (root.lib src/lib), which is outside utils's reach. Add lib to root.utils.dependencies, or move the code.
+src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils src/utils) imports src/lib/format.ts (root.lib src/lib), which is outside utils's reach. Add lib to root.utils.dependencies (warp.yaml:4), or move the code.
 ```
 
 Its **key**, `dependency-direction:src/utils/slug.ts->src/lib/format.ts`, identifies it across commits, and its
