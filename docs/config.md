@@ -216,7 +216,7 @@ A package import is judged against the `pkg()` entries in the file's reach, and 
 Test code lives in test modules, declared beside the modules they test:
 
 ```ts
-import { all, archetype, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
+import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
 
 const page = archetype('page')
   .identify({ marker: '{name}.dom.ts' })
@@ -235,26 +235,42 @@ const site = archetype('site')
     c
       .module('domain', dir('src/domain'), exposes(all()))
       .module('pages', dir('src/{name}'), page.using((m) => [m.domain]))
-      .testModule('fixtures', dir('src/test-helpers'), using((m) => [m.domain]))
-      .testModule('e2e', dir('e2e')),
+      .testModule(
+        'fixtures',
+        dir('src/test-helpers'),
+        contains((t) =>
+          t
+            .testModule('builders', files('*.builder.ts'))
+            .testModule('seeds', files('*.seed.ts'), using((m) => [m.builders])),
+        ).exposes((m) => ({ seeds: m.seeds })),
+      )
+      .testModule('e2e', dir('e2e'), contains((t) => t.testModule('journeys', files('*.dsl.ts')))),
   )
-  .testUsing((m) => [m.fixtures, pkg('vitest')]);
+  .testUsing((m) => [m.fixtures.seeds, pkg('vitest')]);
 
 export default defineConfig({ root: site });
 ```
 
 ```text
-src/cart/cart.ts            src/cart:logic
-src/cart/cart.driver.ts     src/cart:driver
-src/cart/cart.test.ts       src/cart:tests     reaches logic, dom, the driver, the fixtures and vitest
-src/test-helpers/orders.ts  (root):fixtures    reaches domain and vitest
-e2e/checkout.test.ts        (root):e2e         reaches each page's render and driver, the fixtures and vitest
+src/cart/cart.ts                   src/cart:logic
+src/cart/cart.driver.ts            src/cart:driver
+src/cart/cart.test.ts              src/cart:tests              reaches logic, dom, the driver, the seeds and vitest
+src/test-helpers/order.builder.ts  src/test-helpers:builders   reaches domain, the seeds and vitest
+src/test-helpers/order.seed.ts     src/test-helpers:seeds      reaches the builders, domain and vitest
+e2e/checkout.dsl.ts                e2e:journeys                reaches each page's render and driver, the seeds and vitest
+e2e/checkout.test.ts               e2e                         reaches the journeys and what they reach
 ```
 
 - `.testModule(name, selector, archetype?)` goes in `.contains()` beside `.module()`, and holds test code: test files
   and the drivers, fixtures and DSLs they share. Its selector is `files(...)` or `dir(...)`, relative to its module
-  like any other, or `mirror(...)`. Its archetype is unnamed, from `using()`, `exposes()` or `description()`, and it
-  exposes all its files unless it says otherwise.
+  like any other, or `mirror(...)`. With `files(...)` or `mirror(...)` its archetype is unnamed, from `using()`,
+  `exposes()` or `description()`. With `dir(...)` it is a folder like a dir module, and its archetype may be named
+  and may contain test modules of its own. A test module exposes all its files unless it says otherwise.
+- Everything inside a test module is test code. Its `.contains()` declares `.testModule(...)` only, and an archetype
+  given to a test module is given to no production module and takes no `testUsing` or `testExposes`: what it exposes
+  is for tests already. Its test modules reach what their `using` names and what the test module holding them
+  reaches, and the folder's own files reach its test modules' surfaces, as in a dir module. `seeds` reaches
+  `builders` because its `using` names it, and `checkout.test.ts` reaches `journeys` because `e2e` holds it.
 - A test module reaches its own files, every file of the module that declares it and of that module's files modules,
   what that module reaches, and what its own `using` names. `cart.test.ts` reaches `logic` and `dom` because they
   are `src/cart`'s.
@@ -271,9 +287,9 @@ e2e/checkout.test.ts        (root):e2e         reaches each page's render and dr
   reaches both under that name. Only test code may name a test surface.
 - A test surface passes up one module at a time. Had `pages` sat inside a `ui` module, `ui` would pass the drivers
   on with `.testExposes((m) => ({ pages: m.pages }))`, since `.exposes(all())` carries production files alone.
-- A test module claims its files ahead of any production module. Where several match, the deepest module's wins,
-  then the more specific selector, as for files modules: `dir('e2e')` counts as `files('e2e/**')`, so
-  `files('e2e/*.dsl.ts')` beside it takes the DSLs.
+- A `files(...)` test module claims its files ahead of any production module. Where several match, the deepest
+  module's wins, then the more specific selector, as for files modules. A `dir(...)` test module's folder is its own,
+  as a dir module's is: a `files('e2e/*.dsl.ts')` beside `dir('e2e')` finds nothing, so `journeys` sits inside `e2e`.
 - A file is test code only when a test module claims it. A test file nothing claims is production code of its
   module, or loose, and reported by [`unclassified`](../src/builtins/unclassified/README.md), where no files module
   matches it.

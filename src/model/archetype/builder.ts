@@ -97,9 +97,19 @@ export interface Modules<C, H> {
   ): Modules<With<C, K, SurfaceRefs<E>>, With<H, K, HandleOf<N, H2>>>;
   testModule<const K extends string>(
     name: NewName<K, C>,
-    selector: Selector<'files' | 'dir' | 'mirror'>,
+    selector: Selector<'files' | 'mirror'>,
     archetype?: Archetype<undefined, {}, C, {}>,
   ): Modules<With<C, K, Reference>, With<H, K, ModuleHandle>>;
+  testModule<const K extends string>(
+    name: NewName<K, C>,
+    selector: Selector<'dir'>,
+    archetype: Self,
+  ): Modules<With<C, K, AnySurface>, With<H, K, ModuleHandle>>;
+  testModule<const K extends string, N extends string | undefined = undefined, E = {}, H2 = {}>(
+    name: NewName<K, C>,
+    selector: Selector<'dir'>,
+    archetype?: Archetype<N, E, C, H2>,
+  ): Modules<With<C, K, SurfaceRefs<E>>, With<H, K, HandleOf<N, H2>>>;
 }
 
 export type TestUsing<C, R> =
@@ -250,7 +260,7 @@ const handles = (holder: unknown, entries: unknown): Record<string, unknown> =>
         const handle = record('handle', { archetype: holder, module: entry.name });
         const anonymous = recordedAs(entry.archetype, 'archetype')?.definition;
         const nested =
-          anonymous && anonymous.name === undefined && !entry.test
+          anonymous && anonymous.name === undefined
             ? { modules: handles(inlineName(String(holder), entry.name as string), anonymous.modules) }
             : {};
         return [entry.name, Object.freeze({ ...handle, ...nested })];

@@ -151,12 +151,12 @@ describe('test modules', () => {
     const { model } = shop();
     const owner = (file: string) => `${model.isTest(file) ? 'test' : 'code'} ${model.moduleOf(file)!.id}`;
     assert.deepEqual(Object.fromEntries(paths.map((file) => [file, owner(file)])), {
-      'e2e/flow.test.ts': 'test (root):e2e',
-      'e2e/steps.ts': 'test (root):e2e',
+      'e2e/flow.test.ts': 'test e2e',
+      'e2e/steps.ts': 'test e2e',
       'src/main.ts': 'code (root):main',
       'src/domain/order.ts': 'code src/domain',
       'src/domain/order.test.ts': 'test src/domain:tests',
-      'src/seed/orders.ts': 'test (root):seed',
+      'src/seed/orders.ts': 'test src/seed',
       'src/a/a.ts': 'code src/a:logic',
       'src/a/a.dom.ts': 'code src/a:dom',
       'src/a/a.test.ts': 'test src/a:tests',
@@ -299,8 +299,8 @@ describe('test modules', () => {
         '    src/a:dsl  1 test file',
         '    src/a:tests  1 test file',
         '  (root):main  1 file',
-        '  (root):seed  1 test file',
-        '  (root):e2e  2 test files',
+        '  src/seed  seed: app.seed, 1 test file',
+        '  e2e  e2e: app.e2e, 2 test files',
         '',
         '17 modules, 6 files, 9 test files, 0 loose.',
       ].join('\n'),
@@ -320,20 +320,21 @@ describe('test modules', () => {
     );
   });
 
-  it('give a file several test modules claim to the longer literal ending, a dir ending in none, and refuse ties', () => {
+  it("give a file several test modules claim to the longer literal ending, refuse ties, and leave a dir() test module's folder to it", () => {
     const app = archetype('app').contains((c) =>
       c
         .testModule('e2e', dir('e2e'))
-        .testModule('journeys', files('e2e/*.dsl.ts'))
+        .testModule('journeys', files('**/*.dsl.ts'))
+        .testModule('helpers', files('**/*.ts'))
         .testModule('unit', files('*.test.ts'))
         .testModule('specs', files('*.test.ts')),
     );
     const { config } = loadConfigData({ root: app });
-    const claimed = ['e2e/journey.dsl.ts', 'e2e/writer.ts'];
+    const claimed = ['kit/journey.dsl.ts', 'kit/writer.ts', 'e2e/journey.dsl.ts'];
     const model = resolveModel(config, folders(claimed), claimed);
     assert.deepEqual(
       claimed.map((file) => model.moduleOf(file)!.id),
-      ['(root):journeys', '(root):e2e'],
+      ['(root):journeys', '(root):helpers', 'e2e'],
     );
     assert.deepEqual(
       failures(() => resolveModel(config, folders(['b.test.ts']), ['b.test.ts'])),
@@ -372,18 +373,27 @@ describe('test modules', () => {
     );
   });
 
-  it('refuse a named or folder-shaped archetype, production code naming one, and testUsing on a files module', () => {
+  it('refuse a folder archetype on a files test module, production modules inside a test module, and production code naming one', () => {
     const named = archetype('named');
+    const shared = archetype('shared').contains((c) => c.module('x', files('x.ts')));
     const odd = archetype('odd')
-      .contains((c) =>
+      .contains((c, { self }) =>
         c
           .testModule('kit', files('*.kit.ts'))
           .testModule('one', files('one.test.ts'), named as never)
-          .testModule('two', dir('two'), contains((t) => t.module('x', files('x.ts'))).testUsing([]) as never)
+          .testModule('two', dir('two'), contains((t) => t.module('x', files('x.ts'))).testUsing([]))
+          .testModule(
+            'three',
+            dir('three'),
+            exposes(all()).testExposes(() => ({})),
+          )
+          .testModule('four', dir('four'), self)
+          .module('five', dir('five'), shared)
+          .testModule('six', dir('six'), shared)
           .module(
             'code',
             files('*.ts'),
-            using((m) => [m.kit]),
+            using((m) => [m.kit, m.two]),
           )
           .module('loose', files('l.ts'), exposes(all()).testUsing([]) as never)
           .module('misplaced', mirror('src', 'test') as never),
@@ -392,12 +402,16 @@ describe('test modules', () => {
     assert.deepEqual(
       failures(() => loadConfigData({ root: odd })),
       [
-        "odd.one: a test module's archetype is its own: using(...), exposes(...) or description(...)",
-        'odd.two.contains: a test module holds test code; its archetype takes using(...), exposes(...) and description(...)',
-        'odd.two.testUsing: a test module holds test code; its archetype takes using(...), exposes(...) and description(...)',
+        'shared is given to both .module() and .testModule(); an archetype holds production code or test code',
+        'odd.one: an archetype makes a folder module; use dir(...), not files(...)',
+        "odd.four: self is the holder's archetype, which holds production code; name an archetype for the test module",
         'odd.loose.testUsing: a files module has no modules; use dir(...) for testUsing',
         "odd.misplaced: expected a selector, files('*.ts') or dir('src/ui')",
+        'odd.two.testUsing: odd.two holds test code; give it using(...)',
+        'odd.two.x: odd.two holds test code; declare its modules with .testModule(...)',
+        'odd.three.testExposes: odd.three holds test code, so what it exposes is for tests already; use exposes(...)',
         'odd.code uses kit; kit is a test module, which only test modules and testUsing may name',
+        'odd.code uses two; two is a test module, which only test modules and testUsing may name',
         'odd provides kit as kit; kit is a test module, which only test modules and testUsing may name',
       ],
     );
@@ -428,6 +442,156 @@ describe('test modules', () => {
         'odd.main uses parts.dsl; dsl is a test surface of parts (part), which only test modules and testUsing may name',
         'part exposes kit as kit; kit is a test module, and exposes is production code: name it in testExposes',
       ],
+    );
+  });
+});
+
+describe('test modules with modules inside', () => {
+  const tree = [
+    'src/main.ts',
+    'src/domain/order.ts',
+    'src/domain/order.test.ts',
+    'test-helpers/setup.ts',
+    'test-helpers/setup.test.ts',
+    'test-helpers/order.fixture.ts',
+    'test-helpers/clock.ts',
+    'test-helpers/drivers/order.driver.ts',
+    'e2e/checkout.dsl.ts',
+    'e2e/checkout.test.ts',
+  ];
+
+  const site = () => {
+    const kit = archetype('kit')
+      .contains((c) =>
+        c
+          .testModule('fixtures', files('*.fixture.ts'))
+          .testModule('clock', files('clock.ts'))
+          .testModule(
+            'drivers',
+            dir('drivers'),
+            using((m) => [m.fixtures]),
+          ),
+      )
+      .exposes((m) => ({ drivers: m.drivers }));
+    const app = archetype('app')
+      .contains((c) =>
+        c
+          .module('domain', dir('src/domain'), exposes(all()))
+          .module(
+            'main',
+            files('src/main.ts'),
+            using((m) => [m.domain]),
+          )
+          .testModule('helpers', dir('test-helpers'), kit)
+          .testModule(
+            'e2e',
+            dir('e2e'),
+            contains((e) => e.testModule('journeys', files('*.dsl.ts'))),
+          )
+          .testModule('tests', files('**/*.test.ts')),
+      )
+      .testUsing((m) => [m.helpers.drivers, pkg('vitest')]);
+    const { config } = loadConfigData({ root: app }, { builtins: importRules });
+    const model = resolveModel(config, folders(tree), tree);
+    const judge = verdicts(config, model);
+    const verdict = (from: string, to: string): string => {
+      const found = judge.verdict(from, to)!;
+      return found.allowed ? `allowed: ${grantText(found.grant)}` : found.reason;
+    };
+    return { app, kit, config, model, verdict };
+  };
+
+  it('hold the files their own test modules leave, which no test module above them claims', () => {
+    const { model } = site();
+    assert.deepEqual(Object.fromEntries(tree.map((file) => [file, model.moduleOf(file)!.id])), {
+      'src/main.ts': '(root):main',
+      'src/domain/order.ts': 'src/domain',
+      'src/domain/order.test.ts': '(root):tests',
+      'test-helpers/setup.ts': 'test-helpers',
+      'test-helpers/setup.test.ts': 'test-helpers',
+      'test-helpers/order.fixture.ts': 'test-helpers:fixtures',
+      'test-helpers/clock.ts': 'test-helpers:clock',
+      'test-helpers/drivers/order.driver.ts': 'test-helpers/drivers',
+      'e2e/checkout.dsl.ts': 'e2e:journeys',
+      'e2e/checkout.test.ts': 'e2e',
+    });
+    assert.ok(tree.filter((file) => !file.startsWith('src/') || file.endsWith('.test.ts')).every(model.isTest));
+  });
+
+  it("reach what their using names and what the module holding them reaches, and their own modules' surfaces", () => {
+    const { verdict } = site();
+    assert.equal(
+      verdict('test-helpers/drivers/order.driver.ts', 'test-helpers/order.fixture.ts'),
+      'allowed: kit.drivers uses m.fixtures',
+    );
+    assert.equal(verdict('test-helpers/drivers/order.driver.ts', 'test-helpers/clock.ts'), 'not-in-using');
+    assert.equal(verdict('test-helpers/order.fixture.ts', 'src/domain/order.ts'), 'allowed: (root) uses src/domain');
+    assert.equal(
+      verdict('test-helpers/setup.ts', 'test-helpers/drivers/order.driver.ts'),
+      'allowed: test-helpers uses test-helpers/drivers',
+    );
+    assert.equal(verdict('e2e/checkout.test.ts', 'e2e/checkout.dsl.ts'), 'allowed: e2e uses e2e:journeys');
+  });
+
+  it('tell a test module inside one to name its sibling in its using', () => {
+    const { config, model } = site();
+    const [finding] = checkModel(
+      config,
+      model,
+      {
+        files: [
+          facts('test-helpers/drivers/order.driver.ts', [
+            edge('test-helpers/drivers/order.driver.ts', 'test-helpers/clock.ts'),
+          ]),
+        ],
+      },
+      importRules,
+    );
+    assert.match(finding!.message, /Add m\.clock to the using of kit\.drivers/);
+  });
+
+  it('show tests outside only what they expose, and production code none of it', () => {
+    const { verdict } = site();
+    assert.equal(
+      verdict('src/domain/order.test.ts', 'test-helpers/drivers/order.driver.ts'),
+      'allowed: app.testUsing uses m.helpers.drivers',
+    );
+    assert.equal(verdict('src/domain/order.test.ts', 'test-helpers/order.fixture.ts'), 'private');
+    assert.equal(verdict('src/main.ts', 'test-helpers/drivers/order.driver.ts'), 'test');
+  });
+
+  it('take settings by the handle their archetype gives each module', () => {
+    const { app, kit } = site();
+    const off = (target: unknown) => {
+      const { config } = loadConfigData(
+        { root: app, rulesets: { default: ruleset().on(target as never, { 'function-cohesion': false }) } },
+        { builtins: importRules },
+      );
+      const on = settings(config, resolveModel(config, folders(tree), tree));
+      return tree.filter((file) => !on.atFile(file, 'function-cohesion').on);
+    };
+    assert.deepEqual(off(app.modules.e2e.modules.journeys), ['e2e/checkout.dsl.ts']);
+    assert.deepEqual(off(kit.modules.drivers), ['test-helpers/drivers/order.driver.ts']);
+  });
+
+  it('are listed in warp model as folders', () => {
+    const { model } = site();
+    assert.equal(
+      modelText(model),
+      [
+        '(root)  root: app',
+        '  src/domain  domain: app.domain, 1 file',
+        '  (root):main  1 file',
+        '  test-helpers  helpers: kit, 2 test files',
+        '    test-helpers:fixtures  1 test file',
+        '    test-helpers:clock  1 test file',
+        '    test-helpers/drivers  drivers: kit.drivers, 1 test file',
+        '  e2e  e2e: app.e2e, 1 test file',
+        '    e2e:journeys  1 test file',
+        '  (root):tests  1 test file',
+        '',
+        '10 modules, 2 files, 8 test files, 0 loose.',
+      ].join('\n'),
     );
   });
 });

@@ -63,7 +63,8 @@ export const verdicts = (config: ConfigData, model: Model): Verdicts => {
 };
 
 const exposes = ({ config }: State, module: ModuleView): ExposesData | undefined => {
-  if (module.kind === 'dir') return config.archetypes[module.archetype!]!.exposes;
+  if (module.kind === 'dir')
+    return config.archetypes[module.archetype!]!.exposes ?? (module.test ? { kind: 'all' } : undefined);
   const declared = declarationOf(config, module);
   if (declared?.kind === 'test') return declared.exposes ?? { kind: 'all' };
   return declared?.kind === 'files' ? declared.exposes : undefined;
@@ -107,7 +108,7 @@ const exposed = (state: State, module: ModuleView, name: string | undefined): Re
   const all = union([
     new Set(module.files),
     ...module.children
-      .filter((child) => child.kind !== 'test')
+      .filter((child) => module.test || !child.test)
       .map((child) => surface(state, child, undefined, 'production')),
   ]);
   if (declared.kind === 'all') return all;
@@ -161,7 +162,7 @@ const reach = (state: State, file: string): readonly Grant[] | undefined => {
   if (!module || module.looseFiles.includes(file)) return undefined;
   let found = state.reaches.get(module.id);
   if (!found) {
-    found = module.kind === 'test' ? testReach(state, module) : productionReach(state, module);
+    found = module.test ? testReach(state, module) : productionReach(state, module);
     state.reaches.set(module.id, found);
   }
   return found;
@@ -170,24 +171,34 @@ const reach = (state: State, file: string): readonly Grant[] | undefined => {
 const productionReach = (state: State, module: ModuleView): Grant[] => [
   { owner: `own module ${module.id}`, files: new Set(module.files) },
   ...module.children
-    .filter((child) => child.kind !== 'test')
+    .filter((child) => !child.test)
     .map((child) => ({ owner: module.id, ref: child.id, files: surface(state, child, undefined, 'production') })),
   ...using(state, module, 'production'),
   ...(module.kind === 'files' ? using(state, module.parent!, 'production') : []),
 ];
 
-const testReach = (state: State, module: ModuleView): Grant[] => {
+const testReach = (state: State, module: ModuleView): Grant[] => [
+  { owner: `own module ${module.id}`, files: new Set(module.files) },
+  ...module.children.map((child) => ({
+    owner: module.id,
+    ref: child.id,
+    files: surface(state, child, undefined, 'test'),
+  })),
+  ...inherited(state, module),
+];
+
+const inherited = (state: State, module: ModuleView): Grant[] => {
   const holder = module.parent!;
+  if (holder.test) return [...using(state, module, 'test'), ...inherited(state, holder)];
   const own = holder.children.filter((child) => child.kind === 'files');
   return [
-    { owner: `own module ${module.id}`, files: new Set(module.files) },
     {
       owner: module.id,
       ref: holder.id,
       files: union([new Set(holder.files), ...own.map((child) => new Set(child.files))]),
     },
     ...holder.children
-      .filter((child) => child.kind === 'dir')
+      .filter((child) => child.kind === 'dir' && !child.test)
       .map((child) => ({ owner: holder.id, ref: child.id, files: surface(state, child, undefined, 'test') })),
     ...using(state, holder, 'test'),
     ...own.flatMap((child) => using(state, child, 'test')),

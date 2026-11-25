@@ -134,7 +134,8 @@ How an archetype reaches modules above it: it names what it needs in `.requires(
 
 A module of test code: test files and the drivers, fixtures and DSLs they share, declared with
 `.testModule(name, selector)` in `.contains()`. `(root):tests` holds `src/api/orders.test.ts`. A test module reaches
-what the module that declares it reaches, and that module's own files. Only test code may import it: a production
+what the module that declares it reaches, and that module's own files. A test module made with `dir(...)` is a folder
+and may hold test modules of its own, so a folder of shared helpers keeps its shape. Only test code may import it: a production
 file that does is a [`dependency-direction`](../src/builtins/dependency-direction/README.md) finding. See
 [config.md](config.md#tests).
 

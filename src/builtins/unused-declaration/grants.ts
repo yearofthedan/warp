@@ -1,4 +1,4 @@
-import type { RefData } from '../../model/archetype/data.ts';
+import { isTestData, type RefData } from '../../model/archetype/data.ts';
 import type { Grant } from '../../model/archetype/reach.ts';
 import { show } from '../../model/archetype/references.ts';
 import type { ModuleView } from '../../model/archetype/resolve.ts';
@@ -37,7 +37,7 @@ const declared = (context: Context): Declared[] =>
     const instances = instancesOf(context, archetype.name);
     const modules = archetype.modules.flatMap((module) => {
       const holders = childrenNamed(context, instances, module.name);
-      const layer: Layer = module.kind === 'test' ? 'test' : 'production';
+      const layer: Layer = isTestData(module) ? 'test' : 'production';
       return module.using.map((ref) => ({ ref, declaredIn: `${archetype.name}.${module.name}`, layer, holders }));
     });
     const kit = (archetype.testUsing ?? []).map((ref) => ({

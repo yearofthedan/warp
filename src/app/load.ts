@@ -66,6 +66,7 @@ export const loadConfigData = (
 const archetypeData = ({
   name,
   inline,
+  test,
   description,
   identify,
   requires,
@@ -78,6 +79,7 @@ const archetypeData = ({
   defined({
     name,
     inline,
+    test,
     description,
     identify,
     requires,

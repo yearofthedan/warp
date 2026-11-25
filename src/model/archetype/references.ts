@@ -1,6 +1,14 @@
 import { ConfigError } from '../configError.ts';
 import { recordedAs } from './builder.ts';
-import type { ArchetypeData, ExposesData, ModuleData, ModuleRefData, RefData, RuleSettingsData } from './data.ts';
+import {
+  type ArchetypeData,
+  type ExposesData,
+  isTestData,
+  type ModuleData,
+  type ModuleRefData,
+  type RefData,
+  type RuleSettingsData,
+} from './data.ts';
 import type { Draft, DraftExposes } from './draft.ts';
 import { type Fail, isName, isRecord, list } from './shared.ts';
 
@@ -41,7 +49,7 @@ export const resolveDraft = (
       visible: index,
       kinds: every,
       refused: '',
-      tests: module.data.kind === 'test',
+      tests: isTestData(module.data),
       module: module.data.name,
     };
     const where = `${archetype.name}.${module.data.name}`;
@@ -52,7 +60,7 @@ export const resolveDraft = (
     visible: archetype.modules.length,
     kinds: ['module'],
     refused: 'exposes and provides name the archetype’s own modules',
-    tests: false,
+    tests: archetype.test === true,
   };
   if (exposes) archetype.exposes = exposesData(check, archetype.name, exposes, { ...own, surface: true });
   if (testExposes)
@@ -159,14 +167,21 @@ const moduleProblem = (check: Check, name: string, surface: string | undefined, 
   if (index < 0 || index >= scope.visible) return visibilityProblem(name, index, scope);
   if (surface !== undefined && scope.whole) return 'name the whole module, without a surface';
   const module = scope.archetype.modules[index]!;
+  if (isTestData(module) && !scope.tests) return testModuleProblem(name, scope);
   if (module.kind === 'test')
-    return scope.tests
-      ? exposedProblem(name, undefined, { exposes: module.exposes ?? { kind: 'all' }, testExposes: [] }, surface, true)
-      : testModuleProblem(name, scope);
+    return exposedProblem(
+      name,
+      undefined,
+      { exposes: module.exposes ?? { kind: 'all' }, testExposes: [] },
+      surface,
+      true,
+    );
   if (module.kind === 'files')
     return exposedProblem(name, undefined, { exposes: module.exposes, testExposes: [] }, surface, scope.tests);
   const archetype = archetypeText(scope.archetype, module);
-  return exposedProblem(name, archetype, surfacesOf(check, module.archetype), surface, scope.tests);
+  const surfaces = surfacesOf(check, module.archetype);
+  const exposes = module.test ? (surfaces.exposes ?? { kind: 'all' }) : surfaces.exposes;
+  return exposedProblem(name, archetype, { ...surfaces, exposes }, surface, scope.tests);
 };
 
 const testModuleProblem = (name: string, { surface }: Scope): string =>
