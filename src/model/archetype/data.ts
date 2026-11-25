@@ -72,6 +72,7 @@ export interface ArchetypeData {
   requires: Record<string, RequirementData>;
   modules: ModuleData[];
   exposes?: ExposesData;
+  testExposes?: Record<string, RefData[]>;
   provides: Record<string, ModuleRefData>;
   testUsing?: RefData[];
   rules?: RuleSettingsData;

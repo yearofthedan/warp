@@ -113,30 +113,32 @@ export interface ContainsContext<R> {
 
 export type Identify = IdentifyData;
 
-export type ArchetypeBuilder<N extends string | undefined, C, H, R, E, P = unknown> = ArchetypeMethods<
+export type ArchetypeBuilder<N extends string | undefined, C, H, R, E, P = unknown, T = {}> = ArchetypeMethods<
   N,
   C,
   H,
   R,
   E,
-  P
+  P,
+  T
 > & { readonly modules: H };
 
-export interface ArchetypeMethods<N extends string | undefined, C, H, R, E, P> extends Archetype<N, E, P, H> {
-  identify(identify: Identify): ArchetypeBuilder<N, C, H, R, E, P>;
+export interface ArchetypeMethods<N extends string | undefined, C, H, R, E, P, T> extends Archetype<N, E & T, P, H> {
+  identify(identify: Identify): ArchetypeBuilder<N, C, H, R, E, P, T>;
   requires<const R2 extends Record<string, AnyArchetype | Shape>>(
     requires: R2,
-  ): ArchetypeBuilder<N, C, H, { readonly [K in keyof R2]: RequiredRef<R2[K]> }, E, P>;
+  ): ArchetypeBuilder<N, C, H, { readonly [K in keyof R2]: RequiredRef<R2[K]> }, E, P, T>;
   contains<C2, H2>(
     modules: (m: Modules<{}, {}>, context: ContainsContext<R>) => Modules<C2, H2>,
-  ): ArchetypeBuilder<N, C2, H2, R, E, P>;
-  exposes<const E2 extends Surfaces>(exposes: (s: C) => E2): ArchetypeBuilder<N, C, H, R, E2, P>;
-  exposes(exposes: Exposed): ArchetypeBuilder<N, C, H, R, {}, P>;
-  entry(entry: Selector<'files'>): ArchetypeBuilder<N, C, H, R, {}, P>;
-  provides(provides: (s: C) => Record<string, Reference>): ArchetypeBuilder<N, C, H, R, E, P>;
-  description(description: string): ArchetypeBuilder<N, C, H, R, E, P>;
-  testUsing(using: TestUsing<C, R>): ArchetypeBuilder<N, C, H, R, E, P>;
-  using<P2 = any>(using: Using<P2>): ArchetypeBuilder<N, C, H, R, E, P2>;
+  ): ArchetypeBuilder<N, C2, H2, R, E, P, T>;
+  exposes<const E2 extends Surfaces>(exposes: (s: C) => E2): ArchetypeBuilder<N, C, H, R, E2, P, T>;
+  exposes(exposes: Exposed): ArchetypeBuilder<N, C, H, R, {}, P, T>;
+  testExposes<const T2 extends Surfaces>(exposes: (s: C) => T2): ArchetypeBuilder<N, C, H, R, E, P, T2>;
+  entry(entry: Selector<'files'>): ArchetypeBuilder<N, C, H, R, {}, P, T>;
+  provides(provides: (s: C) => Record<string, Reference>): ArchetypeBuilder<N, C, H, R, E, P, T>;
+  description(description: string): ArchetypeBuilder<N, C, H, R, E, P, T>;
+  testUsing(using: TestUsing<C, R>): ArchetypeBuilder<N, C, H, R, E, P, T>;
+  using<P2 = any>(using: Using<P2>): ArchetypeBuilder<N, C, H, R, E, P2, T>;
 }
 
 export interface Ruleset {
@@ -179,6 +181,7 @@ export interface RecordedDefinition {
   requires: unknown;
   modules: unknown;
   exposes?: unknown;
+  testExposes?: unknown;
   entry?: unknown;
   provides?: unknown;
   description?: unknown;
@@ -267,6 +270,7 @@ const builder = (state: RecordedArchetype): unknown => {
     contains: (contains: (m: unknown, context: unknown) => unknown) =>
       define('modules')(recordedAs(contains(modules([]), { required: requiredRefs(), self }), 'modules')),
     exposes: define('exposes'),
+    testExposes: define('testExposes'),
     entry: define('entry'),
     provides: define('provides'),
     description: define('description'),

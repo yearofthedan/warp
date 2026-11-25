@@ -27,6 +27,8 @@ const step = (model: Model, fix: Fix, refs: readonly RefData[]): string => {
       return `require ${fix.name} in ${fix.archetype}, have ${fix.provider} provide m.${fix.module} as ${fix.name}`;
     case 'expose':
       return `expose ${sentence(refs.map(refText))} from ${fix.archetype}${instances(model, fix.archetype)}`;
+    case 'test-expose':
+      return `add ${sentence(refs.map(refText))} to the testExposes of ${fix.archetype}${instances(model, fix.archetype)}`;
     case 'expose-file':
       return `add '${fix.pattern}' to what ${fix.archetype} exposes`;
   }
@@ -35,15 +37,15 @@ const step = (model: Model, fix: Fix, refs: readonly RefData[]): string => {
 export const fixSteps = (model: Model, fixes: readonly Fix[]): string[] => {
   const steps: string[] = [];
   for (const [at, fix] of fixes.entries()) {
-    if (fix.kind !== 'expose') {
+    if (fix.kind !== 'expose' && fix.kind !== 'test-expose') {
       steps.push(step(model, fix, []));
       continue;
     }
     const previous = fixes[at - 1];
-    if (previous?.kind === 'expose' && previous.archetype === fix.archetype) continue;
+    if (previous?.kind === fix.kind && previous.archetype === fix.archetype) continue;
     const refs: RefData[] = [];
     for (const next of fixes.slice(at)) {
-      if (next.kind !== 'expose' || next.archetype !== fix.archetype) break;
+      if (next.kind !== fix.kind || next.archetype !== fix.archetype) break;
       refs.push(next.ref);
     }
     steps.push(step(model, fix, refs));

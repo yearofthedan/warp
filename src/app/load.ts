@@ -46,6 +46,7 @@ export const loadConfigData = (
     ruleIds: builtins && new Set([...rules.map((rule) => rule.id), unclassified]),
     options: Object.fromEntries(rules.map((rule) => [rule.id, rule.parseOptions ?? noOptions])),
     exposesOf: (name) => drafts.find((d) => d.data.name === name)?.exposes,
+    testExposesOf: (name) => drafts.find((d) => d.data.name === name)?.testExposes,
   };
   for (const d of drafts) resolveDraft(check, d);
   const structure: ConfigData = {
@@ -70,6 +71,7 @@ const archetypeData = ({
   requires,
   modules,
   exposes,
+  testExposes,
   provides,
   testUsing,
 }: ArchetypeData) =>
@@ -81,6 +83,7 @@ const archetypeData = ({
     requires,
     modules: modules.map(defined),
     exposes,
+    testExposes,
     provides,
     testUsing,
   });

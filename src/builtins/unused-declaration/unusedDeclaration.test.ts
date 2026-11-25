@@ -76,7 +76,8 @@ const ui = (cards: AnyArchetype = card()) =>
         .testModule('driver', files('*.driver.ts'))
         .testModule('tests', files('*.test.ts')),
     )
-    .exposes((m) => ({ cards: m.cards, view: m.view, driver: m.driver }));
+    .exposes((m) => ({ cards: m.cards, view: m.view }))
+    .testExposes((m) => ({ driver: m.driver }));
 
 const app = (extra: (m: any) => any = (m) => m, uiArchetype: AnyArchetype = ui()) =>
   archetype('app')
@@ -216,9 +217,9 @@ describe(rule, () => {
     );
   });
 
-  it('flags a surface naming a test module that no test outside imports', () => {
+  it('flags a test surface that no test outside imports', () => {
     const test = facts('main.test.ts', [], ['vitest', 'jsdom']);
-    assert.deepEqual(keys(check(app(), [...without('main.test.ts'), test])), [`${rule}:surface:ui:exposes driver`]);
+    assert.deepEqual(keys(check(app(), [...without('main.test.ts'), test])), [`${rule}:surface:ui:testExposes driver`]);
   });
 
   it('flags a module whose selector matches no files, without reporting its own using or surface', () => {
@@ -235,8 +236,8 @@ describe(rule, () => {
       findings.map((finding) => [finding.key, finding.message]),
       [
         [
-          `${rule}:surface:ui:exposes driver`,
-          'ui exposes driver, but nothing outside ui imports it. Remove it, or use the module where it is needed.',
+          `${rule}:surface:ui:testExposes driver`,
+          'ui testExposes driver, but no test outside ui imports it. Remove it, or use the module where it is needed.',
         ],
         [
           `${rule}:empty:app.legacy`,

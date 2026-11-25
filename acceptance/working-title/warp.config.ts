@@ -32,7 +32,8 @@ const component = archetype('component')
       .testModule('harness', files('*.harness.ts'))
       .testModule('tests', files('*.test.ts')),
   )
-  .exposes((m) => ({ render: m.dom, dsl: m.dsl, testPage: m.testPage }))
+  .exposes((m) => ({ render: m.dom }))
+  .testExposes((m) => ({ dsl: m.dsl, testPage: m.testPage }))
   .testUsing((m, { required }) => [m.dsl, m.testPage, m.harness, required.ports, pkg('@playwright/*')]);
 
 const ui = archetype('ui')
@@ -45,12 +46,8 @@ const ui = archetype('ui')
       .testModule('tests', files('*.test.ts')),
   )
   .provides((m) => ({ strings: m.strings, icons: m.icons, transition: m.transition }))
-  .exposes((m) => ({
-    render: m.components.render,
-    strings: m.strings,
-    dsl: m.components.dsl,
-    testPage: m.components.testPage,
-  }));
+  .exposes((m) => ({ render: m.components.render, strings: m.strings }))
+  .testExposes((m) => ({ dsl: m.components.dsl, testPage: m.components.testPage }));
 
 const workingTitle = archetype('working-title')
   .contains((m) =>

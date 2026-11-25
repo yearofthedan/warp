@@ -48,6 +48,13 @@ const declared = (context: Context): Declared[] =>
       ? instances.filter((instance) => !isTopLevel(context, instance))
       : instances;
     const own = archetype.exposes ? surfaces(context, archetype.name, archetype.exposes, judged, 'production') : [];
+    const tests = Object.entries(archetype.testExposes ?? {}).map(([name, refs]) => ({
+      declaredIn: archetype.name,
+      layer: 'test' as const,
+      exposes: `testExposes ${name}`,
+      holders: instances,
+      files: (holder: ModuleView) => new Set(refs.flatMap((ref) => [...context.verdicts.files(holder, ref, 'test')])),
+    }));
     const modules = archetype.modules.flatMap((module) => {
       const holders = childrenNamed(context, instances, module.name);
       const layer: Layer = module.kind === 'test' ? 'test' : 'production';
@@ -55,7 +62,7 @@ const declared = (context: Context): Declared[] =>
         ? surfaces(context, `${archetype.name}.${module.name}`, module.exposes, holders, layer)
         : [];
     });
-    return [...own, ...modules];
+    return [...own, ...tests, ...modules];
   });
 
 const isEntry = (exposes: ExposesData | undefined): boolean => exposes?.kind === 'files' && exposes.entry === true;
