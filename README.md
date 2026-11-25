@@ -1,7 +1,7 @@
 # warp
 
-warp checks a TypeScript codebase against a declared model of its modules. A `warp.config.ts` names the modules and
-what each may use, and warp reports the code that steps outside it:
+warp checks a TypeScript codebase against a declared model of its modules. A `warp.yaml` names the modules and what
+each may use, and warp reports the code that steps outside it:
 
 - imports outside a module's reach, including packages it doesn't list.
 - imports and re-exports that go around a module's surface.
@@ -20,27 +20,25 @@ warp needs Node 26 or later. Add it to the project as a dev dependency:
 pnpm add -D @yearofthedan/warp
 ```
 
-Describe the codebase as it is, one module per folder under `src/`, in a `warp.config.ts` next to the project's
+Describe the codebase as it is, one module per folder under `src/`, in a `warp.yaml` next to the project's
 `tsconfig.json`:
 
-```ts
-// warp.config.ts
-import { all, archetype, defineConfig, dir, exposes, files, pkg, ruleset, using } from '@yearofthedan/warp';
+```yaml
+root:
+  modules:
+    utils: { dir: src/utils, exposes: all }
+    db: { dir: src/db, exposes: all }
+    api: { dir: src/api, dependencies: [db, utils, 'npm:*'], exposes: all }
+    main: { files: src/index.ts, dependencies: [api] }
+  test:
+    provides: [npm:vitest]
+    modules:
+      tests: { files: 'src/**/*.test.ts' }
 
-const app = archetype('app')
-  .contains((c) =>
-    c
-      .module('utils', dir('src/utils'), exposes(all()))
-      .module('db', dir('src/db'), exposes(all()))
-      .module('api', dir('src/api'), exposes(all()).using((m) => [m.db, m.utils, pkg('*')]))
-      .testModule('tests', files('src/**/*.test.ts')),
-  )
-  .entry(files('src/index.ts'))
-  .testUsing([pkg('vitest')]);
-
-const base = ruleset().on(app.modules.tests, { 'function-cohesion': false });
-
-export default defineConfig({ root: app, rulesets: { default: base } });
+rulesets:
+  default:
+    extends: [warp:recommended]
+    test: { function-cohesion: off }
 ```
 
 Then check it, and after an edit, see what the edit broke:
@@ -51,7 +49,7 @@ pnpm exec warp diff HEAD  # what changed since the last commit made new or worse
 ```
 
 ```text
-new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach. Declare db above utils in app and add m.db to the using of app.utils, or move the code.
+new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils src/utils) imports src/db/client.ts (root.db src/db), which is outside utils's reach. Add db to root.utils.dependencies, or move the code.
 ```
 
 ## Read next

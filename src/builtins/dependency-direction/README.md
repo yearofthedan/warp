@@ -13,16 +13,16 @@ cheap to keep and expensive to recover, so it is checked on every import.
 
 ## Rule details
 
-`using` is the only permission. A file may import the rest of its own module, what its module's `using` names, and,
-in a files module, what its folder module's `using` names. Every other import of a project file is a finding, one
-per pair of files, keyed `dependency-direction:src/api/orders.ts->src/db/orders.ts`. Its value is the number of
+`dependencies` are the only permission. A file may import the rest of its own module, and what its module's
+`dependencies` name. Every other import of a project file is a finding, one per pair of files, keyed `dependency-direction:src/api/orders.ts->src/db/orders.ts`. Its value is the number of
 names imported, so importing more across the same boundary is worse. Type-only imports count.
 
 [config.md](../../../docs/config.md#reach) says how an import is judged, barrels included. The message says why the
-import is outside the reach: the target is private to its module, the importer's `using` lacks it, or it is above the
-importer. Then it gives the smallest change to the config that would load and let the import through, such as the one
-`using` to extend, or importing what the target's module exposes instead. When no change to `using`, `testUsing`, `exposes`,
-`requires` or declaration order allows it, the message says so: the import or the structure is wrong. Package imports
+import is outside the reach: the target is private to its module, the importer's `dependencies` lack it, or it is above
+the importer. Then it gives the smallest change to the config that would load and let the import through, such as the
+`dependencies` to extend, or importing what the target's module exposes instead. When no change to `dependencies`,
+`test.provides`, `exposes` or `requires` allows it without a loop between modules, the message says so: the import or
+the structure is wrong. Package imports
 are [`module-externals`](../module-externals/README.md)'s.
 
 ## Example
@@ -36,17 +36,16 @@ src/
     └── pricing.ts
 ```
 
-```ts
-import { all, archetype, defineConfig, dir, exposes, files, using } from '@yearofthedan/warp';
+```yaml
+root:
+  modules:
+    domain: { dir: src/domain, exposes: { files: [order.ts] } }
+    db: { dir: src/db, exposes: all, dependencies: [domain] }
+    api: { dir: src/api, dependencies: [domain] }
 
-const app = archetype('app').contains((c) =>
-  c
-    .module('domain', dir('src/domain'), exposes(files('order.ts')))
-    .module('db', dir('src/db'), exposes(all()).using((m) => [m.domain]))
-    .module('api', dir('src/api'), using((m) => [m.domain])),
-);
-
-export default defineConfig({ root: app });
+rulesets:
+  default:
+    extends: [warp:recommended]
 ```
 
 Incorrect code:
@@ -54,12 +53,12 @@ Incorrect code:
 ```ts fragment
 // src/api/orders.ts
 import { price } from '../domain/pricing.ts'; // domain exposes only order.ts
-import { save } from '../db/orders.ts'; // api's using lists only domain
+import { save } from '../db/orders.ts'; // api's dependencies list only domain
 ```
 
 ```text
-src/api/orders.ts:2 [dependency-direction] src/api/orders.ts (app.api src/api) imports src/domain/pricing.ts (app.domain src/domain), which src/domain keeps private (it exposes files('order.ts')). Import what src/domain exposes instead.
-src/api/orders.ts:3 [dependency-direction] src/api/orders.ts (app.api src/api) imports src/db/orders.ts (app.db src/db), which is outside api's reach. Add m.db to the using of app.api, or move the code. (+1 more in reach)
+src/api/orders.ts:2 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/domain/pricing.ts (root.domain src/domain), which src/domain keeps private (it exposes { files: [order.ts] }). Import what src/domain exposes instead.
+src/api/orders.ts:3 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/db/orders.ts (root.db src/db), which is outside api's reach. Add db to root.api.dependencies, or move the code. (+1 more in reach)
 ```
 
 Correct code:
@@ -72,15 +71,15 @@ import { order } from '../domain/order.ts';
 ## How to fix
 
 If the dependency breaks the design, move the code, or import what the target module exposes. If the design has
-changed, add the target's module to the importer's `using`, or widen what the target exposes.
+changed, add the target's module to the importer's `dependencies`, or widen what the target exposes.
 
 ## Options
 
-None. The config's `using` and `exposes` set what the rule allows.
+None. The config's `dependencies` and `exposes` set what the rule allows.
 
 ## When not to use it
 
-For code with no direction to keep, such as scripts. Give its module a `using` that lists what it may reach, or turn
+For code with no direction to keep, such as scripts. Give its module `dependencies` that list what it may reach, or turn
 the rule off for that module.
 
 [`no-cross-module-reexport`](../no-cross-module-reexport/README.md) reports the file that re-exports another module's

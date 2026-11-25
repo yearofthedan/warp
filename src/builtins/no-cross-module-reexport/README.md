@@ -27,17 +27,16 @@ re-exported, 1 for `export *`. Its `details` gives both files' modules, the name
 
 ## Example
 
-```ts
-import { all, archetype, defineConfig, dir, exposes, using } from '@yearofthedan/warp';
+```yaml
+root:
+  modules:
+    domain: { dir: src/domain, exposes: all }
+    ports: { dir: src/ports, exposes: all, dependencies: [domain] }
+    application: { dir: src/application, dependencies: [domain, ports] }
 
-const app = archetype('app').contains((c) =>
-  c
-    .module('domain', dir('src/domain'), exposes(all()))
-    .module('ports', dir('src/ports'), exposes(all()).using((m) => [m.domain]))
-    .module('application', dir('src/application'), using((m) => [m.domain, m.ports])),
-);
-
-export default defineConfig({ root: app });
+rulesets:
+  default:
+    extends: [warp:recommended]
 ```
 
 Incorrect code:
@@ -53,7 +52,7 @@ export * from '../domain/order.ts';
 ```
 
 ```text
-src/application/index.ts:1 [no-cross-module-reexport] src/application/index.ts (app.application src/application) re-exports everything from src/domain/order.ts (app.domain src/domain), so its importers reach src/domain through src/application. Have importers that need it use src/domain directly, give src/application its own type that hides it, or move it into src/application if src/application owns it.
+src/application/index.ts:1 [no-cross-module-reexport] src/application/index.ts (root.application src/application) re-exports everything from src/domain/order.ts (root.domain src/domain), so its importers reach src/domain through src/application. Have importers that need it use src/domain directly, give src/application its own type that hides it, or move it into src/application if src/application owns it.
 ```
 
 Correct code:
@@ -82,5 +81,5 @@ None.
 ## When not to use it
 
 When an archetype exists to present its siblings as one API and the structure can't change yet. Turn the rule off for
-that archetype or module in a ruleset, `.on(facade, { 'no-cross-module-reexport': false })`, so it stays on everywhere
+that archetype or module in a ruleset, `on: { facade: { no-cross-module-reexport: off } }`, so it stays on everywhere
 else.

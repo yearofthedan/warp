@@ -25,13 +25,14 @@ being blocked, add a `PostToolUse` hook to the project's `.claude/settings.json`
     ]
   },
   "permissions": {
-    "ask": ["Edit(warp.config.*)"]
+    "ask": ["Edit(warp.yaml)"]
   }
 }
 ```
 
-The hook runs as you, outside Claude's permissions and sandbox, and warp runs its config as code. The `ask` rule has
-Claude ask before it edits the config, so an edit can't run code through the hook without you seeing it.
+The hook runs as you, outside Claude's permissions and sandbox, and warp runs the plugins its config names. The `ask`
+rule has Claude ask before it edits the config, so an edit can't add a plugin that runs through the hook without you
+seeing it.
 [SECURITY.md](../SECURITY.md#running-warp-from-an-agent-hook) has the example and further hardening.
 
 To check edits with a lighter set of rules, give the config an `edit` [ruleset](config.md#rulesets) and add
@@ -40,7 +41,7 @@ Claude reads as context for its next step. When warp itself fails, as with a bro
 Claude that warp is unavailable and why. It says so once, until the failure changes or a run succeeds. A repeat
 exits 1, which Claude Code shows to you without blocking the edit.
 
-To confirm it works, run the hook's command with a clean tree: it prints nothing. Add an import that no `using`
+To confirm it works, run the hook's command with a clean tree: it prints nothing. Add an import that no `dependencies`
 allows and run it again: it prints a `hookSpecificOutput` naming the import.
 
 ## omp
@@ -53,8 +54,8 @@ const edits = ['edit', 'write', 'ast_edit', 'apply_patch'];
 
 export default function warp(pi) {
   pi.on('tool_call', async (event, context) => {
-    if (!edits.includes(event.toolName) || !JSON.stringify(event.input).includes('warp.config.')) return undefined;
-    const allowed = context.hasUI && (await context.ui.confirm('Edit the warp config?', 'warp runs it as code after the edit.'));
+    if (!edits.includes(event.toolName) || !JSON.stringify(event.input).includes('warp.yaml')) return undefined;
+    const allowed = context.hasUI && (await context.ui.confirm('Edit the warp config?', 'warp runs the plugins it names after the edit.'));
     return allowed ? undefined : { block: true, reason: 'Editing the warp config needs the user to allow it.' };
   });
   pi.on('tool_result', async (event, context) => {
@@ -69,7 +70,7 @@ export default function warp(pi) {
 
 After each edit, the `tool_result` handler runs warp and passes its `additionalContext` to the model with the next
 request, without blocking the edit. omp runs `pi.exec` as you, with no approval, so the `tool_call` handler asks you
-before any edit that names a `warp.config.*` file, and blocks it when omp has no UI to ask in. Add `--ruleset edit` to
+before any edit that names `warp.yaml`, and blocks it when omp has no UI to ask in. Add `--ruleset edit` to
 `args` to check edits with a lighter ruleset. The shapes follow `@oh-my-pi/pi-coding-agent` 19.1.
 
 ## GitHub code scanning

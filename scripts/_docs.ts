@@ -45,7 +45,7 @@ export const examplesIn = (text: string): Example[] =>
 
 export const configsIn = (text: string): { line: number; code: string }[] =>
   blocksIn(text)
-    .filter((block) => block.info === 'yaml')
+    .filter((block) => block.info === 'yaml' && /^root:/m.test(block.code))
     .map(({ line, code }) => ({ line, code }));
 
 export const valueExports = (indexSource: string): string[] =>
@@ -106,7 +106,7 @@ const loadProblems = async (docs: { doc: string; text: string }[]): Promise<stri
   const { builtinRegistry } = await import('../src/builtins/index.ts');
   const builtins = [...builtinRegistry.values()];
   const problems: string[] = [];
-  for (const { doc, text } of docs)
+  for (const { doc, text } of docs.filter(({ doc }) => !dated.test(doc)))
     for (const { line, code } of configsIn(text)) {
       try {
         const { raw } = parseConfig(code, doc);

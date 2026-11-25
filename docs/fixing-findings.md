@@ -6,16 +6,16 @@
 ## Read the finding
 
 ```text
-src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (app.utils src/utils) imports src/db/client.ts (app.db src/db), which is outside utils's reach. Declare db above utils in app and add m.db to the using of app.utils, or move the code.
+src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils src/utils) imports src/db/client.ts (root.db src/db), which is outside utils's reach. Add db to root.utils.dependencies, or move the code.
 ```
 
 | Part | Here | Means |
 | --- | --- | --- |
 | Location | `src/utils/slug.ts:1` | The file and line to change, for a code fix. |
 | Rule | `[dependency-direction]` | The rule that reports it. Its page is in [the rules table](rules.md). |
-| Each file's module | `(app.utils src/utils)` | The module's archetype and name, then its folder. |
+| Each file's module | `(root.utils src/utils)` | The module's path from its archetype or the root, then its folder. |
 | Why | `outside utils's reach` | Why the config refuses the import. |
-| Fixes | `Declare db above utils … and add m.db to the using of app.utils, or move the code.` | A config change that would let the import through, then the code fix. When none exists, the message says the import or the structure is wrong. |
+| Fixes | `Add db to root.utils.dependencies, or move the code.` | A config change that would let the import through, then the code fix. When none exists, the message says the import or the structure is wrong. |
 
 `diff` puts `new:` or `worse (was N):` in front of the line. The `json` reporter gives the same finding with `key`,
 `value` and `details`, which [rules.md](rules.md#findings) describes.
@@ -39,8 +39,8 @@ takes the value it needs as a parameter, and `api` passes it in.
 | --- | --- | --- |
 | [`unclassified`](../src/builtins/unclassified/README.md) | Move the file into a module's folder. | Add a module that matches it. |
 | [`unresolved-import`](../src/builtins/unresolved-import/README.md) | Fix the path, or add the file it names. | Nothing: the code is wrong. |
-| [`dependency-direction`](../src/builtins/dependency-direction/README.md) | Import what the module exposes, or move the code. | Add the module to the importer's `using`, or widen what the target exposes. |
-| [`module-externals`](../src/builtins/module-externals/README.md) | Move the package import into a module that lists it. | Add `pkg('name')` to the importer's `using`. |
+| [`dependency-direction`](../src/builtins/dependency-direction/README.md) | Import what the module exposes, or move the code. | Add the module to the importer's `dependencies`, or widen what the target exposes. |
+| [`module-externals`](../src/builtins/module-externals/README.md) | Move the package import into a module that lists it. | Add `npm:name` to the importer's `dependencies`. |
 | [`module-cycle`](../src/builtins/module-cycle/README.md), [`no-cycle`](../src/builtins/no-cycle/README.md) | Move what both sides need into a module or file they both use, or invert one import. | Turn `module-cycle` off on the module that holds modules meant to use each other. |
 | [`no-double-export`](../src/builtins/no-double-export/README.md) | Delete the barrel's re-export. | Expose only the barrel. |
 | [`no-cross-module-reexport`](../src/builtins/no-cross-module-reexport/README.md) | Have importers import the other module directly. | Move the other module inside the one that re-exports it. |
@@ -53,8 +53,11 @@ takes the value it needs as a parameter, and `api` passes it in.
 A rule that doesn't fit one place, such as generated code, is turned off there in a [ruleset](config.md#rulesets),
 and stays on everywhere else:
 
-```ts fragment
-  .on(app.modules.generated, 'off')
+```yaml fragment
+rulesets:
+  default:
+    extends: [warp:recommended]
+    on: { root.generated: off }
 ```
 
 ## Work through existing findings one at a time

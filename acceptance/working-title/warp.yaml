@@ -1,0 +1,87 @@
+root:
+  modules:
+    domain:
+      dir: src/domain
+      exposes: all
+      test: { provides: [methods], modules: { tests: { files: '**/*.test.ts' } } }
+    ports: { dir: src/ports, dependencies: [domain], exposes: all }
+    methods: { dir: src/methods, dependencies: [domain], exposes: all }
+    application:
+      dir: src/application
+      dependencies: [domain, ports]
+      exposes: all
+      test: { provides: [methods], modules: { tests: { files: '**/*.test.ts' } } }
+    adapters:
+      dir: src/adapters
+      dependencies: [domain, ports, 'npm:*']
+      exposes: all
+      test: { provides: [methods], modules: { tests: { files: '**/*.test.ts' } } }
+    ui: { dir: src/ui, archetype: ui, dependencies: [application, ports] }
+    styles: { files: 'src/*.css', exposes: all }
+    shell: { files: src/shell.ts, dependencies: [application, ui.strings], exposes: all }
+    app:
+      files: [src/main.ts, src/app.ts]
+      dependencies: [application, adapters, ports, methods, ui.dom, ui.strings, shell, styles, 'virtual:*']
+      exposes: all
+    lint:
+      dir: lint
+      dependencies: ['npm:*']
+      exposes: all
+      test: { provides: [methods], modules: { tests: { files: '**/*.test.ts' } } }
+    tooling: { files: ['*.ts', 'scripts/**/*.ts'], dependencies: [lint, 'npm:*'] }
+  test:
+    provides: [domain, application, adapters, methods, app, shell, ports, testHelpers, 'npm:vite-plus/*', 'npm:*']
+    modules:
+      testHelpers:
+        dir: src/test-helpers
+        modules:
+          contract: { files: [driver.ts, steps.ts, seed.ts, narrowing.ts, scenario-file.ts, ids.ts] }
+      e2e:
+        dir: e2e
+        modules:
+          journeys: { files: '*.dsl.ts' }
+      tests: { files: ['*.test.ts', 'scripts/**/*.test.ts'] }
+
+archetypes:
+  ui:
+    requires: [application, ports]
+    exposes: [components.dom, strings]
+    modules:
+      components:
+        dir: '*'
+        archetype: component
+        dependencies: [application, ports, strings, icons, transition]
+      strings: { description: "The app's words", dir: strings, exposes: all }
+      icons: { dir: icons, exposes: all }
+      transition: { files: transition.ts, exposes: all }
+    test:
+      exposes: [components.dsl, components.testPage]
+      modules:
+        tests: { files: '*.test.ts' }
+
+  component:
+    marker: '{name}.dom.ts'
+    requires: [application, ports, strings, icons, transition]
+    exposes: [dom]
+    modules:
+      subcomponent:
+        dir: '*'
+        archetype: component
+        dependencies: [application, ports, strings, icons, transition]
+      logic: { files: '*.ts', dependencies: [strings, application], exposes: all }
+      dom:
+        files: '{name}.dom.ts'
+        dependencies: [logic, subcomponent.dom, icons, strings, transition, application, ports]
+        exposes: all
+    test:
+      provides: [dsl, testPage, harness, ports, 'npm:@playwright/*']
+      exposes: [dsl, testPage]
+      modules:
+        dsl: { files: '*.dsl.ts' }
+        testPage: { files: '*.test-page.ts' }
+        harness: { files: '*.harness.ts' }
+        tests: { files: '*.test.ts' }
+
+rulesets:
+  default:
+    extends: [warp:recommended]

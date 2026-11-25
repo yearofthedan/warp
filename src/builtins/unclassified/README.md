@@ -18,18 +18,21 @@ lists every loose file.
 
 ## Example
 
-```ts
-import { archetype, defineConfig, files } from '@yearofthedan/warp';
+```yaml
+root:
+  modules:
+    domain: { files: 'src/domain/**' }
+    ui: { files: 'src/ui/**' }
 
-const app = archetype('app').contains((c) => c.module('domain', files('src/domain/**')).module('ui', files('src/ui/**')));
-
-export default defineConfig({ root: app });
+rulesets:
+  default:
+    extends: [warp:recommended]
 ```
 
 With `src/stray.ts` in the project:
 
 ```text
-src/stray.ts:1 [unclassified] src/stray.ts is in no module of . (app), so nothing says what it may import. Add a files module to app that matches it, or move it into a module's folder.
+src/stray.ts:1 [unclassified] src/stray.ts is in no module of (root) (root), so nothing says what it may import. Add a files module to root that matches it, or move it into a module's folder.
 ```
 
 ## How to fix

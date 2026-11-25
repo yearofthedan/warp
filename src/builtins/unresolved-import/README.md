@@ -21,12 +21,14 @@ value is 1.
 
 ## Example
 
-```ts
-import { archetype, defineConfig, dir } from '@yearofthedan/warp';
+```yaml
+root:
+  modules:
+    ui: { dir: src/ui }
 
-const app = archetype('app').contains((c) => c.module('ui', dir('src/ui')));
-
-export default defineConfig({ root: app });
+rulesets:
+  default:
+    extends: [warp:recommended]
 ```
 
 Incorrect code, with no `src/ui/crad.ts` in the project:

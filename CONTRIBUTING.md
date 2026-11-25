@@ -42,8 +42,8 @@ identifiers are resolved in one batched checker call.
 ## Tests and mutation
 
 `vite.config.ts` sets the three test tiers by file name: unit `*.test.ts`, integration `*.integration.test.ts`, and e2e
-`e2e/` with `do.test.ts`. The integration tier resolves `@yearofthedan/warp` to `src/index.ts`, as the config loader does, so it can
-load the fixtures' configs; `tsconfig.json` maps it the same way for `warp.config.ts`.
+`e2e/` with `do.test.ts`. The integration tier resolves `@yearofthedan/warp` to `src/index.ts`, as the plugin loader does, so it can
+load the fixtures' custom rules; `tsconfig.json` maps it the same way for type checks.
 `do.test.ts` runs each `./do` script's shell suite against a stubbed copy of the repo, in the e2e tier.
 
 Stryker mutates the unit-tested core: the model, its rules, the reporters and `src/app/diff.ts`, which run on
