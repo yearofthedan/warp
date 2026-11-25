@@ -47,7 +47,7 @@ const refProblem = (archetypes: Record<string, ArchetypeData>, { ref, archetype,
     return exposedProblem(ref.module, { exposes: module.exposes, testExposes: [] }, ref.surface, tests);
   const inside = archetypes[module.archetype];
   if (!inside) return undefined;
-  const exposes = module.test ? (inside.exposes ?? { kind: 'all' }) : inside.exposes;
+  const exposes = module.test && !inside.testExposes ? (inside.exposes ?? { kind: 'all' }) : inside.exposes;
   const subject = inside.inline ? ref.module : `${ref.module} (${module.archetype})`;
   return exposedProblem(subject, { exposes, testExposes: Object.keys(inside.testExposes ?? {}) }, ref.surface, tests);
 };

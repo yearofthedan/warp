@@ -258,7 +258,7 @@ archetypes:
     return { data, shopModel, shopVerdict };
   };
 
-  it("opens the files a files() selector names, inside the module's folder", () => {
+  it("opens the files an exposes files list names, inside the module's folder", () => {
     const { shopVerdict } = shopFixture();
     assert.equal(shopVerdict('main.ts', 'app/check.ts'), 'allowed: main uses app');
     assert.equal(shopVerdict('main.ts', 'app/ports/store.ts'), 'allowed: main uses app');

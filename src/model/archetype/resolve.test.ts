@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
+import { parse } from 'yaml';
 import { ConfigError } from '../configError.ts';
-import { all, type AnyArchetype, archetype, dir, exposes, files, pkg, using } from './builder.ts';
 import { loadConfigData } from '../../app/load.ts';
 import { type Folders, globRegex, type Model, resolveModel, specificity } from './resolve.ts';
 
@@ -20,12 +20,12 @@ const folders = (paths: readonly string[]): Folders => {
   };
 };
 
-const resolve = (root: AnyArchetype, files: readonly string[], extra: readonly string[] = []): Model =>
-  resolveModel(loadConfigData({ root }).config, folders([...files, ...extra]), files);
+const resolve = (yaml: string, files: readonly string[], extra: readonly string[] = []): Model =>
+  resolveModel(loadConfigData(parse(yaml)).config, folders([...files, ...extra]), files);
 
-const errors = (root: AnyArchetype, files: readonly string[]): string[] => {
+const errors = (yaml: string, files: readonly string[]): string[] => {
   try {
-    resolve(root, files);
+    resolve(yaml, files);
   } catch (error) {
     assert.ok(error instanceof ConfigError);
     return error.message.split('\n');
@@ -38,19 +38,20 @@ const tree = (model: Model): string[] =>
 
 describe('resolveModel', () => {
   it("makes each files module a module of its own inside the root, named by the root's folder and its name", () => {
-    const model = resolve(
-      archetype('app').contains((m) => m.module('main', files('main.ts')).module('rest', files('**'))),
-      ['main.ts', 'src/a.ts', 'src/b/c.ts'],
-    );
+    const model = resolve("root: { modules: { main: { files: main.ts }, rest: { files: '**' } } }", [
+      'main.ts',
+      'src/a.ts',
+      'src/b/c.ts',
+    ]);
     assert.equal(model.root.id, '(root)');
     assert.equal(model.root.dir, '');
     assert.equal(model.root.kind, 'dir');
-    assert.equal(model.root.archetype, 'app');
+    assert.equal(model.root.archetype, 'root');
     assert.ok(!('name' in model.root));
     assert.ok(!('parent' in model.root));
     assert.deepEqual(model.root.captures, {});
     assert.deepEqual(tree(model), [
-      '(root) app: []',
+      '(root) root: []',
       '(root):main files: ["main.ts"]',
       '(root):rest files: ["src/a.ts","src/b/c.ts"]',
     ]);
@@ -63,13 +64,14 @@ describe('resolveModel', () => {
   });
 
   it('finds a folder module for a dir module, holding everything under it when its archetype declares no modules', () => {
-    const model = resolve(
-      archetype('app').contains((m) => m.module('domain', dir('src/domain')).module('rest', files('**'))),
-      ['src/domain/order.ts', 'src/domain/deep/price.ts', 'src/main.ts'],
-    );
+    const model = resolve("root: { modules: { domain: { dir: src/domain }, rest: { files: '**' } } }", [
+      'src/domain/order.ts',
+      'src/domain/deep/price.ts',
+      'src/main.ts',
+    ]);
     assert.deepEqual(tree(model), [
-      '(root) app: []',
-      'src/domain app.domain: ["src/domain/deep/price.ts","src/domain/order.ts"]',
+      '(root) root: []',
+      'src/domain root.domain: ["src/domain/deep/price.ts","src/domain/order.ts"]',
       '(root):rest files: ["src/main.ts"]',
     ]);
     const [domain] = model.root.children;
@@ -80,12 +82,12 @@ describe('resolveModel', () => {
   });
 
   it("lists a module's children in declaration order, a dir module's folders in path order", () => {
-    const model = resolve(
-      archetype('app').contains((m) =>
-        m.module('z', files('z.ts')).module('features', dir('{name}')).module('a', files('a.ts')),
-      ),
-      ['z.ts', 'a.ts', 'b/b.ts', 'a/a.ts'],
-    );
+    const model = resolve("root: { modules: { z: { files: z.ts }, features: { dir: '*' }, a: { files: a.ts } } }", [
+      'z.ts',
+      'a.ts',
+      'b/b.ts',
+      'a/a.ts',
+    ]);
     assert.deepEqual(
       model.modules.map((module) => module.id),
       ['(root)', '(root):z', 'a', 'b', '(root):a'],
@@ -93,37 +95,41 @@ describe('resolveModel', () => {
   });
 
   it('finds the modules an inline contains declares, under an archetype named for where it sits', () => {
-    const root = archetype('app').contains((m) =>
-      m.module(
-        'app',
-        dir('src/app'),
-        archetype().contains((q) => q.module('ports', files('ports.ts')).module('core', dir('core'))),
-      ),
-    );
+    const root = `
+root:
+  modules:
+    app:
+      dir: src/app
+      modules: { ports: { files: ports.ts }, core: { dir: core } }
+`;
     const model = resolve(root, ['src/app/ports.ts', 'src/app/core/a.ts', 'src/app/stray.ts']);
     assert.deepEqual(tree(model), [
-      '(root) app: []',
-      'src/app app.app: ["src/app/stray.ts"]',
+      '(root) root: []',
+      'src/app root.app: ["src/app/stray.ts"]',
       'src/app:ports files: ["src/app/ports.ts"]',
-      'src/app/core app.app.core: ["src/app/core/a.ts"]',
+      'src/app/core root.app.core: ["src/app/core/a.ts"]',
     ]);
     assert.deepEqual(model.moduleOf('src/app/stray.ts')?.looseFiles, ['src/app/stray.ts']);
   });
 
   it('finds a module per folder a placeholder matches, each with its own captures, down a recursive archetype', () => {
-    const component = archetype('component')
-      .identify({ marker: '{name}.dom.ts' })
-      .contains((m, { self }) =>
-        m
-          .module('subcomponent', dir('{name}'), self)
-          .module('logic', files('*.ts'))
-          .module('dom', files('{name}.dom.ts'))
-          .module('test', files('*.test.ts')),
-      );
-    const ui = archetype('ui').contains((m) =>
-      m.module('strings', dir('strings')).module('components', dir('{name}'), component),
-    );
-    const root = archetype('app').contains((m) => m.module('ui', dir('src/ui'), ui));
+    const root = `
+root:
+  modules:
+    ui: { dir: src/ui, archetype: ui }
+archetypes:
+  ui:
+    modules:
+      strings: { dir: strings }
+      components: { dir: '*', archetype: component }
+  component:
+    marker: '{name}.dom.ts'
+    modules:
+      subcomponent: { dir: '*', archetype: component }
+      logic: { files: '*.ts' }
+      dom: { files: '{name}.dom.ts' }
+      test: { files: '*.test.ts' }
+`;
     const model = resolve(root, [
       'src/ui/strings/en.ts',
       'src/ui/project/project.dom.ts',
@@ -134,7 +140,7 @@ describe('resolveModel', () => {
       'src/ui/project/graph/card/card.dom.ts',
     ]);
     assert.deepEqual(tree(model), [
-      '(root) app: []',
+      '(root) root: []',
       'src/ui ui: []',
       'src/ui/strings ui.strings: ["src/ui/strings/en.ts"]',
       'src/ui/project component: []',
@@ -156,10 +162,16 @@ describe('resolveModel', () => {
   });
 
   it('takes a folder only when it holds the marker, which may be outside the program', () => {
-    const widget = archetype('widget')
-      .identify({ marker: '{name}.json' })
-      .contains((m) => m.module('src', files('**')));
-    const root = archetype('app').contains((m) => m.module('widgets', dir('src/{name}'), widget));
+    const root = `
+root:
+  modules:
+    widgets: { dir: 'src/*', archetype: widget }
+archetypes:
+  widget:
+    marker: '{name}.json'
+    modules:
+      src: { files: '**' }
+`;
     const model = resolve(root, ['src/a/a.ts', 'src/b/b.ts', 'src/c/c.ts'], ['src/a/a.json', 'src/c/a.json']);
     assert.deepEqual(
       model.modules.map((module) => module.id),
@@ -168,45 +180,21 @@ describe('resolveModel', () => {
     assert.deepEqual(model.root.looseFiles, ['src/b/b.ts', 'src/c/c.ts']);
   });
 
-  it("takes a folder when identify's match does, with the captures it adds and the chain above", () => {
-    const seen: [string, string[]][] = [];
-    const feature = archetype('feature')
-      .identify({
-        match: (folder, chain) => {
-          seen.push([folder, (chain as { id: string }[]).map((module) => module.id)]);
-          return folder.endsWith('-feature') ? { slug: folder.split('/').pop()! } : false;
-        },
-      })
-      .contains((m) => m.module('src', files('**')));
-    const root = archetype('app').contains((m) =>
-      m.module(
-        'area',
-        dir('src/area'),
-        archetype('area').contains((q) => q.module('features', dir('{name}'), feature)),
-      ),
-    );
-    const model = resolve(root, ['src/area/a-feature/x.ts', 'src/area/other/y.ts']);
-    assert.deepEqual(seen, [
-      ['src/area/a-feature', ['(root)', 'src/area']],
-      ['src/area/other', ['(root)', 'src/area']],
-    ]);
-    assert.deepEqual(model.moduleOf('src/area/a-feature/x.ts')?.captures, { name: 'a-feature', slug: 'a-feature' });
-    assert.deepEqual(model.moduleOf('src/area/other/y.ts')?.looseFiles, ['src/area/other/y.ts']);
-  });
-
   it('gives a folder to the most specific dir module: a literal segment beats a placeholder', () => {
-    const root = archetype('app').contains((m) =>
-      m
-        .module('anywhere', dir('{area}/{name}'))
-        .module('components', dir('src/{name}'))
-        .module('strings', dir('src/strings')),
-    );
-    const model = resolve(root, ['src/strings/en.ts', 'src/card/card.ts', 'lib/x/x.ts']);
+    const root = `
+root:
+  modules:
+    anywhere: { dir: '*' }
+    components: { dir: 'src/*' }
+    strings: { dir: src/strings }
+`;
+    const model = resolve(root, ['src/strings/en.ts', 'src/card/card.ts', 'lib/x.ts']);
     assert.deepEqual(
       model.modules.map((module) => [module.id, module.name]),
       [
         ['(root)', undefined],
-        ['lib/x', 'anywhere'],
+        ['lib', 'anywhere'],
+        ['src', 'anywhere'],
         ['src/card', 'components'],
         ['src/strings', 'strings'],
       ],
@@ -214,7 +202,7 @@ describe('resolveModel', () => {
   });
 
   it('lets one dir module match a folder through two of its paths', () => {
-    const root = archetype('app').contains((m) => m.module('code', dir('src/a', 'src/{name}')));
+    const root = "root: { modules: { code: { dir: [src/a, 'src/*'] } } }";
     assert.deepEqual(
       resolve(root, ['src/a/x.ts', 'src/b/y.ts']).modules.map((module) => [module.id, module.name, module.captures]),
       [
@@ -226,24 +214,28 @@ describe('resolveModel', () => {
   });
 
   it('refuses dir modules that claim a folder equally specifically', () => {
-    const root = archetype('app').contains((m) => m.module('a', dir('src/{name}')).module('b', dir('lib', 'src/{id}')));
+    const root = "root: { modules: { a: { dir: 'src/*' }, b: { dir: [lib, 'src/*'] } } }";
     assert.deepEqual(errors(root, ['src/x/x.ts', 'lib/y.ts']), [
-      "src/x: app's dir modules a ('src/{name}') and b ('src/{id}') are equally specific; narrow one of the paths",
+      "src/x: root's dir modules a ('src/*') and b ('src/*') are equally specific; narrow one of the paths",
     ]);
   });
 
   it('refuses a folder that two modules claim from different levels', () => {
-    const inner = archetype('inner').contains((m) => m.module('deep', dir('deep')));
-    const root = archetype('app').contains((m) =>
-      m.module('outer', dir('src'), inner).module('direct', dir('src/deep')),
-    );
+    const root = `
+root:
+  modules:
+    outer: { dir: src, archetype: inner }
+    direct: { dir: src/deep }
+archetypes:
+  inner: { modules: { deep: { dir: deep } } }
+`;
     assert.deepEqual(errors(root, ['src/deep/x.ts']), [
       'src/deep: found as a module of direct and of outer.deep; one folder is one module',
     ]);
   });
 
   it('places a file in its deepest folder module, whichever module found it', () => {
-    const root = archetype('app').contains((m) => m.module('src', dir('src')).module('domain', dir('src/domain')));
+    const root = 'root: { modules: { src: { dir: src }, domain: { dir: src/domain } } }';
     const model = resolve(root, ['src/a.ts', 'src/domain/b.ts']);
     assert.equal(model.moduleOf('src/a.ts')?.id, 'src');
     assert.equal(model.moduleOf('src/domain/b.ts')?.id, 'src/domain');
@@ -251,15 +243,16 @@ describe('resolveModel', () => {
   });
 
   it('gives a file to the most specific files module, whatever their order', () => {
-    const root = archetype('app').contains((m) =>
-      m
-        .module('rest', files('**'))
-        .module('code', files('*.ts'))
-        .module('specs', files('*.test.ts'))
-        .module('nested', files('src/**'))
-        .module('main', files('main.ts'))
-        .module('one', files('src/one.ts')),
-    );
+    const root = `
+root:
+  modules:
+    rest: { files: '**' }
+    code: { files: '*.ts' }
+    specs: { files: '*.test.ts' }
+    nested: { files: 'src/**' }
+    main: { files: main.ts }
+    one: { files: src/one.ts }
+`;
     const model = resolve(root, ['main.ts', 'a.ts', 'a.test.ts', 'README.md', 'src/x.ts', 'src/one.ts']);
     assert.deepEqual(tree(model).slice(1), [
       '(root):rest files: ["README.md"]',
@@ -272,73 +265,90 @@ describe('resolveModel', () => {
   });
 
   it("fills a files pattern's placeholders from the module's captures", () => {
-    const component = archetype('component').contains((m) =>
-      m.module('logic', files('*.ts')).module('dom', files('{name}.dom.ts')),
-    );
-    const root = archetype('app').contains((m) => m.module('components', dir('{name}'), component));
+    const root = `
+root:
+  modules:
+    components: { dir: '*', archetype: component }
+archetypes:
+  component:
+    modules:
+      logic: { files: '*.ts' }
+      dom: { files: '{name}.dom.ts' }
+`;
     const model = resolve(root, ['card/card.dom.ts', 'card/other.dom.ts']);
     assert.equal(model.moduleOf('card/card.dom.ts')?.id, 'card:dom');
     assert.equal(model.moduleOf('card/other.dom.ts')?.id, 'card:logic');
   });
 
   it('refuses files modules that match a file equally specifically, once per file', () => {
-    const root = archetype('app').contains((m) =>
-      m.module('a', files('*.dsl.ts', 'x.ts')).module('b', files('card.*')),
-    );
+    const root = "root: { modules: { a: { files: ['*.dsl.ts', x.ts] }, b: { files: 'card.*' } } }";
     assert.deepEqual(tree(resolve(root, ['card.dsl.ts', 'card.ts'])).slice(1), [
       '(root):a files: ["card.dsl.ts"]',
       '(root):b files: ["card.ts"]',
     ]);
-    const tied = archetype('app').contains((m) => m.module('a', files('*.test.ts')).module('b', files('**/*.test.ts')));
+    const tied = "root: { modules: { a: { files: '*.test.ts' }, b: { files: '**/*.test.ts' } } }";
     assert.deepEqual(errors(tied, ['a.test.ts', 'src/b.test.ts']), [
-      "a.test.ts: app's files modules a ('*.test.ts') and b ('**/*.test.ts') are equally specific; narrow one of the patterns",
+      "a.test.ts: root's files modules a ('*.test.ts') and b ('**/*.test.ts') are equally specific; narrow one of the patterns",
     ]);
-    const folders = archetype('app').contains((m) =>
-      m.module('domain', files('src/domain/**')).module('refs', files('src/domain/refs/**')),
-    );
+    const folders = "root: { modules: { domain: { files: 'src/domain/**' }, refs: { files: 'src/domain/refs/**' } } }";
     assert.deepEqual(errors(folders, ['src/domain/refs/a.ts']), [
-      "src/domain/refs/a.ts: app's files modules domain ('src/domain/**') and refs ('src/domain/refs/**') are equally specific; declare the folders with dir(), where the deeper folder wins",
+      "src/domain/refs/a.ts: root's files modules domain ('src/domain/**') and refs ('src/domain/refs/**') are equally specific; declare the folders with dir, where the deeper folder wins",
     ]);
   });
 
   it('refuses a placeholder that the module does not capture, in a files pattern or a marker', () => {
-    const component = archetype('component')
-      .identify({ marker: '{id}.dom.ts' })
-      .contains((m) => m.module('dom', files('*.dom.ts')));
-    const root = archetype('app').contains((m) =>
-      m.module('dom', files('{name}.dom.ts')).module('c', dir('{name}'), component),
-    );
+    const root = `
+root:
+  modules:
+    dom: { files: '{name}.dom.ts' }
+    c: { dir: '*', archetype: component }
+archetypes:
+  component:
+    marker: '{id}.dom.ts'
+    modules:
+      dom: { files: '*.dom.ts' }
+`;
     assert.deepEqual(errors(root, ['a.dom.ts', 'b.dom.ts', 'x/x.dom.ts']), [
       "x: component's marker '{id}.dom.ts' names {id}, which its dir path doesn't capture",
-      "(root): app.dom '{name}.dom.ts' names {name}, which (root) doesn't capture",
+      "(root): root.dom '{name}.dom.ts' names {name}, which (root) doesn't capture",
     ]);
   });
 
-  it('points a literal dir() whose marker needs a placeholder, among siblings that capture it, at a shared folder', () => {
-    const component = archetype('component')
-      .identify({ marker: '{name}.dom.ts' })
-      .contains((m) => m.module('dom', files('*.dom.ts')));
-    const root = archetype('app').contains((m) =>
-      m.module('header', dir('header'), component).module('components', dir('{name}'), component),
-    );
+  it('points a literal dir whose marker needs a placeholder, among siblings that capture it, at a shared folder', () => {
+    const component = `
+archetypes:
+  component:
+    marker: '{name}.dom.ts'
+    modules:
+      dom: { files: '*.dom.ts' }
+`;
+    const root = `
+root:
+  modules:
+    header: { dir: header, archetype: component }
+    components: { dir: '*', archetype: component }
+${component}`;
     assert.deepEqual(errors(root, ['header/header.dom.ts', 'card/card.dom.ts']), [
-      "header: component's marker '{name}.dom.ts' names {name}, which its dir path doesn't capture. A literal dir() " +
+      "header: component's marker '{name}.dom.ts' names {name}, which its dir path doesn't capture. A literal dir " +
         'binds no placeholders. If components use header, it is shared: move header out of the folders ' +
-        "dir('{name}') matches, for example into shared/header, and declare it as its own module with " +
-        "dir('shared/{name}')",
+        "dir: '*' matches, for example into shared/header, and declare it as its own module with dir: 'shared/*'",
     ]);
-    const alone = archetype('app').contains((m) => m.module('header', dir('header'), component));
+    const alone = `root: { modules: { header: { dir: header, archetype: component } } }\n${component}`;
     assert.deepEqual(errors(alone, ['header/header.dom.ts']), [
       "header: component's marker '{name}.dom.ts' names {name}, which its dir path doesn't capture",
     ]);
   });
 
   it('keeps the files no module matches as loose in their folder module', () => {
-    const quiet = archetype('quiet').contains((m) => m.module('src', files('*.ts')));
-    const strict = archetype('strict').contains((m) => m.module('src', files('*.ts')));
-    const root = archetype('app').contains((m) =>
-      m.module('quiet', dir('quiet'), quiet).module('strict', dir('strict'), strict),
-    );
+    const root = `
+root:
+  modules:
+    quiet: { dir: quiet, archetype: quiet }
+    strict: { dir: strict, archetype: strict }
+archetypes:
+  quiet: { modules: { src: { files: '*.ts' } } }
+  strict: { modules: { src: { files: '*.ts' } } }
+`;
     const model = resolve(root, ['stray.ts', 'quiet/a.ts', 'quiet/a.css', 'strict/b.css']);
     assert.deepEqual(
       model.modules.map((module) => [module.id, module.looseFiles]),
@@ -353,25 +363,24 @@ describe('resolveModel', () => {
   });
 
   it("resolves working title's shape: layers, plain folders, a provided runner and nested components", () => {
-    const testRunner = archetype('test-runner')
-      .contains((m) => m.module('runner', files('**'), exposes(all())))
-      .exposes(all());
-    const layer = archetype('layer')
-      .requires({ testRunner })
-      .contains((m, { required }) =>
-        m
-          .module('src', files('**'))
-          .module('test', files('**/*.test.ts'), using([required.testRunner, pkg('vite-plus/*')])),
-      );
-    const root = archetype('working-title')
-      .contains((m) =>
-        m
-          .module('domain', dir('src/domain'), layer)
-          .module('ports', dir('src/ports'))
-          .module('testRunner', dir('src/test-helpers'), testRunner)
-          .module('tooling', files('*.ts', 'scripts/**/*.ts')),
-      )
-      .provides((m) => ({ testRunner: m.testRunner }));
+    const root = `
+root:
+  modules:
+    domain: { dir: src/domain, archetype: layer, dependencies: [testRunner] }
+    ports: { dir: src/ports }
+    testRunner: { dir: src/test-helpers, archetype: test-runner }
+    tooling: { files: ['*.ts', 'scripts/**/*.ts'] }
+archetypes:
+  test-runner:
+    exposes: all
+    modules:
+      runner: { files: '**', exposes: all }
+  layer:
+    requires: [testRunner]
+    modules:
+      src: { files: '**' }
+      test: { files: '**/*.test.ts', dependencies: [testRunner, npm:vite-plus/*] }
+`;
     const model = resolve(root, [
       'vite.config.ts',
       'scripts/build/run.ts',
@@ -381,11 +390,11 @@ describe('resolveModel', () => {
       'src/test-helpers/driver.ts',
     ]);
     assert.deepEqual(tree(model), [
-      '(root) working-title: []',
+      '(root) root: []',
       'src/domain layer: []',
       'src/domain:src files: ["src/domain/project.ts"]',
       'src/domain:test files: ["src/domain/project.test.ts"]',
-      'src/ports working-title.ports: ["src/ports/store.ts"]',
+      'src/ports root.ports: ["src/ports/store.ts"]',
       'src/test-helpers test-runner: []',
       'src/test-helpers:runner files: ["src/test-helpers/driver.ts"]',
       '(root):tooling files: ["scripts/build/run.ts","vite.config.ts"]',
