@@ -16,8 +16,10 @@ compiles to `ConfigData`. In use, three things decide the format:
   needs to read and write the config as data.
 - **Loaded safely.** Loading a TypeScript config runs the user's code.
 
-Type checking was the builders' main gain. Most of what it catches, the loader checks again. A JSON Schema gives an
-editor the same help with the shape, and references between modules are checked at load either way.
+A spike ran working title's config, written in YAML, through a loader built on the builders. It loaded and its
+findings matched those predicted, plus mistakes in the YAML itself.
+
+Type checking was the builders' main gain, and most of what it catches, the loader checks again.
 
 ## Options considered
 
@@ -78,18 +80,11 @@ rulesets:
 
 ## Consequences
 
-A spike ran working title's config through a YAML loader built on the builders. It loaded and found real problems,
-including mistakes in the config itself. It also showed the model changes the language needs:
-
-- A child of an inline module names its holder's siblings in `dependencies`, and so does a test module.
-- A module that uses an archetype passes it its inputs there. An archetype states no shape (`dir()` or `files()`)
-  for its inputs.
-- A files module holds test modules.
-- Modules are declared in any order.
+- A config has no type checking at edit time. A JSON Schema gives an editor the shape, and references between
+  modules are checked at load.
+- warp has a second runtime dependency, so `yaml`'s releases and advisories are warp's to track.
+- The model changes to match the language. A child of an inline module, test module or not, names its holder's
+  siblings in `dependencies`. A module that uses an archetype passes it its inputs there, and an archetype states no
+  shape (`dir()` or `files()`) for them. A files module holds test modules, and modules are declared in any order.
 - Finding advice and load errors speak YAML, and point at a line in `warp.yaml`.
-
-These changes, the loader and the deletion of the builders land in one change. warp's own config moves to
-`warp.yaml` in the same change.
-
-Open before the build: whether a nested archetype, such as a component inside a component, has to pass on every
-input it receives.
+- A config computes nothing. Repetition stays written out, or becomes an archetype.
