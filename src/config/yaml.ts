@@ -246,7 +246,7 @@ const shape = (built: Built, name: string, def: Node, isRoot: boolean): Builder 
   const scope: Scope = { siblings: names2(modules, testModules), inputs: new Set(kept), nested: false, defs: modules };
   let b = archetype(name) as never as Builder;
   if (def.description) b = b.description(String(def.description));
-  if (def.identify) b = b.identify({ marker: String(def.identify) });
+  if (def.marker) b = b.identify({ marker: String(def.marker) });
   if (kept.length > 0) b = b.requires(Object.fromEntries(kept.map((input) => [input, kindOf(built, name, input)])));
   const provides = new Map<string, string>();
   b = b.contains((c: unknown, ctx: unknown) => {

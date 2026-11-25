@@ -135,7 +135,7 @@ archetypes:
 
   component:
     description: A UI component's folder, holding the component and its test code, each file named after it
-    identify: '{name}.dom.ts'
+    marker: '{name}.dom.ts'
     requires: [strings, icons, transition, application]
     exposes: [render]
     modules:
