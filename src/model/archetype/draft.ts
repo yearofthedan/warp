@@ -33,22 +33,42 @@ export interface Draft {
 
 export interface Collected extends RecordedDefinition {
   inline?: true;
+  test?: true;
   using?: unknown;
 }
 
+type Role = 'production' | 'test' | 'required';
+
+type Reached = [Collected, Role];
+
 export const collect = (root: RecordedDefinition, fail: Fail): Map<string, Collected> => {
   const byName = new Map<string, Collected>();
-  const pending: Collected[] = [root];
-  for (let definition = pending.shift(); definition; definition = pending.shift()) {
+  const roles = new Map<string, Set<Role>>();
+  const pending: Reached[] = [[root, 'production']];
+  for (let next = pending.shift(); next; next = pending.shift()) {
+    const [definition, role] = next;
     const known = byName.get(definition.name as string);
     if (!isName(definition.name)) fail(`archetype(${JSON.stringify(definition.name)}): a name is a non-empty string`);
     else if (known && known !== definition) fail(`two archetypes are named ${definition.name}: give each its own name`);
-    else if (!known) {
-      byName.set(definition.name, definition);
-      pending.push(...reached(definition));
+    else {
+      roles.set(definition.name, new Set([...(roles.get(definition.name) ?? []), role]));
+      if (!known) {
+        byName.set(definition.name, definition);
+        pending.push(...reached(definition));
+      }
     }
   }
+  markTests(byName, roles, fail);
   return byName;
+};
+
+const markTests = (byName: Map<string, Collected>, roles: ReadonlyMap<string, ReadonlySet<Role>>, fail: Fail) => {
+  for (const [name, given] of roles) {
+    if (!given.has('test')) continue;
+    if (given.has('production'))
+      fail(`${name} is given to both .module() and .testModule(); an archetype holds production code or test code`);
+    else byName.set(name, { ...byName.get(name)!, test: true });
+  }
 };
 
 const named = (value: unknown): RecordedDefinition[] => {
@@ -56,9 +76,15 @@ const named = (value: unknown): RecordedDefinition[] => {
   return definition && definition.name !== undefined ? [definition] : [];
 };
 
-const reached = (definition: Collected): Collected[] => [
-  ...entriesOf(definition.modules).flatMap((entry) => (entry.test ? [] : named(entry.archetype))),
-  ...Object.values(isRecord(definition.requires) ? definition.requires : {}).flatMap(named),
+const roleOf = (entry: RecordedModule): Role => (entry.test ? 'test' : 'production');
+
+const reached = (definition: Collected): Reached[] => [
+  ...entriesOf(definition.modules).flatMap((entry) =>
+    named(entry.archetype).map((found): Reached => [found, roleOf(entry)]),
+  ),
+  ...Object.values(isRecord(definition.requires) ? definition.requires : {})
+    .flatMap(named)
+    .map((found): Reached => [found, 'required']),
   ...inlineArchetypes(definition),
 ];
 
@@ -67,26 +93,28 @@ const anonymousOf = (entry: RecordedModule): RecordedDefinition | undefined => {
   return definition?.name === undefined ? definition : undefined;
 };
 
-const inlineArchetypes = (holder: Collected): Collected[] =>
+const inlineArchetypes = (holder: Collected): Reached[] =>
   isName(holder.name)
-    ? entriesOf(holder.modules).flatMap((entry) =>
+    ? entriesOf(holder.modules).flatMap((entry): Reached[] =>
         isInline(entry) && isName(entry.name)
           ? [
-              {
-                ...anonymousOf(entry),
-                name: inlineName(holder.name as string, entry.name),
-                inline: true,
-                requires: holder.requires,
-                modules: anonymousOf(entry)?.modules ?? [],
-                description: undefined,
-              },
+              [
+                {
+                  ...anonymousOf(entry),
+                  name: inlineName(holder.name as string, entry.name),
+                  inline: true,
+                  requires: holder.requires,
+                  modules: anonymousOf(entry)?.modules ?? [],
+                  description: undefined,
+                },
+                roleOf(entry),
+              ],
             ]
           : [],
       )
     : [];
 
 const isInline = (entry: RecordedModule): boolean =>
-  !entry.test &&
   (entry.archetype === undefined || anonymousOf(entry) !== undefined) &&
   recordedAs(entry.selector, 'selector')?.kind === 'dir';
 
@@ -98,7 +126,7 @@ export const draft = (name: string, state: Collected, fail: Fail): Draft => {
   checkFields(name, state, fail);
   const identify = identifyData(name, state.identify, fail);
   const requires = requirements(name, state.requires, fail);
-  const modules = draftModules(name, state.modules, fail);
+  const modules = draftModules(name, state.modules, state.test === true, fail);
   const exposes = surfaceOf(name, state, fail);
   const testExposes = testSurfaceOf(name, state.testExposes, fail);
   const provides = state.provides === undefined ? {} : callback(state.provides);
@@ -109,6 +137,7 @@ export const draft = (name: string, state: Collected, fail: Fail): Draft => {
     data: {
       name,
       ...(state.inline ? { inline: true as const } : {}),
+      ...(state.test ? { test: true as const } : {}),
       description: state.description as string | undefined,
       identify,
       requires,
@@ -164,12 +193,20 @@ const checkFields = (name: string, state: Collected, fail: Fail) => {
   if (state.description !== undefined && typeof state.description !== 'string')
     fail(`${name}.description: expected a string`);
   if (!Array.isArray(state.modules)) fail(`${name}.contains: expected the modules chain, (m) => m.module(...)`);
+  if (!state.test) return;
+  if (state.testUsing !== undefined) fail(`${name}.testUsing: ${name} holds test code; give it using(...)`);
+  if (state.testExposes !== undefined)
+    fail(`${name}.testExposes: ${name} holds test code, so what it exposes is for tests already; use exposes(...)`);
 };
 
-const draftModules = (archetype: string, recorded: unknown, fail: Fail): DraftModule[] => {
+const draftModules = (archetype: string, recorded: unknown, test: boolean, fail: Fail): DraftModule[] => {
   const modules: DraftModule[] = [];
   for (const entry of entriesOf(recorded)) {
-    const module = draftModule(archetype, entry, fail);
+    if (test && !entry.test)
+      fail(
+        `${archetype}.${String(entry.name)}: ${archetype} holds test code; declare its modules with .testModule(...)`,
+      );
+    const module = draftModule(archetype, entry, test, fail);
     if (modules.some((other) => other.data.name === module.data.name))
       fail(`${archetype}: module '${module.data.name}' is already declared`);
     else modules.push(module);
@@ -177,21 +214,29 @@ const draftModules = (archetype: string, recorded: unknown, fail: Fail): DraftMo
   return modules;
 };
 
-const draftModule = (archetype: string, entry: RecordedModule, fail: Fail): DraftModule => {
+const draftModule = (archetype: string, entry: RecordedModule, holderTest: boolean, fail: Fail): DraftModule => {
   const { name } = entry;
   if (!isName(name) || name.includes('.'))
     fail(`${archetype}: a module's name is a non-empty string without dots, not ${JSON.stringify(name)}`);
   const where = `${archetype}.${String(name)}`;
-  if (entry.test) return draftTestModule(archetype, entry, where, fail);
+  const test = entry.test === true;
+  if (test && recordedAs(entry.selector, 'selector')?.kind !== 'dir')
+    return draftTestModule(archetype, entry, where, fail);
   const { kind, patterns } = selectorOf(where, entry.selector, fail);
-  if (entry.extra.length > 0) fail(`${where}: .module() takes a name, a selector and an archetype`);
+  checkCall(where, entry, holderTest, fail);
   const { named, anonymous, using } = archetypeOf(where, archetype, entry.archetype, fail);
   const description = anonymous?.description as string | undefined;
   const common = { name: name as string, using: [], ...(description === undefined ? {} : { description }) };
   if (anonymous) checkAnonymous(where, kind, anonymous, fail);
   if (kind === 'dir')
     return {
-      data: { kind, ...common, paths: patterns, archetype: named ?? inlineName(archetype, name as string) },
+      data: {
+        kind,
+        ...common,
+        paths: patterns,
+        archetype: named ?? inlineName(archetype, name as string),
+        ...(test ? { test: true as const } : {}),
+      },
       using,
     };
   if (named !== undefined) fail(`${where}: an archetype makes a folder module; use dir(...), not files(...)`);
@@ -199,12 +244,20 @@ const draftModule = (archetype: string, entry: RecordedModule, fail: Fail): Draf
   return { data: { kind, ...common, patterns, ...(exposes ? { exposes } : {}) }, using };
 };
 
+const checkCall = (where: string, entry: RecordedModule, holderTest: boolean, fail: Fail) => {
+  const method = entry.test ? 'testModule' : 'module';
+  if (entry.extra.length > 0) fail(`${where}: .${method}() takes a name, a selector and an archetype`);
+  if (entry.test && !holderTest && entry.archetype === self)
+    fail(
+      `${where}: self is the holder's archetype, which holds production code; name an archetype for the test module`,
+    );
+};
+
 const draftTestModule = (holder: string, entry: RecordedModule, where: string, fail: Fail): DraftModule => {
   const locator = locatorOf(where, entry.selector, fail);
   if (entry.extra.length > 0) fail(`${where}: .testModule() takes a name, a selector and an archetype`);
   const { named, anonymous, using } = archetypeOf(where, holder, entry.archetype, fail);
-  if (named !== undefined)
-    fail(`${where}: a test module's archetype is its own: using(...), exposes(...) or description(...)`);
+  if (named !== undefined) fail(`${where}: an archetype makes a folder module; use dir(...), not files(...)`);
   if (anonymous) checkAnonymous(where, 'test', anonymous, fail);
   const exposes = exposesOf(`${where}.exposes`, anonymous?.exposes, false, fail) as FilesExposes | undefined;
   const description = anonymous?.description as string | undefined;
@@ -223,7 +276,7 @@ const draftTestModule = (holder: string, entry: RecordedModule, where: string, f
 
 const locatorOf = (where: string, value: unknown, fail: Fail): LocatorData => {
   const selector = recordedAs(value, 'selector');
-  if (selector?.kind !== 'mirror') return selectorOf(where, value, fail, 'test');
+  if (selector?.kind !== 'mirror') return selectorOf(where, value, fail, 'test') as LocatorData;
   const [from, to] = selector.patterns;
   if (!isMirrorPath(from) || !isMirrorPath(to))
     fail(`${where}: mirror() takes two folder paths without placeholders, mirror('src', 'test')`);
@@ -262,9 +315,9 @@ const checkAnonymous = (where: string, kind: 'dir' | 'files' | 'test', definitio
   ];
   for (const field of folderOnly)
     fail(
-      kind === 'test'
-        ? `${where}.${field}: a test module holds test code; its archetype takes using(...), exposes(...) and description(...)`
-        : `${where}.${field}: a files module has no modules; use dir(...) for ${field}`,
+      kind === 'test' && field.startsWith('test')
+        ? `${where}.${field}: a test module holds test code; give it using(...) and exposes(...)`
+        : `${where}.${field}: a ${kind === 'test' ? 'files test' : 'files'} module has no modules; use dir(...) for ${field}`,
     );
 };
 

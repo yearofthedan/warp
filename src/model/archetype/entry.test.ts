@@ -121,7 +121,7 @@ describe('a module entry', () => {
         "both: an entry is the module's whole surface; give it .entry(...) or .exposes(...)",
         "notFiles.entry: expected the module's entry files, files('index.ts')",
         'onFiles.x.entry: a files module has no modules; use dir(...) for entry',
-        'onTest.x.entry: a test module holds test code; its archetype takes using(...), exposes(...) and description(...)',
+        'onTest.x.entry: a files test module has no modules; use dir(...) for entry',
       ],
     );
   });

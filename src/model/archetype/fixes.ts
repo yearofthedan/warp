@@ -56,7 +56,7 @@ const declarationSite = (config: ConfigData, module: ModuleView): Site => {
       withModule(from, archetype, module.name!, (data) => ({ ...data, using: [...data.using, ref] }) as ModuleData),
     visible: new Set(declared.slice(0, index).map((data) => data.name)),
     self: module.name!,
-    tests: module.kind === 'test',
+    tests: module.test === true,
   };
 };
 
@@ -75,8 +75,7 @@ const kitSite = (config: ConfigData, at: ModuleView): Site => {
 export const sitesOf = (config: ConfigData, model: Model, file: string): Site[] => {
   const module = model.moduleOf(file);
   if (!module || module.looseFiles.includes(file)) return [];
-  if (module.kind === 'test')
-    return [declarationSite(config, module), ...lineage(module.parent!).map((at) => kitSite(config, at))];
+  if (module.test) return lineage(module).map((at) => (at.test ? declarationSite(config, at) : kitSite(config, at)));
   const owners = module.kind === 'files' ? [module, module.parent!] : [module];
   return owners.filter((owner) => owner.parent).map((owner) => declarationSite(config, owner));
 };
@@ -121,7 +120,7 @@ const reachable = (search: Search): ModuleView[] => {
 };
 
 const nameable = (site: Site, module: ModuleView): boolean =>
-  module.parent === site.holder && module.name !== site.self && (site.tests || module.kind !== 'test');
+  module.parent === site.holder && module.name !== site.self && (site.tests || !module.test);
 
 const usingChanges = function* (search: Search, config: ConfigData): Generator<Change[]> {
   const targets = reachable(search);
@@ -176,7 +175,7 @@ const requireChanges = function* (search: Search, config: ConfigData): Generator
   const targets = reachable(search);
   for (const site of sitesOf(config, search.model, search.from))
     for (const provider of ancestors(site.holder))
-      for (const module of targets.filter((target) => target.parent === provider && target.kind !== 'test')) {
+      for (const module of targets.filter((target) => target.parent === provider && !target.test)) {
         const changes = requirement(search, config, site, provider, module);
         if (changes) yield changes;
       }
@@ -214,7 +213,7 @@ const relative = (module: ModuleView, file: string): string =>
 
 const exposeChange = (search: Search, config: ConfigData, hiddenBy: ModuleView): Change | undefined => {
   if (hiddenBy.kind !== 'dir') return exposeFilesModule(search, config, hiddenBy);
-  if (search.model.isTest(search.to)) return testExposeChange(search, config, hiddenBy);
+  if (search.model.isTest(search.to) && !hiddenBy.test) return testExposeChange(search, config, hiddenBy);
   const archetype = hiddenBy.archetype!;
   const exposes = config.archetypes[archetype]!.exposes;
   const child = targetLineage(search).find((module) => module.parent === hiddenBy);

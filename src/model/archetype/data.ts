@@ -24,7 +24,7 @@ export type ExposesData =
   | { kind: 'files'; patterns: string[]; entry?: true }
   | { kind: 'surfaces'; surfaces: Record<string, RefData[]> };
 
-export type LocatorData = { kind: 'dir' | 'files'; patterns: string[] } | { kind: 'mirror'; from: string; to: string };
+export type LocatorData = { kind: 'files'; patterns: string[] } | { kind: 'mirror'; from: string; to: string };
 
 export interface FilesModuleData {
   kind: 'files';
@@ -41,6 +41,7 @@ export interface DirModuleData {
   name: string;
   paths: string[];
   archetype: string;
+  test?: true;
   using: RefData[];
   rules?: RuleSettingsData;
   description?: string;
@@ -58,6 +59,9 @@ export interface TestModuleData {
 
 export type ModuleData = FilesModuleData | DirModuleData | TestModuleData;
 
+export const isTestData = (module: ModuleData): boolean =>
+  module.kind === 'test' || (module.kind === 'dir' && module.test === true);
+
 export type RequirementData = { kind: 'archetype'; archetype: string } | { kind: 'dir' } | { kind: 'files' };
 
 export type IdentifyData =
@@ -67,6 +71,7 @@ export type IdentifyData =
 export interface ArchetypeData {
   name: string;
   inline?: true;
+  test?: true;
   description?: string;
   identify?: IdentifyData;
   requires: Record<string, RequirementData>;

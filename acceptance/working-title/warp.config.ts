@@ -1,4 +1,4 @@
-import { all, archetype, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
+import { all, archetype, contains, defineConfig, dir, exposes, files, pkg, using } from '@yearofthedan/warp';
 
 const layer = archetype('layer')
   .description('A folder of code whose tests need the runner: domain, application, adapters, lint')
@@ -106,19 +106,20 @@ const workingTitle = archetype('working-title')
         using((m) => [m.lint, pkg('*')]),
       )
       .testModule(
-        'contract',
-        files(
-          'src/test-helpers/driver.ts',
-          'src/test-helpers/steps.ts',
-          'src/test-helpers/seed.ts',
-          'src/test-helpers/narrowing.ts',
-          'src/test-helpers/scenario-file.ts',
-          'src/test-helpers/ids.ts',
+        'testHelpers',
+        dir('src/test-helpers'),
+        contains((t) =>
+          t.testModule(
+            'contract',
+            files('driver.ts', 'steps.ts', 'seed.ts', 'narrowing.ts', 'scenario-file.ts', 'ids.ts'),
+          ),
         ),
       )
-      .testModule('runner', dir('src/test-helpers'))
-      .testModule('journeys', files('e2e/*.dsl.ts'))
-      .testModule('e2e', dir('e2e'))
+      .testModule(
+        'e2e',
+        dir('e2e'),
+        contains((t) => t.testModule('journeys', files('*.dsl.ts'))),
+      )
       .testModule('tests', files('*.test.ts', 'scripts/**/*.test.ts')),
   )
   .provides((m) => ({
@@ -134,9 +135,7 @@ const workingTitle = archetype('working-title')
     m.app,
     m.shell,
     m.ports,
-    m.contract,
-    m.runner,
-    m.journeys,
+    m.testHelpers,
     pkg('vite-plus/*'),
     pkg('*'),
   ]);

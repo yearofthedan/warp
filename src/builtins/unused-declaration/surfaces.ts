@@ -1,4 +1,4 @@
-import type { ExposesData } from '../../model/archetype/data.ts';
+import { type ExposesData, isTestData } from '../../model/archetype/data.ts';
 import type { ModuleView } from '../../model/archetype/resolve.ts';
 import type { Finding } from '../../rules/rule.ts';
 import { childrenNamed, type Context, instancesOf, type Layer, named, unused, within } from './declarations.ts';
@@ -47,7 +47,9 @@ const declared = (context: Context): Declared[] =>
     const judged = isEntry(archetype.exposes)
       ? instances.filter((instance) => !isTopLevel(context, instance))
       : instances;
-    const own = archetype.exposes ? surfaces(context, archetype.name, archetype.exposes, judged, 'production') : [];
+    const own = archetype.exposes
+      ? surfaces(context, archetype.name, archetype.exposes, judged, archetype.test ? 'test' : 'production')
+      : [];
     const tests = Object.entries(archetype.testExposes ?? {}).map(([name, refs]) => ({
       declaredIn: archetype.name,
       layer: 'test' as const,
@@ -57,7 +59,7 @@ const declared = (context: Context): Declared[] =>
     }));
     const modules = archetype.modules.flatMap((module) => {
       const holders = childrenNamed(context, instances, module.name);
-      const layer: Layer = module.kind === 'test' ? 'test' : 'production';
+      const layer: Layer = isTestData(module) ? 'test' : 'production';
       return module.kind !== 'dir' && module.exposes
         ? surfaces(context, `${archetype.name}.${module.name}`, module.exposes, holders, layer)
         : [];

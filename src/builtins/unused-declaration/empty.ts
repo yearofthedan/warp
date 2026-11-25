@@ -1,4 +1,4 @@
-import type { ModuleData } from '../../model/archetype/data.ts';
+import { isTestData, type ModuleData } from '../../model/archetype/data.ts';
 import type { ModuleView } from '../../model/archetype/resolve.ts';
 import type { Finding } from '../../rules/rule.ts';
 import { childrenNamed, type Context, instancesOf, type Layer, named, unused } from './declarations.ts';
@@ -10,7 +10,7 @@ export const emptyModules = (context: Context): Finding[] =>
     const declared = archetype.modules.map((module) => ({
       module,
       name: module.name,
-      layer: module.kind === 'test' ? ('test' as const) : ('production' as const),
+      layer: isTestData(module) ? ('test' as const) : ('production' as const),
     }));
     return declared
       .filter(({ name }) => on && childrenNamed(context, instances, name).length === 0)

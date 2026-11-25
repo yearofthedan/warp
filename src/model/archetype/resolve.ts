@@ -10,6 +10,7 @@ export interface ModuleView {
   id: string;
   name?: string;
   kind: 'dir' | 'files' | 'test';
+  test?: true;
   dir: string;
   archetype?: string;
   captures: Record<string, string>;
@@ -76,7 +77,7 @@ export const resolveModel = (config: ConfigData, folders: Folders, files: readon
     root,
     modules: [...walk(root)],
     moduleOf: (file) => moduleOf.get(file),
-    isTest: (file) => moduleOf.get(file)?.kind === 'test',
+    isTest: (file) => moduleOf.get(file)?.test === true,
   };
 };
 
@@ -158,6 +159,7 @@ const childModule = (folder: ModuleView, name: string, kind: 'files' | 'test'): 
       id,
       name,
       kind,
+      ...(kind === 'test' ? { test: true as const } : {}),
       dir: folder.dir,
       captures: folder.captures,
       parent: folder,
@@ -180,7 +182,10 @@ const claimOf = (resolution: Resolution, folder: ModuleView, file: string): Modu
         const score = locates(level, declared.locator, file);
         return score === undefined ? [] : [{ name: declared.name, score }];
       });
-    if (claims.length === 0) continue;
+    if (claims.length === 0) {
+      if (at.test) return at;
+      continue;
+    }
     const best = claims.reduce((top, claim) => (claim.score > top.score ? claim : top));
     const tied = claims.filter((claim) => claim !== best && claim.score === best.score);
     if (tied.length > 0)
@@ -198,8 +203,7 @@ const locates = (module: ModuleView, locator: LocatorData, file: string): number
   const scores = locator.patterns.flatMap((pattern) => {
     const filled = fillPattern(pattern, module.captures);
     if (filled === undefined) return [];
-    const glob = locator.kind === 'dir' ? `${filled}/**` : filled;
-    return globRegex(glob).test(path) ? [specificity(glob)] : [];
+    return globRegex(filled).test(path) ? [specificity(filled)] : [];
   });
   return scores.length === 0 ? undefined : Math.max(...scores);
 };
@@ -210,16 +214,18 @@ interface Found {
   captures: Record<string, string>;
   parent?: ModuleView;
   name?: string;
+  test?: boolean;
 }
 
 const pathOf = (module: ModuleView): string =>
   module.parent?.name === undefined ? module.name! : `${pathOf(module.parent)}.${module.name}`;
 
-const build = (resolution: Resolution, { dir, archetype, captures, parent, name }: Found): ModuleView => {
+const build = (resolution: Resolution, { dir, archetype, captures, parent, name, test }: Found): ModuleView => {
   const module: ModuleView = {
     id: dir === '' ? rootId : dir,
     ...(name === undefined ? {} : { name }),
     kind: 'dir',
+    ...(test ? { test: true as const } : {}),
     dir,
     archetype: archetype.name,
     captures,
@@ -248,6 +254,7 @@ const build = (resolution: Resolution, { dir, archetype, captures, parent, name 
         captures: winner.captures,
         parent: module,
         name: winner.module.name,
+        test: winner.module.test === true,
       }),
     );
   }

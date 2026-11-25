@@ -5,11 +5,13 @@ import {
   all,
   type AnyArchetype,
   archetype,
+  contains,
   defineConfig,
   dir,
   exposes,
   files,
   mirror,
+  type ModuleHandle,
   pkg,
   ruleset,
   using,
@@ -363,5 +365,23 @@ describe('archetype builders', () => {
       "c.mirrored: expected a selector, files('*.ts') or dir('src/ui')",
       'c testUsing kti; c has modules logic, kit, tests, mirrored',
     ]);
+  });
+
+  it("type a dir() test module's surfaces, and its handles to the modules inside it", () => {
+    const helpers = contains((t) =>
+      t.testModule('fixtures', files('*.fixture.ts')).testModule('drivers', files('*.driver.ts')),
+    ).exposes((m) => ({ drivers: m.drivers }));
+    const child = archetype('c')
+      .contains((m) =>
+        m.testModule('helpers', dir('test-helpers'), helpers).testModule(
+          'tests',
+          files('*.test.ts'),
+          // @ts-expect-error a test module exposes only the surfaces it names
+          using((m) => [m.helpers.drivers, m.helpers.fixtures]),
+        ),
+      )
+      .testUsing((m) => [m.helpers.drivers]);
+    expectTypeOf(child.modules.helpers.modules.drivers).toEqualTypeOf<ModuleHandle>();
+    assert.deepEqual(errorsIn(child), ['c.tests uses helpers.fixtures; helpers exposes drivers']);
   });
 });
