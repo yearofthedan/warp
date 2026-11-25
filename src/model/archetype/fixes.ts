@@ -252,13 +252,28 @@ const exposeFilesModule = (search: Search, config: ConfigData, hiddenBy: ModuleV
 
 const subtree = (module: ModuleView): ModuleView[] => [module, ...module.children.flatMap(subtree)];
 
-const reaches = (config: ConfigData, model: Model, from: ModuleView, to: ModuleView): boolean => {
+// The modules under one holder that a module's files reach, each named by the holder's child that holds it.
+const uses = (config: ConfigData, model: Model, from: ModuleView, under: ModuleView): Set<ModuleView> => {
   const judge = verdicts(config, model);
-  const files = new Set(subtree(to).flatMap((module) => module.files));
-  return subtree(from).some((module) => {
-    const file = module.files[0];
-    return file !== undefined && judge.reach(file)!.some((grant) => [...grant.files].some((to) => files.has(to)));
-  });
+  const found = new Set<ModuleView>();
+  for (const module of subtree(from))
+    for (const file of module.files.slice(0, 1))
+      for (const grant of judge.reach(file) ?? [])
+        for (const to of grant.files) {
+          const target = model.moduleOf(to);
+          if (target && lineage(target).includes(under)) found.add(topOf(target, under));
+        }
+  found.delete(from);
+  return found;
+};
+
+const reaches = (config: ConfigData, model: Model, from: ModuleView, to: ModuleView, under: ModuleView): boolean => {
+  const seen = new Set<ModuleView>([from]);
+  for (const at of seen) {
+    if (at === to) return true;
+    for (const next of uses(config, model, at, under)) seen.add(next);
+  }
+  return false;
 };
 
 const topOf = (module: ModuleView, under: ModuleView): ModuleView => {
@@ -273,7 +288,7 @@ const loops = ({ model, from, to }: Search, config: ConfigData): boolean => {
   const target = model.moduleOf(to)!;
   const common = [...lineage(source)].find((module) => lineage(target).includes(module));
   if (!common || common === source || common === target) return false;
-  return reaches(config, model, topOf(target, common), topOf(source, common));
+  return reaches(config, model, topOf(target, common), topOf(source, common), common);
 };
 
 const search = (state: Search, config: ConfigData, fixes: Fix[]): Fix[] | undefined => {

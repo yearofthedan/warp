@@ -2,6 +2,7 @@ import { listsPackage } from '../packages.ts';
 import { place } from '../place.ts';
 import type { ConfigData } from '../../model/archetype/data.ts';
 import { sitesOf } from '../../model/archetype/fixes.ts';
+import { packageText } from '../../model/archetype/references.ts';
 import type { Grant } from '../../model/archetype/reach.ts';
 import type { Model } from '../../model/archetype/resolve.ts';
 import type { ExternalImport } from '../../model/facts.ts';
@@ -40,7 +41,7 @@ const refused = (
   const specifiers = [...new Set(edges.map((edge) => edge.specifier))];
   const imports = edges.every((edge) => edge.typeOnly) ? 'imports types from' : 'imports';
   const site = sitesOf(config, model, from)[0];
-  const where = site?.label ?? 'a using';
+  const where = site?.label ?? 'its dependencies';
   const listed = new Set(packages.map((grant) => grant.ref)).size;
   const more = listed > 0 ? ` (+${listed} more in reach)` : '';
   return {
@@ -51,7 +52,7 @@ const refused = (
     value: Math.max(1, names.length),
     message:
       `${from} (${place(model, from, module)}) ${imports} ${specifiers.join(', ')}, a package outside ${owner}'s reach. ` +
-      `Add pkg('${name}') to ${where}, or move the code.${more}`,
+      `Add ${packageText(name)} to ${where}, or move the code.${more}`,
     details: { from: module.id, package: name, edges },
   };
 };
