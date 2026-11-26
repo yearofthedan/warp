@@ -49,6 +49,11 @@ describe('parseConfig', () => {
         error.message ===
           'warp.yaml:2: anchors and aliases are not part of warp.yaml; write it out\nwarp.yaml:3: anchors and aliases are not part of warp.yaml; write it out',
     );
-    assert.throws(() => parseConfig('root: {}\nroot: {}\n', 'warp.yaml'), /: warp\.yaml:2: Map keys must be unique$/);
+    assert.throws(() => parseConfig('root: {}\nroot: {}\n', 'warp.yaml'), {
+      message: 'warp.yaml:2: Map keys must be unique (root)',
+    });
+    assert.throws(() => parseConfig('root:\n  dir: *\n', 'warp.yaml'), {
+      message: "warp.yaml:2: a value that starts with * is quoted, '*'",
+    });
   });
 });

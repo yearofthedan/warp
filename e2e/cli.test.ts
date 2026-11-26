@@ -249,7 +249,27 @@ describe('a warp.yaml with a plugin', () => {
     );
     const checked = run('check', '--config', 'empty.yaml');
     assert.equal(checked.status, 2);
-    assert.match(checked.stderr, /warp config: .*empty.yaml:1: plugins\.e: \.\/rules\/empty\.ts has no default export/);
+    assert.equal(
+      checked.stderr,
+      'warp config: empty.yaml:1: plugins.e: ./rules/empty.ts has no default export; export the plugin as default\n',
+    );
+  });
+
+  it('reports a plugin path that is missing, bare, or not a plugin, at its line', () => {
+    const errorFor = (plugin: string) => {
+      writeFileSync(join(dir, 'bad.yaml'), `root: { modules: { src: { files: '**' } } }\nplugins: { e: ${plugin} }\n`);
+      return run('check', '--config', 'bad.yaml').stderr;
+    };
+    writeFileSync(join(dir, 'rules/three.ts'), 'export default 3;\n');
+    assert.equal(errorFor('./rules/nope.ts'), 'warp config: bad.yaml:2: plugins.e: no file at ./rules/nope.ts\n');
+    assert.equal(
+      errorFor('rules/nope.ts'),
+      "warp config: bad.yaml:2: plugins.e: 'rules/nope.ts' is a path, ./rules/nope.ts, or a package, npm:rules/nope.ts\n",
+    );
+    assert.equal(
+      errorFor('./rules/three.ts'),
+      'warp config: bad.yaml:2: plugins.e: expected a plugin, { rules: Rule[] }, as the default export of its file\n',
+    );
   });
 });
 

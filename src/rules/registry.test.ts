@@ -43,7 +43,7 @@ describe('pluginRules', () => {
   });
 
   it('refuses a malformed plugin, rule or namespace', () => {
-    const at = 'config.plugins';
+    const at = 'plugins';
     const refused = (plugins: Record<string, unknown>) => {
       try {
         pluginRules(plugins);

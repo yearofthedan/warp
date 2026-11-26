@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { readFileSync, realpathSync } from 'node:fs';
-import { basename, dirname, resolve } from 'node:path';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { diskFolders } from './analysis/folders.ts';
 import { typescriptAnalyzer } from './analysis/typescript.ts';
@@ -103,6 +103,10 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail' | 'since
   const file = basename(configFile);
   try {
     const { config, rules } = loadConfigData(raw, { builtins, plugins, ruleset: options.ruleset, file });
+    for (const tsconfig of config.tsconfig.filter((path) => !existsSync(join(root, path))))
+      throw new ConfigError(
+        `tsconfig: no ${tsconfig} beside ${file}; add it, or list the project's: tsconfig: [tsconfig.app.json]`,
+      );
     return { root, config, rules, lines, digest };
   } catch (error) {
     if (error instanceof ConfigError) throw new ConfigError(placeProblems(lines, file, error.message));
@@ -120,7 +124,7 @@ const run = async (options: Options, produce: Produce): Promise<number> => {
   try {
     const resolved = await resolveConfig(options);
     if (!anyRuleOn(resolved.config)) console.error(nothingOn(resolved.config.file));
-    const report = produce(resolved.root, checkOf(resolved), resolved.digest);
+    const report = placed(resolved, () => produce(resolved.root, checkOf(resolved), resolved.digest));
     const output = reporter.render(report, { toolVersion: version(), projectPath: projectPathOf(resolved.root) });
     if (output) console.log(output);
     if (reporter.renderFailure) forgetFailure();
@@ -131,6 +135,15 @@ const run = async (options: Options, produce: Produce): Promise<number> => {
     if (!reporter.renderFailure || !isNewFailure(problem)) return code;
     console.log(reporter.renderFailure(problem));
     return 0;
+  }
+};
+
+const placed = <T>({ lines, config }: Resolved, run: () => T): T => {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof ConfigError) throw new ConfigError(placeProblems(lines, config.file, error.message));
+    throw error;
   }
 };
 
@@ -163,8 +176,9 @@ type ModelOptions = Omit<Options, 'reporter' | 'fail' | 'since-last-run'> & { js
 
 const printModel = async (options: ModelOptions): Promise<number> => {
   try {
-    const { root, config, rules } = await resolveConfig(options);
-    const { model } = modelProject(adaptersAt(root), root, config);
+    const resolved = await resolveConfig(options);
+    const { root, config, rules } = resolved;
+    const { model } = placed(resolved, () => modelProject(adaptersAt(root), root, config));
     const settings = rulesOf(config, model, rules);
     console.log(options.json ? modelJson(model, settings) : modelText(model, options.rules ? settings : undefined));
     return 0;

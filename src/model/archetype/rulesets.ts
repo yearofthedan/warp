@@ -26,7 +26,7 @@ export const withRuleset = (
   if (name !== undefined && !named.has(name)) {
     const names = [...named.keys()];
     throw new ConfigError(
-      `no ruleset called ${name}. ${names.length > 0 ? `Rulesets: ${names.join(', ')}` : 'The config declares none'}`,
+      `rulesets: no ruleset called ${name}. ${names.length > 0 ? `Rulesets: ${names.join(', ')}` : 'The config declares none'}`,
     );
   }
   const chosen = name ?? 'default';

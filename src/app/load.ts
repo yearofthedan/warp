@@ -36,7 +36,7 @@ export const loadConfigData = (
   };
   if (!isRecord(raw)) throw new ConfigError(`${file}: expected a mapping, root: { modules: ... }`);
   const unknownKeys = Object.keys(raw).filter((key) => !keys.includes(key));
-  if (unknownKeys.length > 0) fail(`${file}: unknown key ${unknownKeys.join(', ')}; a config takes ${keys.join(', ')}`);
+  for (const key of unknownKeys) fail(`${key}: unknown key; a config takes ${keys.join(', ')}`);
   checkPlugins(raw.plugins, plugins, fail);
   const rules = [...registry([...(builtins ?? []), ...pluginRules(plugins)]).values()];
   const structure = parseStructure(raw.root, raw.archetypes, fail);

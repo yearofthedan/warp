@@ -247,7 +247,7 @@ archetypes:
     test: { requires: 3, modules: { t: { files: '*.test.ts' } } }
 `),
       [
-        'warp.yaml: unknown key layers; a config takes root, archetypes, rulesets, plugins, tsconfig',
+        'layers: unknown key; a config takes root, archetypes, rulesets, plugins, tsconfig',
         'archetypes.root: root is the repository; name the archetype otherwise',
         'card: unknown key usings; an archetype takes description, marker, requires, entry, exposes, modules, test',
         'card.test.requires: expected a name or a list of names',
@@ -262,7 +262,7 @@ archetypes:
         'root.open.exposes: expected all, or { files: [...] }',
         'root.named: an archetype makes a folder module; give it a dir',
         'root.named.files: card defines what is inside; declare files there',
-        "root: a module's name has no dots, not 'a.b'",
+        "root.a.b: a module's name has no dots, not 'a.b'",
         "root.test.exposes: 'x': no module or input called x here; in scope: a.b, both, flat, named, none, open, typo",
       ],
     );
@@ -437,7 +437,7 @@ root:
         'root: unknown key bogus; the root takes description, modules, test',
         'root.x: expected a mapping',
         'root.x: expected dir, files or an archetype',
-        "root: a module's name has no dots, not 'a.b'",
+        "root.a.b: a module's name has no dots, not 'a.b'",
         'root.f.files: expected a file pattern or a list of them',
         "root.i.test.dependencies: fills an archetype's test.requires; i has no archetype",
         "root.i.test.dependencies: fills an archetype's test.requires, where a module uses one",
