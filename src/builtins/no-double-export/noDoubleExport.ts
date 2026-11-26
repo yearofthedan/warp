@@ -1,8 +1,8 @@
 import { place } from '../place.ts';
-import type { Verdicts } from '../../model/archetype/reach.ts';
-import type { Model, ModuleView } from '../../model/archetype/resolve.ts';
-import type { ImportEdge } from '../../model/facts.ts';
-import { type Finding, noOptions, type ProjectRule } from '../../rules/rule.ts';
+import type { Verdicts } from '../../domain/model/reach.ts';
+import type { Model, ModuleView } from '../../domain/model/resolve.ts';
+import type { ImportEdge } from '../../domain/facts/facts.ts';
+import { type Finding, noOptions, type ProjectRule } from '../../domain/rules/rule.ts';
 
 const id = 'no-double-export';
 

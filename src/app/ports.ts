@@ -1,6 +1,6 @@
-import type { Folders } from '../model/archetype/resolve.ts';
-import type { FileFacts, Project } from '../model/facts.ts';
-import type { Finding } from '../rules/rule.ts';
+import type { Folders } from '../domain/model/resolve.ts';
+import type { FileFacts, Project } from '../domain/facts/facts.ts';
+import type { Finding } from '../domain/rules/rule.ts';
 
 export interface Analyzer {
   analyze(root: string, tsconfig: readonly string[], facts?: FactsStore): Project;

@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { beforeAll, describe, it } from 'vite-plus/test';
-import { diskFolders } from '../analysis/folders.ts';
-import { typescriptAnalyzer } from '../analysis/typescript.ts';
+import { diskFolders } from '../adapters/analysis/folders.ts';
+import { typescriptAnalyzer } from '../adapters/analysis/typescript.ts';
 import { projectCheck } from '../app/check.ts';
 import { builtinRegistry, unclassifiedDocs } from '../builtins/index.ts';
-import { loadConfig } from '../config/loadConfig.ts';
+import { loadConfig } from '../adapters/config/loadConfig.ts';
 import { loadConfigData } from './load.ts';
-import type { Finding } from '../rules/rule.ts';
+import type { Finding } from '../domain/rules/rule.ts';
 
 const root = join(import.meta.dirname, '../../fixtures/hexagonal-app');
 let findings: Finding[];

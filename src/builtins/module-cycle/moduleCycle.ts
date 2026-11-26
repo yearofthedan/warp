@@ -1,6 +1,6 @@
-import type { Model, ModuleView } from '../../model/archetype/resolve.ts';
-import type { ImportEdge } from '../../model/facts.ts';
-import type { Finding, ProjectRule } from '../../rules/rule.ts';
+import type { Model, ModuleView } from '../../domain/model/resolve.ts';
+import type { ImportEdge } from '../../domain/facts/facts.ts';
+import type { Finding, ProjectRule } from '../../domain/rules/rule.ts';
 import {
   counts,
   cycleDefaults,

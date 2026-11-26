@@ -1,13 +1,13 @@
-import type { ConfigData } from '../../model/archetype/data.ts';
-import { exposesText } from '../../model/archetype/references.ts';
+import type { ConfigData } from '../../domain/model/data.ts';
+import { exposesText } from '../../domain/model/text.ts';
 import { fixSteps, reachSize, sentence } from '../advice.ts';
 import { place } from '../place.ts';
 import { title } from '../shared.ts';
-import { fixesFor } from '../../model/archetype/fixes.ts';
-import type { Refusal, Verdicts } from '../../model/archetype/reach.ts';
-import type { Model, ModuleView } from '../../model/archetype/resolve.ts';
-import type { ImportEdge } from '../../model/facts.ts';
-import { type Finding, noOptions, type ProjectRule } from '../../rules/rule.ts';
+import { fixesFor } from '../../domain/fixes/fixes.ts';
+import type { Refusal, Verdicts } from '../../domain/model/reach.ts';
+import type { Model, ModuleView } from '../../domain/model/resolve.ts';
+import type { ImportEdge } from '../../domain/facts/facts.ts';
+import { type Finding, noOptions, type ProjectRule } from '../../domain/rules/rule.ts';
 
 const id = 'dependency-direction';
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { diffProject, InvalidRange, parseRange } from '../app/diff.ts';
-import type { Finding } from '../rules/rule.ts';
+import type { Finding } from '../domain/rules/rule.ts';
 import type { ProjectCheck } from './check.ts';
 import type { FindingsCache, Repository } from './ports.ts';
 

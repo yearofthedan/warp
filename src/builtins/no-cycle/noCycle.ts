@@ -1,5 +1,5 @@
-import type { ImportEdge } from '../../model/facts.ts';
-import type { ProjectRule } from '../../rules/rule.ts';
+import type { ImportEdge } from '../../domain/facts/facts.ts';
+import type { ProjectRule } from '../../domain/rules/rule.ts';
 import {
   counts,
   cycleDefaults,

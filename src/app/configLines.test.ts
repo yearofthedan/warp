@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import type { Finding } from '../rules/rule.ts';
+import type { Finding } from '../domain/rules/rule.ts';
 import { lineAt, placeFindings, placeProblems } from './configLines.ts';
 
 const lines = new Map([

@@ -1,6 +1,6 @@
-import { isTestData, type ModuleData } from '../../model/archetype/data.ts';
-import type { ModuleView } from '../../model/archetype/resolve.ts';
-import type { Finding } from '../../rules/rule.ts';
+import { isTestData, type ModuleData } from '../../domain/model/data.ts';
+import type { ModuleView } from '../../domain/model/resolve.ts';
+import type { Finding } from '../../domain/rules/rule.ts';
 import { childrenNamed, type Context, instancesOf, type Layer, named, unused } from './declarations.ts';
 
 export const emptyModules = (context: Context): Finding[] =>

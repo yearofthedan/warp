@@ -1,4 +1,4 @@
-import type { Model, ModuleView } from '../model/archetype/resolve.ts';
+import type { Model, ModuleView } from '../domain/model/resolve.ts';
 
 export const place = (model: Model, file: string, module: ModuleView = model.moduleOf(file)!): string => {
   if (module.kind !== 'dir') {

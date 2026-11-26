@@ -5,10 +5,9 @@ export default {
   testRunner: 'vitest',
   vitest: { configFile: 'stryker.vitest.config.ts' },
   mutate: [
-    'src/model/**/*.ts',
+    'src/domain/**/*.ts',
     'src/builtins/**/*.ts',
-    'src/rules/**/*.ts',
-    'src/reporters/**/*.ts',
+    'src/adapters/reporters/**/*.ts',
     'src/app/{checkModel,diff,facts,load,unclassified}.ts',
     '!src/**/*.test.ts',
   ],

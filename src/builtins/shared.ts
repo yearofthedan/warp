@@ -1,4 +1,4 @@
-import type { Member } from '../model/facts.ts';
+import type { Member } from '../domain/facts/facts.ts';
 
 export interface Group {
   names: string[];

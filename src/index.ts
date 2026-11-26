@@ -1,5 +1,5 @@
 export { loadConfigData, type LoadedConfigData } from './app/load.ts';
-export type * from './model/archetype/data.ts';
+export type * from './domain/model/data.ts';
 export type {
   Complexity,
   FunctionFacts,
@@ -8,10 +8,10 @@ export type {
   Member,
   MemberGraph,
   MemberKind,
-} from './model/facts.ts';
-export type { Model, ModuleView } from './model/archetype/resolve.ts';
-export type { Grant, Refusal, Verdict, Verdicts } from './model/archetype/reach.ts';
-export { ConfigError } from './model/configError.ts';
+} from './domain/facts/facts.ts';
+export type { Model, ModuleView } from './domain/model/resolve.ts';
+export type { Grant, Refusal, Verdict, Verdicts } from './domain/model/reach.ts';
+export { ConfigError } from './domain/model/configError.ts';
 export {
   type Finding,
   type FileContext,
@@ -22,4 +22,4 @@ export {
   type Rule,
   type Setting,
   wholeNumberOptions,
-} from './rules/rule.ts';
+} from './domain/rules/rule.ts';

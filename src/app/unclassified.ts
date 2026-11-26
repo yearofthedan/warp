@@ -1,6 +1,6 @@
-import type { Finding } from '../rules/rule.ts';
-import type { Model } from '../model/archetype/resolve.ts';
-import type { Settings } from '../model/archetype/settings.ts';
+import type { Finding } from '../domain/rules/rule.ts';
+import type { Model } from '../domain/model/resolve.ts';
+import type { Settings } from '../domain/model/settings.ts';
 
 export const unclassified = 'unclassified';
 

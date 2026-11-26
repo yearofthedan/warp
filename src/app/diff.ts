@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { anchorAtChange, type Delta, diff } from '../rules/diff.ts';
-import type { Finding, Site } from '../rules/rule.ts';
+import { anchorAtChange, type Delta, diff } from '../domain/rules/diff.ts';
+import type { Finding, Site } from '../domain/rules/rule.ts';
 import type { ProjectCheck } from './check.ts';
 import type { ChangedLines, FindingsCache, Repository } from './ports.ts';
 

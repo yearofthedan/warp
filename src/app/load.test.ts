@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
-import { ConfigError } from '../model/configError.ts';
-import { type FileRule, wholeNumberOptions } from '../rules/rule.ts';
+import { ConfigError } from '../domain/model/configError.ts';
+import { type FileRule, wholeNumberOptions } from '../domain/rules/rule.ts';
 import { type LoadOptions, loadConfigData } from './load.ts';
 import { builtinRegistry } from '../builtins/index.ts';
 

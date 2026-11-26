@@ -1,4 +1,4 @@
-import type { Finding } from '../rules/rule.ts';
+import type { Finding } from '../domain/rules/rule.ts';
 
 export type ConfigLines = ReadonlyMap<string, number>;
 
