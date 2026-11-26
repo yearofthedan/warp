@@ -15,7 +15,7 @@ export const packageText = (pattern: string): string =>
 export const show = (ref: RefData): string =>
   ref.kind === 'package'
     ? packageText(ref.pattern)
-    : `${ref.kind === 'required' ? ref.name : ref.module}${ref.surface === undefined ? '' : `.${ref.surface}`}`;
+    : `${ref.kind === 'module' && ref.top ? 'top.' : ''}${ref.kind === 'required' ? ref.name : ref.module}${ref.surface === undefined ? '' : `.${ref.surface}`}`;
 
 export const checkReferences = (
   archetypes: Record<string, ArchetypeData>,

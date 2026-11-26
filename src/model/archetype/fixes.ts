@@ -80,10 +80,10 @@ const surfacesOf = ({ exposes, testExposes }: ArchetypeData, tests: boolean): st
   ]),
 ];
 
-const moduleRefs = (config: ConfigData, module: ModuleView, tests: boolean, up = 0): RefData[] => {
+const moduleRefs = (config: ConfigData, module: ModuleView, tests: boolean, up = 0, top = false): RefData[] => {
   const surfaces = module.kind === 'dir' ? surfacesOf(config.archetypes[module.archetype!]!, tests) : [];
   const name = module.name!;
-  const out = up > 0 ? { up } : {};
+  const out = { ...(up > 0 ? { up } : {}), ...(top ? { top: true as const } : {}) };
   return [
     ...surfaces.map((surface): RefData => ({ kind: 'module', module: name, surface, ...out })),
     { kind: 'module', module: name, ...out },
@@ -95,6 +95,9 @@ const levels = (config: ConfigData, holder: ModuleView): ModuleView[] => {
   for (let at = holder; config.archetypes[at.archetype!]!.inline && at.parent; at = at.parent) found.push(at.parent);
   return found;
 };
+
+const declares = (config: ConfigData, level: ModuleView, name: string): boolean =>
+  config.archetypes[level.archetype!]!.modules.some((module) => module.name === name);
 
 const inputsOf = (config: ConfigData, site: Site): RefData[] => {
   const named = config.archetypes[namedArchetype(config, site.holder.archetype!)]!;
@@ -126,10 +129,15 @@ const nameable = (site: Site, module: ModuleView): boolean =>
 const usingChanges = function* (search: Search, config: ConfigData): Generator<Change[]> {
   const targets = reachable(search);
   for (const site of sitesOf(config, search.model, search.from)) {
-    const own = levels(config, site.holder).flatMap((level, up) =>
+    const scopes = levels(config, site.holder);
+    const own = scopes.flatMap((level, up) =>
       targets
         .filter((module) => module.parent === level && nameable(site, module))
-        .flatMap((module) => moduleRefs(config, module, site.tests, up)),
+        .flatMap((module) => {
+          const shadowed = scopes.slice(0, up).some((nearer) => declares(config, nearer, module.name!));
+          if (!shadowed) return moduleRefs(config, module, site.tests, up);
+          return up === scopes.length - 1 ? moduleRefs(config, module, site.tests, up, true) : [];
+        }),
     );
     for (const ref of [...own, ...inputsOf(config, site)])
       yield [{ fix: { kind: 'using', site: site.label, ref }, config: site.add(config, ref) }];

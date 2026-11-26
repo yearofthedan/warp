@@ -427,7 +427,7 @@ const searchedFrom = (scope: Scope, top: boolean): Scope[] => {
 const moduleRef = (state: State, scope: Scope, name: Name): RefData | null | undefined => {
   const found = searchedFrom(scope, name.top).find((level) => level.names.has(name.module));
   if (!found) return undefined;
-  if (found === scope && name.module === scope.own && !name.top) {
+  if (found === scope && name.module === scope.own) {
     fail(state, name.where, name.entry, `a module reaches its own files already`);
     return null;
   }
@@ -437,6 +437,7 @@ const moduleRef = (state: State, scope: Scope, name: Name): RefData | null | und
     module: name.module,
     ...(name.surface === undefined ? {} : { surface: name.surface }),
     ...(up > 0 ? { up } : {}),
+    ...(name.top ? { top: true as const } : {}),
   };
   state.pending.push({ ref, where: name.where, archetype: found.archetype, tests: name.tests });
   return ref;

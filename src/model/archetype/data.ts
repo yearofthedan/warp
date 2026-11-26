@@ -3,6 +3,7 @@ export interface ModuleRefData {
   module: string;
   surface?: string;
   up?: number;
+  top?: true;
 }
 
 export interface RequiredRefData {
