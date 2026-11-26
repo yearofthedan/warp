@@ -6,6 +6,10 @@ overrides:
   # why: Stryker's core asks for minimatch ~10.2.4, and every 10.x carries GHSA-g3hv-75wg-m249.
   # until: @stryker-mutator/core depends on minimatch@11
   '@stryker-mutator/core>minimatch': 11.0.9
+  # why: c8 reaches glob 10 and minimatch 10 through test-exclude 7, with GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249.
+  # until: test-exclude depends on glob@13 or later and minimatch@11
+  'test-exclude>glob': 14.0.6
+  'test-exclude>minimatch': 11.0.9
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@1.6.0
   vite-plus: 1.6.0

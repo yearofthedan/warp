@@ -61,6 +61,8 @@ and approved. A case the output cannot show, such as a cache or a git history, s
 Stryker mutates the unit-tested core: the model, its rules, the reporters and `src/app/diff.ts`, which run on
 in-memory facts. Analysis, config loading, git and the CLI read the disk and spawn processes, too slow to run once
 per mutant, so the integration and e2e tiers cover them. `stryker.vitest.config.ts` runs the unit tier alone.
+`./do coverage` reports how much of `src/` the warp processes spawned by the e2e tier and the scenarios run. It runs
+them under c8, which collects V8 coverage from every child process; tests that run inside Vitest are not counted.
 
 ## CI
 

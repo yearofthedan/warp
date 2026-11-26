@@ -1,0 +1,8 @@
+#!/bin/sh
+# help: Report how much of src/ the warp processes that the e2e tier and the scenarios spawn run; ./do mutate measures the unit tier.
+
+set -eu
+
+. "$(dirname "$0")/_vp"
+
+c8 --include 'src/**' --exclude '**/*.test.ts' --reporter text --reporter text-summary vp test --project e2e "$@"
