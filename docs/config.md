@@ -48,7 +48,7 @@ Every boundary the config declares is a module, a key under some `modules:`. A m
 | `dependencies` | what its files may import, see [Names](#names) |
 | `exposes` | what other modules may import from it: `all`, a list of its own modules, or `{ files: [...] }` |
 | `entry` | its one way in, in place of `exposes`: a file pattern |
-| `modules` | the modules inside it |
+| `modules` | the modules inside it, on a `dir` module only: a folder holds modules, a list of files doesn't |
 | `test` | its test code, see [Tests](#tests) |
 
 ```yaml
@@ -269,8 +269,7 @@ e2e/checkout.test.ts               e2e                         reaches the journ
   `fixtures.seeds` gives `builders` nothing, and `seeds` reaches `builders` because it names it.
 - A test module with `dir` is a folder of test code, and may hold test modules of its own; it may use an archetype,
   which then holds test code only. A test module exposes all its files unless it says otherwise.
-- A test module with `files` holds no test modules. Tests that share a helpers folder are two test modules side by
-  side, the tests naming the helpers:
+- Tests that share a helpers folder are two test modules side by side, the tests naming the helpers:
 
   ```yaml fragment
   test:
