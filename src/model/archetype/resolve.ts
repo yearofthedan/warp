@@ -246,7 +246,8 @@ const claimsOf = (resolution: Resolution, module: ModuleView, declared: DirModul
   const child = resolution.config.archetypes[declared.archetype]!;
   return declared.paths.flatMap((path) =>
     matchFolders(resolution.folders, module.dir, path).flatMap((match) => {
-      const captures = identify(resolution, child, match.dir, match.captures, module, { declared, path });
+      const inherited = child.inline ? { ...module.captures, ...match.captures } : match.captures;
+      const captures = identify(resolution, child, match.dir, inherited, module, { declared, path });
       return captures ? [{ module: declared, path, archetype: child, ...match, captures }] : [];
     }),
   );

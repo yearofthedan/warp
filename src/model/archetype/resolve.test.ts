@@ -280,6 +280,22 @@ archetypes:
     assert.equal(model.moduleOf('card/other.dom.ts')?.id, 'card:logic');
   });
 
+  it('fills a placeholder inside an inline module from the instance that holds it', () => {
+    const root = `
+root:
+  modules:
+    feats: { dir: '*', archetype: feat }
+archetypes:
+  feat:
+    modules:
+      sub:
+        dir: sub
+        modules:
+          leaf: { files: '{name}.ts' }
+`;
+    assert.equal(resolve(root, ['x/sub/x.ts']).moduleOf('x/sub/x.ts')?.id, 'x/sub:leaf');
+  });
+
   it('refuses files modules that match a file equally specifically, once per file', () => {
     const root = "root: { modules: { a: { files: ['*.dsl.ts', x.ts] }, b: { files: 'card.*' } } }";
     assert.deepEqual(tree(resolve(root, ['card.dsl.ts', 'card.ts'])).slice(1), [
