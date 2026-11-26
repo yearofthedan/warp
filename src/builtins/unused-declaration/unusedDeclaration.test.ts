@@ -362,4 +362,74 @@ archetypes:
       keyed().filter((key) => !key.includes(':card')),
     );
   });
+
+  describe('requires', () => {
+    const nested = `
+root:
+  modules:
+    log: { dir: log, exposes: all }
+    ui: { dir: ui, archetype: ui, dependencies: [log] }
+archetypes:
+  ui:
+    requires: [log]
+    exposes: [cards]
+    modules:
+      cards: { dir: '*', archetype: card, dependencies: [log] }
+  card:
+    requires: [log]
+    exposes: all
+    modules:
+      src: { files: '*.ts', exposes: all, dependencies: [log] }
+      sub: { dir: '*', archetype: card, dependencies: [log] }
+`;
+    const files = ['log/log.ts', 'ui/ui.ts', 'ui/a/a.ts', 'ui/a/b/b.ts'];
+    const grants = (analyzed: FileFacts[]) =>
+      check(nested, analyzed, { files })
+        .filter((finding) => finding.key.includes(':grant:'))
+        .map((finding) => [finding.key, finding.message]);
+
+    it('counts every binding of a requires once any instance imports through it', () => {
+      assert.deepEqual(grants([facts('ui/a/a.ts', ['log/log.ts'])]), []);
+    });
+
+    it('reports a requires no instance imports through, in place of its bindings', () => {
+      assert.deepEqual(grants([]), [
+        [
+          `${rule}:grant:ui.requires->log`,
+          'ui.requires names log, but nothing in ui imports through it. Remove it, with its binding at each use.',
+        ],
+        [
+          `${rule}:grant:card.requires->log`,
+          'card.requires names log, but nothing in ui/a, ui/a/b imports through it. Remove it, with its binding at each use.',
+        ],
+      ]);
+    });
+
+    it('reports a binding of a name the archetype does not require', () => {
+      const extra = nested
+        .replace(
+          '    ui: { dir: ui, archetype: ui, dependencies: [log] }',
+          '    ui: { dir: ui, archetype: ui, dependencies: [log, other] }',
+        )
+        .replace(
+          '    log: { dir: log, exposes: all }',
+          '    log: { dir: log, exposes: all }\n    other: { dir: other, exposes: all }',
+        );
+      const findings = check(extra, [facts('ui/a/a.ts', ['log/log.ts'])], { files: [...files, 'other/o.ts'] });
+      assert.deepEqual(keys(findings.filter((finding) => finding.key.includes(':grant:'))), [
+        `${rule}:grant:root.ui.dependencies->other`,
+      ]);
+    });
+
+    it('reports a module naming a requires that another module imports through', () => {
+      const shared = nested.replace(
+        "      sub: { dir: '*'",
+        "      icons: { files: '*.svg', dependencies: [log] }\n      sub: { dir: '*'",
+      );
+      const findings = check(shared, [facts('ui/a/a.ts', ['log/log.ts'])], { files: [...files, 'ui/a/a.svg'] });
+      assert.deepEqual(keys(findings.filter((finding) => finding.key.includes(':grant:'))), [
+        `${rule}:grant:card.icons.dependencies->log`,
+      ]);
+    });
+  });
 });
