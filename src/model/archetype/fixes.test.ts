@@ -177,6 +177,27 @@ root:
     assert.equal(fixed('src/adapters/db/db.test.ts'), 'add domain to root.adapters.db.tests.dependencies');
   });
 
+  it('requires a module from above an inline module that holds the archetype', () => {
+    const nested = `
+root:
+  modules:
+    domain: { dir: src/domain, exposes: all }
+    area:
+      dir: src/area
+      modules:
+        comps: { dir: '*', archetype: comp }
+archetypes:
+  comp:
+    modules:
+      logic: { files: '*.ts' }
+`;
+    const files = ['src/domain/order.ts', 'src/area/a/a.ts'];
+    assert.equal(
+      advice('src/area/a/a.ts', 'src/domain/order.ts', files, nested),
+      'add domain to comp.requires, bound in the dependencies of root.area.comps and add domain to comp.logic.dependencies',
+    );
+  });
+
   it('names a module that a nearer one shadows with top., and offers no name where top. cannot reach', () => {
     const shadowed = `
 root:
