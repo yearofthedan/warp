@@ -68,6 +68,9 @@ them under c8, which collects V8 coverage from every child process; tests that r
 
 - `ci.yml` fetches the base branch on a pull request, because `./do audit` compares the lockfile with the base's and
   a one-commit checkout has none. On `main` the audit compares the lockfile with itself, so it only warns.
+- `ci.yml` runs `./do acceptance` after `./do check`, outside it, so the local check doesn't depend on
+  [working title](https://github.com/yearofthedan/working-title), another repository. A change that moves working
+  title's findings re-approves them in the same pull request.
 - `mutate.yml` runs on `main` as well as on pull requests: a pull request's cache is scoped to its own merge ref, so
   only a run on `main` seeds the next pull request's
   ([GitHub](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache)).
@@ -75,9 +78,6 @@ them under c8, which collects V8 coverage from every child process; tests that r
   whatever changes in them ([Stryker](https://stryker-mutator.io/docs/stryker-js/incremental)). The cache is saved
   in its own step, since the cache action saves only on success and a failing run's results are worth keeping, and
   the report is uploaded on failure, since it says which mutants survived.
-- `acceptance.yml` runs warp against [working title](https://github.com/yearofthedan/working-title), at the commit in
-  `acceptance/working-title/source`, nightly and on demand. It stays off pull requests because it reaches another
-  repository and its answer moves with the model.
 - `release.yml` publishes through npm trusted publishing: the registry trusts the workflow's OIDC token, so no npm
   token is stored ([npm](https://docs.npmjs.com/trusted-publishers)). One job installs, builds and packs with no
   token, and the publish job, the only one that can mint the OIDC token, runs no checkout, install or package

@@ -38,7 +38,7 @@ Tests sit beside the code they test, in three tiers named by suffix:
   and holds everything warp printed. `./do approve <file>` records it; see [CONTRIBUTING.md](CONTRIBUTING.md#scenarios).
 
 `./do test --project unit` (or `integration`, `e2e`) runs one tier. `./do acceptance` checks working title at a pinned
-commit against approved findings; it runs nightly in CI, not on pull requests.
+commit against approved findings; CI runs it after `./do check`.
 
 ## Adding a rule
 
