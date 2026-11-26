@@ -47,7 +47,7 @@ rulesets:
   [exposes](concepts.md#exposes-and-surface) nothing until it says so.
 - `dependencies` is what the module may import: `api` may import `db` and `utils`, and `'npm:*'` lets it import any
   package.
-- The `default` ruleset runs warp's recommended rules. With no ruleset, no rule runs.
+- The `default` ruleset runs warp's recommended rules. With no ruleset, no rule runs, and `warp check` says so.
 
 ## 3. See how warp reads it
 

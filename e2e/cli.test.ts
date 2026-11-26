@@ -201,6 +201,22 @@ describe('warp diff from a linked checkout', () => {
   });
 });
 
+describe('a warp.yaml with no ruleset', () => {
+  it('says that no rule ran', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'warp-norules-'));
+    cpSync(join(import.meta.dirname, '../fixtures/archetypes'), dir, { recursive: true });
+    const config = join(dir, 'warp.yaml');
+    writeFileSync(config, readFileSync(config, 'utf8').replace(/\nrulesets:[\s\S]*$/, '\n'));
+    const checked = spawnSync(process.execPath, [cli, 'check', '--fail'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.equal(checked.stdout, 'No findings.\n');
+    assert.match(
+      checked.stderr,
+      /^No rules are on, so nothing was checked\. Turn some on in warp\.yaml: rulesets: \{ default: \{ extends: \[warp:recommended\] \} \}$/m,
+    );
+  });
+});
+
 describe('a warp.yaml with a plugin', () => {
   let dir: string;
   const run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: dir, encoding: 'utf8' });

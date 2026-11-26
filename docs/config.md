@@ -96,6 +96,21 @@ dependencies: [domain, ports.store, top.adapters, npm:zod, 'npm:@aws-sdk/*', 'no
   `*` or holds `: `.
 - A name that is not in scope fails to load, and lists what is.
 
+```yaml
+root:
+  modules:
+    core: { dir: src/core, exposes: all }
+    feat:
+      dir: src/feat
+      modules:
+        core: { dir: core, exposes: all }
+        api: { dir: api, dependencies: [core] }
+        jobs: { dir: jobs, dependencies: [top.core] }
+```
+
+`api` reaches `src/feat/core`, the nearest `core`, and `jobs` reaches `src/core`. Inside an archetype, `top.` is the
+top of the archetype, never the root: a module outside the archetype comes in through its `requires`.
+
 ## Archetypes
 
 An archetype is a module defined on its own, behind a declared interface: what it requires and what it exposes. Use

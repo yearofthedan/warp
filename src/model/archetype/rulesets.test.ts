@@ -4,6 +4,7 @@ import { parse } from 'yaml';
 import { builtinRegistry } from '../../builtins/index.ts';
 import { ConfigError } from '../configError.ts';
 import { loadConfigData } from '../../app/load.ts';
+import { anyRuleOn } from './settings.ts';
 
 const builtins = [...builtinRegistry.values()];
 
@@ -166,5 +167,12 @@ describe('rulesets', () => {
       'rulesets.default.rules: no rule called no-such-rule',
       'rulesets.default.rules.no-cycle: expected on, off or options',
     ]);
+  });
+
+  it('knows when no rule is on anywhere', () => {
+    assert.equal(anyRuleOn(load(undefined)), false);
+    assert.equal(anyRuleOn(load('  default:\n    rules: { module-cycle: false }\n')), false);
+    assert.equal(anyRuleOn(load(base)), true);
+    assert.equal(anyRuleOn(load('  default:\n    on: { leaf.src: { module-cycle: true } }\n')), true);
   });
 });
