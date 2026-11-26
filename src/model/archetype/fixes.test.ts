@@ -100,11 +100,11 @@ describe('fixes for an import outside reach', () => {
   it('opens the module that keeps the file private, then names the dependencies to extend', () => {
     assert.equal(
       advice('src/main.ts', 'src/domain/price.ts'),
-      "add 'price.ts' to root.domain.exposes files and add domain to root.main.dependencies",
+      "add 'price.ts' to the files of root.domain.exposes and add domain to root.main.dependencies",
     );
     assert.equal(
       advice('src/main.ts', 'src/help/b.ts'),
-      "add 'src/help/b.ts' to root.helpers.exposes files and add helpers to root.main.dependencies",
+      "add 'src/help/b.ts' to the files of root.helpers.exposes and add helpers to root.main.dependencies",
     );
   });
 

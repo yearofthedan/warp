@@ -63,13 +63,17 @@ const explain = ({ config, model, verdicts }: Context, from: string, to: string,
     return 'a test file. Production code never imports tests: move what both need out of the test file into the module it tests.';
   const instead =
     refusal.reason === 'private' ? throughSurface({ config, model, verdicts }, from, to, refusal.hiddenBy) : '';
-  return `${why(config, model, verdicts, from, to, refusal)}. ${instead || advise(config, model, verdicts, from, to)}`;
+  const opened = (instead && fixesFor(config, model, from, to)) || [];
+  const exposing = opened.filter((fix) => fix.kind === 'expose' || fix.kind === 'expose-file');
+  const open = exposing.length > 0 ? ` Or, if ${to} should be public, ${sentence(fixSteps(model, exposing))}.` : '';
+  return `${why(config, model, verdicts, from, to, refusal)}. ${instead ? `${instead}${open}` : advise(config, model, verdicts, from, to)}`;
 };
 
 const why = (config: ConfigData, model: Model, verdicts: Verdicts, from: string, to: string, refusal: Refusal) => {
   const source = model.moduleOf(from)!;
   if (refusal.reason === 'private') {
     const { hiddenBy } = refusal;
+    if (model.isTest(to)) return `which ${hiddenBy.id} keeps for its own tests`;
     return `which ${hiddenBy.id} keeps private (it exposes ${exposesText(verdicts.exposes(hiddenBy))})`;
   }
   if (refusal.reason === 'above') return `which is above ${(source.kind === 'dir' ? source : source.parent!).id}`;
