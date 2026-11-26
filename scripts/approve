@@ -1,0 +1,15 @@
+#!/bin/sh
+# help: Run the named scenario files and record what warp printed as their approved output.
+
+set -eu
+
+. "$(dirname "$0")/_vp"
+
+if [ "$#" -eq 0 ]; then
+  echo "usage: ./do approve <scenario file>..." >&2
+  exit 2
+fi
+
+WARP_APPROVE=$(printf '%s\n' "$@")
+export WARP_APPROVE
+vp test --project e2e e2e/scenarios.test.ts

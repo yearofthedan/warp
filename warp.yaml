@@ -13,7 +13,7 @@ root:
   test:
     provides: [npm:vite-plus/test, 'node:*']
     modules:
-      e2e: { files: 'e2e/*.test.ts' }
+      e2e: { files: 'e2e/*.ts' }
 
 archetypes:
   package:

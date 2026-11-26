@@ -46,6 +46,18 @@ identifiers are resolved in one batched checker call.
 load the fixtures' custom rules; `tsconfig.json` maps it the same way for type checks.
 `do.test.ts` runs each `./do` script's shell suite against a stubbed copy of the repo, in the e2e tier.
 
+### Scenarios
+
+A scenario is a file, `scenarios/<what it shows>.approved.md`, beside the code whose behaviour it shows: a `Rule:`
+line, a block per project file with its path after the language (`ts src/order.ts`), at least `warp.yaml`, then an `sh`
+block holding one `warp` command. `e2e/scenarios.test.ts` writes the files to an empty folder, adds a `tsconfig.json`
+unless the scenario gives one, runs the command, and compares the whole file with what it would print: blocks for
+`stdout` and `stderr` when they have output, and `exit` when it is not 0. The folder's path prints as `<project>`.
+
+A scenario checks all of warp's output, so a new or changed message fails until someone has read it. `./do approve
+<file>...` runs the named files and writes what warp printed into them; a new scenario is written up to its `sh` block
+and approved. A case the output cannot show, such as a cache or a git history, stays a test in `e2e/`.
+
 Stryker mutates the unit-tested core: the model, its rules, the reporters and `src/app/diff.ts`, which run on
 in-memory facts. Analysis, config loading, git and the CLI read the disk and spawn processes, too slow to run once
 per mutant, so the integration and e2e tiers cover them. `stryker.vitest.config.ts` runs the unit tier alone.
