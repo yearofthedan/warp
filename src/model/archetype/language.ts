@@ -397,7 +397,10 @@ const resolveName = (state: State, scope: Scope, entry: string, tests: boolean, 
   const parts = top ? rest : [head!, ...rest];
   if (parts.length === 0 || parts.length > 2 || !parts.every(isName))
     return fail(state, where, entry, 'a name is a module, a module and one of its surfaces, or an input');
-  const [module, surface] = parts as [string, string | undefined];
+  const whole = parts.join('.');
+  const [module, surface] = searchedFrom(scope, top).some((level) => level.names.has(whole))
+    ? [whole, undefined]
+    : (parts as [string, string | undefined]);
   const name: Name = { module, ...(surface === undefined ? {} : { surface }), top, tests, where, entry };
   const named = moduleRef(state, scope, name);
   if (named !== undefined) return named ?? undefined;
