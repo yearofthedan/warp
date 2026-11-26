@@ -266,7 +266,7 @@ ${ui}`);
     );
     assert.equal(
       finding!.message,
-      "src/a/a.test.ts (test module tests of card src/a) imports src/main.ts (main of root (root)), which is above src/a. Add 'src/main.ts' to root.main.exposes files and add main to root.test.provides, or move the code. (+9 more in reach)",
+      "src/a/a.test.ts (test module tests of card src/a) imports src/main.ts (main of root (root)), which is above src/a. Add 'src/main.ts' to the files of root.main.exposes and add main to root.test.provides, or move the code. (+9 more in reach)",
     );
   });
 

@@ -30,7 +30,7 @@ describe('advice', () => {
       'add body to panel.exposes',
       'add log.api to root.main.dependencies',
       'add render to card.exposes (all 2 card modules)',
-      "add 'price.ts' to root.domain.exposes files",
+      "add 'price.ts' to the files of root.domain.exposes",
       'add log to card.requires, bound in the dependencies of ui.cards and card.sub',
     ]);
   });

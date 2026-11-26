@@ -28,7 +28,7 @@ const step = (model: Model, fix: Fix, refs: readonly RefData[]): string => {
     case 'test-expose':
       return `add ${sentence(refs.map(refText))} to ${fix.archetype}.test.exposes${instances(model, fix.archetype)}`;
     case 'expose-file':
-      return `add '${fix.pattern}' to ${fix.archetype}.exposes files`;
+      return `add '${fix.pattern}' to the files of ${fix.archetype}.exposes`;
   }
 };
 
