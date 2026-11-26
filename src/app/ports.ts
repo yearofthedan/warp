@@ -45,3 +45,15 @@ export interface CachedFile {
   specifiers?: string[];
   facts?: FileFacts;
 }
+
+export interface ConfigSource {
+  file: string;
+  read(): Promise<ConfigText>;
+}
+
+export interface ConfigText {
+  raw: unknown;
+  plugins: Record<string, unknown>;
+  lines: ReadonlyMap<string, number>;
+  digest: string;
+}
