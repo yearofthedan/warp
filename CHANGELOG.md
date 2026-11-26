@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.4.1](https://github.com/yearofthedan/warp/compare/warp-v0.4.0...warp-v0.4.1) (2026-11-26)
+
+
+### Features
+
+* **cli:** say so when no rule is on ([e0802f7](https://github.com/yearofthedan/warp/commit/e0802f7069bd4c0585ec657f8c28192280d32fc2))
+* find the nearest warp.yaml in the current folder or above it ([32dd765](https://github.com/yearofthedan/warp/commit/32dd76516ee3e838f01a710d11ed7753578faccb))
+
+
+### Bug Fixes
+
+* **advice:** bind a requires at every use, one with no instance yet ([eda1e1a](https://github.com/yearofthedan/warp/commit/eda1e1a46936b732b57eef14a14ee96ceefd5e68))
+* **advice:** name a shadowed module with top., and refuse top. naming itself ([8afdbb9](https://github.com/yearofthedan/warp/commit/8afdbb975d477f6fc62037fc11758914da767d4b))
+* **advice:** offer exposing a private file as a choice, and give a test file's real reason ([2af21ed](https://github.com/yearofthedan/warp/commit/2af21edfcfc249e2e6f478ade23e347cc57f4317))
+* **advice:** require through an inline module that holds the archetype ([48982d8](https://github.com/yearofthedan/warp/commit/48982d8bb09114cca362690938d10a4a6ea666c2))
+* clearer output for loose files, rule pages and the getting-started tsconfig ([a015004](https://github.com/yearofthedan/warp/commit/a015004c1022506c312bca5ec8ecc0c8572767cb))
+* **cli:** count warp:recommended as on when a ruleset turns some rules off ([00b163c](https://github.com/yearofthedan/warp/commit/00b163cd51ffee9c6ef4cff4cce3d71ffde1a135))
+* **cli:** keep git's error out of the output outside a repository ([2baabdf](https://github.com/yearofthedan/warp/commit/2baabdf38791a56eb60dfb7031abfb7bc0822b94))
+* **config:** hint at requires or npm: when a name is not in scope ([7e58729](https://github.com/yearofthedan/warp/commit/7e5872986200c0fcce83d85bc294094351a9dcac))
+* **config:** name a files module's test module by its dotted name ([1e04d03](https://github.com/yearofthedan/warp/commit/1e04d03e3684cf1bb24db0839005f42560b0bdc3))
+* **config:** point an error about a modules block at its line ([b46993d](https://github.com/yearofthedan/warp/commit/b46993d58a36522d5ed83ac72b82d5d8ed272567))
+* **config:** put every config error at its warp.yaml line ([c0d0c85](https://github.com/yearofthedan/warp/commit/c0d0c8510663f489a946881e39b6e318e5a64784))
+* **config:** refuse a module that shadows an input ([57b4202](https://github.com/yearofthedan/warp/commit/57b42029283b0888387f7e3947219c2edeebc39d))
+* **model:** fill {name} inside an inline module from the instance that holds it ([e02b1c3](https://github.com/yearofthedan/warp/commit/e02b1c3e9c50ce9694161d46375795fa2d7aa414))
+* **unused-declaration:** judge a binding with the requires it fills ([ca772dd](https://github.com/yearofthedan/warp/commit/ca772ddb12d3bed8e0d599bcf3557c3083c836ff))
+
 ## [0.4.0](https://github.com/yearofthedan/warp/compare/warp-v0.3.0...warp-v0.4.0) (2026-11-25)
 
 
