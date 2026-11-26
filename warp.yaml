@@ -74,7 +74,7 @@ archetypes:
           config:
             description: Reading a warp.yaml file and loading its plugins
             dir: config
-            dependencies: [domain, 'node:*', npm:yaml]
+            dependencies: [app, domain, 'node:*', npm:yaml]
             exposes: all
           git:
             description: 'Git: the caches under .git, keyed by the digest of warp itself, and the files at a commit'

@@ -5,16 +5,17 @@ import { diskFolders } from '../adapters/analysis/folders.ts';
 import { typescriptAnalyzer } from '../adapters/analysis/typescript.ts';
 import { projectCheck } from '../app/check.ts';
 import { builtinRegistry, unclassifiedDocs } from '../builtins/index.ts';
-import { loadConfig } from '../adapters/config/loadConfig.ts';
-import { loadConfigData } from './load.ts';
+import { yamlConfig } from '../adapters/config/loadConfig.ts';
+import { loadConfig } from './load.ts';
 import type { Finding } from '../domain/rules/rule.ts';
 
 const root = join(import.meta.dirname, '../../fixtures/hexagonal-app');
 let findings: Finding[];
 
 beforeAll(async () => {
-  const { raw, plugins } = await loadConfig(join(root, 'warp.yaml'));
-  const { config, rules } = loadConfigData(raw, { builtins: [...builtinRegistry.values()], plugins });
+  const { config, rules } = await loadConfig(yamlConfig(join(root, 'warp.yaml')), {
+    builtins: [...builtinRegistry.values()],
+  });
   const adapters = { analyzer: typescriptAnalyzer, foldersAt: diskFolders };
   findings = projectCheck(adapters, config, { rules, unclassifiedDocs }).check(root);
 });

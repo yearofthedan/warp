@@ -3,7 +3,8 @@ import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 import { ConfigError } from '../domain/model/configError.ts';
 import { type FileRule, wholeNumberOptions } from '../domain/rules/rule.ts';
-import { type LoadOptions, loadConfigData } from './load.ts';
+import { type LoadOptions, loadConfig, loadConfigData } from './load.ts';
+import type { ConfigSource } from './ports.ts';
 import { builtinRegistry } from '../builtins/index.ts';
 
 const load = (yaml: string, options?: LoadOptions) => loadConfigData(parse(yaml), options);
@@ -723,5 +724,37 @@ rulesets:
     assert.deepEqual(failures("root: { modules: { src: { files: '**', dependencies: [icons, icons] } } }"), [
       "root.src.dependencies: 'icons': no module or input called icons here; in scope: nothing. A package is npm:icons",
     ]);
+  });
+});
+
+describe('loadConfig', () => {
+  const source = (yaml: string, lines: Record<string, number> = {}): ConfigSource => ({
+    file: 'warp.yaml',
+    read: async () => ({ raw: parse(yaml), plugins: {}, lines: new Map(Object.entries(lines)), digest: 'abc' }),
+  });
+
+  it('loads the config a source reads, with its lines and digest', async () => {
+    const loaded = await loadConfig(source("root: { modules: { src: { files: '**' } } }", { root: 1 }));
+    const { root, archetypes } = loaded.config;
+    assert.deepEqual(
+      archetypes[root]?.modules.map((module) => module.name),
+      ['src'],
+    );
+    assert.deepEqual([...loaded.lines], [['root', 1]]);
+    assert.equal(loaded.digest, 'abc');
+  });
+
+  it("places a config error on the source's lines", async () => {
+    const yaml = 'root: { modules: { src: { files: x, dependencies: [icons] } } }';
+    await assert.rejects(loadConfig(source(yaml, { 'root.src.dependencies': 3 })), (error) => {
+      assert.ok(error instanceof ConfigError);
+      assert.match(error.message, /^warp\.yaml:3: root\.src\.dependencies/);
+      return true;
+    });
+  });
+
+  it('lets any other error through as it is', async () => {
+    const failing: ConfigSource = { file: 'warp.yaml', read: () => Promise.reject(new Error('disk')) };
+    await assert.rejects(loadConfig(failing), { message: 'disk' });
   });
 });
