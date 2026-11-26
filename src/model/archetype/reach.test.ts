@@ -384,7 +384,7 @@ describe('checkModel', () => {
     );
     assert.equal(
       card?.message,
-      'src/ui/a/a.dom.ts (render of card src/ui/a) imports types from src/ui/shared.ts (shared of ui src/ui), which is above src/ui/a. Add shared to card.requires, bound in the dependencies of ui.cards and card.sub and add shared to card.render.dependencies, or move the code. (+2 more in reach)',
+      'src/ui/a/a.dom.ts (render of card src/ui/a) imports types from src/ui/shared.ts (shared of ui src/ui), which is above src/ui/a. Add shared to card.requires, bound in the dependencies of card.sub and ui.cards and add shared to card.render.dependencies, or move the code. (+2 more in reach)',
     );
   });
 

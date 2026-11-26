@@ -447,7 +447,7 @@ describe('a warp.yaml with archetypes', () => {
     assert.match(findings[2].docs, /src\/builtins\/module-externals\/README\.md$/);
     assert.equal(
       findings[1].message,
-      'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes instead, once you add domain to component.requires (warp.yaml:23), bound in the dependencies of ui.components, add domain to ui.requires (warp.yaml:30), bound in the dependencies of root.ui and add domain to component.logic.dependencies (warp.yaml:27).',
+      'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes instead, once you add domain to component.requires (warp.yaml:23), bound in the dependencies of component.subcomponent and ui.components, add domain to ui.requires (warp.yaml:30), bound in the dependencies of root.ui and add domain to component.logic.dependencies (warp.yaml:27).',
     );
     assert.match(findings[1].docs, /src\/builtins\/dependency-direction\/README\.md$/);
   });

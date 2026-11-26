@@ -81,13 +81,13 @@ archetypes:
       shared: { files: shared.ts, exposes: all }
 `;
 
-const setup = () => {
+const setup = (files = paths) => {
   const { config } = loadConfigData(parse(yaml));
-  return { config, model: resolveModel(config, folders(paths), paths) };
+  return { config, model: resolveModel(config, folders(files), files) };
 };
 
-const advice = (from: string, to: string): string => {
-  const { config, model } = setup();
+const advice = (from: string, to: string, files = paths): string => {
+  const { config, model } = setup(files);
   const fixes = fixesFor(config, model, from, to);
   return fixes === undefined ? 'no declared path' : sentence(fixSteps(model, fixes));
 };
@@ -115,15 +115,23 @@ describe('fixes for an import outside reach', () => {
 
   it("requires what sits beside the archetype's modules, bound where each one is used", () => {
     const required =
-      'add shared to card.requires, bound in the dependencies of ui.cards and card.sub and add shared to card.render.dependencies';
+      'add shared to card.requires, bound in the dependencies of card.sub and ui.cards and add shared to card.render.dependencies';
     assert.equal(advice('src/ui/a/a.dom.ts', 'src/ui/shared.ts'), required);
     assert.equal(advice('src/ui/a/c/c.dom.ts', 'src/ui/shared.ts'), required);
+  });
+
+  it('binds a requires at every use of the archetype, one with no instance yet included', () => {
+    const flat = paths.filter((path) => !path.startsWith('src/ui/a/c/'));
+    assert.equal(
+      advice('src/ui/a/a.dom.ts', 'src/ui/shared.ts', flat),
+      'add shared to card.requires, bound in the dependencies of card.sub and ui.cards and add shared to card.render.dependencies',
+    );
   });
 
   it('requires what sits beside an archetype further out, through each archetype between', () => {
     assert.equal(
       advice('src/ui/a/a.dom.ts', 'src/domain/order.ts'),
-      'add domain to card.requires, bound in the dependencies of ui.cards and card.sub, add domain to ui.requires, bound in the dependencies of root.ui and add domain to card.render.dependencies',
+      'add domain to card.requires, bound in the dependencies of card.sub and ui.cards, add domain to ui.requires, bound in the dependencies of root.ui and add domain to card.render.dependencies',
     );
   });
 
