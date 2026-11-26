@@ -155,8 +155,12 @@ const bindingAt = (
   { holder }: Use,
   name: string,
 ): RefData | undefined => {
-  if (config.archetypes[holder]!.modules.some((module) => module.name === name))
-    return { kind: 'module', module: name };
+  for (let key = holder, up = 0; ; up += 1) {
+    if (config.archetypes[key]!.modules.some((module) => module.name === name))
+      return { kind: 'module', module: name, ...(up > 0 ? { up } : {}) };
+    if (!config.archetypes[key]!.inline) break;
+    key = key.slice(0, key.lastIndexOf('.'));
+  }
   return chain.has(namedArchetype(config, holder)) ? { kind: 'required', name } : undefined;
 };
 
@@ -168,16 +172,15 @@ const usesOf = (config: ConfigData, archetype: string): Use[] =>
   );
 
 const chainTo = (config: ConfigData, holder: ModuleView, target: ModuleView): string[] | undefined => {
+  const scope = instanceOf({ config }, target.parent!);
   const chain: string[] = [];
   for (
     let instance = instanceOf({ config }, holder);
     instance.parent;
     instance = instanceOf({ config }, instance.parent)
   ) {
-    const archetype = instance.archetype!;
-    if (config.archetypes[archetype]!.inline) return undefined;
-    if (!chain.includes(archetype)) chain.push(archetype);
-    if (instance.parent === target.parent) return chain;
+    if (!chain.includes(instance.archetype!)) chain.push(instance.archetype!);
+    if (instanceOf({ config }, instance.parent) === scope) return chain;
   }
   return undefined;
 };
