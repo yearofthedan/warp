@@ -4,6 +4,7 @@ import { createRequire, registerHooks } from 'node:module';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { type Document, isAlias, type YAMLError, isMap, isNode, isPair, isScalar, parseDocument, visit } from 'yaml';
+import type { ConfigSource, ConfigText } from '../../app/ports.ts';
 import { ConfigError } from '../../domain/model/configError.ts';
 
 export const configName = 'warp.yaml';
@@ -15,13 +16,6 @@ export const findConfig = (start: string, exists: (path: string) => boolean = ex
     if (dirname(dir) === dir) throw new ConfigError(`no ${configName} in ${start} or any folder above it`);
   }
 };
-
-export interface LoadedConfig {
-  raw: unknown;
-  plugins: Record<string, unknown>;
-  lines: ReadonlyMap<string, number>;
-  digest: string;
-}
 
 export const parseConfig = (text: string, file: string): { raw: unknown; lines: Map<string, number> } => {
   const doc = parseDocument(text, { version: '1.2', merge: false, uniqueKeys: true });
@@ -101,7 +95,9 @@ const top = (key: string): Place => {
 const entry = new URL(import.meta.url.endsWith('.ts') ? '../../index.ts' : '../../index.js', import.meta.url).href;
 const ownFiles = new URL('../../../', import.meta.url).href;
 
-export const loadConfig = async (file: string): Promise<LoadedConfig> => {
+export const yamlConfig = (file: string): ConfigSource => ({ file: basename(file), read: () => readConfig(file) });
+
+const readConfig = async (file: string): Promise<ConfigText> => {
   const text = readFileSync(file, 'utf8');
   const digest = createHash('sha256').update(text);
   const name = basename(file);
