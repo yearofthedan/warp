@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import type { ImportEdge, FileFacts } from '../domain/facts/facts.ts';
-import { factsStore, freshFacts } from './facts.ts';
-import type { Cache, CachedFacts, CachedFile } from './ports.ts';
+import type { ImportEdge, FileFacts } from '../../domain/facts/facts.ts';
+import type { CachedFacts, CachedFile } from '../../app/ports.ts';
+import { freshFacts } from './freshFacts.ts';
 
 const facts = (file: string, imports: Partial<ImportEdge>[] = []): FileFacts => ({
   path: file,
@@ -94,23 +94,5 @@ describe('freshFacts', () => {
 
   it('starts empty without a cache', () => {
     assert.deepEqual([...freshFacts(undefined, { digest: 'config', hashes: new Map(unchanged) })], []);
-  });
-});
-
-describe('factsStore', () => {
-  it('keeps one entry per tool digest and project, pruning entries from other tool digests', () => {
-    const entries = new Map<string, CachedFacts>([['old-facts-app', cached]]);
-    const cache: Cache<CachedFacts> = {
-      get: (key) => entries.get(key),
-      set: (key, value) => entries.set(key, value),
-      prune: (keep) => {
-        for (const key of entries.keys()) if (!keep(key)) entries.delete(key);
-      },
-    };
-    const store = factsStore(cache, 'tool', 'packages/app');
-    assert.equal(store.read(), undefined);
-    store.write(cached);
-    assert.deepEqual([...entries.keys()], ['tool-facts-packages_app']);
-    assert.equal(store.read(), cached);
   });
 });

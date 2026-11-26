@@ -6,11 +6,12 @@ import { diskFolders } from './adapters/analysis/folders.ts';
 import { typescriptAnalyzer } from './adapters/analysis/typescript.ts';
 import { type Adapters, modelProject, type ProjectCheck, projectCheck } from './app/check.ts';
 import { type ConfigLines, placeProblems } from './app/configLines.ts';
-import { factsStore } from './app/facts.ts';
+import { factsStore } from './adapters/git/factsStore.ts';
+import { failures } from './app/failures.ts';
 import { diffProject, parseRange } from './app/diff.ts';
 import { builtinRegistry, unclassifiedDocs } from './builtins/index.ts';
 import { findConfig, loadConfig } from './adapters/config/loadConfig.ts';
-import { toolDigest } from './adapters/config/toolDigest.ts';
+import { toolDigest } from './adapters/git/toolDigest.ts';
 import { gitDirCache } from './adapters/git/cache.ts';
 import { gitRepository, projectPathOf } from './adapters/git/repository.ts';
 import type { ConfigData } from './domain/model/data.ts';
@@ -53,10 +54,13 @@ interface Resolved {
   digest: string;
 }
 
+let toolHash: string | undefined;
+const tool = (): string => (toolHash ??= toolDigest());
+
 const adaptersAt = (root: string): Adapters => {
   const adapters = { analyzer: typescriptAnalyzer, foldersAt: diskFolders };
   try {
-    return { ...adapters, facts: factsStore(gitDirCache(root), toolDigest(), gitRepository(root).projectPath()) };
+    return { ...adapters, facts: factsStore(gitDirCache(root), tool(), gitRepository(root).projectPath()) };
   } catch {
     return adapters;
   }
@@ -127,12 +131,12 @@ const run = async (options: Options, produce: Produce): Promise<number> => {
     const report = placed(resolved, () => produce(resolved.root, checkOf(resolved), resolved.digest));
     const output = reporter.render(report, { toolVersion: version(), projectPath: projectPathOf(resolved.root) });
     if (output) console.log(output);
-    if (reporter.renderFailure) forgetFailure();
+    if (reporter.renderFailure) lastFailure().forget();
     return options.fail && actionable(report).length > 0 ? 1 : 0;
   } catch (error) {
     const code = failed(error, reporter.failureExitCode);
     const problem = describe(error);
-    if (!reporter.renderFailure || !isNewFailure(problem)) return code;
+    if (!reporter.renderFailure || !lastFailure().isNew(problem)) return code;
     console.log(reporter.renderFailure(problem));
     return 0;
   }
@@ -150,8 +154,6 @@ const placed = <T>({ lines, config }: Resolved, run: () => T): T => {
 const nothingOn = (file: string) =>
   `No rules are on, so nothing was checked. Turn some on in ${file}: rulesets: { default: { extends: [${recommended}] } }`;
 
-const failureKey = () => `${toolDigest()}-failure`;
-
 const failureCache = () => {
   try {
     return gitDirCache<string>(process.cwd());
@@ -160,17 +162,7 @@ const failureCache = () => {
   }
 };
 
-const isNewFailure = (problem: string): boolean => {
-  const cache = failureCache();
-  if (cache?.get(failureKey()) === problem) return false;
-  cache?.set(failureKey(), problem);
-  return true;
-};
-
-const forgetFailure = () => {
-  const cache = failureCache();
-  if (cache?.get(failureKey()) !== undefined) cache.prune((key) => key !== failureKey());
-};
+const lastFailure = () => failures(failureCache(), tool());
 
 type ModelOptions = Omit<Options, 'reporter' | 'fail' | 'since-last-run'> & { json: boolean; rules: boolean };
 
@@ -189,7 +181,7 @@ const printModel = async (options: ModelOptions): Promise<number> => {
 
 const delta = (range: string, root: string, project: ProjectCheck, configDigest: string, sinceLastRun: boolean) =>
   diffProject(
-    { range: parseRange(range), root, project, configDigest, toolDigest: toolDigest(), sinceLastRun },
+    { range: parseRange(range), root, project, configDigest, toolDigest: tool(), sinceLastRun },
     { repository: gitRepository(root), cache: gitDirCache(root) },
   );
 
