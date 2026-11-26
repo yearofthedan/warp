@@ -34,14 +34,16 @@ Tests sit beside the code they test, in three tiers named by suffix:
   the modules these cover.
 - `src/**/x.integration.test.ts`: integration. Analysis and config loading against the small repos in `fixtures/`.
 - `e2e/*.test.ts`: end to end. Spawns `node src/cli.ts` against copies of `fixtures/`.
+- `src/**/scenarios/*.approved.md`: scenarios, played in the e2e tier. Each gives a project's files and a warp command,
+  and holds everything warp printed. `./do approve <file>` records it; see [CONTRIBUTING.md](CONTRIBUTING.md#scenarios).
 
 `./do test --project unit` (or `integration`, `e2e`) runs one tier. `./do acceptance` checks working title at a pinned
 commit against approved findings; it runs nightly in CI, not on pull requests.
 
 ## Adding a rule
 
-A built-in rule is a folder in [src/builtins/](src/builtins): the rule module, its unit tests, and its page as
-the folder's `README.md`. [src/builtins/index.ts](src/builtins/index.ts) lists it. A new rule's page has the
+A built-in rule is a folder in [src/builtins/](src/builtins): the rule module, its unit tests, its scenarios and its
+page as the folder's `README.md`. [src/builtins/index.ts](src/builtins/index.ts) lists it. A new rule's page has the
 same sections as the others, and gets a row in the rules table in [docs/rules.md](docs/rules.md).
 
 ## Comments and docs

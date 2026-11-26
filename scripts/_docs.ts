@@ -128,7 +128,9 @@ const main = async () => {
     encoding: 'utf8',
   })
     .split('\0')
-    .filter((file) => file !== '' && !file.startsWith('fixtures/') && existsSync(file))
+    .filter(
+      (file) => file !== '' && !file.startsWith('fixtures/') && !file.endsWith('.approved.md') && existsSync(file),
+    )
     .map((doc) => ({ doc, text: readFileSync(doc, 'utf8') }));
   const { files, problems } = plan(docs, valueExports(readFileSync('src/index.ts', 'utf8')));
   const out = 'node_modules/.cache/doc-examples';
