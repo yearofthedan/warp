@@ -26,18 +26,21 @@ describe('parseConfig', () => {
     const { lines } = parseConfig(text, 'warp.yaml');
     assert.deepEqual(
       [
+        'root.modules',
         'root.adapters',
         'root.adapters.dir',
+        'root.adapters.modules',
         'root.adapters.db',
         'root.adapters.db.dependencies',
         'root.test',
         'root.test.provides',
+        'root.test.modules',
         'root.tests',
         'card',
         'card.requires',
         'rulesets.default.on.root.adapters',
       ].map((path) => lines.get(path)),
-      [3, 4, 6, 6, 7, 8, 10, 12, 13, 16],
+      [2, 3, 4, 5, 6, 6, 7, 8, 9, 10, 12, 13, 16],
     );
   });
 

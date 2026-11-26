@@ -78,7 +78,7 @@ const moduleAt = (path: string): Place => ({ path, inside: moduleKey(path) });
 const moduleKey =
   (path: string) =>
   (key: string): Place => {
-    if (key === 'modules') return { inside: (child) => moduleAt(`${path}.${child}`) };
+    if (key === 'modules') return { path: `${path}.modules`, inside: (child) => moduleAt(`${path}.${child}`) };
     if (key === 'test') return { path: `${path}.test`, inside: testKey(path) };
     return plain(path)(key);
   };
@@ -86,7 +86,9 @@ const moduleKey =
 const testKey =
   (path: string) =>
   (key: string): Place =>
-    key === 'modules' ? { inside: (child) => moduleAt(`${path}.${child}`) } : plain(`${path}.test`)(key);
+    key === 'modules'
+      ? { path: `${path}.test.modules`, inside: (child) => moduleAt(`${path}.${child}`) }
+      : plain(`${path}.test`)(key);
 
 const top = (key: string): Place => {
   if (key === 'root') return moduleAt('root');
