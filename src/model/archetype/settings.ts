@@ -87,6 +87,7 @@ const turnsOn = (rules: RuleSettingsData | undefined): boolean =>
 
 export const anyRuleOn = (config: ConfigData): boolean =>
   config.rules === undefined ||
+  (config.rules !== 'off' && config.rules['*'] !== false) ||
   turnsOn(config.rules) ||
   Object.values(config.archetypes).some(
     (archetype) => turnsOn(archetype.rules) || archetype.modules.some((module) => turnsOn(module.rules)),

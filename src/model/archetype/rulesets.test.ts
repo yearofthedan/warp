@@ -187,6 +187,9 @@ rulesets:
     assert.equal(anyRuleOn(load(undefined)), false);
     assert.equal(anyRuleOn(load('  default:\n    rules: { module-cycle: false }\n')), false);
     assert.equal(anyRuleOn(load(base)), true);
+    assert.equal(anyRuleOn(load('  default: { extends: [warp:recommended] }\n')), true);
+    assert.equal(anyRuleOn(load('  default: { extends: [warp:recommended], rules: { module-cycle: off } }\n')), true);
+    assert.equal(anyRuleOn(load('  default: { rules: { module-cycle: on } }\n')), true);
     assert.equal(anyRuleOn(load('  default:\n    on: { leaf.src: { module-cycle: true } }\n')), true);
   });
 });
