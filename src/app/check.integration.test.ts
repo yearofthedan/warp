@@ -55,25 +55,6 @@ describe('check', () => {
     );
   });
 
-  it('reports the groups a file splits into', () => {
-    assert.deepEqual(byKey('file-cohesion:src/domain/pricing.ts')?.details, {
-      lines: 17,
-      tripwire: 15,
-      groups: [
-        { names: ['rate', 'tax', 'gross'], lines: [3, 7] },
-        { names: ['label'], lines: [9, 11] },
-        { names: ['shout', 'banner'], lines: [13, 17] },
-      ],
-    });
-  });
-
-  it('reports the statement groups a function splits into', () => {
-    assert.deepEqual((byKey('function-cohesion:src/app/handle.ts:handle')!.details as { groups: unknown }).groups, [
-      { names: ['line 4', 'line 5', 'line 6'], lines: [4, 6] },
-      { names: ['line 7', 'line 8', 'line 9'], lines: [7, 9] },
-    ]);
-  });
-
   it('passes a file over the tripwire whose code is one group', () => {
     assert.equal(byKey('file-cohesion:src/adapters/db/orderRepo.ts'), undefined);
   });

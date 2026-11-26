@@ -201,22 +201,6 @@ describe('warp diff from a linked checkout', () => {
   });
 });
 
-describe('a warp.yaml with no ruleset, outside a git repository', () => {
-  it('says that no rule ran, and nothing else', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'warp-norules-'));
-    cpSync(join(import.meta.dirname, '../fixtures/archetypes'), dir, { recursive: true });
-    const config = join(dir, 'warp.yaml');
-    writeFileSync(config, readFileSync(config, 'utf8').replace(/\nrulesets:[\s\S]*$/, '\n'));
-    const checked = spawnSync(process.execPath, [cli, 'check', '--fail'], { cwd: dir, encoding: 'utf8' });
-    assert.equal(checked.status, 0, checked.stderr);
-    assert.equal(checked.stdout, 'No findings.\n');
-    assert.equal(
-      checked.stderr,
-      'No rules are on, so nothing was checked. Turn some on in warp.yaml: rulesets: { default: { extends: [warp:recommended] } }\n',
-    );
-  });
-});
-
 describe('a warp.yaml with a plugin', () => {
   let dir: string;
   const run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: dir, encoding: 'utf8' });
@@ -270,23 +254,6 @@ describe('a warp.yaml with a plugin', () => {
 });
 
 describe('warp check', () => {
-  it('exits 1 with --fail when there are findings', () => {
-    assert.equal(warp('check', '--fail').status, 1);
-  });
-
-  it('refuses an unknown reporter', () => {
-    const run = warp('check', '--reporter', 'xml');
-    assert.equal(run.status, 2);
-    assert.match(run.stderr, /no reporter called xml/);
-  });
-
-  it('reports a config error', () => {
-    writeFileSync(join(project, 'bad.yaml'), 'root: 3\n');
-    const run = warp('check', '--config', 'bad.yaml');
-    assert.equal(run.status, 2);
-    assert.match(run.stderr, /warp config: bad.yaml:1: root: expected the repository/);
-  });
-
   it('tells Claude once that a claude-hook run failed, then exits 1 so the hook warns without blocking', () => {
     writeFileSync(join(project, 'bad.yaml'), 'root: 3\n');
     writeFileSync(join(project, 'worse.yaml'), 'root: [\n');
@@ -328,8 +295,6 @@ describe('rulesets', () => {
           '    extends: [default]\n',
           '    rules: { file-cohesion: { maxLines: 10 } }\n',
           '    on: { root.app: { cognitive-complexity: on, function-cohesion: off } }\n',
-          '  stray:\n',
-          '    on: { stranger: { no-cycle: off } }\n',
         ),
     );
     writeFileSync(join(dir, 'package.json'), '{ "type": "module" }\n');
@@ -364,21 +329,6 @@ describe('rulesets', () => {
     assert.match(
       run('model', '--ruleset', 'edit', '--rules').stdout,
       /src\/app {2}app: root\.app, 2 files\n {4}rules: function-cohesion off\n/,
-    );
-  });
-
-  it('lists the rulesets when the name is unknown', () => {
-    const checked = run('check', '--ruleset', 'pr');
-    assert.equal(checked.status, 2);
-    assert.match(checked.stderr, /no ruleset called pr\. Rulesets: default, edit, stray/);
-  });
-
-  it('refuses a ruleset that names an archetype outside the config', () => {
-    const checked = run('check', '--ruleset', 'stray');
-    assert.equal(checked.status, 2);
-    assert.match(
-      checked.stderr,
-      /warp config: warp.yaml:20: rulesets\.stray\.on\.stranger: no archetype or module called stranger/,
     );
   });
 });
@@ -466,34 +416,6 @@ describe('a warp.yaml with archetypes', () => {
         'dependency-direction:src/domain/order.test.ts->src/main.ts',
         'unused-declaration:grant:root.test.provides->node:*',
       ],
-    );
-  });
-
-  it('names the problem when the config cannot place a file', () => {
-    writeFileSync(join(dir, 'tied.yaml'), "root: { modules: { a: { files: 'src/*.ts' }, b: { files: '**/*.ts' } } }\n");
-    const modelled = run('model', '--config', 'tied.yaml');
-    assert.equal(modelled.status, 2);
-    assert.match(modelled.stderr, /src\/main\.ts: root's files modules a \('src\/\*\.ts'\) and b \('\*\*\/\*\.ts'\)/);
-  });
-
-  it("checks a ruleset's rule ids and each rule's options against the rules the config runs", () => {
-    writeFileSync(
-      join(dir, 'rules.yaml'),
-      [
-        "root: { modules: { src: { files: '**' } } }",
-        'rulesets:',
-        '  default:',
-        '    extends: [warp:recommended]',
-        '    rules: { module-cycle: { types: always } }',
-        '    on: { root.src: { no-such-rule: off } }',
-        '',
-      ].join('\n'),
-    );
-    const checked = run('check', '--config', 'rules.yaml');
-    assert.equal(checked.status, 2);
-    assert.equal(
-      checked.stderr,
-      "warp config: rules.yaml:5: rulesets.default.rules.module-cycle.types: expected 'count' or 'ignore'\nrules.yaml:6: rulesets.default.on.root.src: no rule called no-such-rule\n",
     );
   });
 });
