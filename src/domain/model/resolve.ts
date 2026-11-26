@@ -401,3 +401,9 @@ export const globRegex = (pattern: string): RegExp => {
   globCache.set(pattern, regex);
   return regex;
 };
+
+export const ancestors = function* (module: ModuleView): Generator<ModuleView> {
+  for (let at = module.parent; at; at = at.parent) yield at;
+};
+
+export const subtree = (module: ModuleView): ModuleView[] => [module, ...module.children.flatMap(subtree)];
