@@ -6,7 +6,11 @@ import type { Cache } from '../app/ports.ts';
 export const maxAgeMs = 30 * 24 * 60 * 60 * 1000;
 
 export const gitDirCache = <T>(projectRoot: string, now: () => number = Date.now): Cache<T> => {
-  const gitDir = execFileSync('git', ['rev-parse', '--git-common-dir'], { cwd: projectRoot, encoding: 'utf8' }).trim();
+  const gitDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
   const dir = join(resolve(projectRoot, gitDir), 'warp-cache');
   const file = (key: string) => join(dir, `${key}.json`);
   const touch = (key: string) => {
