@@ -8,10 +8,12 @@ import { ConfigError } from '../model/configError.ts';
 
 export const configName = 'warp.yaml';
 
-export const findConfig = (dir: string): string => {
-  const found = join(dir, configName);
-  if (!existsSync(found)) throw new ConfigError(`no config in ${dir}: add a ${configName}`);
-  return found;
+export const findConfig = (start: string, exists: (path: string) => boolean = existsSync): string => {
+  for (let dir = start; ; dir = dirname(dir)) {
+    const found = join(dir, configName);
+    if (exists(found)) return found;
+    if (dirname(dir) === dir) throw new ConfigError(`no ${configName} in ${start} or any folder above it`);
+  }
 };
 
 export interface LoadedConfig {

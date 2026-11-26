@@ -18,7 +18,7 @@ warp --help                # the usage, with every flag
 
 | Flag | Effect |
 | --- | --- |
-| `--config <file>` | Config path. The project root is its directory. Default: `warp.yaml` in the current directory. |
+| `--config <file>` | Config path. The project root is its directory. Default: the nearest `warp.yaml`, in the current directory or a directory above it. |
 | `--ruleset <name>` | Check with one of the config's [rulesets](config.md#rulesets). Default: the one named `default`, if any. |
 | `--reporter <name>` | Output format, default `text`. |
 | `--fail` | Exit 1 when there are findings (`check`) or new or worse ones (`diff`). |

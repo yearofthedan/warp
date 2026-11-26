@@ -50,7 +50,7 @@ load the fixtures' custom rules; `tsconfig.json` maps it the same way for type c
 
 A scenario is a file, `scenarios/<what it shows>.approved.md`, beside the code whose behaviour it shows: a `Rule:`
 line, a block per project file with its path after the language (`ts src/order.ts`), at least `warp.yaml`, then an `sh`
-block holding one `warp` command. `e2e/scenarios.test.ts` writes the files to an empty folder, adds a `tsconfig.json`
+block holding one `warp` command, run from the project folder or, after `cd <folder> &&`, from a folder in it. `e2e/scenarios.test.ts` writes the files to an empty folder, adds a `tsconfig.json`
 unless the scenario gives one, runs the command, and compares the whole file with what it would print: blocks for
 `stdout` and `stderr` when they have output, and `exit` when it is not 0. The folder's path prints as `<project>`.
 
