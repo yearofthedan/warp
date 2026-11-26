@@ -22,7 +22,7 @@ The finding's value is the number of groups. Its `details` lists their line rang
 
 ## Example
 
-With `maxLines: 4`, set in a ruleset as `.rules({ 'function-cohesion': { maxLines: 4 } })`.
+With `maxLines: 4`, set in a ruleset as `rules: { function-cohesion: { maxLines: 4 } }`.
 
 Incorrect code:
 

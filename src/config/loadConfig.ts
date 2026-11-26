@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire, registerHooks } from 'node:module';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { type Document, isAlias, isMap, isNode, isPair, isScalar, parseDocument, visit } from 'yaml';
+import { type Document, isAlias, type YAMLError, isMap, isNode, isPair, isScalar, parseDocument, visit } from 'yaml';
 import { ConfigError } from '../model/configError.ts';
 
 export const configName = 'warp.yaml';
@@ -24,19 +24,11 @@ export interface LoadedConfig {
 export const parseConfig = (text: string, file: string): { raw: unknown; lines: Map<string, number> } => {
   const doc = parseDocument(text, { version: '1.2', merge: false, uniqueKeys: true });
   const lineOf = (offset: number) => text.slice(0, offset).split('\n').length;
-  const quoted = new Set<number>();
+  const unquoted = doc.errors.filter((error) => error.code === 'BAD_ALIAS' && text[error.pos[0]] === '*');
   const problems = [
-    ...doc.errors.map((error) => {
-      const [start] = error.pos;
-      if (error.code === 'BAD_ALIAS' && text[start] === '*') {
-        quoted.add(start);
-        return `${file}:${lineOf(start)}: a value that starts with * is quoted, '*'`;
-      }
-      const key = error.code === 'DUPLICATE_KEY' ? ` (${/^['"]?([^'":\n]*)/.exec(text.slice(start))![1]})` : '';
-      return `${file}:${lineOf(start)}: ${firstLine(error.message)}${key}`;
-    }),
+    ...doc.errors.map((error) => `${file}:${lineOf(error.pos[0])}: ${yamlProblem(error, text, unquoted)}`),
     ...anchors(doc)
-      .filter((offset) => !quoted.has(offset))
+      .filter((offset) => !unquoted.some((error) => error.pos[0] === offset))
       .map((offset) => `${file}:${lineOf(offset)}: anchors and aliases are not part of warp.yaml; write it out`),
   ];
   if (problems.length > 0) throw new ConfigError(problems.join('\n'));
@@ -52,6 +44,12 @@ export const parseConfig = (text: string, file: string): { raw: unknown; lines: 
   };
   walk(doc.contents, top);
   return { raw: doc.toJS() ?? {}, lines };
+};
+
+const yamlProblem = (error: YAMLError, text: string, unquoted: readonly YAMLError[]): string => {
+  if (unquoted.includes(error)) return "a value that starts with * is quoted, '*'";
+  if (error.code !== 'DUPLICATE_KEY') return firstLine(error.message);
+  return `${firstLine(error.message)} (${/^['"]?([^'":\n]*)/.exec(text.slice(error.pos[0]))![1]})`;
 };
 
 const firstLine = (message: string): string => message.split('\n')[0]!.replace(/ at line \d+, column \d+:?$/, '');
@@ -119,18 +117,25 @@ export const loadConfig = async (file: string): Promise<LoadedConfig> => {
     const plugins: Record<string, unknown> = {};
     for (const [namespace, spec] of specs) {
       if (typeof spec !== 'string') continue;
-      const at = `${name}:${lines.get(`plugins.${namespace}`) ?? 1}: plugins.${namespace}`;
-      const path = pluginPath(file, spec, at);
-      if (!spec.startsWith('npm:') && !existsSync(path)) throw new ConfigError(`${at}: no file at ${spec}`);
-      const module: Record<string, unknown> = await import(pathToFileURL(path).href);
-      if (module.default === undefined)
-        throw new ConfigError(`${at}: ${spec} has no default export; export the plugin as default`);
-      plugins[namespace] = module.default;
+      plugins[namespace] = await importPlugin(
+        file,
+        spec,
+        `${name}:${lines.get(`plugins.${namespace}`) ?? 1}: plugins.${namespace}`,
+      );
     }
     return { raw, plugins, lines, digest: digest.digest('hex') };
   } finally {
     hooks.deregister();
   }
+};
+
+const importPlugin = async (file: string, spec: string, at: string): Promise<unknown> => {
+  const path = pluginPath(file, spec, at);
+  if (!spec.startsWith('npm:') && !existsSync(path)) throw new ConfigError(`${at}: no file at ${spec}`);
+  const module: Record<string, unknown> = await import(pathToFileURL(path).href);
+  if (module.default === undefined)
+    throw new ConfigError(`${at}: ${spec} has no default export; export the plugin as default`);
+  return module.default;
 };
 
 const pluginPath = (file: string, spec: string, at: string): string => {

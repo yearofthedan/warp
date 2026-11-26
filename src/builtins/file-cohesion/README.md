@@ -23,7 +23,7 @@ group's names and line range.
 
 ## Example
 
-With `maxLines: 4`, set in a ruleset as `.rules({ 'file-cohesion': { maxLines: 4 } })`.
+With `maxLines: 4`, set in a ruleset as `rules: { file-cohesion: { maxLines: 4 } }`.
 
 Incorrect code:
 

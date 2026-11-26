@@ -23,7 +23,7 @@ The finding's value is the total, and the message names the largest increments w
 
 ## Example
 
-With `max: 4`, set in a ruleset as `.rules({ 'cognitive-complexity': { max: 4 } })`.
+With `max: 4`, set in a ruleset as `rules: { cognitive-complexity: { max: 4 } }`.
 
 Incorrect code, a total of 10:
 

@@ -464,7 +464,7 @@ ${recommended}    on: { denied: { unclassified: on } }
         module: '(root)',
         value: 1,
         message:
-          "stray.ts is in no module of (root) (root), so nothing says what it may import. Add a files module to root that matches it, or move it into a module's folder.",
+          "stray.ts is in no module of the root, so nothing says what it may import. Add a files module to root that matches it, or move it into a module's folder.",
         docs: 'https://docs',
       },
       {

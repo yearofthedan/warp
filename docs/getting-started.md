@@ -27,7 +27,8 @@ pnpm add -D @yearofthedan/warp
 ## 2. Describe the project as it is
 
 Start with a config that holds what the code already does: a module per folder, each exposing all its files, and
-each depending on what it imports today. Put it in `warp.yaml`, next to `tsconfig.json`:
+each depending on what it imports today. Put it in `warp.yaml`, next to the project's `tsconfig.json`. warp reads the
+files that tsconfig includes; with no `tsconfig.json`, add one, or name yours with `tsconfig: [tsconfig.app.json]`:
 
 ```yaml
 root:
@@ -76,8 +77,8 @@ pnpm exec warp check
 ```
 
 ```text
-src/index.ts:1 [unclassified] src/index.ts is in no module of (root) (root), so nothing says what it may import. Add a files module to root that matches it, or move it into a module's folder.
-src/lib/format.ts:1 [unclassified] src/lib/format.ts is in no module of (root) (root), so nothing says what it may import. Add a files module to root that matches it, or move it into a module's folder.
+src/index.ts:1 [unclassified] src/index.ts is in no module of the root, so nothing says what it may import. Add a files module to root that matches it, or move it into a module's folder.
+src/lib/format.ts:1 [unclassified] src/lib/format.ts is in no module of the root, so nothing says what it may import. Add a files module to root that matches it, or move it into a module's folder.
 src/api/orders.ts:3 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/lib/format.ts (loose in root (root)), which is in no module yet. Add a module that holds src/lib/format.ts, then add it to the importer's dependencies if the dependency is intended.
 
 By rule and module:

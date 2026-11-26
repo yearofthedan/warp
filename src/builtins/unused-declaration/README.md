@@ -14,8 +14,8 @@ fix, and the config stays a true picture of the code.
 
 ## Rule details
 
-The rule judges the model as a whole and reports one finding per declaration, on the config file, line 1. Its
-`details.kind` says which of three things it found:
+The rule judges the model as a whole and reports one finding per declaration, at the config line that declares
+it. Its `details.kind` says which of three things it found:
 
 - `grant`: a `dependencies`, `requires` or `test.provides` entry, a test module's included, that no file it covers
   imports through. An archetype's declarations are judged across all its instances: one that imports through it is
@@ -56,9 +56,9 @@ src/ports/store.ts     imports ../domain/order.ts
 the rule reports:
 
 ```text
-warp.yaml:1 [unused-declaration] root.ports.dependencies names npm:zod, but nothing in src/ports imports through it. Remove it.
-warp.yaml:1 [unused-declaration] root.ports exposes: all, but nothing outside src/ports imports it. Remove it, or use the module where it is needed.
-warp.yaml:1 [unused-declaration] root.styles matches no files: files: 'src/*.css' finds nothing in the root. Fix the pattern, or remove the module.
+warp.yaml:4 [unused-declaration] root.ports.dependencies names npm:zod, but nothing in src/ports imports through it. Remove it.
+warp.yaml:4 [unused-declaration] root.ports exposes: all, but nothing outside src/ports imports it. Remove it, or use the module where it is needed.
+warp.yaml:5 [unused-declaration] root.styles matches no files: files: 'src/*.css' finds nothing in the root. Fix the pattern, or remove the module.
 ```
 
 keyed `unused-declaration:grant:root.ports.dependencies->npm:zod`, `unused-declaration:surface:root.ports:exposes: all`

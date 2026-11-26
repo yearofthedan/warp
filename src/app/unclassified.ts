@@ -14,7 +14,7 @@ export const unclassifiedFindings = (model: Model, settled: Settings, docs: stri
           line: 1,
           value: 1,
           message:
-            `${file} is in no module of ${module.id} (${module.archetype}), so nothing says what it may import. ` +
+            `${file} is in no module of ${module.parent ? `${module.id} (${module.archetype})` : 'the root'}, so nothing says what it may import. ` +
             `Add a files module to ${module.archetype} that matches it, or move it into a module's folder.`,
           ...(docs ? { docs } : {}),
         }))
