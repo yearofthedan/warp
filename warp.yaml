@@ -105,4 +105,5 @@ archetypes:
 rulesets:
   default:
     extends: [warp:recommended]
+    rules: { function-cohesion: { maxLines: 20 } }
     test: { function-cohesion: off }
