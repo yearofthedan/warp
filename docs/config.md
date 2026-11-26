@@ -73,7 +73,8 @@ root:
 - When modules overlap, the most specific claims: the deepest `dir`, then the `files` pattern with the longest fixed
   ending after its last `*` (`*.dom.ts` beats `*.ts`), with `**` last. A tie fails to load and names both modules.
 - A file belongs to its deepest folder module, then to the files module there that matches it. A file no module
-  matches is loose, and `check` and `diff` report it as [`unclassified`](../src/builtins/unclassified/README.md).
+  matches is loose. [`unclassified`](../src/builtins/unclassified/README.md) reports the root's loose files, and a
+  nested module's where a ruleset turns it on; `warp model` lists them all.
 - Each module names its own `dependencies`: nothing passes down from the module that holds it. `db` above names
   `domain` itself.
 - [`warp model`](cli.md) shows how warp reads the config. A folder module's id is its folder (`(root)` for the root),
