@@ -14,7 +14,8 @@ import { toolDigest } from './config/toolDigest.ts';
 import { gitDirCache } from './git/cache.ts';
 import { gitRepository, projectPathOf } from './git/repository.ts';
 import type { ConfigData } from './model/archetype/data.ts';
-import { rulesOf } from './model/archetype/settings.ts';
+import { anyRuleOn, rulesOf } from './model/archetype/settings.ts';
+import { recommended } from './model/archetype/rulesets.ts';
 import { loadConfigData } from './app/load.ts';
 import { ConfigError } from './model/configError.ts';
 import type { Rule } from './rules/rule.ts';
@@ -118,6 +119,7 @@ const run = async (options: Options, produce: Produce): Promise<number> => {
     throw new Error(`no reporter called ${options.reporter}: use one of ${[...reporters.keys()].join(', ')}`);
   try {
     const resolved = await resolveConfig(options);
+    if (!anyRuleOn(resolved.config)) console.error(nothingOn(resolved.config.file));
     const report = produce(resolved.root, checkOf(resolved), resolved.digest);
     const output = reporter.render(report, { toolVersion: version(), projectPath: projectPathOf(resolved.root) });
     if (output) console.log(output);
@@ -131,6 +133,9 @@ const run = async (options: Options, produce: Produce): Promise<number> => {
     return 0;
   }
 };
+
+const nothingOn = (file: string) =>
+  `No rules are on, so nothing was checked. Turn some on in ${file}: rulesets: { default: { extends: [${recommended}] } }`;
 
 const failureKey = () => `${toolDigest()}-failure`;
 

@@ -81,3 +81,13 @@ export const rulesOf = (
       ),
   };
 };
+
+const turnsOn = (rules: RuleSettingsData | undefined): boolean =>
+  rules !== undefined && rules !== 'off' && Object.values(rules).some((setting) => setting !== false);
+
+export const anyRuleOn = (config: ConfigData): boolean =>
+  config.rules === undefined ||
+  turnsOn(config.rules) ||
+  Object.values(config.archetypes).some(
+    (archetype) => turnsOn(archetype.rules) || archetype.modules.some((module) => turnsOn(module.rules)),
+  );
