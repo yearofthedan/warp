@@ -81,13 +81,13 @@ archetypes:
       shared: { files: shared.ts, exposes: all }
 `;
 
-const setup = (files = paths) => {
-  const { config } = loadConfigData(parse(yaml));
+const setup = (files = paths, text = yaml) => {
+  const { config } = loadConfigData(parse(text));
   return { config, model: resolveModel(config, folders(files), files) };
 };
 
-const advice = (from: string, to: string, files = paths): string => {
-  const { config, model } = setup(files);
+const advice = (from: string, to: string, files = paths, text = yaml): string => {
+  const { config, model } = setup(files, text);
   const fixes = fixesFor(config, model, from, to);
   return fixes === undefined ? 'no declared path' : sentence(fixSteps(model, fixes));
 };
@@ -175,6 +175,29 @@ root:
     const fixed = (from: string) => sentence(fixSteps(model, fixesFor(config, model, from, 'src/domain/order.ts')!));
     assert.equal(fixed('src/adapters/db/db.ts'), 'add domain to root.adapters.db.dependencies');
     assert.equal(fixed('src/adapters/db/db.test.ts'), 'add domain to root.adapters.db.tests.dependencies');
+  });
+
+  it('names a module that a nearer one shadows with top., and offers no name where top. cannot reach', () => {
+    const shadowed = `
+root:
+  modules:
+    core: { dir: src/core, exposes: all }
+    feat:
+      dir: src/feat
+      modules:
+        core: { dir: core, exposes: all }
+        sub:
+          dir: sub
+          modules:
+            core: { dir: core, exposes: all }
+            leaf: { files: leaf.ts }
+`;
+    const files = ['src/core/a.ts', 'src/feat/core/b.ts', 'src/feat/sub/core/c.ts', 'src/feat/sub/leaf.ts'];
+    assert.equal(
+      advice('src/feat/sub/leaf.ts', 'src/core/a.ts', files, shadowed),
+      'add top.core to root.feat.sub.leaf.dependencies',
+    );
+    assert.equal(advice('src/feat/sub/leaf.ts', 'src/feat/core/b.ts', files, shadowed), 'no declared path');
   });
 
   it('names the one surface that holds the target, ahead of the whole module', () => {

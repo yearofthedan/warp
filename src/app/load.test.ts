@@ -145,8 +145,19 @@ root:
     assert.deepEqual(config.archetypes['root.app']!.modules[1]!.using, [
       { kind: 'module', module: 'core' },
       { kind: 'module', module: 'domain', up: 1 },
-      { kind: 'module', module: 'core', up: 1 },
+      { kind: 'module', module: 'core', up: 1, top: true },
     ]);
+  });
+
+  it('refuses top. naming the module it is written in', () => {
+    assert.deepEqual(
+      failures(`
+root:
+  modules:
+    main: { files: src/main.ts, dependencies: [top.main], exposes: all }
+`),
+      ["root.main.dependencies: 'top.main': a module reaches its own files already"],
+    );
   });
 
   it('refuses a name that is nowhere in scope, listing what is', () => {
