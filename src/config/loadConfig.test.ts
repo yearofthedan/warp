@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { ConfigError } from '../model/configError.ts';
-import { parseConfig } from './loadConfig.ts';
+import { findConfig, parseConfig } from './loadConfig.ts';
 
 const text = `root:
   modules:
@@ -57,6 +57,20 @@ describe('parseConfig', () => {
     });
     assert.throws(() => parseConfig('root:\n  dir: *\n', 'warp.yaml'), {
       message: "warp.yaml:2: a value that starts with * is quoted, '*'",
+    });
+  });
+});
+
+describe('findConfig', () => {
+  it('takes the nearest warp.yaml from the folder up, and names the folder when there is none', () => {
+    const configs = new Set(['/repo/warp.yaml', '/repo/packages/a/warp.yaml']);
+    const find = (dir: string) => findConfig(dir, (path) => configs.has(path));
+    assert.deepEqual(
+      [find('/repo'), find('/repo/src/ui'), find('/repo/packages/a/src')],
+      ['/repo/warp.yaml', '/repo/warp.yaml', '/repo/packages/a/warp.yaml'],
+    );
+    assert.throws(() => find('/elsewhere/src'), {
+      message: 'no warp.yaml in /elsewhere/src or any folder above it',
     });
   });
 });

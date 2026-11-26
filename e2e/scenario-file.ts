@@ -2,6 +2,7 @@ export interface Scenario {
   stated: string;
   files: Map<string, string>;
   args: string[];
+  cwd: string;
 }
 
 export interface Run {
@@ -33,11 +34,13 @@ const blocksIn = (lines: readonly string[], path: string): Block[] => {
   return blocks;
 };
 
-const commandOf = (block: Block, path: string): string[] => {
-  const [tool, ...args] = block.body.trim().split(/\s+/);
+const commandOf = (block: Block, path: string): { args: string[]; cwd: string } => {
+  const words = block.body.trim().split(/\s+/);
+  const cwd = words[0] === 'cd' && words[2] === '&&' ? words.splice(0, 3)[1]! : '.';
+  const [tool, ...args] = words;
   if (tool !== 'warp' || block.body.trim().includes('\n'))
-    throw new Error(`${path}: the sh block holds one warp command, such as: warp check`);
-  return args;
+    throw new Error(`${path}: the sh block holds one warp command, such as: warp check, or cd src && warp check`);
+  return { args, cwd };
 };
 
 const fileOf = (block: Block, files: Map<string, string>, path: string): void => {
@@ -57,7 +60,7 @@ export const readScenario = (text: string, path: string): Scenario => {
   for (const block of blocks.slice(0, at)) fileOf(block, files, path);
   if (!files.has('warp.yaml')) throw new Error(`${path}: gives no warp.yaml`);
   const command = blocks[at]!;
-  return { stated: lines.slice(0, command.end + 1).join('\n'), files, args: commandOf(command, path) };
+  return { stated: lines.slice(0, command.end + 1).join('\n'), files, ...commandOf(command, path) };
 };
 
 const block = (info: string, body: string) => `\n\`\`\`${info}\n${body}\n\`\`\`\n`;

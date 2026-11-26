@@ -28,7 +28,7 @@ const play = (scenario: Scenario) => {
     mkdirSync(dirname(join(root, file)), { recursive: true });
     writeFileSync(join(root, file), text);
   }
-  const run = spawnSync(process.execPath, [cli, ...scenario.args], { cwd: root, encoding: 'utf8' });
+  const run = spawnSync(process.execPath, [cli, ...scenario.args], { cwd: join(root, scenario.cwd), encoding: 'utf8' });
   return printed(scenario, { stdout: run.stdout, stderr: run.stderr, status: run.status ?? -1 }, root);
 };
 

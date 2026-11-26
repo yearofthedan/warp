@@ -17,7 +17,8 @@ describe('scenario files', () => {
         ['src/a.ts', 'export const a = 1;\n'],
       ],
     );
-    assert.deepEqual(scenario.args, ['check']);
+    assert.deepEqual([scenario.args, scenario.cwd], [['check'], '.']);
+    assert.deepEqual(readScenario(`${config}${fenced('sh', 'cd src/ui && warp model --json')}`, 'x.md').cwd, 'src/ui');
     assert.equal(scenario.stated, text.slice(0, text.indexOf('```text')).trimEnd());
   });
 
@@ -56,7 +57,7 @@ describe('scenario files', () => {
         'x.md: gives no warp.yaml',
         'x.md:6: a block before the command names its file, such as: ts src/a.ts',
         'x.md: warp.yaml is given twice',
-        'x.md: the sh block holds one warp command, such as: warp check',
+        'x.md: the sh block holds one warp command, such as: warp check, or cd src && warp check',
         'x.md:4: a code block is never closed',
       ],
     );
