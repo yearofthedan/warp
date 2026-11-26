@@ -24,7 +24,7 @@ warp check
 ```
 
 ```text stderr
-warp config: warp.yaml:4: root.ui.dependencies: 'domian': no module or input called domian here; in scope: domain
+warp config: warp.yaml:4: root.ui.dependencies: 'domian': no module or input called domian here; in scope: domain. A package is npm:domian
 ```
 
 ```text exit

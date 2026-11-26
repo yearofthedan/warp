@@ -21,7 +21,7 @@ warp check --ruleset pr
 ```
 
 ```text stderr
-warp config: no ruleset called pr. Rulesets: default, edit
+warp config: warp.yaml:5: rulesets: no ruleset called pr. Rulesets: default, edit
 ```
 
 ```text exit

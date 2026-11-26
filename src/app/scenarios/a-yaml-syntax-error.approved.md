@@ -15,7 +15,7 @@ warp check
 ```
 
 ```text stderr
-warp config: <project>/warp.yaml:4: Flow map in block collection must be sufficiently indented and end with a }
+warp config: warp.yaml:4: Flow map in block collection must be sufficiently indented and end with a }
 ```
 
 ```text exit
