@@ -113,7 +113,7 @@ warp check
 ```
 
 ```text stdout
-src/stray.ts:1 [unclassified] src/stray.ts is in no module of (root) (root), so nothing says what it may import. Add a files module to root that matches it, or move it into a module's folder.
+src/stray.ts:1 [unclassified] src/stray.ts is in no module of the root, so nothing says what it may import. Add a files module to root that matches it, or move it into a module's folder.
 src/domain/order.ts:1 [dependency-direction] src/domain/order.ts (root.domain src/domain) imports src/adapters/index.ts (root.adapters src/adapters), which is outside domain's reach. No declared path allows this: either the import or the structure is wrong.
 src/domain/pricing.ts:1 [dependency-direction] src/domain/pricing.ts (root.domain src/domain) imports types from src/adapters/db/orderRepo.ts (root.adapters src/adapters), which is outside domain's reach. No declared path allows this: either the import or the structure is wrong.
 src/adapters/index.ts:1 [no-double-export] src/adapters/index.ts (root.adapters src/adapters) re-exports src/adapters/db/orderRepo.ts (root.adapters src/adapters), and src/adapters exposes both, so importers have two ways to the same names. Keep one: stop re-exporting it, or stop exposing it.

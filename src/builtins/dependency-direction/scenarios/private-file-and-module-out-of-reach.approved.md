@@ -36,7 +36,7 @@ warp check
 ```
 
 ```text stdout
-src/api/orders.ts:1 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/domain/pricing.ts (root.domain src/domain), which src/domain keeps private (it exposes { files: [order.ts] }). Import what src/domain exposes instead.
+src/api/orders.ts:1 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/domain/pricing.ts (root.domain src/domain), which src/domain keeps private (it exposes { files: [order.ts] }). Import what src/domain exposes instead. Or, if src/domain/pricing.ts should be public, add 'pricing.ts' to the files of root.domain.exposes (warp.yaml:3).
 src/api/orders.ts:2 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/db/orders.ts (root.db src/db), which is outside api's reach. Add db to root.api.dependencies (warp.yaml:5), or move the code. (+1 more in reach)
 warp.yaml:5 [unused-declaration] root.api.dependencies names domain, but nothing in src/api imports through it. Remove it.
 
