@@ -1,4 +1,4 @@
-import { noOptions, type ProjectRule } from '../../rules/rule.ts';
+import { noOptions, type ProjectRule } from '../../domain/rules/rule.ts';
 import { holding, id } from './declarations.ts';
 import { emptyModules } from './empty.ts';
 import { unusedGrants } from './grants.ts';

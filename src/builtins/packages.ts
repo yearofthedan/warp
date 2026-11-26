@@ -1,4 +1,4 @@
-import type { ExternalImport } from '../model/facts.ts';
+import type { ExternalImport } from '../domain/facts/facts.ts';
 
 const glob = (pattern: string): RegExp =>
   new RegExp(`^${pattern.replaceAll(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '.*')}$`);

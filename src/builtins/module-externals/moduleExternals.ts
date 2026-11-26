@@ -1,12 +1,12 @@
 import { listsPackage } from '../packages.ts';
 import { place } from '../place.ts';
-import type { ConfigData } from '../../model/archetype/data.ts';
-import { sitesOf } from '../../model/archetype/fixes.ts';
-import { packageText } from '../../model/archetype/references.ts';
-import type { Grant } from '../../model/archetype/reach.ts';
-import type { Model } from '../../model/archetype/resolve.ts';
-import type { ExternalImport } from '../../model/facts.ts';
-import { type Finding, noOptions, type ProjectRule } from '../../rules/rule.ts';
+import type { ConfigData } from '../../domain/model/data.ts';
+import { sitesOf } from '../../domain/fixes/fixes.ts';
+import { packageText } from '../../domain/model/text.ts';
+import type { Grant } from '../../domain/model/reach.ts';
+import type { Model } from '../../domain/model/resolve.ts';
+import type { ExternalImport } from '../../domain/facts/facts.ts';
+import { type Finding, noOptions, type ProjectRule } from '../../domain/rules/rule.ts';
 
 const id = 'module-externals';
 

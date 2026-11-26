@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import type { FileFacts, UnresolvedImport } from '../../model/facts.ts';
+import type { FileFacts, UnresolvedImport } from '../../domain/facts/facts.ts';
 import { unresolvedImport } from './unresolvedImport.ts';
 
 const facts = (path: string, unresolved: UnresolvedImport[] = []): FileFacts => ({

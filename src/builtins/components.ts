@@ -1,4 +1,4 @@
-import type { Member, MemberGraph, MemberKind } from '../model/facts.ts';
+import type { Member, MemberGraph, MemberKind } from '../domain/facts/facts.ts';
 
 export const components = (graph: MemberGraph, counted: readonly MemberKind[]): Member[][] => {
   const parent = graph.members.map((_, index) => index);

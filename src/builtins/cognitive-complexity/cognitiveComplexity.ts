@@ -1,4 +1,4 @@
-import { type FileRule, wholeNumberOptions } from '../../rules/rule.ts';
+import { type FileRule, wholeNumberOptions } from '../../domain/rules/rule.ts';
 import { withOrdinals } from '../shared.ts';
 
 const defaults = { max: 15 };

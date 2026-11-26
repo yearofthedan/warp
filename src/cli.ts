@@ -2,26 +2,26 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { diskFolders } from './analysis/folders.ts';
-import { typescriptAnalyzer } from './analysis/typescript.ts';
+import { diskFolders } from './adapters/analysis/folders.ts';
+import { typescriptAnalyzer } from './adapters/analysis/typescript.ts';
 import { type Adapters, modelProject, type ProjectCheck, projectCheck } from './app/check.ts';
 import { type ConfigLines, placeProblems } from './app/configLines.ts';
 import { factsStore } from './app/facts.ts';
 import { diffProject, parseRange } from './app/diff.ts';
 import { builtinRegistry, unclassifiedDocs } from './builtins/index.ts';
-import { findConfig, loadConfig } from './config/loadConfig.ts';
-import { toolDigest } from './config/toolDigest.ts';
-import { gitDirCache } from './git/cache.ts';
-import { gitRepository, projectPathOf } from './git/repository.ts';
-import type { ConfigData } from './model/archetype/data.ts';
-import { anyRuleOn, rulesOf } from './model/archetype/settings.ts';
-import { recommended } from './model/archetype/rulesets.ts';
+import { findConfig, loadConfig } from './adapters/config/loadConfig.ts';
+import { toolDigest } from './adapters/config/toolDigest.ts';
+import { gitDirCache } from './adapters/git/cache.ts';
+import { gitRepository, projectPathOf } from './adapters/git/repository.ts';
+import type { ConfigData } from './domain/model/data.ts';
+import { anyRuleOn, rulesOf } from './domain/model/settings.ts';
+import { recommended } from './domain/language/compile.ts';
 import { loadConfigData } from './app/load.ts';
-import { ConfigError } from './model/configError.ts';
-import type { Rule } from './rules/rule.ts';
-import { reporters } from './reporters/index.ts';
-import { modelJson, modelText } from './reporters/model.ts';
-import { actionable, type Report } from './reporters/reporter.ts';
+import { ConfigError } from './domain/model/configError.ts';
+import type { Rule } from './domain/rules/rule.ts';
+import { reporters } from './adapters/reporters/index.ts';
+import { modelJson, modelText } from './adapters/reporters/model.ts';
+import { actionable, type Report } from './adapters/reporters/reporter.ts';
 
 const usage = `usage:
   warp check [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]

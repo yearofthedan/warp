@@ -1,4 +1,4 @@
-import { noOptions, type FileRule } from '../../rules/rule.ts';
+import { noOptions, type FileRule } from '../../domain/rules/rule.ts';
 
 const id = 'unresolved-import';
 

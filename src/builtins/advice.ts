@@ -1,8 +1,8 @@
-import type { RefData } from '../model/archetype/data.ts';
-import type { Fix } from '../model/archetype/fixes.ts';
-import type { Verdicts } from '../model/archetype/reach.ts';
-import { show } from '../model/archetype/references.ts';
-import type { Model } from '../model/archetype/resolve.ts';
+import type { RefData } from '../domain/model/data.ts';
+import type { Fix } from '../domain/fixes/fixes.ts';
+import type { Verdicts } from '../domain/model/reach.ts';
+import { show } from '../domain/model/text.ts';
+import type { Model } from '../domain/model/resolve.ts';
 
 export const refText = (ref: RefData): string => show(ref);
 

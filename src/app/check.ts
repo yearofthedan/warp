@@ -1,9 +1,9 @@
-import type { ConfigData } from '../model/archetype/data.ts';
+import type { ConfigData } from '../domain/model/data.ts';
 import { checkModel } from './checkModel.ts';
 import { type ConfigLines, placeFindings } from './configLines.ts';
-import { type Model, resolveModel } from '../model/archetype/resolve.ts';
-import type { Project } from '../model/facts.ts';
-import type { Finding, Rule } from '../rules/rule.ts';
+import { type Model, resolveModel } from '../domain/model/resolve.ts';
+import type { Project } from '../domain/facts/facts.ts';
+import type { Finding, Rule } from '../domain/rules/rule.ts';
 import type { Analyzer, FactsStore, FoldersAt } from './ports.ts';
 
 export interface ProjectCheck {

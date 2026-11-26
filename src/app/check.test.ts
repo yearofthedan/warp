@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
-import type { FileFacts } from '../model/facts.ts';
+import type { FileFacts } from '../domain/facts/facts.ts';
 import { modelProject } from './check.ts';
 import { loadConfigData } from './load.ts';
 

@@ -1,9 +1,9 @@
-import type { Project } from '../model/facts.ts';
-import type { Rule, Finding, ProjectContext } from '../rules/rule.ts';
-import type { ConfigData } from '../model/archetype/data.ts';
-import { verdicts } from '../model/archetype/reach.ts';
-import type { Model } from '../model/archetype/resolve.ts';
-import { settings, type Settings } from '../model/archetype/settings.ts';
+import type { Project } from '../domain/facts/facts.ts';
+import type { Rule, Finding, ProjectContext } from '../domain/rules/rule.ts';
+import type { ConfigData } from '../domain/model/data.ts';
+import { verdicts } from '../domain/model/reach.ts';
+import type { Model } from '../domain/model/resolve.ts';
+import { settings, type Settings } from '../domain/model/settings.ts';
 import { unclassifiedFindings } from './unclassified.ts';
 
 export const checkModel = (

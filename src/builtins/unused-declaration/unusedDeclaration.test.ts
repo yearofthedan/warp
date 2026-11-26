@@ -3,8 +3,8 @@ import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 import { checkModel } from '../../app/checkModel.ts';
 import { loadConfigData } from '../../app/load.ts';
-import { type Folders, resolveModel } from '../../model/archetype/resolve.ts';
-import type { FileFacts } from '../../model/facts.ts';
+import { type Folders, resolveModel } from '../../domain/model/resolve.ts';
+import type { FileFacts } from '../../domain/facts/facts.ts';
 import { unusedDeclaration } from './unusedDeclaration.ts';
 
 const rule = 'unused-declaration';

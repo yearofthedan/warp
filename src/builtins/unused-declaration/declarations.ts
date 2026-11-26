@@ -1,6 +1,6 @@
-import type { ConfigData } from '../../model/archetype/data.ts';
-import type { ModuleView } from '../../model/archetype/resolve.ts';
-import type { Finding, ProjectContext } from '../../rules/rule.ts';
+import type { ConfigData } from '../../domain/model/data.ts';
+import type { ModuleView } from '../../domain/model/resolve.ts';
+import type { Finding, ProjectContext } from '../../domain/rules/rule.ts';
 
 export const id = 'unused-declaration';
 

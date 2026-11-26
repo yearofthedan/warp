@@ -3,8 +3,8 @@ import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 import { checkModel } from '../../app/checkModel.ts';
 import { loadConfigData } from '../../app/load.ts';
-import { type Folders, resolveModel } from '../../model/archetype/resolve.ts';
-import type { ImportEdge, FileFacts } from '../../model/facts.ts';
+import { type Folders, resolveModel } from '../../domain/model/resolve.ts';
+import type { ImportEdge, FileFacts } from '../../domain/facts/facts.ts';
 import { noCrossModuleReexport } from './noCrossModuleReexport.ts';
 
 const rule = 'no-cross-module-reexport';

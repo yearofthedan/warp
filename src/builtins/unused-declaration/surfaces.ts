@@ -1,6 +1,6 @@
-import { type ExposesData, isTestData } from '../../model/archetype/data.ts';
-import type { ModuleView } from '../../model/archetype/resolve.ts';
-import type { Finding } from '../../rules/rule.ts';
+import { type ExposesData, isTestData } from '../../domain/model/data.ts';
+import type { ModuleView } from '../../domain/model/resolve.ts';
+import type { Finding } from '../../domain/rules/rule.ts';
 import { childrenNamed, type Context, instancesOf, type Layer, named, unused, within } from './declarations.ts';
 
 interface Declared {

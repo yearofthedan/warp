@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import type { ImportEdge, FileFacts } from '../model/facts.ts';
+import type { ImportEdge, FileFacts } from '../domain/facts/facts.ts';
 import { factsStore, freshFacts } from './facts.ts';
 import type { Cache, CachedFacts, CachedFile } from './ports.ts';
 

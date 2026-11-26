@@ -4,11 +4,11 @@ import {
   isTestData,
   type ModuleData,
   type RefData,
-} from '../../model/archetype/data.ts';
-import type { Grant } from '../../model/archetype/reach.ts';
-import { show } from '../../model/archetype/references.ts';
-import type { ModuleView } from '../../model/archetype/resolve.ts';
-import type { Finding } from '../../rules/rule.ts';
+} from '../../domain/model/data.ts';
+import type { Grant } from '../../domain/model/reach.ts';
+import { show } from '../../domain/model/text.ts';
+import type { ModuleView } from '../../domain/model/resolve.ts';
+import type { Finding } from '../../domain/rules/rule.ts';
 import { listsPackage } from '../packages.ts';
 import { childrenNamed, type Context, instancesOf, type Layer, named, unused } from './declarations.ts';
 

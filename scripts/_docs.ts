@@ -101,7 +101,7 @@ export const located = (diagnostic: string, files: Map<string, Planned>): string
 };
 
 const loadProblems = async (docs: { doc: string; text: string }[]): Promise<string[]> => {
-  const { parseConfig } = await import('../src/config/loadConfig.ts');
+  const { parseConfig } = await import('../src/adapters/config/loadConfig.ts');
   const { loadConfigData } = await import('../src/app/load.ts');
   const { builtinRegistry } = await import('../src/builtins/index.ts');
   const builtins = [...builtinRegistry.values()];

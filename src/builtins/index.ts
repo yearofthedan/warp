@@ -1,5 +1,5 @@
-import { registry } from '../rules/registry.ts';
-import type { Rule } from '../rules/rule.ts';
+import { registry } from '../domain/rules/registry.ts';
+import type { Rule } from '../domain/rules/rule.ts';
 import { cognitiveComplexity } from './cognitive-complexity/cognitiveComplexity.ts';
 import { dependencyDirection } from './dependency-direction/dependencyDirection.ts';
 import { fileCohesion } from './file-cohesion/fileCohesion.ts';

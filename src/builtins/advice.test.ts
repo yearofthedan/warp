@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import type { Fix } from '../model/archetype/fixes.ts';
-import type { Model, ModuleView } from '../model/archetype/resolve.ts';
+import type { Fix } from '../domain/fixes/fixes.ts';
+import type { Model, ModuleView } from '../domain/model/resolve.ts';
 import { fixSteps, sentence } from './advice.ts';
 
 const model = (archetypes: string[]): Model =>
