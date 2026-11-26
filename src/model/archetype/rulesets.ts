@@ -127,12 +127,12 @@ const testTargets = (config: ConfigData): Target[] =>
 
 const targetOf = (config: ConfigData, path: string): Target | undefined => {
   if (config.archetypes[path]) return { archetype: path };
-  const at = path.lastIndexOf('.');
-  const archetype = config.archetypes[path.slice(0, at)];
-  const module = path.slice(at + 1);
-  return at > 0 && archetype?.modules.some((declared) => declared.name === module)
-    ? { archetype: archetype.name, module }
-    : undefined;
+  for (let at = path.lastIndexOf('.'); at > 0; at = path.lastIndexOf('.', at - 1)) {
+    const archetype = config.archetypes[path.slice(0, at)];
+    const module = path.slice(at + 1);
+    if (archetype?.modules.some((declared) => declared.name === module)) return { archetype: archetype.name, module };
+  }
+  return undefined;
 };
 
 const applied = (config: ConfigData, layers: readonly Layer[], parse: ParseRules, fail: Fail): ConfigData => {

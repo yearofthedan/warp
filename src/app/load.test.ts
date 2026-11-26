@@ -521,6 +521,24 @@ root:
     );
   });
 
+  it("names a files module's test module by its dotted name, from test code only", () => {
+    const tests = `
+root:
+  modules:
+    f:
+      files: a.ts
+      test: { modules: { u: { files: '*.test.ts' } } }
+  test:
+    modules:
+      e2e: { dir: e2e, dependencies: [f.u] }
+`;
+    const e2e = load(tests).config.archetypes.root!.modules.find((module) => module.name === 'e2e')!;
+    assert.deepEqual(e2e.using, [{ kind: 'module', module: 'f.u' }]);
+    assert.deepEqual(failures(tests.replace('files: a.ts', 'files: a.ts\n      dependencies: [f.u]')), [
+      "root.f.dependencies: 'f.u': f.u is a test module, which only test code may name",
+    ]);
+  });
+
   it('says what a referenced module exposes when a surface is missing, and keeps test surfaces for test code', () => {
     assert.deepEqual(
       failures(`

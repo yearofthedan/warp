@@ -133,6 +133,20 @@ describe('rulesets', () => {
     assert.equal(config.archetypes['root.core']!.modules[0]!.rules, 'off');
   });
 
+  it("name a files module's test module by its dotted name", () => {
+    const files = loadConfigData(
+      parse(`
+root:
+  modules:
+    f: { files: a.ts, test: { modules: { u: { files: '*.test.ts' } } } }
+rulesets:
+  default: { extends: [warp:recommended], on: { root.f.u: off } }
+`),
+      { builtins },
+    ).config;
+    assert.equal(files.archetypes.root!.modules.find((module) => module.name === 'f.u')!.rules, 'off');
+  });
+
   it('refuse an unknown name, listing the ones there are', () => {
     assert.throws(() => load(`${base}  edit: {}\n`, 'pr'), /no ruleset called pr\. Rulesets: default, edit/);
     assert.throws(() => load(undefined, 'pr'), /no ruleset called pr\. The config declares none/);
