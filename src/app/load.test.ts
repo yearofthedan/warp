@@ -177,6 +177,24 @@ root:
     );
   });
 
+  it('refuses a module that shadows an input, in place of reporting the input unused', () => {
+    assert.deepEqual(
+      failures(`
+root:
+  modules:
+    log: { dir: src/log, exposes: all }
+    cards: { dir: 'src/*', archetype: card, dependencies: [log] }
+archetypes:
+  card:
+    requires: [log]
+    modules:
+      log: { files: log.ts, exposes: all }
+      logic: { files: '*.ts', dependencies: [log] }
+`),
+      ['card.log shadows the input log; rename one'],
+    );
+  });
+
   it('refuses a requirement nothing uses, and a call site that leaves one unbound', () => {
     assert.deepEqual(
       failures(`
