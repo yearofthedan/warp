@@ -254,6 +254,15 @@ e2e/checkout.test.ts               e2e                         reaches the journ
   `fixtures.seeds` gives `builders` nothing, and `seeds` reaches `builders` because it names it.
 - A test module with `dir` is a folder of test code, and may hold test modules of its own; it may use an archetype,
   which then holds test code only. A test module exposes all its files unless it says otherwise.
+- A test module with `files` holds no test modules. Tests that share a helpers folder are two test modules side by
+  side, the tests naming the helpers:
+
+  ```yaml fragment
+  test:
+    modules:
+      helpers: { dir: test-helpers }
+      tests: { files: '*.test.ts', dependencies: [helpers] }
+  ```
 - Only test code reaches a test module: through a test module's `dependencies`, a `provides`, or a test surface.
   Naming a test module in production `dependencies` or `exposes` fails to load, and a production file that imports
   one is a [`dependency-direction`](../src/builtins/dependency-direction/README.md) finding.
