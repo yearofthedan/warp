@@ -13,9 +13,7 @@ export const registry = <R extends { id: string }>(rules: readonly R[]): Readonl
 const name = /^[a-z][a-z0-9-]*$/;
 
 export const pluginRules = (plugins: Record<string, unknown>): Rule[] =>
-  Object.entries(plugins).flatMap(([namespace, plugin]) =>
-    namespaced(namespace, plugin, `config.plugins.${namespace}`),
-  );
+  Object.entries(plugins).flatMap(([namespace, plugin]) => namespaced(namespace, plugin, `plugins.${namespace}`));
 
 const namespaced = (namespace: string, plugin: unknown, at: string): Rule[] => {
   if (!name.test(namespace)) throw new ConfigError(`${at}: a namespace is lowercase letters, digits and dashes`);

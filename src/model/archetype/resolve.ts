@@ -354,7 +354,7 @@ const filesModule = (
       const filled = fill(pattern, module.captures);
       if ('missing' in filled) {
         resolution.errors.add(
-          `${module.id}: ${archetype.name}.${declared.name} '${pattern}' names {${filled.missing}}, which ${module.id} doesn't capture`,
+          `${archetype.name}.${declared.name}.files: '${pattern}' names {${filled.missing}}, which ${module.id} doesn't capture`,
         );
       } else if (globRegex(filled.filled).test(path))
         matches.push({ module: declared.name, pattern, score: specificity(filled.filled) });

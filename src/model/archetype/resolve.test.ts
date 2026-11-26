@@ -310,7 +310,7 @@ archetypes:
 `;
     assert.deepEqual(errors(root, ['a.dom.ts', 'b.dom.ts', 'x/x.dom.ts']), [
       "x: component's marker '{id}.dom.ts' names {id}, which its dir path doesn't capture",
-      "(root): root.dom '{name}.dom.ts' names {name}, which (root) doesn't capture",
+      "root.dom.files: '{name}.dom.ts' names {name}, which (root) doesn't capture",
     ]);
   });
 

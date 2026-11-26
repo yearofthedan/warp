@@ -197,7 +197,7 @@ const nameProblem = (name: string): boolean => !isName(name) || name.includes('.
 const productionModule = (state: State, scope: Scope, name: string, raw: unknown): ModuleData[] => {
   const where = `${scope.archetype}.${name}`;
   const def = record(state, where, raw);
-  if (nameProblem(name)) state.fail(`${scope.archetype}: a module's name has no dots, not '${name}'`);
+  if (nameProblem(name)) state.fail(`${where}: a module's name has no dots, not '${name}'`);
   checkKeys(state, where, def, moduleKeys);
   const inner: Scope = { ...scope, own: name };
   if (def.archetype !== undefined) return [instance(state, inner, name, def, false)];
@@ -213,7 +213,7 @@ const productionModule = (state: State, scope: Scope, name: string, raw: unknown
 const testModule = (state: State, scope: Scope, name: string, raw: unknown): ModuleData[] => {
   const where = `${scope.archetype}.${name}`;
   const def = record(state, where, raw);
-  if (nameProblem(name)) state.fail(`${scope.archetype}: a module's name has no dots, not '${name}'`);
+  if (nameProblem(name)) state.fail(`${where}: a module's name has no dots, not '${name}'`);
   checkKeys(state, where, def, testModuleKeys);
   const inner: Scope = { ...scope, own: name };
   if (def.archetype !== undefined) return [instance(state, inner, name, def, true)];
