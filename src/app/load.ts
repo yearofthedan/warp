@@ -2,7 +2,6 @@ import { compileConfig } from '../domain/language/compile.ts';
 import type { ConfigData } from '../domain/model/data.ts';
 import { pluginRules, registry } from '../domain/rules/registry.ts';
 import { type Rule, noOptions } from '../domain/rules/rule.ts';
-import { unclassified } from './unclassified.ts';
 
 export interface LoadedConfigData {
   config: ConfigData;
@@ -25,7 +24,7 @@ export const loadConfigData = (
     ...(file === undefined ? {} : { file }),
     ruleset,
     plugins: Object.keys(plugins),
-    ruleIds: builtins && new Set([...rules.map((rule) => rule.id), unclassified]),
+    ruleIds: builtins && new Set(rules.map((rule) => rule.id)),
     options: Object.fromEntries(rules.map((rule) => [rule.id, rule.parseOptions ?? noOptions])),
   });
   return { config, rules };

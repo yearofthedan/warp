@@ -4,7 +4,7 @@ import { beforeAll, describe, it } from 'vite-plus/test';
 import { diskFolders } from '../adapters/analysis/folders.ts';
 import { typescriptAnalyzer } from '../adapters/analysis/typescript.ts';
 import { projectCheck } from '../app/check.ts';
-import { builtinRegistry, unclassifiedDocs } from '../builtins/index.ts';
+import { builtinRegistry } from '../builtins/index.ts';
 import { loadConfig } from '../adapters/config/loadConfig.ts';
 import { loadConfigData } from './load.ts';
 import type { Finding } from '../domain/rules/rule.ts';
@@ -16,7 +16,7 @@ beforeAll(async () => {
   const { raw, plugins } = await loadConfig(join(root, 'warp.yaml'));
   const { config, rules } = loadConfigData(raw, { builtins: [...builtinRegistry.values()], plugins });
   const adapters = { analyzer: typescriptAnalyzer, foldersAt: diskFolders };
-  findings = projectCheck(adapters, config, { rules, unclassifiedDocs }).check(root);
+  findings = projectCheck(adapters, config, { rules }).check(root);
 });
 
 const byKey = (key: string) => findings.find((finding) => finding.key === key);

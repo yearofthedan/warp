@@ -47,6 +47,7 @@ warp model --json
         "src/stray.ts"
       ],
       "rules": {
+        "unclassified": {},
         "unresolved-import": {},
         "dependency-direction": {},
         "module-externals": {},
@@ -83,6 +84,7 @@ warp model --json
       ],
       "looseFiles": [],
       "rules": {
+        "unclassified": false,
         "unresolved-import": {},
         "dependency-direction": {},
         "module-externals": {},
@@ -119,6 +121,7 @@ warp model --json
       ],
       "looseFiles": [],
       "rules": {
+        "unclassified": false,
         "unresolved-import": {},
         "dependency-direction": {},
         "module-externals": {},

@@ -9,10 +9,12 @@ import { moduleExternals } from './module-externals/moduleExternals.ts';
 import { noCrossModuleReexport } from './no-cross-module-reexport/noCrossModuleReexport.ts';
 import { noCycle } from './no-cycle/noCycle.ts';
 import { noDoubleExport } from './no-double-export/noDoubleExport.ts';
+import { unclassified } from './unclassified/unclassified.ts';
 import { unresolvedImport } from './unresolved-import/unresolvedImport.ts';
 import { unusedDeclaration } from './unused-declaration/unusedDeclaration.ts';
 
 export const builtinRules: readonly Rule[] = [
+  unclassified,
   unresolvedImport,
   dependencyDirection,
   moduleExternals,
@@ -34,5 +36,3 @@ const documented = (rule: Rule): Rule => ({
 });
 
 export const builtinRegistry = registry(builtinRules.map(documented));
-
-export const unclassifiedDocs = `${source}/src/builtins/unclassified/README.md`;
