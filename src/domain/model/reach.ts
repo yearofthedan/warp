@@ -1,6 +1,6 @@
 import type { ConfigData, DirModuleData, ExposesData, RefData } from './data.ts';
 import { show } from './text.ts';
-import { declarationOf, fillPattern, globRegex, type Model, type ModuleView } from './resolve.ts';
+import { ancestors, declarationOf, fillPattern, globRegex, type Model, type ModuleView, subtree } from './resolve.ts';
 
 export interface Grant {
   owner: string;
@@ -38,10 +38,6 @@ const union = (sets: Iterable<ReadonlySet<string>>): Set<string> => {
   const all = new Set<string>();
   for (const set of sets) for (const file of set) all.add(file);
   return all;
-};
-
-const ancestors = function* (module: ModuleView): Generator<ModuleView> {
-  for (let at = module.parent; at; at = at.parent) yield at;
 };
 
 interface State {
@@ -247,8 +243,6 @@ const filesTests = (state: State, module: ModuleView, of: string): Grant[] => {
     ...[holder, ...ancestors(holder)].flatMap((at) => testKit(state, at)),
   ];
 };
-
-const subtree = (module: ModuleView): ModuleView[] => [module, ...module.children.flatMap(subtree)];
 
 const testKit = (state: State, at: ModuleView): Grant[] =>
   grants(state, at, `${at.archetype}.test.provides`, state.config.archetypes[at.archetype!]!.testUsing ?? [], 'test');

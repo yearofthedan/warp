@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { diskFolders } from './adapters/analysis/folders.ts';
 import { typescriptAnalyzer } from './adapters/analysis/typescript.ts';
@@ -9,14 +9,14 @@ import { type ConfigLines, placeProblems } from './app/configLines.ts';
 import { factsStore } from './app/facts.ts';
 import { diffProject, parseRange } from './app/diff.ts';
 import { builtinRegistry } from './builtins/index.ts';
-import { findConfig, loadConfig } from './adapters/config/loadConfig.ts';
+import { findConfig, yamlConfig } from './adapters/config/loadConfig.ts';
 import { toolDigest } from './adapters/config/toolDigest.ts';
 import { gitDirCache } from './adapters/git/cache.ts';
 import { gitRepository, projectPathOf } from './adapters/git/repository.ts';
 import type { ConfigData } from './domain/model/data.ts';
 import { anyRuleOn, rulesOf } from './domain/model/settings.ts';
 import { recommended } from './domain/language/compile.ts';
-import { loadConfigData } from './app/load.ts';
+import { loadConfig } from './app/load.ts';
 import { ConfigError } from './domain/model/configError.ts';
 import type { Rule } from './domain/rules/rule.ts';
 import { reporters } from './adapters/reporters/index.ts';
@@ -98,20 +98,17 @@ const help = (code: number): number => {
 const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail' | 'since-last-run'>): Promise<Resolved> => {
   const configFile = realpathSync(options.config ? resolve(options.config) : findConfig(process.cwd()));
   const root = dirname(configFile);
-  const { raw, plugins, lines, digest } = await loadConfig(configFile);
-  const builtins = [...builtinRegistry.values()];
-  const file = basename(configFile);
-  try {
-    const { config, rules } = loadConfigData(raw, { builtins, plugins, ruleset: options.ruleset, file });
-    for (const tsconfig of config.tsconfig.filter((path) => !existsSync(join(root, path))))
-      throw new ConfigError(
-        `tsconfig: no ${tsconfig} beside ${file}; add it, or list the project's tsconfig files under tsconfig`,
-      );
-    return { root, config, rules, lines, digest };
-  } catch (error) {
-    if (error instanceof ConfigError) throw new ConfigError(placeProblems(lines, file, error.message));
-    throw error;
-  }
+  const source = yamlConfig(configFile);
+  const loaded = await loadConfig(source, { builtins: [...builtinRegistry.values()], ruleset: options.ruleset });
+  for (const tsconfig of loaded.config.tsconfig.filter((path) => !existsSync(join(root, path))))
+    throw new ConfigError(
+      placeProblems(
+        loaded.lines,
+        source.file,
+        `tsconfig: no ${tsconfig} beside ${source.file}; add it, or list the project's tsconfig files under tsconfig`,
+      ),
+    );
+  return { root, ...loaded };
 };
 
 const checkOf = ({ root, config, rules, lines }: Resolved): ProjectCheck =>

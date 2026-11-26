@@ -1,6 +1,6 @@
 import type { ArchetypeData, ConfigData, DirModuleData, ExposesData, ModuleData, RefData } from '../model/data.ts';
 import { instanceOf, verdicts } from '../model/reach.ts';
-import type { Model, ModuleView } from '../model/resolve.ts';
+import { ancestors, type Model, type ModuleView, subtree } from '../model/resolve.ts';
 
 export interface Site {
   label: string;
@@ -21,10 +21,6 @@ interface Change {
   fix: Fix;
   config: ConfigData;
 }
-
-const ancestors = function* (module: ModuleView): Generator<ModuleView> {
-  for (let at = module.parent; at; at = at.parent) yield at;
-};
 
 const lineage = (module: ModuleView): ModuleView[] => [module, ...ancestors(module)];
 
@@ -278,8 +274,6 @@ const exposeFilesModule = (search: Search, config: ConfigData, hiddenBy: ModuleV
     })),
   };
 };
-
-const subtree = (module: ModuleView): ModuleView[] => [module, ...module.children.flatMap(subtree)];
 
 const uses = (config: ConfigData, model: Model, from: ModuleView, under: ModuleView): Set<ModuleView> => {
   const judge = verdicts(config, model);
