@@ -35,8 +35,12 @@ export const checkInputs = (archetypes: Record<string, ArchetypeData>, pending: 
   const uses = pending.filter((entry) => entry.ref.kind === 'required');
   const usesOf = (archetype: string) => uses.filter((entry) => namedOf(entry.archetype) === archetype);
   for (const archetype of Object.values(archetypes).filter((candidate) => !candidate.inline)) {
+    const inputs = [...archetype.requires, ...(archetype.testRequires ?? [])];
+    const shadowed = shadowsOf(archetypes, archetype.name, inputs);
+    for (const [module, name] of shadowed) fail(`${module} shadows the input ${name}; rename one`);
     const used = new Set(usesOf(archetype.name).map((entry) => (entry.ref as { name: string }).name));
-    for (const name of [...archetype.requires, ...(archetype.testRequires ?? [])].filter((input) => !used.has(input)))
+    const names = new Set(shadowed.map(([, name]) => name));
+    for (const name of inputs.filter((input) => !used.has(input) && !names.has(input)))
       fail(`${archetype.name} requires ${name}, which none of its modules names in dependencies`);
   }
   for (const site of sitesOf(archetypes)) {
@@ -44,6 +48,19 @@ export const checkInputs = (archetypes: Record<string, ArchetypeData>, pending: 
     if (archetype) checkSite(archetypes, site, archetype, usesOf(archetype.name), fail);
   }
 };
+
+const shadowsOf = (
+  archetypes: Record<string, ArchetypeData>,
+  named: string,
+  inputs: readonly string[],
+): [string, string][] =>
+  Object.values(archetypes)
+    .filter((archetype) => namedOf(archetype.name) === named)
+    .flatMap((archetype) =>
+      archetype.modules
+        .filter((module) => inputs.includes(module.name))
+        .map((module): [string, string] => [`${archetype.name}.${module.name}`, module.name]),
+    );
 
 const checkSite = (
   archetypes: Record<string, ArchetypeData>,

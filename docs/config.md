@@ -88,7 +88,7 @@ dependencies: [domain, ports.store, top.adapters, npm:zod, 'npm:@aws-sdk/*', 'no
 ```
 
 - A bare name is a sibling in the same `modules:`, then a module above it inside the same archetype or root, then
-  one of the archetype's inputs.
+  one of the archetype's inputs. A module named like an input shadows it, and fails to load.
 - A dotted name is a module and one of its surfaces (`ports.store`), or with `top.` a module at the top of the
   archetype or root it is written in.
 - `npm:x` is a package and its subpaths, `node:x` a Node built-in, `virtual:x` a bundler's virtual module. `*` in a
