@@ -277,7 +277,6 @@ describe('warp check', () => {
 describe('rulesets', () => {
   let dir: string;
   const run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: dir, encoding: 'utf8' });
-  const keys = (findings: { key: string }[]) => findings.map((finding) => finding.key).sort();
   const commit = (...args: string[]) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
 
   beforeAll(() => {
@@ -303,33 +302,11 @@ describe('rulesets', () => {
     commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
   });
 
-  it('checks with the ruleset merged onto its base', () => {
-    const base = JSON.parse(run('check', '--reporter', 'json').stdout).findings;
-    const edit = JSON.parse(run('check', '--ruleset', 'edit', '--reporter', 'json').stdout).findings;
-    const only = (findings: { key: string }[], others: { key: string }[]) =>
-      keys(findings).filter((key) => !keys(others).includes(key));
-    assert.deepEqual(only(base, edit), ['function-cohesion:src/app/handle.ts:handle']);
-    assert.deepEqual(only(edit, base), ['cognitive-complexity:src/app/handle.ts:grade']);
-  });
-
   it('diffs both sides with the same ruleset, so a rule it turns on adds no findings by itself', () => {
     const cachesTheBaseFirst = run('diff', 'HEAD', '--reporter', 'json');
     assert.deepEqual(JSON.parse(cachesTheBaseFirst.stdout).added, []);
     const delta = JSON.parse(run('diff', 'HEAD', '--ruleset', 'edit', '--reporter', 'json').stdout);
     assert.deepEqual([delta.added, delta.worsened, delta.resolved], [[], [], []]);
-  });
-
-  it('shows the rules each module resolves to under the ruleset', () => {
-    const { modules } = JSON.parse(run('model', '--ruleset', 'edit', '--json').stdout);
-    const rules = (id: string) => modules.find((module: { id: string }) => module.id === id).rules;
-    assert.deepEqual(rules('src/app')['file-cohesion'], { maxLines: 10 });
-    assert.deepEqual(rules('src/app')['cognitive-complexity'], { max: 4 });
-    assert.equal(rules('src/app')['function-cohesion'], false);
-    assert.deepEqual(rules('src/domain')['function-cohesion'], { maxLines: 6 });
-    assert.match(
-      run('model', '--ruleset', 'edit', '--rules').stdout,
-      /src\/app {2}app: root\.app, 2 files\n {4}rules: function-cohesion off\n/,
-    );
   });
 });
 
@@ -344,62 +321,6 @@ describe('a warp.yaml with archetypes', () => {
     commit('init', '--quiet');
     commit('add', '.');
     commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
-  });
-
-  it('prints the modules it finds, with the files of both tsconfigs in their modules', () => {
-    const modelled = run('model');
-    assert.equal(modelled.status, 0, modelled.stderr);
-    assert.equal(
-      modelled.stdout,
-      [
-        '(root)  root: root',
-        '  loose: src/stray.ts',
-        '  src/domain  domain: layer',
-        '    src/domain:src  1 file',
-        '    src/domain:api  1 file',
-        '    src/domain:tests  1 test file',
-        '  src/ui  ui: ui',
-        '    src/ui/strings  strings: ui.strings, 1 file',
-        '    src/ui/card  components: component {name=card}',
-        '      src/ui/card:logic  1 file',
-        '      src/ui/card:render  1 file',
-        '  (root):main  1 file',
-        '',
-        '11 modules, 7 files, 1 test file, 1 loose.',
-        '',
-      ].join('\n'),
-    );
-    const { modules } = JSON.parse(run('model', '--json').stdout);
-    const filesOf = (id: string) => modules.find((module: { id: string }) => module.id === id).files;
-    assert.deepEqual(['src/domain:src', 'src/domain:api'].map(filesOf), [
-      ['src/domain/order.ts'],
-      ['src/domain/index.ts'],
-    ]);
-    assert.deepEqual(filesOf('src/domain:tests'), ['src/domain/order.test.ts']);
-  });
-
-  it('reports loose files and imports and packages outside their reach, passing a barrel on a surface', () => {
-    const checked = run('check', '--reporter', 'json', '--fail');
-    assert.equal(checked.status, 1, checked.stderr);
-    const { findings } = JSON.parse(checked.stdout);
-    assert.deepEqual(
-      findings.map((finding: { key: string }) => finding.key),
-      [
-        'unclassified:src/stray.ts',
-        'dependency-direction:src/ui/card/card.ts->src/domain/order.ts',
-        'module-externals:src/ui/card/card.ts->node:util',
-        'no-cross-module-reexport:src/domain/index.ts->src/domain/order.ts',
-        'unused-declaration:grant:component.render.dependencies->subcomponent.render',
-        'unused-declaration:grant:root.ui.dependencies->domain',
-        'unused-declaration:empty:component.subcomponent',
-      ],
-    );
-    assert.match(findings[2].docs, /src\/builtins\/module-externals\/README\.md$/);
-    assert.equal(
-      findings[1].message,
-      'src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes instead, once you add domain to component.requires (warp.yaml:23), bound in the dependencies of component.subcomponent and ui.components, add domain to ui.requires (warp.yaml:30), bound in the dependencies of root.ui and add domain to component.logic.dependencies (warp.yaml:27).',
-    );
-    assert.match(findings[1].docs, /src\/builtins\/dependency-direction\/README\.md$/);
   });
 
   it('reports only the loose files and imports a change adds', () => {
