@@ -170,9 +170,27 @@ root:
 `),
       [
         'root.main.dependencies: expected names, such as [domain, ports.projectStore, npm:x]',
-        "root.main.dependencies: 'domian': no module or input called domian here; in scope: domain",
+        "root.main.dependencies: 'domian': no module or input called domian here; in scope: domain. A package is npm:domian",
         "root.main.dependencies: 'top.nope': no module or input called nope here; in scope: domain",
         "root.main.dependencies: 'a b': no module or input called a b here; in scope: domain",
+      ],
+    );
+  });
+
+  it('points a name missing inside an archetype at its requires', () => {
+    assert.deepEqual(
+      failures(`
+root:
+  modules:
+    domain: { dir: src/domain, exposes: all }
+    cards: { dir: 'src/*', archetype: card }
+archetypes:
+  card:
+    modules:
+      logic: { files: '*.ts', dependencies: [domain] }
+`),
+      [
+        "card.logic.dependencies: 'domain': no module or input called domain here; in scope: nothing. A module outside card comes in through card.requires",
       ],
     );
   });
@@ -703,7 +721,7 @@ rulesets:
 
   it('reports a repeated mistake once', () => {
     assert.deepEqual(failures("root: { modules: { src: { files: '**', dependencies: [icons, icons] } } }"), [
-      "root.src.dependencies: 'icons': no module or input called icons here; in scope: nothing",
+      "root.src.dependencies: 'icons': no module or input called icons here; in scope: nothing. A package is npm:icons",
     ]);
   });
 });

@@ -466,11 +466,21 @@ const outOfScope = (state: State, scope: Scope, { module, top, tests, where, ent
   const inScope = [...new Set([...names, ...inputs])];
   const testInput =
     !tests && scope.testInputs.has(module) ? `; ${module} is a test input, which only test code may name` : '';
+  const named = scope.archetype.split('.')[0]!;
+  const hints =
+    testInput !== ''
+      ? []
+      : named !== rootName && !top
+        ? [`a module outside ${named} comes in through ${named}.requires`]
+        : entry === module && /^[\w-]+$/.test(module) && where.endsWith('dependencies')
+          ? [`a package is npm:${module}`]
+          : [];
   return fail(
     state,
     where,
     entry,
-    `no module or input called ${module} here${testInput}; in scope: ${list(inScope.sort(), 'nothing')}`,
+    `no module or input called ${module} here${testInput}; in scope: ${list(inScope.sort(), 'nothing')}` +
+      hints.map((hint) => `. ${hint[0]!.toUpperCase()}${hint.slice(1)}`).join(''),
   );
 };
 

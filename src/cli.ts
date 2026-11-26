@@ -105,7 +105,7 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail' | 'since
     const { config, rules } = loadConfigData(raw, { builtins, plugins, ruleset: options.ruleset, file });
     for (const tsconfig of config.tsconfig.filter((path) => !existsSync(join(root, path))))
       throw new ConfigError(
-        `tsconfig: no ${tsconfig} beside ${file}; add it, or list the project's: tsconfig: [tsconfig.app.json]`,
+        `tsconfig: no ${tsconfig} beside ${file}; add it, or list the project's tsconfig files under tsconfig`,
       );
     return { root, config, rules, lines, digest };
   } catch (error) {
