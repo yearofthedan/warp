@@ -34,7 +34,7 @@ make_copy() {
   cp -R "$root/scripts" "$copy/scripts"
   cp "$root/.secretlintrc.json" "$root/package.json" "$root/pnpm-workspace.yaml" "$root/pnpm-lock.yaml" "$copy/"
   if [ -d "$root/patches" ]; then cp -R "$root/patches" "$copy/patches"; fi
-  for tool in vp secretlint tsc stryker; do
+  for tool in vp secretlint tsc stryker c8; do
     prefix="$tool "
     [ "$tool" = vp ] && prefix=''
     printf '#!/bin/sh\necho "%s$*" >> "$VP_LOG"\n' "$prefix" >"$copy/node_modules/.bin/$tool"
