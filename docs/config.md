@@ -313,7 +313,7 @@ root:
   modules:
     domain: { dir: src/domain, archetype: layer }
     adapters: { dir: src/adapters, archetype: layer, ruleset: [legacy] }
-    generated: { dir: src/generated, ruleset: { rules: off } }
+    generated: { dir: src/generated, ruleset: off }
 
 archetypes:
   layer:
@@ -342,7 +342,7 @@ src/generated/api.ts      no rules
   `extends` names `warp:recommended`, a plugin's ruleset as `namespace:name`, or a ruleset under the top-level
   `rulesets:`. A named ruleset applies only through an `extends`; one that nothing extends fails to load.
 - A ruleset with no rules of its own is the list it extends: `ruleset: [warp:recommended]` is
-  `ruleset: { extends: [warp:recommended] }`, here or under `rulesets:`.
+  `ruleset: { extends: [warp:recommended] }`, here or under `rulesets:`. `ruleset: off` is `ruleset: { rules: off }`.
 - Name a ruleset to give a set of presets one name, or to use the same settings in several places that don't
   share them through the tree:
 
@@ -376,7 +376,7 @@ root:
   modules:
     legacy:
       dir: src/legacy
-      ruleset: { rules: off }
+      ruleset: off
       modules:
         billing: { dir: billing, ruleset: { rules: { file-cohesion: on } } }
 ```

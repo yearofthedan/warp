@@ -54,7 +54,7 @@ A rule that doesn't fit one place, such as generated code, is turned off there w
 on that module, and stays on everywhere else:
 
 ```yaml fragment
-generated: { dir: src/generated, ruleset: { rules: off } }
+generated: { dir: src/generated, ruleset: off }
 ```
 
 ## Work through existing findings one at a time
