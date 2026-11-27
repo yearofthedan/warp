@@ -16,6 +16,7 @@ export const exportSpread: ProjectRule<LimitOptions> = {
   id,
   scope: 'project',
   defaults,
+  moduleOptions: ['ignore'],
   parseOptions: limitOptions(defaults),
   check: ({ model, project, atModule }) => {
     const uses = valueUses(model, project.files);
@@ -23,7 +24,7 @@ export const exportSpread: ProjectRule<LimitOptions> = {
       if (module.test || module.children.length === 0) return [];
       const { on, options } = atModule(module);
       if (!on) return [];
-      const skip = ignored(model, options.ignore, `${id} at ${module.id}`);
+      const skip = ignored(model, options.ignore);
       return [...spreads(model, module, uses, skip).values()]
         .filter((spread) => spread.children.size > options.max)
         .map((spread) => finding(spread, module, model.moduleOf(spread.file)!, options.max));
@@ -63,7 +64,7 @@ const finding = ({ file, name, children }: Spread, module: ModuleView, exporter:
     message:
       `${children.size} of ${module.id}'s modules use ${name} from ${exporter.id}: ${listed(named)}. ` +
       `Its limit here is ${max}. Give the use to the one module that should own it and let the others go through ` +
-      `that module, or add ${exporter.id} to ${id}'s ignore list on ${module.id} if it is meant to be shared.`,
+      `that module, or name it in ${id}'s ignore on ${module.id} if it is meant to be shared.`,
     sites,
     parts: named,
     details: {

@@ -119,7 +119,6 @@ const archetype = (state: State, name: string, def: Record<string, unknown>, opt
   const testModules = test.modules === undefined ? {} : record(state, `${where}.test.modules`, test.modules);
   const data = options.parent ? inlineData(state, name, where, test) : namedData(state, name, def, test);
   if (options.test) data.test = true;
-  Object.assign(data, rulesetsAt(state, where, def.ruleset, test.ruleset));
   const scope: Scope = {
     archetype: name,
     names: new Set([...Object.keys(modules), ...Object.keys(testModules), ...filesTestNames(modules)]),
@@ -127,6 +126,7 @@ const archetype = (state: State, name: string, def: Record<string, unknown>, opt
     inputs: options.parent?.inputs ?? new Set(data.requires),
     testInputs: options.parent?.testInputs ?? new Set(data.testRequires),
   };
+  Object.assign(data, rulesetsAt(state, scope, where, def.ruleset, test.ruleset, options.test));
   state.archetypes[name] = data;
   const build = options.test ? testModule : productionModule;
   for (const [module, raw] of Object.entries(modules)) data.modules.push(...build(state, scope, module, raw));
@@ -162,12 +162,15 @@ const inlineData = (state: State, name: string, where: string, test: Record<stri
 
 const rulesetsAt = (
   state: State,
+  scope: Scope,
   where: string,
   ruleset: unknown,
   testRuleset: unknown,
+  test = false,
 ): Pick<ArchetypeData, 'ruleset' | 'testRuleset'> => {
-  const own = state.ruleset(ruleset, `${where}.ruleset`);
-  const tests = state.ruleset(testRuleset, `${where}.test.ruleset`);
+  const names = (tests: boolean) => (entry: string, at: string) => resolveName(state, scope, entry, tests, at);
+  const own = state.ruleset(ruleset, `${where}.ruleset`, names(test));
+  const tests = state.ruleset(testRuleset, `${where}.test.ruleset`, names(true));
   return { ...(own ? { ruleset: own } : {}), ...(tests ? { testRuleset: tests } : {}) };
 };
 
@@ -264,7 +267,7 @@ const testFiles = (
     ...(of === undefined ? {} : { of }),
     using: references(state, scope, `${where}.dependencies`, def.dependencies, true),
     ...(exposed && exposed.kind !== 'surfaces' ? { exposes: exposed } : {}),
-    ...rulesetsAt(state, where, def.ruleset, undefined),
+    ...rulesetsAt(state, scope, where, def.ruleset, undefined, true),
     ...description(state, where, def.description),
   };
 };
@@ -312,7 +315,7 @@ const instance = (
     using: Object.values(own),
     ...(Object.keys(own).length > 0 ? { inputs: own } : {}),
     ...(Object.keys(tests).length > 0 ? { testInputs: tests } : {}),
-    ...rulesetsAt(state, where, def.ruleset, testBlock.ruleset),
+    ...rulesetsAt(state, scope, where, def.ruleset, testBlock.ruleset, test),
     ...description(state, where, def.description),
   };
 };
@@ -352,7 +355,7 @@ const filesModule = (state: State, scope: Scope, name: string, def: Record<strin
     patterns: patterns(state, `${where}.files`, def.files),
     using: references(state, scope, `${where}.dependencies`, def.dependencies, false),
     ...(exposed && exposed.kind !== 'surfaces' ? { exposes: exposed } : {}),
-    ...rulesetsAt(state, where, def.ruleset, test.ruleset),
+    ...rulesetsAt(state, scope, where, def.ruleset, test.ruleset),
     ...description(state, where, def.description),
   };
   for (const key of Object.keys(test).filter((key) => key !== 'modules' && key !== 'ruleset'))

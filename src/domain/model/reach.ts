@@ -124,7 +124,12 @@ export const instanceOf = (state: { config: ConfigData }, holder: ModuleView): M
   return at;
 };
 
-const bindingOf = (state: State, holder: ModuleView, name: string, view: View): RefData | undefined => {
+const bindingOf = (
+  state: { config: ConfigData },
+  holder: ModuleView,
+  name: string,
+  view: View,
+): RefData | undefined => {
   const instance = instanceOf(state, holder);
   const declared = declarationOf(state.config, instance) as DirModuleData | undefined;
   return (view === 'test' ? declared?.testInputs?.[name] : undefined) ?? declared?.inputs?.[name];
@@ -136,7 +141,12 @@ interface Concrete {
   via: RefData[];
 }
 
-const concrete = (state: State, holder: ModuleView, ref: RefData, view: View): Concrete | undefined => {
+const concrete = (
+  state: { config: ConfigData },
+  holder: ModuleView,
+  ref: RefData,
+  view: View,
+): Concrete | undefined => {
   if (ref.kind === 'module') {
     let at: ModuleView | undefined = holder;
     for (let up = ref.up ?? 0; up > 0 && at; up -= 1) at = at.parent;
@@ -149,6 +159,13 @@ const concrete = (state: State, holder: ModuleView, ref: RefData, view: View): C
   const surface = ref.surface ?? (bound.kind === 'package' ? undefined : bound.surface);
   const found = concrete(state, instance.parent, bound.kind === 'package' ? bound : { ...bound, surface }, view);
   return found && { ...found, via: [bound, ...found.via] };
+};
+
+export const modulesNamed = (config: ConfigData, holder: ModuleView, ref: RefData, view: View): ModuleView[] => {
+  const found = concrete({ config }, holder, ref, view);
+  if (!found || found.ref.kind !== 'module') return [];
+  const { module } = found.ref;
+  return found.holder.children.filter((child) => child.name === module);
 };
 
 const resolve = (state: State, module: ModuleView, ref: RefData, view: View): ReadonlySet<string> => {

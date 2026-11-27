@@ -47,6 +47,7 @@ interface RuleBase<Options extends object> {
   id: string;
   docs?: string;
   defaults?: Options;
+  moduleOptions?: readonly string[];
   parseOptions?: (raw: Record<string, unknown>, at: string) => Partial<Options>;
 }
 

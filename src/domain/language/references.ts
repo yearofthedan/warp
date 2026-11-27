@@ -1,5 +1,12 @@
 import { ConfigError } from '../errors/configError.ts';
-import { type ArchetypeData, type ExposesData, isTestData, type RuleSettingsData } from '../model/data.ts';
+import {
+  type ArchetypeData,
+  type ExposesData,
+  isTestData,
+  type RefData,
+  type RuleSettingsData,
+} from '../model/data.ts';
+import type { Names } from './rulesets.ts';
 import type { PendingRef } from './structure.ts';
 import { type Fail, isRecord, list } from '../model/shared.ts';
 import { exposesText, show } from '../model/text.ts';
@@ -8,6 +15,7 @@ export interface Check {
   fail: Fail;
   ruleIds?: ReadonlySet<string> | undefined;
   options: Readonly<Record<string, (raw: Record<string, unknown>, at: string) => unknown>>;
+  moduleOptions?: Readonly<Record<string, readonly string[]>>;
 }
 
 export const checkReferences = (
@@ -68,7 +76,7 @@ export const exposedProblem = (
   return `${subject} exposes ${exposesText(exposes)}, not named surfaces`;
 };
 
-export const toRules = (check: Check, value: unknown, where: string): RuleSettingsData | undefined => {
+export const toRules = (check: Check, value: unknown, where: string, names?: Names): RuleSettingsData | undefined => {
   if (value === undefined) return undefined;
   if (value === 'off') return { '*': false };
   if (!isRecord(value)) {
@@ -77,29 +85,55 @@ export const toRules = (check: Check, value: unknown, where: string): RuleSettin
   }
   return Object.fromEntries(
     Object.entries(value).flatMap(([id, setting]) => {
-      const parsed = toSetting(check, id, setting, where);
+      const parsed = toSetting(check, id, setting, where, names);
       return parsed === undefined ? [] : [[id, parsed]];
     }),
   ) as RuleSettingsData;
 };
 
-const toSetting = (check: Check, id: string, setting: unknown, where: string) => {
+const toSetting = (check: Check, id: string, setting: unknown, where: string, names: Names | undefined) => {
   if (id !== '*' && check.ruleIds && !check.ruleIds.has(id)) check.fail(`${where}: no rule called ${id}`);
   else if (id === '*' && setting !== 'off' && setting !== false)
     check.fail(`${where}.*: expected off; turn rules on by name, or extend a ruleset such as warp:recommended`);
   else if (setting === 'on' || setting === 'off') return setting === 'on';
   else if (typeof setting === 'boolean') return setting;
-  else if (isRecord(setting)) return checkOptions(check, id, setting, where);
+  else if (isRecord(setting)) return checkOptions(check, id, setting, where, names);
   else check.fail(`${where}.${id}: expected on, off or options`);
   return undefined;
 };
 
-const checkOptions = (check: Check, id: string, options: Record<string, unknown>, where: string) => {
+const checkOptions = (
+  check: Check,
+  id: string,
+  options: Record<string, unknown>,
+  where: string,
+  names: Names | undefined,
+) => {
   try {
     check.options[id]?.(options, `${where}.${id}`);
   } catch (error) {
     if (!(error instanceof ConfigError)) throw error;
     check.fail(error.message);
+    return { ...options };
   }
-  return { ...options };
+  const resolved = (check.moduleOptions?.[id] ?? [])
+    .filter((key) => Array.isArray(options[key]))
+    .map((key) => [key, modules(check, options[key] as string[], `${where}.${id}.${key}`, names)]);
+  return { ...options, ...Object.fromEntries(resolved) };
+};
+
+const modules = (check: Check, entries: readonly string[], where: string, names: Names | undefined): RefData[] => {
+  if (!names) {
+    check.fail(`${where}: names modules, so it goes in a ruleset on the root, a module or an archetype`);
+    return [];
+  }
+  return entries.flatMap((entry) => {
+    const ref = names(entry, where);
+    if (ref === undefined) return [];
+    if (ref.kind === 'package' || ref.surface !== undefined) {
+      check.fail(`${where}: '${entry}': name a module, not a package or a surface`);
+      return [];
+    }
+    return [ref];
+  });
 };

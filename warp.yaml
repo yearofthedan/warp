@@ -116,7 +116,7 @@ archetypes:
     description: "warp's own rules: one folder per rule, the list of them, and the helpers rules share"
     requires: [errors, model, rules, fixes, facts]
     exposes: [list]
-    ruleset: { rules: { export-spread: { ignore: [src/domain/rules] } } }
+    ruleset: { rules: { export-spread: { ignore: [rules] } } }
     modules:
       list:
         description: The built-in rules with their docs links

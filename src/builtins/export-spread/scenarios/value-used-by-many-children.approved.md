@@ -8,7 +8,7 @@ root:
     strings: { dir: src/strings, exposes: all, ruleset: [warp:utility] }
     ui:
       dir: src/ui
-      ruleset: { rules: { export-spread: { ignore: [src/strings] } } }
+      ruleset: { rules: { export-spread: { ignore: [strings] } } }
       modules:
         cart: { dir: cart, dependencies: [domain, strings] }
         orders: { dir: orders, dependencies: [domain, strings] }
@@ -46,7 +46,7 @@ warp check
 ```
 
 ```text stdout
-src/ui/account/account.ts:1 [export-spread] 3 of src/ui's modules use cancelOrder from src/domain: src/ui/account, src/ui/cart and src/ui/orders. Its limit here is 2. Give the use to the one module that should own it and let the others go through that module, or add src/domain to export-spread's ignore list on src/ui if it is meant to be shared.
+src/ui/account/account.ts:1 [export-spread] 3 of src/ui's modules use cancelOrder from src/domain: src/ui/account, src/ui/cart and src/ui/orders. Its limit here is 2. Give the use to the one module that should own it and let the others go through that module, or name it in export-spread's ignore on src/ui if it is meant to be shared.
 
 By rule and module:
   export-spread  src/ui/account  1
