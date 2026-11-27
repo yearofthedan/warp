@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
-import { loadConfigData } from '../../app/load.ts';
+import { compileConfig } from '../../domain/language/compile.ts';
 import { resolveModel } from '../../domain/model/resolve.ts';
 import { rulesOf } from '../../domain/model/settings.ts';
 import { modelJson, modelText } from './model.ts';
@@ -16,7 +16,7 @@ const paths = [
 ];
 
 const resolved = () => {
-  const { config } = loadConfigData(
+  const config = compileConfig(
     parse(`
 root:
   modules:

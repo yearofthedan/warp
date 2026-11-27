@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 import { ConfigError } from './configError.ts';
-import { loadConfigData } from '../../app/load.ts';
+import { compileConfig } from '../language/compile.ts';
 import { grantText, verdicts } from './reach.ts';
 import { type Folders, resolveModel } from './resolve.ts';
 
@@ -49,7 +49,7 @@ archetypes:
     'src/hidden/b.ts',
     'scripts/build.ts',
   ];
-  const { config } = loadConfigData(parse(yaml));
+  const config = compileConfig(parse(yaml));
   const model = resolveModel(config, folders(paths), paths);
   const judge = verdicts(config, model);
 
@@ -92,7 +92,7 @@ describe('a module entry', () => {
   it('refuses an entry beside exposes, and an entry on a files module or a test module', () => {
     const failures = (yaml: string): string[] => {
       try {
-        loadConfigData(parse(yaml));
+        compileConfig(parse(yaml));
       } catch (error) {
         assert.ok(error instanceof ConfigError);
         return error.message.split('\n');

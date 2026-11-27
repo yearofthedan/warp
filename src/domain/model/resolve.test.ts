@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 import { ConfigError } from './configError.ts';
-import { loadConfigData } from '../../app/load.ts';
+import { compileConfig } from '../language/compile.ts';
 import { type Folders, globRegex, type Model, resolveModel, specificity } from './resolve.ts';
 
 const folders = (paths: readonly string[]): Folders => {
@@ -21,7 +21,7 @@ const folders = (paths: readonly string[]): Folders => {
 };
 
 const resolve = (yaml: string, files: readonly string[], extra: readonly string[] = []): Model =>
-  resolveModel(loadConfigData(parse(yaml)).config, folders([...files, ...extra]), files);
+  resolveModel(compileConfig(parse(yaml)), folders([...files, ...extra]), files);
 
 const errors = (yaml: string, files: readonly string[]): string[] => {
   try {

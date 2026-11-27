@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { beforeAll, describe, it } from 'vite-plus/test';
-import { diskFolders } from '../adapters/analysis/folders.ts';
-import { typescriptAnalyzer } from '../adapters/analysis/typescript.ts';
-import { projectCheck } from '../app/check.ts';
-import { builtinRegistry, unclassifiedDocs } from '../builtins/index.ts';
-import { yamlConfig } from '../adapters/config/loadConfig.ts';
-import { loadConfig } from './load.ts';
-import type { Finding } from '../domain/rules/rule.ts';
+import { diskFolders } from './adapters/analysis/folders.ts';
+import { typescriptAnalyzer } from './adapters/analysis/typescript.ts';
+import { projectCheck } from './app/check.ts';
+import { builtinRegistry, unclassifiedDocs } from './builtins/index.ts';
+import { yamlConfig } from './adapters/config/loadConfig.ts';
+import { loadConfig } from './app/load.ts';
+import type { Finding } from './domain/rules/rule.ts';
 
-const root = join(import.meta.dirname, '../../fixtures/hexagonal-app');
+const root = join(import.meta.dirname, '../fixtures/hexagonal-app');
 let findings: Finding[];
 
 beforeAll(async () => {

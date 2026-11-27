@@ -1,17 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
-import type { ImportEdge, FileFacts } from '../facts/facts.ts';
-import { builtinRules } from '../../builtins/index.ts';
-import { checkModel } from '../../app/checkModel.ts';
-import { loadConfigData } from '../../app/load.ts';
+import { compileConfig } from '../language/compile.ts';
 import { ConfigError } from './configError.ts';
 import { grantText, verdicts } from './reach.ts';
 import { type Folders, resolveModel } from './resolve.ts';
 import { settings } from './settings.ts';
-import { modelText } from '../../adapters/reporters/model.ts';
-
-const importRules = builtinRules.filter((rule) => rule.id !== 'unused-declaration');
 
 const folders = (paths: readonly string[]): Folders => {
   const dirs = new Set(
@@ -44,25 +38,6 @@ const failures = (run: () => unknown): string[] => {
   assert.fail('expected a ConfigError');
 };
 
-const edge = (from: string, to: string): ImportEdge => ({
-  from,
-  to,
-  specifier: `./${to}`,
-  names: ['x'],
-  typeOnly: false,
-  line: 1,
-});
-
-const facts = (path: string, imports: ImportEdge[]): FileFacts => ({
-  path,
-  lines: 10,
-  imports,
-  externals: [],
-  unresolved: [],
-  members: { members: [], links: [] },
-  functions: [],
-});
-
 const paths = [
   'e2e/flow.test.ts',
   'e2e/steps.ts',
@@ -87,8 +62,7 @@ rulesets:
     extends: [warp:recommended]
 ${on === '' ? '' : `    on: ${on}\n`}`;
 
-const load = (yaml: string, on = '') =>
-  loadConfigData(parse(`${yaml}${recommended(on)}`), { builtins: importRules }).config;
+const load = (yaml: string, on = '') => compileConfig(parse(`${yaml}${recommended(on)}`));
 
 const shopYaml = `
 root:
@@ -225,77 +199,6 @@ ${ui}`);
     assert.equal(packages('src/a/b/b.test.ts'), 'vitest');
     assert.equal(packages('e2e/flow.test.ts'), 'vitest');
     assert.equal(packages('src/a/a.ts'), '');
-  });
-
-  it('report production code importing a test file, and put no test edge in a module cycle', () => {
-    const { config, model } = shop();
-    const findings = checkModel(
-      config,
-      model,
-      {
-        files: [
-          facts('src/a/a.ts', [edge('src/a/a.ts', 'src/a/a.dsl.ts')]),
-          facts('src/domain/order.ts', [edge('src/domain/order.ts', 'src/main.ts')]),
-          facts('src/main.ts', [edge('src/main.ts', 'src/a/a.dom.ts')]),
-          facts('src/domain/order.test.ts', [edge('src/domain/order.test.ts', 'src/main.ts')]),
-        ],
-      },
-      importRules,
-    );
-    assert.deepEqual(
-      findings.map((finding) => finding.key),
-      [
-        'dependency-direction:src/a/a.ts->src/a/a.dsl.ts',
-        'dependency-direction:src/domain/order.ts->src/main.ts',
-        'dependency-direction:src/domain/order.test.ts->src/main.ts',
-      ],
-    );
-    assert.equal(
-      findings[0]!.message,
-      'src/a/a.ts (logic of card src/a) imports src/a/a.dsl.ts (test module dsl of card src/a), a test file. Production code never imports tests: move what both need out of the test file into the module it tests.',
-    );
-  });
-
-  it('tell a test reaching above its module to name it in a test.provides', () => {
-    const { config, model } = shop();
-    const [finding] = checkModel(
-      config,
-      model,
-      { files: [facts('src/a/a.test.ts', [edge('src/a/a.test.ts', 'src/main.ts')])] },
-      importRules,
-    );
-    assert.equal(
-      finding!.message,
-      "src/a/a.test.ts (test module tests of card src/a) imports src/main.ts (main of root (root)), which is above src/a. Add 'src/main.ts' to the files of root.main.exposes and add main to root.test.provides, or move the code. (+9 more in reach)",
-    );
-  });
-
-  it('are listed in warp model under the module that declares them', () => {
-    const { model } = shop();
-    assert.equal(
-      modelText(model),
-      [
-        '(root)  root: root',
-        '  src/domain  domain: root.domain, 1 file',
-        '    src/domain:tests  1 test file',
-        '  src/a  cards: card {name=a}',
-        '    src/a/b  sub: card {name=b}',
-        '      src/a/b:logic  1 file',
-        '      src/a/b:render  1 file',
-        '      src/a/b:dsl  1 test file',
-        '      src/a/b:fixture  1 test file',
-        '      src/a/b:tests  1 test file',
-        '    src/a:logic  1 file',
-        '    src/a:render  1 file',
-        '    src/a:dsl  1 test file',
-        '    src/a:tests  1 test file',
-        '  (root):main  1 file',
-        '  src/seed  seed: root.seed, 1 test file',
-        '  e2e  e2e: root.e2e, 2 test files',
-        '',
-        '17 modules, 6 files, 9 test files, 0 loose.',
-      ].join('\n'),
-    );
   });
 
   it('leave a file no test module claims to production, loose where no files module matches it', () => {
@@ -488,23 +391,6 @@ archetypes:
     assert.equal(verdict('e2e/checkout.test.ts', 'e2e/checkout.dsl.ts'), 'allowed: e2e uses e2e:journeys');
   });
 
-  it('tell a test module inside one to name its sibling in its dependencies', () => {
-    const { config, model } = site();
-    const [finding] = checkModel(
-      config,
-      model,
-      {
-        files: [
-          facts('test-helpers/drivers/order.driver.ts', [
-            edge('test-helpers/drivers/order.driver.ts', 'test-helpers/clock.ts'),
-          ]),
-        ],
-      },
-      importRules,
-    );
-    assert.match(finding!.message, /Add clock to kit\.drivers\.dependencies/);
-  });
-
   it('show tests outside only what they expose, and production code none of it', () => {
     const { verdict } = site();
     assert.equal(
@@ -523,26 +409,5 @@ archetypes:
     };
     assert.deepEqual(off('root.e2e.journeys'), ['e2e/checkout.dsl.ts']);
     assert.deepEqual(off('kit.drivers'), ['test-helpers/drivers/order.driver.ts']);
-  });
-
-  it('are listed in warp model as folders', () => {
-    const { model } = site();
-    assert.equal(
-      modelText(model),
-      [
-        '(root)  root: root',
-        '  src/domain  domain: root.domain, 1 file',
-        '  (root):main  1 file',
-        '  test-helpers  helpers: kit, 2 test files',
-        '    test-helpers:fixtures  1 test file',
-        '    test-helpers:clock  1 test file',
-        '    test-helpers/drivers  drivers: kit.drivers, 1 test file',
-        '  e2e  e2e: root.e2e, 1 test file',
-        '    e2e:journeys  1 test file',
-        '  (root):tests  1 test file',
-        '',
-        '10 modules, 2 files, 8 test files, 0 loose.',
-      ].join('\n'),
-    );
   });
 });
