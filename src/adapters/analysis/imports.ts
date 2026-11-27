@@ -120,10 +120,10 @@ const referenceEdges = (
   const byTarget = new Map<string, { to: string; names: string[]; typeOnly: boolean; reExport: boolean }>();
   for (const binding of declaration.bindings) {
     const target = resolveBinding(binding, source, resolver) ?? { file: via, typeOnly: false };
-    const key = `${target.file}\0${binding.reExport}`;
-    const entry = byTarget.get(key) ?? { to: target.file, names: [], typeOnly: true, reExport: binding.reExport };
-    entry.names.push(binding.identifier.text);
-    entry.typeOnly &&= declaration.typeOnly || binding.typeOnly || target.typeOnly;
+    const typeOnly = declaration.typeOnly || binding.typeOnly || target.typeOnly;
+    const key = `${target.file}\0${binding.reExport}\0${typeOnly}`;
+    const entry = byTarget.get(key) ?? { to: target.file, names: [], typeOnly, reExport: binding.reExport };
+    entry.names.push(target.name ?? binding.identifier.text);
     byTarget.set(key, entry);
   }
   return [...byTarget.values()].map(({ to, names, typeOnly, reExport }) => edge(to, names, typeOnly, reExport));
@@ -242,7 +242,7 @@ const resolveBinding = (
   binding: Binding,
   source: Source,
   resolver: Resolver,
-): { file: string; typeOnly: boolean } | undefined => {
+): { file: string; typeOnly: boolean; name?: string } | undefined => {
   const symbol = source.symbolOf(binding.identifier);
   if (!symbol || !(symbol.flags & SymbolFlags.Alias)) return undefined;
   const target = resolver.checker.getAliasedSymbol(symbol);
@@ -251,5 +251,8 @@ const resolveBinding = (
     .map((declaration) => resolver.relative(declaration.path))
     .find((path) => path !== undefined);
   if (!file) return undefined;
-  return { file, typeOnly: (target.flags & SymbolFlags.Value) === 0 };
+  const name = target.declarations.some((declaration) => declaration.kind === SyntaxKind.SourceFile)
+    ? '*'
+    : target.name;
+  return { file, typeOnly: (target.flags & SymbolFlags.Value) === 0, name };
 };
