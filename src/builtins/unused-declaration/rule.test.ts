@@ -167,6 +167,31 @@ root:
     );
   });
 
+  it('names the modules inside that import through an input their parent names, bound to a package', () => {
+    const structure = `
+root:
+  modules:
+    ui: { dir: ui, archetype: feature, dependencies: { lib: 'node:*' } }
+archetypes:
+  feature:
+    requires: [lib]
+    modules:
+      area:
+        dir: a
+        dependencies: [lib]
+        modules:
+          part: { dir: part, dependencies: [lib] }
+`;
+    const files = ['ui/index.ts', 'ui/a/a.ts', 'ui/a/part/p.ts'];
+    assert.deepEqual(
+      check(structure, [facts('ui/a/part/p.ts', [], ['node:path'])], { files }).map((finding) => finding.message),
+      [
+        'feature.area.dependencies names lib, but only its modules part import through it. ' +
+          "A module's dependencies are its own: name it in feature.area.part.dependencies, and remove it here.",
+      ],
+    );
+  });
+
   it('counts a package using once any file it covers imports the package', () => {
     const main = facts('main.ts', ['ui/card/card.ts', 'ui/view.ts', 'ports/store.ts']);
     assert.deepEqual(keys(check(app(), [...without('main.ts'), main])), [
