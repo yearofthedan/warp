@@ -725,11 +725,13 @@ root: { modules: {}, ruleset: { extends: [mine:strict] } }
 root:
   ruleset: { rules: { '*': {}, file-cohesion: 3, cognitive-complexity: [x] } }
   modules: { src: { files: '**', ruleset: { rules: all } } }
+  test: { ruleset: { rules: { '*': on } } }
 `),
       [
-        'root.ruleset.rules.*: expected on, off',
+        'root.ruleset.rules.*: expected off; turn rules on by name, or extend a ruleset such as warp:recommended',
         'root.ruleset.rules.file-cohesion: expected on, off or options',
         'root.ruleset.rules.cognitive-complexity: expected on, off or options',
+        'root.test.ruleset.rules.*: expected off; turn rules on by name, or extend a ruleset such as warp:recommended',
         'root.src.ruleset.rules: expected off or rule settings by id',
       ],
     );

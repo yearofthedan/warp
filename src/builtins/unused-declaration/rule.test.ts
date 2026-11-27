@@ -95,7 +95,7 @@ const check = (
 ) => {
   const all = options.files ?? paths;
   const raw = parse(structure);
-  const ruleset = { rules: { '*': 'on', ...options.rules } };
+  const ruleset = { rules: { 'unused-declaration': 'on', ...options.rules } };
   const { config } = loadConfigData({ ...raw, root: { ruleset, ...raw.root } });
   const project = {
     files: [...analyzed, ...all.filter((file) => !analyzed.some((f) => f.path === file)).map((file) => facts(file))],

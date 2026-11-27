@@ -47,7 +47,7 @@ const paths = [
 
 const load = (yaml: string) => {
   const raw = parse(yaml);
-  return compileConfig({ ...raw, root: { ruleset: { rules: { '*': 'on' } }, ...raw.root } });
+  return compileConfig(raw);
 };
 
 const shopYaml = `

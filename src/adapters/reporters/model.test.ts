@@ -19,7 +19,7 @@ const resolved = () => {
   const config = compileConfig(
     parse(`
 root:
-  ruleset: { rules: { '*': on, max-lines: { max: 200 } } }
+  ruleset: { rules: { no-cycle: on, max-lines: { max: 200 } } }
   modules:
     strings: { dir: src/strings }
     features: { dir: 'lib/orders/*' }

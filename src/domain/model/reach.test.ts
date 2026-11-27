@@ -52,7 +52,7 @@ const projectFiles = [
 
 const load = (yaml: string): ConfigData => {
   const raw = parse(yaml);
-  return compileConfig({ ...raw, root: { ruleset: { rules: { '*': 'on' } }, ...raw.root } });
+  return compileConfig(raw);
 };
 
 const structure = `
