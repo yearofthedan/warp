@@ -303,7 +303,8 @@ A ruleset turns rules on or off and sets their options. No rule runs until a rul
 on the root, a module or an archetype, and `ruleset:` in a `test:` block for test code. It reaches everything inside
 that place, and each place inside adds its own on top, as nested ESLint configs do. `warp:utility` goes on a module
 meant to be used from everywhere, such as `strings` or a helpers folder: it turns off
-[`export-consumers`](../src/builtins/export-consumers/README.md) there.
+[`export-consumers`](../src/builtins/export-consumers/README.md) and
+[`export-surface`](../src/builtins/export-surface/README.md) there.
 
 ```yaml
 root:

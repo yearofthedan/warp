@@ -28,6 +28,7 @@ archetypes:
         description: 'What warp knows, with no I/O: the model, its config language, fixes, facts and the rules API'
         dir: domain
         exposes: [errors, model, language, fixes, facts, rules]
+        ruleset: { rules: { export-surface: { max: 60 } } }
         modules:
           errors:
             description: 'ConfigError, which every layer raises or reports when a config is wrong'
@@ -39,6 +40,7 @@ archetypes:
             dir: model
             dependencies: [errors]
             exposes: all
+            ruleset: { rules: { export-surface: { max: 40 } } }
             test: { modules: { tests: { files: '*.test.ts', dependencies: [language, npm:yaml] } } }
           language:
             description: 'Compiling a parsed warp.yaml into ConfigData: shape, names, cross-checks and rulesets'
