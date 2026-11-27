@@ -167,3 +167,50 @@ describe('function statements', () => {
     assert.deepEqual(fn('Counter.bump')?.statements.links, [[0, 2]]);
   });
 });
+
+describe('class members', () => {
+  const graph = (name: string) => {
+    const facts = files.get('src/classes.ts')?.classes.find((c) => c.name === name);
+    const members = facts?.members.members ?? [];
+    return {
+      members: members.map((m) => `${m.kind} ${m.name}`),
+      links: facts?.members.links.map(([a, b]) => `${members[a].name} -> ${members[b].name}`),
+    };
+  };
+
+  it('reads methods, fields, accessors and inherited fields, and links them through this and the class name', () => {
+    assert.deepEqual(graph('Server'), {
+      members: [
+        'state #buffer',
+        'state #handlers',
+        'state total',
+        'state port',
+        'function flush',
+        'state count',
+        'function add',
+        'function listen',
+        'function push',
+        'function status',
+        'state items',
+      ],
+      links: [
+        'total -> #handlers',
+        'flush -> #buffer',
+        'count -> #handlers',
+        'count -> #handlers',
+        'add -> #handlers',
+        'listen -> port',
+        'push -> items',
+      ],
+    });
+  });
+
+  it('names a class expression by its variable', () => {
+    assert.deepEqual(graph('Anonymous'), { members: ['state #n', 'function bump'], links: ['bump -> #n'] });
+  });
+
+  it('links statements that share a private member', () => {
+    const bump = files.get('src/classes.ts')?.functions.find((f) => f.name === 'Counter2.bump');
+    assert.deepEqual(bump?.statements.links, [[0, 1]]);
+  });
+});

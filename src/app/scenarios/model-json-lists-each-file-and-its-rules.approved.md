@@ -60,6 +60,9 @@ warp model --json
         "file-cohesion": {
           "maxLines": 200
         },
+        "class-cohesion": {
+          "maxLines": 100
+        },
         "function-cohesion": {
           "maxLines": 40
         },
@@ -97,6 +100,9 @@ warp model --json
         "file-cohesion": {
           "maxLines": 200
         },
+        "class-cohesion": {
+          "maxLines": 100
+        },
         "function-cohesion": {
           "maxLines": 40
         },
@@ -133,6 +139,9 @@ warp model --json
         },
         "file-cohesion": {
           "maxLines": 200
+        },
+        "class-cohesion": {
+          "maxLines": 100
         },
         "function-cohesion": {
           "maxLines": 40

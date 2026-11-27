@@ -1,19 +1,19 @@
-import type { Identifier, Node, SourceFile } from 'typescript/ast';
-import { isIdentifier } from 'typescript/ast/is';
+import type { Identifier, Node, PrivateIdentifier, SourceFile } from 'typescript/ast';
+import { isIdentifier, isPrivateIdentifier } from 'typescript/ast/is';
 import type { Checker, Symbol } from 'typescript/sync';
 
 export interface Source {
   file: string;
   sourceFile: SourceFile;
-  symbolOf: (identifier: Identifier) => Symbol | undefined;
+  symbolOf: (identifier: Identifier | PrivateIdentifier) => Symbol | undefined;
   line: (node: Node) => number;
   endLine: (node: Node) => number;
 }
 
 export const readSource = (checker: Checker, sourceFile: SourceFile, file: string): Source => {
-  const identifiers: Identifier[] = [];
+  const identifiers: (Identifier | PrivateIdentifier)[] = [];
   walk(sourceFile, (node) => {
-    if (isIdentifier(node)) identifiers.push(node);
+    if (isIdentifier(node) || isPrivateIdentifier(node)) identifiers.push(node);
   });
   const symbols = identifiers.length > 0 ? checker.getSymbolAtLocation(identifiers) : [];
   const byNode = new Map<Node, Symbol | undefined>(

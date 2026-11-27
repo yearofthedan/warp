@@ -8,6 +8,7 @@ import type { FileFacts } from '../../domain/facts/facts.ts';
 import { fileEdges, type Resolver } from './imports.ts';
 import { moduleSpecifiers } from './specifiers.ts';
 import { countLines, readSource } from './source.ts';
+import { classFacts } from './classes.ts';
 import { functionFacts, fileMembers } from './members.ts';
 
 type Snapshot = ReturnType<API['createSnapshot']>;
@@ -114,6 +115,7 @@ const analyzeProgram = (
       ...fileEdges(source, resolver),
       members: fileMembers(source),
       functions: functionFacts(source),
+      classes: classFacts(source),
     };
     analyzed.set(file, { specifiers: moduleSpecifiers(sourceFile), facts });
   }

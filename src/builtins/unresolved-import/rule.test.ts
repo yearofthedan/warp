@@ -11,6 +11,7 @@ const facts = (path: string, unresolved: UnresolvedImport[] = []): FileFacts => 
   unresolved,
   members: { members: [], links: [] },
   functions: [],
+  classes: [],
 });
 
 describe('unresolved-import', () => {

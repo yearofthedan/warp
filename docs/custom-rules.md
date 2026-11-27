@@ -121,6 +121,7 @@ A `FileRule` reads one file at a time, with the options that resolve for that fi
 | `unresolved` | Each relative import that resolves to no file: `specifier`, `line`. |
 | `members` | The top-level declarations, such as `cartTotal`, and the links between those that use each other. The cohesion rules read it. |
 | `functions` | Each function's statements and complexity. |
+| `classes` | Each class's methods and fields, and the links between those that share state or call each other. |
 
 A `ProjectRule`, with `scope: 'project'`, reads the whole project once. Its context holds:
 

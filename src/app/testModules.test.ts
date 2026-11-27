@@ -48,6 +48,7 @@ const facts = (path: string, imports: ImportEdge[]): FileFacts => ({
   unresolved: [],
   members: { members: [], links: [] },
   functions: [],
+  classes: [],
 });
 
 const paths = [

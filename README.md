@@ -6,7 +6,7 @@ each may use, and warp reports the code that steps outside it:
 - imports outside a module's reach, including packages it doesn't list.
 - imports and re-exports that go around a module's surface.
 - import loops between files and between modules.
-- files and functions that are too large or too tangled to follow.
+- files, classes and functions that are too large or too tangled to follow.
 - parts of the config that the code no longer uses.
 
 `warp check` judges the whole codebase, for CI. `warp diff` reports only what a change made new or worse, so it can
@@ -67,4 +67,3 @@ new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils sr
   when the specifier is a string literal, a template literal without `${}` included. A specifier computed at runtime,
   such as `import(name)` or `` import(`./${name}.ts`) ``, goes unchecked.
 - A namespace import (`import * as x`) points at the module the specifier resolves to, a barrel included.
-- Each class method is checked as a function of its own, and a class is one member of its file.
