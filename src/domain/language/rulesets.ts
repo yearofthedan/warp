@@ -55,9 +55,10 @@ const localRulesets = (value: unknown, fail: Fail): Map<string, unknown> => {
   return new Map(Object.entries(value).filter(([name]) => !name.includes(':')));
 };
 
-const flatten = (state: Named, def: unknown, at: string, seen: readonly string[]): RulesetData => {
+const flatten = (state: Named, value: unknown, at: string, seen: readonly string[]): RulesetData => {
+  const def = Array.isArray(value) ? { extends: value } : value;
   if (!isRecord(def)) {
-    state.fail(`${at}: expected a ruleset, { extends: [${recommended}], rules: {...} }`);
+    state.fail(`${at}: expected a ruleset, [${recommended}] or { extends: [${recommended}], rules: {...} }`);
     return [];
   }
   for (const key of Object.keys(def).filter((key) => !rulesetKeys.includes(key)))

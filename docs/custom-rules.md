@@ -59,7 +59,7 @@ root:
       files: 'src/ui/**'
       dependencies: [application, domain]
       ruleset: { rules: { local/no-ports-through-application: on } }
-  ruleset: { extends: [warp:recommended] }
+  ruleset: [warp:recommended]
 ```
 
 - A plugin's rules run only where a ruleset turns them on: here, in `ui` alone. A plugin can also offer rulesets,

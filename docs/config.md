@@ -312,7 +312,7 @@ root:
     ruleset: { rules: { function-cohesion: off } }
   modules:
     domain: { dir: src/domain, archetype: layer }
-    adapters: { dir: src/adapters, archetype: layer, ruleset: { extends: [legacy] } }
+    adapters: { dir: src/adapters, archetype: layer, ruleset: [legacy] }
     generated: { dir: src/generated, ruleset: { rules: off } }
 
 archetypes:
@@ -341,6 +341,8 @@ src/generated/api.ts      no rules
 - A ruleset takes `extends`, the rulesets it starts from in order, and `rules`, settings by rule id laid over them.
   `extends` names `warp:recommended`, a plugin's ruleset as `namespace:name`, or a ruleset under the top-level
   `rulesets:`. A named ruleset applies only through an `extends`; one that nothing extends fails to load.
+- A ruleset with no rules of its own is the list it extends: `ruleset: [warp:recommended]` is
+  `ruleset: { extends: [warp:recommended] }`, here or under `rulesets:`.
 - Settings are `on`, `off` or options by rule id, and options turn the rule on. `'*'` sets every rule the ruleset
   doesn't name, and `rules: off` is `'*': off`. Plugin rules are `namespace/id`.
 - For a file, warp lays the rulesets from the root down to the file's module. At each module it takes the
@@ -379,7 +381,7 @@ plugins:
   shared: npm:@acme/warp-rules
 
 root:
-  ruleset: { extends: [warp:recommended, shared:recommended] }
+  ruleset: [warp:recommended, shared:recommended]
   modules:
     src: { files: '**', ruleset: { rules: { wt/no-ports-through-application: on } } }
 ```

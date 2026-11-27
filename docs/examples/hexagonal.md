@@ -28,7 +28,7 @@ root:
     modules:
       tests: { files: 'src/**/*.test.ts' }
     ruleset: { rules: { function-cohesion: off } }
-  ruleset: { extends: [warp:recommended] }
+  ruleset: [warp:recommended]
 ```
 
 `domain` has no dependencies, so it imports only its own files. `application` reaches the domain alone, so a use case names

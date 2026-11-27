@@ -31,7 +31,7 @@ root:
     modules:
       tests: { files: 'src/**/*.test.ts' }
     ruleset: { rules: { function-cohesion: off } }
-  ruleset: { extends: [warp:recommended] }
+  ruleset: [warp:recommended]
 ```
 
 `warp model` reads it as:

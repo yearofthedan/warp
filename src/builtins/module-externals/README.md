@@ -26,7 +26,7 @@ root:
   modules:
     domain: { dir: src/domain, exposes: all }
     adapters: { dir: src/adapters, dependencies: [domain, npm:pg] }
-  ruleset: { extends: [warp:recommended] }
+  ruleset: [warp:recommended]
 ```
 
 Incorrect code:

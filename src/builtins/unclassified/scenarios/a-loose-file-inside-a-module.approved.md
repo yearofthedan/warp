@@ -2,7 +2,7 @@ Rule: a file in a module with modules, which none of them claims, is loose there
 
 ```yaml warp.yaml
 root:
-  ruleset: { extends: [warp:recommended] }
+  ruleset: [warp:recommended]
   modules:
     ui: { dir: src/ui, archetype: ui }
 

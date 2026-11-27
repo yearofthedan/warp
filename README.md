@@ -35,7 +35,7 @@ root:
     modules:
       tests: { files: 'src/**/*.test.ts' }
     ruleset: { rules: { function-cohesion: off } }
-  ruleset: { extends: [warp:recommended] }
+  ruleset: [warp:recommended]
 ```
 
 Then check it, and after an edit, see what the edit broke:
