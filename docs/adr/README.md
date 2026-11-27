@@ -15,5 +15,4 @@ Consequences. Once Accepted, it stays as written, and a later decision supersede
 | # | Decision | Status |
 | --- | --- | --- |
 | [1](0001-toolchain.md) | Vite+ for checks and tests, plain tsc for the build | Accepted |
-| [2](0002-config-is-architectural.md) | The config is architectural | Accepted |
-| [3](0003-yaml-config.md) | The config is a YAML file | Accepted |
+| [2](0002-yaml-config.md) | The config is a YAML file | Accepted |
