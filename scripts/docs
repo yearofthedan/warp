@@ -1,5 +1,5 @@
 #!/bin/sh
-# help: Check each doc opens with Audience and Purpose, type-check its ts examples against warp's API, and load its configs.
+# help: Check each doc opens with Audience and Purpose, and links into AGENTS.md nowhere.
 
 set -eu
 

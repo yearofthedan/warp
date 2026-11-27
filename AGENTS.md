@@ -62,9 +62,10 @@ and is listed for review. A reason that lasts belongs in a name, a test or a doc
 assertion that stands alone. `./do comments` checks every file warp keeps.
 
 Each doc page opens with its title, an **Audience:** line and a **Purpose:** line. A conventional root file, such as
-`README.md` or `CONTRIBUTING.md`, follows its convention instead. `./do docs` type-checks each `ts`
-block against warp's API; a block of a user's code is `ts fragment`. Keep pages short and current, changed in the
-same change as the code they describe.
+`README.md` or `CONTRIBUTING.md`, follows its convention instead. `./do docs` checks those lines, and
+[src/docExamples.integration.test.ts](src/docExamples.integration.test.ts) loads each `warp.yaml` block and
+type-checks each `ts` block against warp's API; a block of a user's code is `ts fragment`. Keep pages short and
+current, changed in the same change as the code they describe.
 
 ## How work lands
 
