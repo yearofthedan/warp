@@ -32,11 +32,11 @@ const run = (rule: Rule, shared: Shared, settled: Settings): Finding[] => {
   if (rule.scope === 'project')
     return rule.check({
       ...shared,
-      atFile: (file) => settled.atFile(file, rule.id, rule.defaults),
-      atModule: (module) => settled.atModule(module, rule.id, rule.defaults),
+      atFile: (file) => settled.atFile(file, rule.id, rule.defaults, rule.moduleOptions),
+      atModule: (module) => settled.atModule(module, rule.id, rule.defaults, rule.moduleOptions),
     });
   return shared.project.files.flatMap((file) => {
-    const { on, options } = settled.atFile(file.path, rule.id, rule.defaults);
+    const { on, options } = settled.atFile(file.path, rule.id, rule.defaults, rule.moduleOptions);
     return on ? rule.check({ file, options }) : [];
   });
 };

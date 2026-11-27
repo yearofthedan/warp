@@ -32,8 +32,9 @@ src/
 - Values count, as for `export-consumers`. Type-only uses, tests and re-exports don't.
 - Settings, the `ignore` list included, are read at the judged module. A list set high in the tree, or on an
   archetype's ruleset, reaches every module inside, and a lower setting replaces it.
-- `ignore` names modules by the id [`warp model`](../../../docs/cli.md) prints. Exports from those modules and their
-  children don't count. An id that names no module fails the check.
+- `ignore` names modules as [`dependencies`](../../../docs/config.md#rulesets) do, from where the ruleset is
+  written: `ignore: [strings]` on `ui` is `ui`'s module `strings` if it has one, else the nearest `strings` above.
+  Exports from those modules and their children don't count. A name not in scope fails to load.
 
 The finding sits at the first use. Its value is the number of children, its `parts` name them, and its `details`
 give the judged module, the exporter's module, the export, and the files in each child.
@@ -48,7 +49,7 @@ root:
     strings: { dir: src/strings, exposes: all, ruleset: [warp:utility] }
     ui:
       dir: src/ui
-      ruleset: { rules: { export-spread: { ignore: [src/strings] } } }
+      ruleset: { rules: { export-spread: { ignore: [strings] } } }
       modules:
         cart: { dir: cart, dependencies: [domain, strings] }
         orders: { dir: orders, dependencies: [domain, strings] }
@@ -64,7 +65,7 @@ import { strings } from '../../strings/strings.ts';
 ```
 
 ```text
-src/ui/account/account.ts:1 [export-spread] 3 of src/ui's modules use cancelOrder from src/domain: src/ui/account, src/ui/cart and src/ui/orders. Its limit here is 2. Give the use to the one module that should own it and let the others go through that module, or add src/domain to export-spread's ignore list on src/ui if it is meant to be shared.
+src/ui/account/account.ts:1 [export-spread] 3 of src/ui's modules use cancelOrder from src/domain: src/ui/account, src/ui/cart and src/ui/orders. Its limit here is 2. Give the use to the one module that should own it and let the others go through that module, or name it in export-spread's ignore on src/ui if it is meant to be shared.
 ```
 
 `strings` is ignored, so its three uses pass.
@@ -90,7 +91,7 @@ exporter is meant to be shared, add it to `ignore` on the module, or on a module
 | Option | Default | Effect |
 | --- | --- | --- |
 | `max` | `2` | The most children that may use one outside value. |
-| `ignore` | `[]` | Modules, by id, whose exports don't count. |
+| `ignore` | `[]` | Modules, by name, whose exports don't count. |
 
 ## When not to use it
 

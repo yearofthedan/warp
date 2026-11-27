@@ -46,17 +46,12 @@ export const limitOptions =
     const max = wholeNumberOptions({ max: defaults.max })(rest, at);
     if (ignore === undefined) return max;
     if (!Array.isArray(ignore) || ignore.some((entry) => typeof entry !== 'string'))
-      throw new ConfigError(`${at}.ignore: expected a list of module ids`);
+      throw new ConfigError(`${at}.ignore: expected a list of module names`);
     return { ...max, ignore: ignore as string[] };
   };
 
-export const ignored = (model: Model, ids: readonly string[], at: string): ModuleView[] =>
-  ids.map((id) => {
-    const module = model.modules.find((candidate) => candidate.id === id);
-    if (!module)
-      throw new ConfigError(`${at}: ignore names ${id}, which is no module; name modules by the id warp model prints`);
-    return module;
-  });
+export const ignored = (model: Model, ids: readonly string[]): ModuleView[] =>
+  model.modules.filter((module) => ids.includes(module.id));
 
 export const listed = (items: readonly string[]): string =>
   items.length === 1 ? items[0]! : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;

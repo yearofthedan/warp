@@ -1,9 +1,11 @@
-import type { RuleSettingsData, RulesetData } from '../model/data.ts';
+import type { RefData, RuleSettingsData, RulesetData } from '../model/data.ts';
 import { type Fail, isRecord, list } from '../model/shared.ts';
 
-export type ParseRules = (value: unknown, at: string) => RuleSettingsData | undefined;
+export type Names = (entry: string, where: string) => RefData | undefined;
 
-export type ParseRuleset = (value: unknown, at: string) => RulesetData | undefined;
+export type ParseRules = (value: unknown, at: string, names?: Names) => RuleSettingsData | undefined;
+
+export type ParseRuleset = (value: unknown, at: string, names?: Names) => RulesetData | undefined;
 
 export interface Rulesets {
   parse: ParseRuleset;
@@ -36,7 +38,7 @@ export const rulesets = (
     extended: new Set(),
   };
   return {
-    parse: (value, at) => (value === undefined ? undefined : flatten(state, value, at, [])),
+    parse: (value, at, names) => (value === undefined ? undefined : flatten(state, value, at, [], names)),
     checkUsed: () => {
       for (const name of [...state.local.keys()].filter((name) => !state.extended.has(name)))
         fail(`rulesets.${name}: nothing extends it; a named ruleset applies through a ruleset's extends`);
@@ -55,7 +57,7 @@ const localRulesets = (value: unknown, fail: Fail): Map<string, unknown> => {
   return new Map(Object.entries(value).filter(([name]) => !name.includes(':')));
 };
 
-const flatten = (state: Named, value: unknown, at: string, seen: readonly string[]): RulesetData => {
+const flatten = (state: Named, value: unknown, at: string, seen: readonly string[], names?: Names): RulesetData => {
   const def = Array.isArray(value) ? { extends: value } : value === 'off' ? { rules: 'off' } : value;
   if (!isRecord(def)) {
     state.fail(`${at}: expected a ruleset, off, [${recommended}] or { extends: [${recommended}], rules: {...} }`);
@@ -64,7 +66,7 @@ const flatten = (state: Named, value: unknown, at: string, seen: readonly string
   for (const key of Object.keys(def).filter((key) => !rulesetKeys.includes(key)))
     state.fail(`${at}: unknown key ${key}; a ruleset takes ${rulesetKeys.join(', ')}`);
   const bases = [def.extends ?? []].flat().flatMap((base) => baseOf(state, base, `${at}.extends`, seen));
-  const own = state.parseRules(def.rules, `${at}.rules`);
+  const own = state.parseRules(def.rules, `${at}.rules`, names);
   return own ? [...bases, own] : bases;
 };
 

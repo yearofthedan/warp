@@ -74,7 +74,7 @@ const project = [
 ];
 
 const run = (ui = '') => {
-  const config = loadConfigData(parse(yaml(ui))).config;
+  const config = loadConfigData(parse(yaml(ui)), { builtins: { rules: [exportSpread] } }).config;
   const paths = project.map((file) => file.path);
   return checkModel(config, resolveModel(config, folders(paths), paths), { files: project }, [exportSpread]);
 };
@@ -101,8 +101,8 @@ describe('export-spread', () => {
           parts: ['ui/account', 'ui/cart', 'ui/orders'],
           message:
             "3 of ui's modules use strings from strings: ui/account, ui/cart and ui/orders. Its limit here is 2. " +
-            'Give the use to the one module that should own it and let the others go through that module, or add ' +
-            "strings to export-spread's ignore list on ui if it is meant to be shared.",
+            'Give the use to the one module that should own it and let the others go through that module, or name ' +
+            "it in export-spread's ignore on ui if it is meant to be shared.",
         },
       ],
     );
@@ -112,10 +112,11 @@ describe('export-spread', () => {
     assert.deepEqual(run('\n      ruleset: { rules: { export-spread: { ignore: [strings] } } }'), []);
   });
 
-  it('refuses an ignore entry that names no module', () => {
+  it('names modules as dependencies do, from where the ruleset is written, and refuses one not in scope', () => {
     assert.throws(() => run('\n      ruleset: { rules: { export-spread: { ignore: [string] } } }'), {
       name: 'ConfigError',
-      message: /ignore names string, which is no module/,
+      message:
+        /^root\.ui\.ruleset\.rules\.export-spread\.ignore: 'string': no module or input called string here; in scope: account, cart, domain, orders, strings, ui$/,
     });
   });
 });

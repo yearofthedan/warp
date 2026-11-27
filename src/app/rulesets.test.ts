@@ -253,4 +253,64 @@ root:
       ],
     );
   });
+
+  it('resolves an option that names modules from where its ruleset is written, to the modules it names there', () => {
+    const yaml = `
+root:
+  ruleset: { rules: { export-spread: { ignore: [shared] } } }
+  modules:
+    shared: { dir: shared, exposes: all }
+    icons: { dir: icons, exposes: all }
+    ui:
+      dir: ui
+      ruleset: { rules: { export-spread: { ignore: [icons, kit] } } }
+      modules:
+        kit: { files: 'kit*.ts', exposes: all }
+    pages: { dir: pages, archetype: page, dependencies: { strings: shared } }
+archetypes:
+  page:
+    requires: [strings]
+    ruleset: { rules: { export-spread: { ignore: [strings] } } }
+    modules:
+      view: { files: '*.ts', dependencies: [strings] }
+`;
+    const config = load(yaml);
+    const paths = ['shared/a.ts', 'icons/a.ts', 'ui/kit.ts', 'pages/a.ts'];
+    const model = resolveModel(config, folders(paths), paths);
+    const settled = settings(config, model);
+    const ignore = (module: string) =>
+      settled.atModule(
+        model.modules.find((at) => at.id === module)!,
+        'export-spread',
+        {},
+        ['ignore'],
+      ).options.ignore;
+    assert.deepEqual(
+      ['(root)', 'ui', 'pages'].map((module) => [module, ignore(module)]),
+      [
+        ['(root)', ['shared']],
+        ['ui', ['icons', 'ui:kit']],
+        ['pages', ['shared']],
+      ],
+    );
+  });
+
+  it('refuses module names in a named ruleset, and a package or a surface', () => {
+    assert.deepEqual(
+      failures(`
+rulesets:
+  shared: { rules: { export-spread: { ignore: [ui] } } }
+root:
+  ruleset: [shared]
+  modules:
+    ui: { dir: ui, exposes: [kit], modules: { kit: { dir: kit, exposes: all } }, ruleset: { rules: { module-cycle: on } } }
+    app: { dir: app, ruleset: { rules: { export-spread: { ignore: ['npm:zod', ui.kit] } } } }
+`),
+      [
+        'rulesets.shared.rules.export-spread.ignore: names modules, so it goes in a ruleset on the root, a module or an archetype',
+        "root.app.ruleset.rules.export-spread.ignore: 'npm:zod': name a module, not a package or a surface",
+        "root.app.ruleset.rules.export-spread.ignore: 'ui.kit': name a module, not a package or a surface",
+      ],
+    );
+  });
 });

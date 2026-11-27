@@ -25,6 +25,9 @@ export const loadConfigData = (raw: unknown, { builtins, file, plugins = {} }: L
     rulesets: pluginRulesets(builtins ? { ...plugins, warp: builtins } : plugins),
     ruleIds: builtins && new Set(rules.map((rule) => rule.id)),
     options: Object.fromEntries(rules.map((rule) => [rule.id, rule.parseOptions ?? noOptions])),
+    moduleOptions: Object.fromEntries(
+      rules.flatMap((rule) => (rule.moduleOptions ? [[rule.id, rule.moduleOptions]] : [])),
+    ),
   });
   return { config, rules };
 };

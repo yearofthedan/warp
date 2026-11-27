@@ -70,6 +70,8 @@ root:
 - Types in the editor come from the `@yearofthedan/warp` dev dependency.
 - `defaults` and `parseOptions` are optional: a rule without them takes no options. `wholeNumberOptions` and
   `ConfigError` are exported for writing `parseOptions`.
+- `moduleOptions: ['ignore']` marks options that list modules by name. warp resolves each name from where its
+  ruleset is written, as [`dependencies`](config.md#names) are, and the rule gets the ids of the modules named.
 - A rule's findings get the namespaced `rule`, and keys prefixed with the namespace. They link to the rule's `docs`
   when it has one.
 - `diff` caches findings by the config and every file its plugins import, so editing a rule redoes the base.

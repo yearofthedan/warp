@@ -14,13 +14,14 @@ export interface CompileOptions {
   rulesets?: Readonly<Record<string, unknown>>;
   ruleIds?: ReadonlySet<string> | undefined;
   options?: Check['options'];
+  moduleOptions?: Check['moduleOptions'];
 }
 
 const keys = ['root', 'archetypes', 'rulesets', 'plugins', 'tsconfig'];
 
 export const compileConfig = (
   raw: unknown,
-  { file = 'warp.yaml', plugins = [], rulesets = {}, ruleIds, options = {} }: CompileOptions = {},
+  { file = 'warp.yaml', plugins = [], rulesets = {}, ruleIds, options = {}, moduleOptions = {} }: CompileOptions = {},
 ): ConfigData => {
   const errors: string[] = [];
   const fail: Fail = (message) => {
@@ -33,8 +34,8 @@ export const compileConfig = (
   const unknownKeys = Object.keys(raw).filter((key) => !keys.includes(key));
   for (const key of unknownKeys) fail(`${key}: unknown key; a config takes ${keys.join(', ')}`);
   checkPlugins(raw.plugins, plugins, fail);
-  const check: Check = { fail, ruleIds, options };
-  const named = namedRulesets(raw.rulesets, rulesets, (value, at) => toRules(check, value, at), fail);
+  const check: Check = { fail, ruleIds, options, moduleOptions };
+  const named = namedRulesets(raw.rulesets, rulesets, (value, at, names) => toRules(check, value, at, names), fail);
   const structure = parseStructure(raw.root, raw.archetypes, fail, named.parse);
   named.checkUsed();
   failed();
