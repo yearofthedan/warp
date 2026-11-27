@@ -137,6 +137,7 @@ const facts = (path: string, imports: ImportEdge[], externals: ExternalImport[] 
   members: { members: [], links: [] },
   functions: [],
   classes: [],
+  chains: [],
 });
 
 const documented = (docs: Record<string, string>) =>

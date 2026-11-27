@@ -35,6 +35,7 @@ const facts = (path: string, lines: number): FileFacts => ({
   members: { members: [], links: [] },
   functions: [],
   classes: [],
+  chains: [],
 });
 
 const yaml = `

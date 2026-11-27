@@ -88,6 +88,7 @@ describe('valueUses', () => {
     members: { members: [], links: [] },
     functions: [],
     classes: [],
+    chains: [],
   });
   const model = { isTest: (file: string) => file.endsWith('.test.ts') } as Model;
 

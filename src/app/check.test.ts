@@ -14,6 +14,7 @@ const facts = (path: string): FileFacts => ({
   members: { members: [], links: [] },
   functions: [],
   classes: [],
+  chains: [],
 });
 
 const analyzed = (paths: readonly string[]) => ({

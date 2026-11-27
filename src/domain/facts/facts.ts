@@ -11,6 +11,7 @@ export interface FileFacts {
   members: MemberGraph;
   functions: FunctionFacts[];
   classes: ClassFacts[];
+  chains: Chain[];
 }
 
 export interface ImportEdge {
@@ -74,4 +75,17 @@ export interface ClassFacts {
   endLine: number;
   lines: number;
   members: MemberGraph;
+}
+
+export interface Chain {
+  line: number;
+  root?: Declared;
+  hops: Declared[];
+  call: boolean;
+}
+
+export interface Declared {
+  file: string;
+  name: string;
+  member?: string;
 }

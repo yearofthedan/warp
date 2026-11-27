@@ -66,4 +66,3 @@ new: src/utils/slug.ts:1 [dependency-direction] src/utils/slug.ts (root.utils sr
 - warp follows `import`, `export … from`, `import x = require()`, `import()`, `require()` and `import('…')` types
   when the specifier is a string literal, a template literal without `${}` included. A specifier computed at runtime,
   such as `import(name)` or `` import(`./${name}.ts`) ``, goes unchecked.
-- A namespace import (`import * as x`) points at the module the specifier resolves to, a barrel included.

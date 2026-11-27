@@ -30,10 +30,14 @@ src/
 `cancelOrder` has 3 consumers. Splitting `ui` into more modules doesn't change the count; how many of `ui`'s modules
 use it is [`export-spread`](../export-spread/README.md)'s question.
 
-- Values count: functions, classes, constants. A type-only use doesn't, since domain types are meant to be used
-  widely.
+- Values count: functions, classes, constants, and members reached through a value. Naming a type doesn't, since
+  domain types are meant to be used widely.
 - Production files count. Tests and re-exports don't.
-- An import is counted by the name its declaring file exports, through any barrel.
+- A use through a member counts against that member, by the first hop onto a member another file declares:
+  `order.cancel()` counts against `Order#cancel`, and `strings.header.title` against `strings#header`, so each part
+  of a widely used class or table is judged on its own. A namespace import's `orders.total()` counts against
+  `total`.
+- A use is counted by the name its declaring file exports, through any barrel.
 - Settings are read at the exporter's module. [`warp:utility`](../../../docs/config.md#rulesets) turns the rule off
   there, with [`export-surface`](../export-surface/README.md).
 

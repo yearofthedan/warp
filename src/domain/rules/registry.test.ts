@@ -13,6 +13,7 @@ const file = {
   members: { members: [], links: [] },
   functions: [],
   classes: [],
+  chains: [],
 };
 
 const finding = (rule: string, file: string): Finding => ({
