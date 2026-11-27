@@ -14,27 +14,29 @@ beforeAll(() => {
 const fn = (name: string) => files.get('src/complexity.ts')?.functions.find((f) => f.name === name);
 
 describe('import graph', () => {
-  it('resolves named imports through a barrel to the declaring file', () => {
+  it('resolves named imports through a barrel to the declaring file, one edge for values and one for types', () => {
     const edges = files.get('src/complexity.ts')?.imports ?? [];
-    const named = edges.find((edge) => edge.line === 3);
-    assert.deepEqual(named, {
+    const named = edges.filter((edge) => edge.line === 3);
+    const edge = {
       from: 'src/complexity.ts',
       to: 'src/lib/shapes.ts',
       via: 'src/lib/index.ts',
       specifier: './lib/index.ts',
-      names: ['Square', 'Circle'],
-      typeOnly: false,
       line: 3,
-    });
+    };
+    assert.deepEqual(named, [
+      { ...edge, names: ['Square'], typeOnly: false },
+      { ...edge, names: ['Circle'], typeOnly: true },
+    ]);
   });
 
-  it('points side-effect and namespace imports at the file the specifier resolves to', () => {
+  it('points side-effect and namespace imports at the file the specifier resolves to, a namespace as *', () => {
     const edges = files.get('src/complexity.ts')?.imports ?? [];
     assert.deepEqual(
       edges.filter((edge) => edge.line < 3).map((edge) => [edge.to, edge.names]),
       [
         ['src/lib/index.ts', []],
-        ['src/lib/index.ts', ['lib']],
+        ['src/lib/index.ts', ['*']],
       ],
     );
   });
@@ -44,9 +46,17 @@ describe('import graph', () => {
     assert.deepEqual(
       edges.map((edge) => [edge.to, edge.names, edge.reExport]),
       [
-        ['src/lib/shapes.ts', ['Circle', 'Square'], true],
+        ['src/lib/shapes.ts', ['Circle'], true],
+        ['src/lib/shapes.ts', ['Square'], true],
         ['src/lib/shapes.ts', [], true],
       ],
+    );
+  });
+
+  it('names an import by the name its declaring file exports, not the local alias', () => {
+    assert.deepEqual(
+      files.get('src/alias.ts')?.imports.map((edge) => edge.names),
+      [['Square']],
     );
   });
 
@@ -99,7 +109,7 @@ describe('import graph', () => {
     assert.deepEqual(
       file.imports.map((edge) => [edge.line, edge.to, edge.names, edge.typeOnly]),
       [
-        [1, 'src/lib/shapes.ts', ['shapes'], false],
+        [1, 'src/lib/shapes.ts', ['*'], false],
         [5, 'src/lib/index.ts', [], false],
         [6, 'src/lib/shapes.ts', [], false],
         [7, 'src/lib/shapes.ts', [], false],
