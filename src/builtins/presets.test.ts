@@ -30,7 +30,10 @@ root:
         .map(({ id }) => id)
         .filter((id) => off(id).length > 0)
         .map((id) => [id, off(id)]),
-      [['export-consumers', ['strings']]],
+      [
+        ['export-consumers', ['strings']],
+        ['export-surface', ['strings']],
+      ],
     );
   });
 });
