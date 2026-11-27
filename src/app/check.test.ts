@@ -13,6 +13,7 @@ const facts = (path: string): FileFacts => ({
   unresolved: [],
   members: { members: [], links: [] },
   functions: [],
+  classes: [],
 });
 
 const analyzed = (paths: readonly string[]) => ({

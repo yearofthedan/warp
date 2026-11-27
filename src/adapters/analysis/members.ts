@@ -131,7 +131,7 @@ const references = (node: Node, source: Source): Set<string> => {
       const key = symbolKey(source.symbolOf(child));
       if (key) keys.add(key);
     }
-    if (isPropertyAccessExpression(child) && isThisExpression(child.expression) && isIdentifier(child.name)) {
+    if (isPropertyAccessExpression(child) && isThisExpression(child.expression)) {
       keys.add(`this.${child.name.text}`);
     }
   });

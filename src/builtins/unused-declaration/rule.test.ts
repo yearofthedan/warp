@@ -49,6 +49,7 @@ const facts = (path: string, imports: string[] = [], packages: string[] = []): F
   unresolved: [],
   members: { members: [], links: [] },
   functions: [],
+  classes: [],
 });
 
 const ui = `

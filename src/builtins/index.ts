@@ -1,5 +1,6 @@
 import { registry } from '../domain/rules/registry.ts';
 import type { Plugin, Rule } from '../domain/rules/rule.ts';
+import { classCohesion } from './class-cohesion/rule.ts';
 import { cognitiveComplexity } from './cognitive-complexity/rule.ts';
 import { dependencyDirection } from './dependency-direction/rule.ts';
 import { fileCohesion } from './file-cohesion/rule.ts';
@@ -23,6 +24,7 @@ export const builtinRules: readonly Rule[] = [
   noCycle,
   moduleCycle,
   fileCohesion,
+  classCohesion,
   functionCohesion,
   cognitiveComplexity,
   unusedDeclaration,

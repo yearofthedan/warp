@@ -10,6 +10,7 @@ export interface FileFacts {
   unresolved: UnresolvedImport[];
   members: MemberGraph;
   functions: FunctionFacts[];
+  classes: ClassFacts[];
 }
 
 export interface ImportEdge {
@@ -65,4 +66,12 @@ export interface FunctionFacts {
 export interface Complexity {
   total: number;
   increments: { line: number; amount: number; reason: string }[];
+}
+
+export interface ClassFacts {
+  name: string;
+  line: number;
+  endLine: number;
+  lines: number;
+  members: MemberGraph;
 }

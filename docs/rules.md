@@ -17,6 +17,7 @@ rule's page shows a config, code it reports with the finding it prints, code it 
 | [`no-cycle`](../src/builtins/no-cycle/README.md) | A loop among files. | `types` |
 | [`no-cross-module-reexport`](../src/builtins/no-cross-module-reexport/README.md) | A re-export of another module's file, other than one nested in the re-exporting module. | |
 | [`file-cohesion`](../src/builtins/file-cohesion/README.md) | A file over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
+| [`class-cohesion`](../src/builtins/class-cohesion/README.md) | A class over a size tripwire whose stateful methods fall into groups that share no fields or calls (LCOM4). | `maxLines` |
 | [`function-cohesion`](../src/builtins/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
 | [`cognitive-complexity`](../src/builtins/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |
 | [`unused-declaration`](../src/builtins/unused-declaration/README.md) | A `dependencies` entry, a surface or a module the code doesn't use. | |

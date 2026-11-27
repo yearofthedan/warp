@@ -44,7 +44,7 @@ takes the value it needs as a parameter, and `api` passes it in.
 | [`module-cycle`](../src/builtins/module-cycle/README.md), [`no-cycle`](../src/builtins/no-cycle/README.md) | Move what both sides need into a module or file they both use, or invert one import. | Turn `module-cycle` off on the module that holds modules meant to use each other. |
 | [`no-double-export`](../src/builtins/no-double-export/README.md) | Delete the barrel's re-export. | Expose only the barrel. |
 | [`no-cross-module-reexport`](../src/builtins/no-cross-module-reexport/README.md) | Have importers import the other module directly. | Move the other module inside the one that re-exports it. |
-| [`file-cohesion`](../src/builtins/file-cohesion/README.md), [`function-cohesion`](../src/builtins/function-cohesion/README.md) | Split along the groups the message names. | Raise `maxLines` for the module. |
+| [`file-cohesion`](../src/builtins/file-cohesion/README.md), [`class-cohesion`](../src/builtins/class-cohesion/README.md), [`function-cohesion`](../src/builtins/function-cohesion/README.md) | Split along the groups the message names. | Raise `maxLines` for the module. |
 | [`cognitive-complexity`](../src/builtins/cognitive-complexity/README.md) | Return early, or extract the increments the message names. | Raise `max` for the module. |
 | [`unused-declaration`](../src/builtins/unused-declaration/README.md) | Nothing: the config holds more than the code uses. | Remove the declaration. |
 

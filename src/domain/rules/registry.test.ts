@@ -12,6 +12,7 @@ const file = {
   unresolved: [],
   members: { members: [], links: [] },
   functions: [],
+  classes: [],
 };
 
 const finding = (rule: string, file: string): Finding => ({

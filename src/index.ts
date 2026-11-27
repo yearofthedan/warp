@@ -1,6 +1,7 @@
 export { loadConfigData, type LoadedConfigData } from './app/load.ts';
 export type * from './domain/model/data.ts';
 export type {
+  ClassFacts,
   Complexity,
   FunctionFacts,
   ImportEdge,
