@@ -343,6 +343,25 @@ src/generated/api.ts      no rules
   `rulesets:`. A named ruleset applies only through an `extends`; one that nothing extends fails to load.
 - A ruleset with no rules of its own is the list it extends: `ruleset: [warp:recommended]` is
   `ruleset: { extends: [warp:recommended] }`, here or under `rulesets:`.
+- Name a ruleset to give a set of presets one name, or to use the same settings in several places that don't
+  share them through the tree:
+
+```yaml
+plugins:
+  shared: npm:@acme/warp-rules
+
+rulesets:
+  lint-rules: [warp:recommended, shared:recommended]
+  strict: { rules: { cognitive-complexity: { max: 8 }, file-cohesion: { maxLines: 150 } } }
+
+root:
+  ruleset: [lint-rules]
+  modules:
+    domain: { dir: src/domain, ruleset: [strict] }
+    billing: { dir: src/billing, ruleset: [strict] }
+    scripts: { dir: scripts }
+```
+
 - Settings are `on`, `off` or options by rule id, and options turn the rule on. `'*'` sets every rule the ruleset
   doesn't name, and `rules: off` is `'*': off`. Plugin rules are `namespace/id`.
 - For a file, warp lays the rulesets from the root down to the file's module. At each module it takes the
