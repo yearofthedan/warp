@@ -13,7 +13,7 @@ for the config language.
 - [docs/config.md](docs/config.md): the config language and rulesets. [docs/rules.md](docs/rules.md) lists the rules,
   and [docs/custom-rules.md](docs/custom-rules.md) covers plugins.
 - [docs/concepts.md](docs/concepts.md): what each of warp's terms means, on one example.
-- [docs/adr/](docs/adr/README.md): why each decision was made. Read the record before changing what it decided.
+- [docs/adr/](docs/adr/README.md): why each architectural decision was made. Read the record before changing what it decided.
 - [CONTRIBUTING.md](CONTRIBUTING.md): running a clone, and why each compiler, tool, CI and dependency setting is there.
 
 ## Running tasks
