@@ -12,9 +12,8 @@ cover the whole codebase, and makes each new place for code a decision.
 
 ## Rule details
 
-The rule judges the root module's loose files unless a ruleset turns it off, and a nested module's where a ruleset
-turns it on, for the module's archetype, the module that found it, a module above it, or the whole config. `warp model`
-lists every loose file.
+A file is loose when its folder module has modules and none of them matches it. A folder module without modules owns
+all its files, and a module's entry is its own, so neither is loose. `warp model` lists every loose file.
 
 ## Example
 
@@ -23,10 +22,7 @@ root:
   modules:
     domain: { files: 'src/domain/**' }
     ui: { files: 'src/ui/**' }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
+  ruleset: { extends: [warp:recommended] }
 ```
 
 With `src/stray.ts` in the project:
@@ -45,5 +41,5 @@ None.
 
 ## When not to use it
 
-While a codebase is being described module by module. Turn it off for the archetype still in progress, so new folders
-elsewhere are still reported.
+While a codebase is being described module by module. Turn it off in the ruleset of the module still in progress, so
+new folders elsewhere are still reported.

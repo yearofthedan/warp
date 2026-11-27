@@ -2,14 +2,12 @@ Rule: a function over the limit is reported with its largest increments.
 
 ```yaml warp.yaml
 root:
-  modules:
-    src: { dir: src }
-
-rulesets:
-  default:
+  ruleset:
     extends: [warp:recommended]
     rules:
       cognitive-complexity: { max: 4 }
+  modules:
+    src: { dir: src }
 ```
 
 ```ts src/grade.ts

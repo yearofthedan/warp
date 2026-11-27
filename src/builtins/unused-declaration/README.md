@@ -40,10 +40,7 @@ root:
     domain: { dir: src/domain, exposes: all }
     ports: { dir: src/ports, exposes: all, dependencies: [domain, npm:zod] }
     styles: { files: 'src/*.css', exposes: all }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
+  ruleset: { extends: [warp:recommended] }
 ```
 
 and these files:
@@ -74,5 +71,5 @@ None.
 
 ## When not to use it
 
-When a config is being written ahead of the code it describes. Turn the rule off for that archetype or module in a
-ruleset, `on: { root.ports: { unused-declaration: off } }`, so it stays on everywhere else.
+When a config is being written ahead of the code it describes. Turn the rule off in that archetype's or module's
+ruleset, `ruleset: { rules: { unused-declaration: off } }`, so it stays on everywhere else.

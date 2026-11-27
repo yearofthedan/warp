@@ -85,13 +85,11 @@ archetypes:
     modules:
       cards: { dir: '*', archetype: card }
       src: { files: view.ts, exposes: all, dependencies: [ports] }
-rulesets:
-  default:
-    extends: [warp:recommended]
 `;
 
-const check = (analyzed: FileFacts[], { child = 'ui', on = '' } = {}) => {
-  const { config } = loadConfigData(parse(`${structure(child)}${on === '' ? '' : `    on: ${on}\n`}`));
+const check = (analyzed: FileFacts[], { child = 'ui', edit = (yaml: string) => yaml } = {}) => {
+  const raw = parse(edit(structure(child)));
+  const { config } = loadConfigData({ ...raw, root: { ruleset: { rules: { '*': 'on' } }, ...raw.root } });
   const all = [
     ...analyzed,
     ...paths.filter((file) => !analyzed.some((m) => m.path === file)).map((file) => facts(file)),
@@ -213,7 +211,15 @@ describe(rule, () => {
 
   it('reports nothing where the rule is off, and takes no options', () => {
     const analyzed = [facts('ui/index.ts', [reExport('ui/index.ts', 'ports/folder.ts')])];
-    assert.deepEqual(keys(check(analyzed, { on: `{ ui.api: { ${rule}: off } }` })), []);
+    assert.deepEqual(
+      keys(
+        check(analyzed, {
+          edit: (yaml) =>
+            yaml.replace('api: { files: index.ts,', `api: { ruleset: { rules: { ${rule}: off } }, files: index.ts,`),
+        }),
+      ),
+      [],
+    );
     assert.throws(() => noCrossModuleReexport.parseOptions!({ allow: [] }, 'at'), /at: unknown key allow/);
   });
 });

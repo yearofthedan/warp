@@ -4,8 +4,8 @@
 **Purpose:** every part of the config language: its keys, modules, names, archetypes, reach, tests and rulesets.
 
 The config is a `warp.yaml` next to the project's tsconfig. It declares the modules of the codebase, which files each
-owns, what each may import and what each offers, and its rulesets say which rules judge each module, and how
-strictly. [concepts.md](concepts.md) defines its terms, and [`warp.yaml`](../warp.yaml) is the config warp checks
+owns, what each may import and what each offers, and the rulesets on its modules say which rules judge each one, and
+how strictly. [concepts.md](concepts.md) defines its terms, and [`warp.yaml`](../warp.yaml) is the config warp checks
 itself with.
 
 Every permission is written down: a module may import only what its config names, and offers only what it exposes.
@@ -14,16 +14,16 @@ tangled too, and the fix is usually in the code rather than the config.
 
 ```yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
+    rules: { cognitive-complexity: { max: 15 } }
   modules:
     domain: { dir: src/domain, exposes: all }
     application: { dir: src/app, dependencies: [domain], exposes: all }
-    adapters: { dir: src/adapters, dependencies: [domain, application, 'npm:*'] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
-    rules: { cognitive-complexity: { max: 15 } }
-    on: { root.adapters: { file-cohesion: { maxLines: 300 } } }
+    adapters:
+      dir: src/adapters
+      dependencies: [domain, application, 'npm:*']
+      ruleset: { rules: { file-cohesion: { maxLines: 300 } } }
 ```
 
 The top level takes these keys:
@@ -32,7 +32,7 @@ The top level takes these keys:
 | --- | --- | --- |
 | `root` | the repository: the module of the config's folder | required |
 | `archetypes` | archetypes by name, see [Archetypes](#archetypes) | none |
-| `rulesets` | rulesets by name, see [Rulesets](#rulesets) | none, so no rule runs |
+| `rulesets` | named rulesets that other rulesets extend, see [Rulesets](#rulesets) | none |
 | `plugins` | custom rules' files by namespace, see [custom-rules.md](custom-rules.md) | none |
 | `tsconfig` | a path, or a list of paths, relative to the config | `tsconfig.json` |
 
@@ -54,6 +54,7 @@ Every boundary the config declares is a module, a key under some `modules:`. A m
 | `entry` | its one way in, in place of `exposes`: a file pattern |
 | `modules` | the modules inside it, on a `dir` module only: a folder holds modules, a list of files doesn't |
 | `test` | its test code, see [Tests](#tests) |
+| `ruleset` | the rules for it and everything inside it, see [Rulesets](#rulesets) |
 
 ```yaml
 root:
@@ -76,9 +77,9 @@ root:
   are relative to the module they are written in.
 - When modules overlap, the most specific claims: the deepest `dir`, then the `files` pattern with the longest fixed
   ending after its last `*` (`*.dom.ts` beats `*.ts`), with `**` last. A tie fails to load and names both modules.
-- A file belongs to its deepest folder module, then to the files module there that matches it. A file no module
-  matches is loose. [`unclassified`](../src/builtins/unclassified/README.md) reports the root's loose files, and a
-  nested module's where a ruleset turns it on; `warp model` lists them all.
+- A file belongs to its deepest folder module, then to the files module there that matches it. A file in a folder
+  module that has modules, which none of them matches, is loose. A folder module's entry is never loose.
+  [`unclassified`](../src/builtins/unclassified/README.md) reports loose files, and `warp model` lists them.
 - Each module names its own `dependencies`: nothing passes down from the module that holds it. `db` above names
   `domain` itself.
 - [`warp model`](cli.md) shows how warp reads the config. A folder module's id is its folder (`(root)` for the root),
@@ -221,6 +222,7 @@ Each module, archetype and the root has one `test:` block, the test-side twin of
 | `exposes` | what test code outside may import from it; production code never sees it |
 | `requires` | on an archetype, inputs only its tests need |
 | `dependencies` | on a use of an archetype, what fills its `test.requires` |
+| `ruleset` | the rules for its test code, see [Rulesets](#rulesets) |
 
 ```yaml
 root:
@@ -296,55 +298,60 @@ e2e/checkout.test.ts               e2e                         reaches the journ
 
 ## Rulesets
 
-No rule runs until a ruleset extends `warp:recommended`, which runs every rule with its defaults, and
-[`unclassified`](../src/builtins/unclassified/README.md) at the root. A ruleset sets rules at three levels: `rules`
-for the whole config, `test` for every test module, and `on` for an archetype, or a module by its path from an
-archetype or the root, `root.adapters` or `layer.tests`. The ruleset named `default` applies when the command names
-none.
+A ruleset turns rules on or off and sets their options. No rule runs until a ruleset turns it on, and
+`warp:recommended` turns on every built-in rule with its defaults. A ruleset is written where it applies: `ruleset:`
+on the root, a module or an archetype, and `ruleset:` in a `test:` block for test code. It reaches everything inside
+that place, and each place inside adds its own on top, as nested ESLint configs do.
 
 ```yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
+    rules: { cognitive-complexity: { max: 15 } }
+  test:
+    ruleset: { rules: { function-cohesion: off } }
   modules:
     domain: { dir: src/domain, archetype: layer }
-    adapters: { dir: src/adapters, archetype: layer }
-    generated: { dir: src/generated }
+    adapters: { dir: src/adapters, archetype: layer, ruleset: { extends: [legacy] } }
+    generated: { dir: src/generated, ruleset: { rules: off } }
 
 archetypes:
   layer:
+    ruleset: { rules: { file-cohesion: { maxLines: 200 } } }
     exposes: all
     modules:
       src: { files: '**', exposes: all }
     test:
       provides: [npm:vitest]
       modules:
-        tests: { files: '**/*.test.ts' }
+        tests: { files: '**/*.test.ts', ruleset: { rules: { file-cohesion: { maxLines: 400 } } } }
 
 rulesets:
-  default:
-    extends: [warp:recommended]
-    rules: { cognitive-complexity: { max: 15 } }
-    test: { function-cohesion: off }
-    on: { root.generated: off }
-  edit:
-    extends: [default]
-    rules: { cognitive-complexity: { max: 12 } }
-    on: { root.adapters: { file-cohesion: { maxLines: 300 } } }
+  legacy:
+    rules: { cognitive-complexity: { max: 25 }, file-cohesion: { maxLines: 500 } }
 ```
 
-```sh
-warp diff HEAD --ruleset edit
-warp model --ruleset edit --rules   # what each module changes
+```text
+src/domain/order.ts       every built-in rule, cognitive-complexity max 15, file-cohesion maxLines 200
+src/adapters/db.ts        the same, then legacy: cognitive-complexity max 25, file-cohesion maxLines 500
+src/adapters/db.test.ts   as db.ts, then function-cohesion off, then file-cohesion maxLines 400
+src/generated/api.ts      no rules
 ```
 
-- Settings are `on`, `off` or options by rule id, or `off` for every rule at that place. `'*': off` turns every rule
-  off there while the rules listed beside it stay on. Plugin rules are `namespace/id`.
-- `extends` puts its bases first, in order, so a ruleset changes only what differs. A later setting merges into an
-  earlier one at the same place: options into options, `off` off, and `on` on with the options kept.
-- An archetype's setting reaches every module of that archetype, and a module's every instance of it. `test` sets
-  each test module as `on` would. For a finding on a file, the nearest place wins: the file's module, then that
-  module's archetype, then the same for each module above it, then `rules`. Options merge nearest first.
-- `diff` checks both sides with the same ruleset, so a delta comes from the code alone. An unknown name fails and
-  lists the rulesets there are.
+- A ruleset takes `extends`, the rulesets it starts from in order, and `rules`, settings by rule id laid over them.
+  `extends` names `warp:recommended`, a plugin's ruleset as `namespace:name`, or a ruleset under the top-level
+  `rulesets:`. A named ruleset applies only through an `extends`; one that nothing extends fails to load.
+- Settings are `on`, `off` or options by rule id, and options turn the rule on. `rules: off` turns every rule off
+  there, and `'*': off` turns off every rule but the ones listed beside it. Plugin rules are `namespace/id`.
+- For a file, warp lays the rulesets from the root down to the file's module. At each module it takes the
+  archetype's ruleset, then the one where the module is written, so a use of an archetype adds to the archetype. A
+  later setting merges into an earlier one: options into options, `off` off, and `on` on with the options kept.
+  `extends` adds to what a place inherits and never starts again; only `off` and `'*'` do.
+- A test file takes every production ruleset from the root down to the module it tests, then every test block's
+  `ruleset` from the root down to that module, then its test module's own. So `function-cohesion` stays off for
+  `db.test.ts` above even if `adapters` turned it on: the root's test ruleset comes after every production one.
+- `warp model --rules` shows what each module changes from the module above it, and `--json` every module's
+  settings. With no ruleset anywhere, no rule runs, and `check` says so.
 
 ## Plugins
 
@@ -354,14 +361,11 @@ plugins:
   shared: npm:@acme/warp-rules
 
 root:
+  ruleset: { extends: [warp:recommended, shared:recommended] }
   modules:
-    src: { files: '**' }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
-    on: { root.src: { wt/no-ports-through-application: on } }
+    src: { files: '**', ruleset: { rules: { wt/no-ports-through-application: on } } }
 ```
 
-Custom rules are code, loaded from the path or package each namespace names. [custom-rules.md](custom-rules.md)
-covers writing one.
+Custom rules are code, loaded from the path or package each namespace names. A plugin's rules run only where a
+ruleset turns them on, and a plugin can offer rulesets of its own, such as `shared:recommended`.
+[custom-rules.md](custom-rules.md) covers writing one.

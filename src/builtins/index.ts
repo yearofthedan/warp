@@ -1,5 +1,5 @@
 import { registry } from '../domain/rules/registry.ts';
-import type { Rule } from '../domain/rules/rule.ts';
+import type { Plugin, Rule } from '../domain/rules/rule.ts';
 import { cognitiveComplexity } from './cognitive-complexity/rule.ts';
 import { dependencyDirection } from './dependency-direction/rule.ts';
 import { fileCohesion } from './file-cohesion/rule.ts';
@@ -9,10 +9,12 @@ import { moduleExternals } from './module-externals/rule.ts';
 import { noCrossModuleReexport } from './no-cross-module-reexport/rule.ts';
 import { noCycle } from './no-cycle/rule.ts';
 import { noDoubleExport } from './no-double-export/rule.ts';
+import { unclassified } from './unclassified/rule.ts';
 import { unresolvedImport } from './unresolved-import/rule.ts';
 import { unusedDeclaration } from './unused-declaration/rule.ts';
 
 export const builtinRules: readonly Rule[] = [
+  unclassified,
   unresolvedImport,
   dependencyDirection,
   moduleExternals,
@@ -35,4 +37,7 @@ const documented = (rule: Rule): Rule => ({
 
 export const builtinRegistry = registry(builtinRules.map(documented));
 
-export const unclassifiedDocs = `${source}/src/builtins/unclassified/README.md`;
+export const warp: Plugin = {
+  rules: [...builtinRegistry.values()],
+  rulesets: { recommended: { rules: Object.fromEntries(builtinRules.map((rule) => [rule.id, 'on'])) } },
+};

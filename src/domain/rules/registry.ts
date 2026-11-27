@@ -12,11 +12,24 @@ export const registry = <R extends { id: string }>(rules: readonly R[]): Readonl
 
 const name = /^[a-z][a-z0-9-]*$/;
 
+export const pluginRulesets = (plugins: Record<string, unknown>): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(plugins).flatMap(([namespace, plugin]) => {
+      const rulesets = (plugin as { rulesets?: unknown }).rulesets;
+      if (rulesets === undefined) return [];
+      if (typeof rulesets !== 'object' || rulesets === null || Array.isArray(rulesets))
+        throw new ConfigError(`plugins.${namespace}: expected rulesets by name, { recommended: { rules: {...} } }`);
+      return Object.entries(rulesets).map(([ruleset, definition]) => [`${namespace}:${ruleset}`, definition]);
+    }),
+  );
+
 export const pluginRules = (plugins: Record<string, unknown>): Rule[] =>
   Object.entries(plugins).flatMap(([namespace, plugin]) => namespaced(namespace, plugin, `plugins.${namespace}`));
 
 const namespaced = (namespace: string, plugin: unknown, at: string): Rule[] => {
   if (!name.test(namespace)) throw new ConfigError(`${at}: a namespace is lowercase letters, digits and dashes`);
+  if (namespace === 'warp')
+    throw new ConfigError(`${at}: warp is the namespace of warp's own rulesets; name it otherwise`);
   const rules = typeof plugin === 'object' && plugin !== null ? (plugin as { rules?: unknown }).rules : undefined;
   if (!Array.isArray(rules))
     throw new ConfigError(`${at}: expected a plugin, { rules: Rule[] }, as the default export of its file`);

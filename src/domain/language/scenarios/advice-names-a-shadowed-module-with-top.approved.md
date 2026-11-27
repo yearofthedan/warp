@@ -2,6 +2,8 @@ Rule: when a nearer module shares a name, the advice names the outer one with to
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     core: { dir: src/core, exposes: all }
     feat:
@@ -9,10 +11,6 @@ root:
       modules:
         core: { dir: core, exposes: all }
         leaf: { files: leaf.ts, dependencies: [core] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/core/a.ts
@@ -35,7 +33,7 @@ warp check
 ```
 
 ```text stdout
-src/feat/leaf.ts:1 [dependency-direction] src/feat/leaf.ts (leaf of root.feat src/feat) imports src/core/a.ts (root.core src/core), which is outside leaf's reach. Add top.core to root.feat.leaf.dependencies (warp.yaml:8), or move the code. (+1 more in reach)
+src/feat/leaf.ts:1 [dependency-direction] src/feat/leaf.ts (leaf of root.feat src/feat) imports src/core/a.ts (root.core src/core), which is outside leaf's reach. Add top.core to root.feat.leaf.dependencies (warp.yaml:10), or move the code. (+1 more in reach)
 
 By rule and module:
   dependency-direction  src/feat:leaf  1

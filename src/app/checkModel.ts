@@ -4,14 +4,12 @@ import type { ConfigData } from '../domain/model/data.ts';
 import { verdicts } from '../domain/model/reach.ts';
 import type { Model } from '../domain/model/resolve.ts';
 import { settings, type Settings } from '../domain/model/settings.ts';
-import { unclassifiedFindings } from './unclassified.ts';
 
 export const checkModel = (
   config: ConfigData,
   model: Model,
   project: Project,
   rules: readonly Rule[] = [],
-  unclassifiedDocs?: string,
 ): Finding[] => {
   const settled = settings(config, model);
   const judged = verdicts(config, model);
@@ -19,7 +17,7 @@ export const checkModel = (
     const findings = run(rule, { project, config, model, verdicts: judged }, settled);
     return rule.docs ? findings.map((finding) => ({ ...finding, docs: rule.docs })) : findings;
   });
-  return [...unclassifiedFindings(model, settled, unclassifiedDocs), ...found].map((finding) => placed(model, finding));
+  return found.map((finding) => placed(model, finding));
 };
 
 const placed = (model: Model, finding: Finding): Finding => {

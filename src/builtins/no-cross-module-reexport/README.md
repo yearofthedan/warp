@@ -33,10 +33,7 @@ root:
     domain: { dir: src/domain, exposes: all }
     ports: { dir: src/ports, exposes: all, dependencies: [domain] }
     application: { dir: src/application, dependencies: [domain, ports] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
+  ruleset: { extends: [warp:recommended] }
 ```
 
 Incorrect code:
@@ -80,6 +77,6 @@ None.
 
 ## When not to use it
 
-When an archetype exists to present its siblings as one API and the structure can't change yet. Turn the rule off for
-that archetype or module in a ruleset, `on: { facade: { no-cross-module-reexport: off } }`, so it stays on everywhere
-else.
+When an archetype exists to present its siblings as one API and the structure can't change yet. Turn the rule off in
+that archetype's or module's ruleset, `ruleset: { rules: { no-cross-module-reexport: off } }`, so it stays on
+everywhere else.

@@ -2,13 +2,11 @@ Rule: model --json prints each module with its files, its loose files and its re
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     domain: { dir: src/domain, exposes: all }
     ui: { dir: src/ui, dependencies: [domain] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/domain/order.ts
@@ -47,6 +45,7 @@ warp model --json
         "src/stray.ts"
       ],
       "rules": {
+        "unclassified": {},
         "unresolved-import": {},
         "dependency-direction": {},
         "module-externals": {},
@@ -83,6 +82,7 @@ warp model --json
       ],
       "looseFiles": [],
       "rules": {
+        "unclassified": {},
         "unresolved-import": {},
         "dependency-direction": {},
         "module-externals": {},
@@ -119,6 +119,7 @@ warp model --json
       ],
       "looseFiles": [],
       "rules": {
+        "unclassified": {},
         "unresolved-import": {},
         "dependency-direction": {},
         "module-externals": {},

@@ -9,7 +9,7 @@ import { type ConfigLines, placeProblems } from './app/configLines.ts';
 import { factsStore } from './adapters/git/factsStore.ts';
 import { failures } from './app/failures.ts';
 import { diffProject, parseRange } from './app/diff.ts';
-import { builtinRegistry, unclassifiedDocs } from './builtins/index.ts';
+import { warp } from './builtins/index.ts';
 import { findConfig, yamlConfig } from './adapters/config/loadConfig.ts';
 import { toolDigest } from './adapters/git/toolDigest.ts';
 import { gitDirCache } from './adapters/git/cache.ts';
@@ -25,9 +25,9 @@ import { modelJson, modelText } from './adapters/reporters/model.ts';
 import { actionable, type Report } from './adapters/reporters/reporter.ts';
 
 const usage = `usage:
-  warp check [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]
-  warp diff <base>[..<head> | ...<head>] [--since-last-run] [--config <file>] [--ruleset <name>] [--reporter <name>] [--fail]
-  warp model [--config <file>] [--ruleset <name>] [--rules] [--json]
+  warp check [--config <file>] [--reporter <name>] [--fail]
+  warp diff <base>[..<head> | ...<head>] [--since-last-run] [--config <file>] [--reporter <name>] [--fail]
+  warp model [--config <file>] [--rules] [--json]
 
 check   reports every finding in the working tree.
 diff    reports findings that are new or worse at <head> than at <base>. Without <head>, compares the working tree.
@@ -36,14 +36,13 @@ diff    reports findings that are new or worse at <head> than at <base>. Without
 model   prints the modules the config finds, and which module each file is in.
 
 --config          path to the config file (default: warp.yaml)
---ruleset         one of the config's rulesets (default: the one named default, if any)
 --reporter        ${[...reporters.keys()].join(', ')} (default: text)
 --since-last-run  with diff, compare with the last diff run that had this flag
 --fail            exit 1 when there are findings (check) or new or worse findings (diff)
 --rules           with model, list each module's rule settings that differ from the defaults
 --json            print the model as JSON, with every module's resolved rule settings`;
 
-type Options = { config?: string; ruleset?: string; reporter: string; fail: boolean; 'since-last-run': boolean };
+type Options = { config?: string; reporter: string; fail: boolean; 'since-last-run': boolean };
 type Produce = (root: string, project: ProjectCheck, digest: string) => Report;
 
 interface Resolved {
@@ -72,7 +71,6 @@ const main = async (argv: string[]): Promise<number> => {
     allowPositionals: true,
     options: {
       config: { type: 'string' },
-      ruleset: { type: 'string' },
       rules: { type: 'boolean', default: false },
       reporter: { type: 'string', default: 'text' },
       fail: { type: 'boolean', default: false },
@@ -103,7 +101,7 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail' | 'since
   const configFile = realpathSync(options.config ? resolve(options.config) : findConfig(process.cwd()));
   const root = dirname(configFile);
   const source = yamlConfig(configFile);
-  const loaded = await loadConfig(source, { builtins: [...builtinRegistry.values()], ruleset: options.ruleset });
+  const loaded = await loadConfig(source, { builtins: warp });
   for (const tsconfig of loaded.config.tsconfig.filter((path) => !existsSync(join(root, path))))
     throw new ConfigError(
       placeProblems(
@@ -116,7 +114,7 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail' | 'since
 };
 
 const checkOf = ({ root, config, rules, lines }: Resolved): ProjectCheck =>
-  projectCheck(adaptersAt(root), config, { rules, unclassifiedDocs, lines });
+  projectCheck(adaptersAt(root), config, { rules, lines });
 
 const run = async (options: Options, produce: Produce): Promise<number> => {
   const reporter = reporters.get(options.reporter);
@@ -149,7 +147,7 @@ const placed = <T>({ lines, config }: Resolved, run: () => T): T => {
 };
 
 const nothingOn = (file: string) =>
-  `No rules are on, so nothing was checked. Turn some on in ${file}: rulesets: { default: { extends: [${recommended}] } }`;
+  `No rules are on, so nothing was checked. Turn some on in ${file}: root: { ruleset: { extends: [${recommended}] } }`;
 
 const failureCache = () => {
   try {

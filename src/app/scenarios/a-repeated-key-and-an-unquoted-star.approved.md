@@ -2,14 +2,12 @@ Rule: a repeated key is named, and an unquoted * is told to be quoted, each at i
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     src: { dir: src }
     src: { dir: lib }
     all: { dir: * }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/a.ts
@@ -21,8 +19,8 @@ warp check
 ```
 
 ```text stderr
-warp config: warp.yaml:4: Map keys must be unique (src)
-warp.yaml:5: a value that starts with * is quoted, '*'
+warp config: warp.yaml:6: Map keys must be unique (src)
+warp.yaml:7: a value that starts with * is quoted, '*'
 ```
 
 ```text exit

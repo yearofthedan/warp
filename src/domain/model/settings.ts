@@ -1,4 +1,4 @@
-import type { ConfigData, RuleSettingsData } from './data.ts';
+import type { ArchetypeData, ConfigData, ModuleData, RuleSettingsData } from './data.ts';
 import { declarationOf, type Model, type ModuleView } from './resolve.ts';
 import { isRecord } from './shared.ts';
 
@@ -10,52 +10,87 @@ export interface RuleAt {
 export interface Settings {
   atFile(file: string, id: string, defaults?: object): RuleAt;
   atModule(module: ModuleView, id: string, defaults?: object): RuleAt;
-  decidedAt(module: ModuleView, id: string): boolean | undefined;
 }
 
-type Levels = readonly (RuleSettingsData | undefined)[];
+type Layers = readonly (RuleSettingsData | undefined)[];
 
-const own = (config: ConfigData, module: ModuleView): Levels => [
-  declarationOf(config, module)?.rules,
-  module.archetype === undefined ? undefined : config.archetypes[module.archetype]!.rules,
+const archetypeOf = (config: ConfigData, module: ModuleView): ArchetypeData | undefined =>
+  module.archetype === undefined ? undefined : config.archetypes[module.archetype];
+
+const own = (config: ConfigData, module: ModuleView): Layers => [
+  archetypeOf(config, module)?.ruleset,
+  declarationOf(config, module)?.ruleset,
 ];
 
-const levels = (config: ConfigData, module: ModuleView): Levels => [
+type TestRulesetOf = { testRuleset?: RuleSettingsData } | undefined;
+
+const ownTests = (config: ConfigData, module: ModuleView): Layers => [
+  archetypeOf(config, module)?.testRuleset,
+  (declarationOf(config, module) as TestRulesetOf)?.testRuleset,
+];
+
+const production = (config: ConfigData, module: ModuleView): Layers => [
+  ...(module.parent ? production(config, module.parent) : []),
   ...own(config, module),
-  ...(module.parent ? levels(config, module.parent) : [config.rules]),
 ];
+
+const tests = (config: ConfigData, module: ModuleView): Layers => [
+  ...(module.parent ? tests(config, module.parent) : []),
+  ...ownTests(config, module),
+];
+
+const filesModuleOf = (config: ConfigData, holder: ModuleView, test: ModuleView): ModuleData | undefined => {
+  const of = (declarationOf(config, test) as { of?: string } | undefined)?.of;
+  return of === undefined ? undefined : archetypeOf(config, holder)!.modules.find((module) => module.name === of);
+};
+
+const layersOf = (config: ConfigData, module: ModuleView): Layers => {
+  if (!module.test) return production(config, module);
+  const chain: ModuleView[] = [];
+  let holder = module;
+  for (; holder.test && holder.parent; holder = holder.parent) chain.unshift(holder);
+  const files = filesModuleOf(config, holder, chain[0]!);
+  return [
+    ...production(config, holder),
+    files?.ruleset,
+    ...tests(config, holder),
+    (files as TestRulesetOf)?.testRuleset,
+    ...chain.flatMap((test) => own(config, test)),
+  ];
+};
+
+export const merged = (base: RuleSettingsData, layer: RuleSettingsData | undefined): RuleSettingsData => {
+  if (layer === undefined) return base;
+  const result: RuleSettingsData = Object.hasOwn(layer, '*') ? {} : { ...base };
+  for (const [id, setting] of Object.entries(layer)) {
+    const was = result[id];
+    if (setting === true && isRecord(was)) continue;
+    result[id] = isRecord(setting) && isRecord(was) ? { ...was, ...setting } : setting;
+  }
+  return result;
+};
+
+const ruleAt = (settings: RuleSettingsData, id: string, defaults: object = {}): RuleAt => {
+  const setting = Object.hasOwn(settings, id) ? settings[id] : settings['*'];
+  return {
+    on: setting !== undefined && setting !== false,
+    options: { ...defaults, ...(isRecord(setting) ? setting : {}) },
+  };
+};
 
 export const settings = (config: ConfigData, model: Model): Settings => {
-  const fileLevels = (file: string): Levels => {
-    const module = model.moduleOf(file);
-    return module ? levels(config, module) : [config.rules];
+  const cache = new Map<ModuleView, RuleSettingsData>();
+  const at = (module: ModuleView | undefined): RuleSettingsData => {
+    if (!module) return {};
+    let found = cache.get(module);
+    if (!found) cache.set(module, (found = layersOf(config, module).reduce(merged, {})));
+    return found;
   };
   return {
-    atFile: (file, id, defaults) => ruleAt(fileLevels(file), id, defaults),
-    atModule: (module, id, defaults) => ruleAt(levels(config, module), id, defaults),
-    decidedAt: (module, id) => decided(levels(config, module), id),
+    atFile: (file, id, defaults) => ruleAt(at(model.moduleOf(file)), id, defaults),
+    atModule: (module, id, defaults) => ruleAt(at(module), id, defaults),
   };
 };
-
-const decision = (level: RuleSettingsData | undefined, id: string): boolean | undefined => {
-  if (level === undefined) return undefined;
-  if (level === 'off') return false;
-  if (Object.hasOwn(level, id)) return level[id] !== false;
-  return level['*'] as boolean | undefined;
-};
-
-const optionsAt = (level: RuleSettingsData | undefined, id: string): object | undefined => {
-  const setting = typeof level === 'object' ? level[id] : undefined;
-  return isRecord(setting) ? setting : undefined;
-};
-
-const decided = (levels: Levels, id: string): boolean | undefined =>
-  levels.map((level) => decision(level, id)).find((said) => said !== undefined);
-
-const ruleAt = (levels: Levels, id: string, defaults: object = {}): RuleAt => ({
-  on: decided(levels, id) ?? true,
-  options: Object.assign({}, defaults, ...levels.map((level) => optionsAt(level, id)).reverse()),
-});
 
 export type ResolvedRules = Record<string, false | Record<string, unknown>>;
 
@@ -82,13 +117,15 @@ export const rulesOf = (
   };
 };
 
-const turnsOn = (rules: RuleSettingsData | undefined): boolean =>
-  rules !== undefined && rules !== 'off' && Object.values(rules).some((setting) => setting !== false);
+const turnsOn = (ruleset: RuleSettingsData | undefined): boolean =>
+  ruleset !== undefined && Object.values(ruleset).some((setting) => setting !== false);
+
+const rulesetsOf = (place: ArchetypeData | ModuleData) => [
+  place.ruleset,
+  'testRuleset' in place ? place.testRuleset : undefined,
+];
 
 export const anyRuleOn = (config: ConfigData): boolean =>
-  config.rules === undefined ||
-  (config.rules !== 'off' && config.rules['*'] !== false) ||
-  turnsOn(config.rules) ||
-  Object.values(config.archetypes).some(
-    (archetype) => turnsOn(archetype.rules) || archetype.modules.some((module) => turnsOn(module.rules)),
+  Object.values(config.archetypes).some((archetype) =>
+    [archetype, ...archetype.modules].flatMap(rulesetsOf).some(turnsOn),
   );

@@ -18,7 +18,7 @@ a time.
 | `warp diff main...feature` | where `feature` left `main` | `feature` |
 | `warp diff HEAD --since-last-run` | the working tree at the last run with the flag | the working tree |
 
-Both sides are checked with the working tree's config and ruleset, so a delta comes from code changes alone. A base
+Both sides are checked with the working tree's config, so a delta comes from code changes alone. A base
 where the project's tsconfig doesn't exist yet has no findings.
 
 `diff HEAD` measures uncommitted changes, so each commit starts a new baseline. `diff main...` measures the whole
@@ -53,7 +53,7 @@ A hook that runs it after every edit reports each new or worse finding once, aft
   `HEAD` here.
 - A change made between two runs, by anyone, is reported at the second run, so an agent may see a finding its own
   edit did not cause.
-- The last run is kept for each working tree, config and ruleset.
+- The last run is kept for each working tree and config.
 
 ## Cache
 
@@ -66,5 +66,5 @@ fresh.
   every file.
 - **Findings.** A ref's files are written to a temporary folder that links the project's `node_modules`, with no
   worktree, git hooks or Git LFS downloads. Its
-  findings are cached by commit, config (with the custom rules it imports), ruleset and warp version, so repeated
+  findings are cached by commit, config (with the custom rules it imports) and warp version, so repeated
   runs against the same base analyse only the head. Entries unread for 30 days are pruned.

@@ -27,11 +27,8 @@ root:
     provides: [npm:vitest]
     modules:
       tests: { files: 'src/**/*.test.ts' }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
-    test: { function-cohesion: off }
+    ruleset: { rules: { function-cohesion: off } }
+  ruleset: { extends: [warp:recommended] }
 ```
 
 `domain` has no dependencies, so it imports only its own files. `application` reaches the domain alone, so a use case names

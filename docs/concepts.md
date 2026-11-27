@@ -30,11 +30,8 @@ root:
     provides: [npm:vitest]
     modules:
       tests: { files: 'src/**/*.test.ts' }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
-    test: { function-cohesion: off }
+    ruleset: { rules: { function-cohesion: off } }
+  ruleset: { extends: [warp:recommended] }
 ```
 
 `warp model` reads it as:
@@ -157,8 +154,9 @@ A check that returns findings. [rules.md](rules.md) lists the built-in rules, an
 
 ### Ruleset
 
-Which rules judge each place, and how strictly. `default` turns `function-cohesion` off for the tests, and every other
-rule runs with its defaults. See [config.md](config.md#rulesets).
+Which rules judge a place and everything inside it, and how strictly. The root's ruleset runs every built-in rule with
+its defaults, and its test block's ruleset turns `function-cohesion` off for the tests. See
+[config.md](config.md#rulesets).
 
 ### Finding
 

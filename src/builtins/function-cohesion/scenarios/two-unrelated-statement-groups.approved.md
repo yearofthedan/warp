@@ -2,14 +2,12 @@ Rule: a function over the tripwire whose statements fall into groups that share 
 
 ```yaml warp.yaml
 root:
-  modules:
-    src: { dir: src }
-
-rulesets:
-  default:
+  ruleset:
     extends: [warp:recommended]
     rules:
       function-cohesion: { maxLines: 4 }
+  modules:
+    src: { dir: src }
 ```
 
 ```ts src/handle.ts

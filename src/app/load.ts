@@ -1,11 +1,10 @@
 import { compileConfig } from '../domain/language/compile.ts';
 import { ConfigError } from '../domain/model/configError.ts';
 import type { ConfigData } from '../domain/model/data.ts';
-import { pluginRules, registry } from '../domain/rules/registry.ts';
-import { type Rule, noOptions } from '../domain/rules/rule.ts';
+import { pluginRules, pluginRulesets, registry } from '../domain/rules/registry.ts';
+import { type Plugin, type Rule, noOptions } from '../domain/rules/rule.ts';
 import { type ConfigLines, placeProblems } from './configLines.ts';
 import type { ConfigSource } from './ports.ts';
-import { unclassified } from './unclassified.ts';
 
 export interface LoadedConfigData {
   config: ConfigData;
@@ -13,22 +12,18 @@ export interface LoadedConfigData {
 }
 
 export interface LoadOptions {
-  builtins?: readonly Rule[];
-  ruleset?: string;
+  builtins?: Plugin;
   file?: string;
   plugins?: Record<string, unknown>;
 }
 
-export const loadConfigData = (
-  raw: unknown,
-  { builtins, ruleset, file, plugins = {} }: LoadOptions = {},
-): LoadedConfigData => {
-  const rules = [...registry([...(builtins ?? []), ...pluginRules(plugins)]).values()];
+export const loadConfigData = (raw: unknown, { builtins, file, plugins = {} }: LoadOptions = {}): LoadedConfigData => {
+  const rules = [...registry([...(builtins?.rules ?? []), ...pluginRules(plugins)]).values()];
   const config = compileConfig(raw, {
     ...(file === undefined ? {} : { file }),
-    ruleset,
     plugins: Object.keys(plugins),
-    ruleIds: builtins && new Set([...rules.map((rule) => rule.id), unclassified]),
+    rulesets: pluginRulesets(builtins ? { ...plugins, warp: builtins } : plugins),
+    ruleIds: builtins && new Set(rules.map((rule) => rule.id)),
     options: Object.fromEntries(rules.map((rule) => [rule.id, rule.parseOptions ?? noOptions])),
   });
   return { config, rules };

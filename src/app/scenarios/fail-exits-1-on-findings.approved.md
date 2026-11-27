@@ -2,12 +2,10 @@ Rule: with --fail, check exits 1 when there are findings.
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     domain: { dir: src/domain }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/domain/order.ts

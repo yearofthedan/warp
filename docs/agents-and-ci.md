@@ -35,8 +35,7 @@ rule has Claude ask before it edits the config, so an edit can't add a plugin th
 seeing it.
 [SECURITY.md](../SECURITY.md#running-warp-from-an-agent-hook) has the example and further hardening.
 
-To check edits with a lighter set of rules, give the config an `edit` [ruleset](config.md#rulesets) and add
-`--ruleset edit` to the command. A non-empty delta prints a `hookSpecificOutput.additionalContext` response, which
+A non-empty delta prints a `hookSpecificOutput.additionalContext` response, which
 Claude reads as context for its next step. When warp itself fails, as with a broken config, the response tells
 Claude that warp is unavailable and why. It says so once, until the failure changes or a run succeeds. A repeat
 exits 1, which Claude Code shows to you without blocking the edit.
@@ -70,8 +69,7 @@ export default function warp(pi) {
 
 After each edit, the `tool_result` handler runs warp and passes its `additionalContext` to the model with the next
 request, without blocking the edit. omp runs `pi.exec` as you, with no approval, so the `tool_call` handler asks you
-before any edit that names `warp.yaml`, and blocks it when omp has no UI to ask in. Add `--ruleset edit` to
-`args` to check edits with a lighter ruleset. The shapes follow `@oh-my-pi/pi-coding-agent` 19.1.
+before any edit that names `warp.yaml`, and blocks it when omp has no UI to ask in. The shapes follow `@oh-my-pi/pi-coding-agent` 19.1.
 
 ## GitHub code scanning
 

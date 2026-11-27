@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { describe, it } from 'vite-plus/test';
 import { parseConfig } from './adapters/config/loadConfig.ts';
 import { loadConfigData } from './app/load.ts';
-import { builtinRegistry } from './builtins/index.ts';
+import { warp } from './builtins/index.ts';
 
 type Example = { line: number; code: string; fragment: boolean };
 type Block = { line: number; info: string; code: string };
@@ -102,13 +102,23 @@ const typeProblems = (files: Map<string, Planned>): string[] => {
     .map((line) => located(line, files));
 };
 
+const namesAfter = (code: string, prefix: string): string[] => [
+  ...new Set([...code.matchAll(new RegExp(`${prefix}([a-z][a-z0-9-]*)`, 'g'))].map((match) => match[1]!)),
+];
+
+const stubPlugin = (namespace: string, code: string) => ({
+  rules: namesAfter(code, `${namespace}/`).map((id) => ({ id, parseOptions: () => ({}), check: () => [] })),
+  rulesets: Object.fromEntries(namesAfter(code, `${namespace}:`).map((name) => [name, {}])),
+});
+
 const loadProblems = (doc: string, code: string): string[] => {
-  const builtins = [...builtinRegistry.values()];
   try {
     const { raw } = parseConfig(code, doc);
     const declared = (raw as { plugins?: Record<string, unknown> }).plugins ?? {};
-    const plugins = Object.fromEntries(Object.keys(declared).map((namespace) => [namespace, { rules: [] }]));
-    loadConfigData(raw, { ...(Object.keys(plugins).length === 0 ? { builtins } : {}), plugins, file: doc });
+    const plugins = Object.fromEntries(
+      Object.keys(declared).map((namespace) => [namespace, stubPlugin(namespace, code)]),
+    );
+    loadConfigData(raw, { builtins: warp, plugins, file: doc });
     return [];
   } catch (error) {
     return String((error as Error).message).split('\n');

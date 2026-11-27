@@ -1,13 +1,11 @@
 root:
-  modules:
-    domain: { dir: src/domain, exposes: all }
-    app: { dir: src/app, dependencies: [domain], exposes: all }
-    adapters: { dir: src/adapters, dependencies: [domain, app], exposes: all }
-
-rulesets:
-  default:
+  ruleset:
     extends: [warp:recommended]
     rules:
       file-cohesion: { maxLines: 15 }
       function-cohesion: { maxLines: 6 }
       cognitive-complexity: { max: 4 }
+  modules:
+    domain: { dir: src/domain, exposes: all }
+    app: { dir: src/app, dependencies: [domain], exposes: all }
+    adapters: { dir: src/adapters, dependencies: [domain, app], exposes: all }

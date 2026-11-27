@@ -2,12 +2,10 @@ Rule: a file no module claims is reported.
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     domain: { dir: src/domain }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/domain/order.ts

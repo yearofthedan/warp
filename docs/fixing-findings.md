@@ -50,14 +50,11 @@ takes the value it needs as a parameter, and `api` passes it in.
 
 ## Turn a rule off where it doesn't apply
 
-A rule that doesn't fit one place, such as generated code, is turned off there in a [ruleset](config.md#rulesets),
-and stays on everywhere else:
+A rule that doesn't fit one place, such as generated code, is turned off there with a [ruleset](config.md#rulesets)
+on that module, and stays on everywhere else:
 
 ```yaml fragment
-rulesets:
-  default:
-    extends: [warp:recommended]
-    on: { root.generated: off }
+generated: { dir: src/generated, ruleset: { rules: off } }
 ```
 
 ## Work through existing findings one at a time

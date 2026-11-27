@@ -3,12 +3,12 @@
 **Audience:** anyone choosing, setting or reading warp's rules.
 **Purpose:** every built-in rule, and the fields of a finding.
 
-A [ruleset](config.md#rulesets) sets each rule's options, or turns it off, by place. Each rule's page shows a config, code it reports with the finding it prints, code it passes, and
-its options.
+A [ruleset](config.md#rulesets) on a module turns rules on or off and sets their options there and inside it. Each
+rule's page shows a config, code it reports with the finding it prints, code it passes, and its options.
 
 | Rule | Reports | Options |
 | --- | --- | --- |
-| [`unclassified`](../src/builtins/unclassified/README.md) | A loose file. On at the root module, off below, unless a ruleset says otherwise. | |
+| [`unclassified`](../src/builtins/unclassified/README.md) | A loose file. | |
 | [`unresolved-import`](../src/builtins/unresolved-import/README.md) | A relative import that resolves to no file. | |
 | [`dependency-direction`](../src/builtins/dependency-direction/README.md) | An import outside the importer's reach. | |
 | [`module-externals`](../src/builtins/module-externals/README.md) | A package import that no `dependencies` in the importer's reach lists. | |

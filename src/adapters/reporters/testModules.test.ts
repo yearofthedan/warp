@@ -45,13 +45,10 @@ const paths = [
   'src/a/b/b.fixture.ts',
 ];
 
-const recommended = (on = '') => `
-rulesets:
-  default:
-    extends: [warp:recommended]
-${on === '' ? '' : `    on: ${on}\n`}`;
-
-const load = (yaml: string, on = '') => compileConfig(parse(`${yaml}${recommended(on)}`));
+const load = (yaml: string) => {
+  const raw = parse(yaml);
+  return compileConfig({ ...raw, root: { ruleset: { rules: { '*': 'on' } }, ...raw.root } });
+};
 
 const shopYaml = `
 root:
@@ -84,8 +81,8 @@ archetypes:
         tests: { files: '*.test.ts', dependencies: [dsl, fixture, sub.dsl] }
 `;
 
-const shop = (on = '') => {
-  const config = load(shopYaml, on);
+const shop = () => {
+  const config = load(shopYaml);
   const model = resolveModel(config, folders(paths), paths);
   const judge = verdicts(config, model);
   const verdict = (from: string, to: string): string => {
@@ -140,7 +137,7 @@ describe('test modules with modules inside', () => {
     'e2e/checkout.test.ts',
   ];
 
-  const site = (on = '') => {
+  const site = () => {
     const config = load(
       `
 root:
@@ -162,7 +159,6 @@ archetypes:
         clock: { files: clock.ts }
         drivers: { dir: drivers, dependencies: [fixtures] }
 `,
-      on,
     );
     const model = resolveModel(config, folders(tree), tree);
     const judge = verdicts(config, model);

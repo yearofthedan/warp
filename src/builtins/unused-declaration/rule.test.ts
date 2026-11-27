@@ -88,10 +88,15 @@ const used: FileFacts[] = [
   facts('main.test.ts', ['ui/view.driver.ts'], ['vitest', 'jsdom']),
 ];
 
-const check = (structure: string, analyzed: FileFacts[], options: { rules?: string; files?: string[] } = {}) => {
+const check = (
+  structure: string,
+  analyzed: FileFacts[],
+  options: { rules?: Record<string, string>; files?: string[] } = {},
+) => {
   const all = options.files ?? paths;
-  const rulesets = `rulesets:\n  default:\n    extends: [warp:recommended]\n${options.rules ?? ''}`;
-  const { config } = loadConfigData(parse(`${structure}${rulesets}`));
+  const raw = parse(structure);
+  const ruleset = { rules: { '*': 'on', ...options.rules } };
+  const { config } = loadConfigData({ ...raw, root: { ruleset, ...raw.root } });
   const project = {
     files: [...analyzed, ...all.filter((file) => !analyzed.some((f) => f.path === file)).map((file) => facts(file))],
   };
@@ -378,16 +383,16 @@ archetypes:
       findings[0]!.message,
       "root.styles matches no files: files: ['*.css', '*.scss'] finds nothing in the root. Fix the pattern, or remove the module.",
     );
-    assert.deepEqual(check(app({ extra }), used, { rules: `    rules: { ${rule}: off }\n` }), []);
+    assert.deepEqual(check(app({ extra }), used, { rules: { [rule]: 'off' } }), []);
   });
 
   it('is off where a ruleset turns it off', () => {
     const analyzed = [...without('ui/card/card.ts'), facts('ui/list/list.ts')];
     const options = { files: paths.filter((path) => path !== 'ui/card/card.ts') };
-    const keyed = (rules?: string) => keys(check(app(), analyzed, { ...options, ...(rules ? { rules } : {}) }));
+    const keyed = (structure = app()) => keys(check(structure, analyzed, options));
     assert.ok(keyed().includes(`${rule}:grant:card.src.dependencies->npm:lit`));
     assert.deepEqual(
-      keyed(`    on: { card: { ${rule}: off } }\n`),
+      keyed(app().replace('\n  card:\n', `\n  card:\n    ruleset: { rules: { ${rule}: off } }\n`)),
       keyed().filter((key) => !key.includes(':card')),
     );
   });

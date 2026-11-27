@@ -2,14 +2,12 @@ Rule: with types: ignore, a loop closed only by type-only imports is not reporte
 
 ```yaml warp.yaml
 root:
-  modules:
-    src: { dir: src }
-
-rulesets:
-  default:
+  ruleset:
     extends: [warp:recommended]
     rules:
       no-cycle: { types: ignore }
+  modules:
+    src: { dir: src }
 ```
 
 ```ts src/order.ts

@@ -17,6 +17,8 @@ export {
   type FileContext,
   type FileRule,
   type Plugin,
+  type RuleSetting,
+  type RulesetDefinition,
   type ProjectContext,
   type ProjectRule,
   type Rule,

@@ -55,16 +55,16 @@ root:
       files: 'src/application/**'
       dependencies: [domain]
       exposes: { files: [src/application/index.ts] }
-    ui: { files: 'src/ui/**', dependencies: [application, domain] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
-    rules: { local/no-ports-through-application: off }
-    on: { root.ui: { local/no-ports-through-application: on } }
+    ui:
+      files: 'src/ui/**'
+      dependencies: [application, domain]
+      ruleset: { rules: { local/no-ports-through-application: on } }
+  ruleset: { extends: [warp:recommended] }
 ```
 
-- The plugin's rules are on everywhere by default. This ruleset turns the rule off, then on for `ui` alone.
+- A plugin's rules run only where a ruleset turns them on: here, in `ui` alone. A plugin can also offer rulesets,
+  `export default { rules, rulesets: { recommended: { rules: { 'local/no-ports-through-application': 'on' } } } }`,
+  which a config extends as `local:recommended`. Their rule ids carry the namespace, as in the config.
 - Relative imports need their `.ts` extension, and an import of types alone must be `import type`, since Node strips
   types without resolving them.
 - Types in the editor come from the `@yearofthedan/warp` dev dependency.

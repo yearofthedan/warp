@@ -2,12 +2,10 @@ Rule: a key the language does not have is refused at its line.
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     src: { dir: src, export: all }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/a.ts
@@ -19,7 +17,7 @@ warp check
 ```
 
 ```text stderr
-warp config: warp.yaml:3: root.src: unknown key export; a module takes description, dir, files, entry, archetype, dependencies, exposes, modules, test
+warp config: warp.yaml:5: root.src: unknown key export; a module takes description, dir, files, entry, archetype, dependencies, exposes, modules, test, ruleset
 ```
 
 ```text exit

@@ -50,13 +50,10 @@ const projectFiles = [
   'src/ui/d/d.dom.ts',
 ];
 
-const recommended = `
-rulesets:
-  default:
-    extends: [warp:recommended]
-`;
-
-const load = (yaml: string): ConfigData => compileConfig(parse(`${yaml}${recommended}`));
+const load = (yaml: string): ConfigData => {
+  const raw = parse(yaml);
+  return compileConfig({ ...raw, root: { ruleset: { rules: { '*': 'on' } }, ...raw.root } });
+};
 
 const structure = `
 root:

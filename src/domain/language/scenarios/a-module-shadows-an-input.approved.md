@@ -2,6 +2,8 @@ Rule: a module named like one of its archetype's inputs shadows it, and is refus
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     log: { dir: src/log, exposes: all }
     cards: { dir: 'src/cards/*', archetype: card, dependencies: [log] }
@@ -12,10 +14,6 @@ archetypes:
     modules:
       log: { files: log.ts, exposes: all }
       logic: { files: '*.ts', dependencies: [log] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/log/log.ts
@@ -27,7 +25,7 @@ warp check
 ```
 
 ```text stderr
-warp config: warp.yaml:10: card.log shadows the input log; rename one
+warp config: warp.yaml:12: card.log shadows the input log; rename one
 ```
 
 ```text exit

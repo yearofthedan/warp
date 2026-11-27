@@ -19,7 +19,6 @@ warp --help                # the usage, with every flag
 | Flag | Effect |
 | --- | --- |
 | `--config <file>` | Config path. The project root is its directory. Default: the nearest `warp.yaml`, in the current directory or a directory above it. |
-| `--ruleset <name>` | Check with one of the config's [rulesets](config.md#rulesets). Default: the one named `default`, if any. |
 | `--reporter <name>` | Output format, default `text`. |
 | `--fail` | Exit 1 when there are findings (`check`) or new or worse ones (`diff`). |
 | `--since-last-run` | With `diff` and no head, compare the working tree with its findings at the last run with this flag. See [diff.md](diff.md#since-the-last-run). |
@@ -48,4 +47,4 @@ the first 20 findings, each cut at 500 characters, and then say how many more th
 | --- | --- |
 | `0` | The run finished: no findings to act on, or findings without `--fail`. |
 | `1` | `--fail` was given and there are findings to act on. |
-| `2` | warp could not run: a config error, an unknown ruleset or reporter, or a bad command line. |
+| `2` | warp could not run: a config error, an unknown reporter, or a bad command line. |

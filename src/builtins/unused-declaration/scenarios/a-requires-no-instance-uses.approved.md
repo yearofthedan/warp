@@ -2,6 +2,8 @@ Rule: an input no instance imports through is reported once, on the archetype's 
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     log: { dir: src/log, exposes: all }
     main: { files: src/main.ts, dependencies: [cards, log] }
@@ -14,10 +16,6 @@ archetypes:
     modules:
       logic: { files: '*.ts', exposes: all, dependencies: [log] }
       sub: { dir: '*', archetype: card, dependencies: [log] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/log/log.ts
@@ -44,7 +42,7 @@ warp check
 ```
 
 ```text stdout
-warp.yaml:9 [unused-declaration] card.requires names log, but nothing in src/cards/a, src/cards/a/b imports through it. Remove it, with its binding at each use.
+warp.yaml:11 [unused-declaration] card.requires names log, but nothing in src/cards/a, src/cards/a/b imports through it. Remove it, with its binding at each use.
 
 By rule and module:
   unused-declaration  warp.yaml  1

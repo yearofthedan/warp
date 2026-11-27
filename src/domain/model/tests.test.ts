@@ -56,13 +56,10 @@ const paths = [
   'src/a/b/b.fixture.ts',
 ];
 
-const recommended = (on = '') => `
-rulesets:
-  default:
-    extends: [warp:recommended]
-${on === '' ? '' : `    on: ${on}\n`}`;
-
-const load = (yaml: string, on = '') => compileConfig(parse(`${yaml}${recommended(on)}`));
+const load = (yaml: string) => {
+  const raw = parse(yaml);
+  return compileConfig({ ...raw, root: { ruleset: { rules: { '*': 'on' } }, ...raw.root } });
+};
 
 const shopYaml = `
 root:
@@ -95,8 +92,8 @@ archetypes:
         tests: { files: '*.test.ts', dependencies: [dsl, fixture, sub.dsl] }
 `;
 
-const shop = (on = '') => {
-  const config = load(shopYaml, on);
+const shop = (yaml = shopYaml) => {
+  const config = load(yaml);
   const model = resolveModel(config, folders(paths), paths);
   const judge = verdicts(config, model);
   const verdict = (from: string, to: string): string => {
@@ -234,17 +231,28 @@ root:
     );
   });
 
-  it('take settings from a ruleset line on themselves or on any module above them', () => {
-    const rulesFor = (target: string) => {
-      const { config } = shop(`{ ${target}: { function-cohesion: off } }`);
+  it('take settings from a ruleset on themselves or on any module above them', () => {
+    const off = 'ruleset: { rules: { function-cohesion: off } }';
+    const rulesFor = (target: string, written: string) => {
+      const { config } = shop(shopYaml.replace(target, written));
       const on = settings(config, resolveModel(config, folders(paths), paths));
       return ['src/a/a.test.ts', 'src/a/a.dsl.ts', 'e2e/flow.test.ts', 'src/a/a.ts'].filter(
         (file) => !on.atFile(file, 'function-cohesion').on,
       );
     };
-    assert.deepEqual(rulesFor('card.tests'), ['src/a/a.test.ts']);
-    assert.deepEqual(rulesFor('root.e2e'), ['e2e/flow.test.ts']);
-    assert.deepEqual(rulesFor('card'), ['src/a/a.test.ts', 'src/a/a.dsl.ts', 'src/a/a.ts']);
+    const tests = "tests: { files: '*.test.ts', ";
+    assert.deepEqual(rulesFor(tests, `${tests}${off}, `), ['src/a/a.test.ts']);
+    assert.deepEqual(rulesFor('e2e: { dir: e2e }', `e2e: { dir: e2e, ${off} }`), ['e2e/flow.test.ts']);
+    assert.deepEqual(rulesFor('  card:\n', `  card:\n    ${off}\n`), [
+      'src/a/a.test.ts',
+      'src/a/a.dsl.ts',
+      'src/a/a.ts',
+    ]);
+    const cardTests = '    test:\n      exposes: [dsl]';
+    assert.deepEqual(rulesFor(cardTests, `    test:\n      ${off}\n      exposes: [dsl]`), [
+      'src/a/a.test.ts',
+      'src/a/a.dsl.ts',
+    ]);
   });
 
   it('refuse an archetype used for production and test code, and production code naming a test module', () => {
@@ -322,9 +330,9 @@ describe('test modules with modules inside', () => {
     'e2e/checkout.test.ts',
   ];
 
-  const site = (on = '') => {
+  const site = (edit = (yaml: string) => yaml) => {
     const config = load(
-      `
+      edit(`
 root:
   modules:
     domain: { dir: src/domain, exposes: all }
@@ -343,8 +351,7 @@ archetypes:
         fixtures: { files: '*.fixture.ts' }
         clock: { files: clock.ts }
         drivers: { dir: drivers, dependencies: [fixtures] }
-`,
-      on,
+`),
     );
     const model = resolveModel(config, folders(tree), tree);
     const judge = verdicts(config, model);
@@ -403,11 +410,15 @@ archetypes:
 
   it('take settings by the path of each module', () => {
     const off = (target: string) => {
-      const { config } = site(`{ ${target}: { function-cohesion: off } }`);
+      const { config } = site((yaml) =>
+        yaml.replace(target, `${target}, ruleset: { rules: { function-cohesion: off } }`),
+      );
       const on = settings(config, resolveModel(config, folders(tree), tree));
       return tree.filter((file) => !on.atFile(file, 'function-cohesion').on);
     };
-    assert.deepEqual(off('root.e2e.journeys'), ['e2e/checkout.dsl.ts']);
-    assert.deepEqual(off('kit.drivers'), ['test-helpers/drivers/order.driver.ts']);
+    assert.deepEqual(off("journeys: { files: '*.dsl.ts'"), ['e2e/checkout.dsl.ts']);
+    assert.deepEqual(off('drivers: { dir: drivers, dependencies: [fixtures]'), [
+      'test-helpers/drivers/order.driver.ts',
+    ]);
   });
 });

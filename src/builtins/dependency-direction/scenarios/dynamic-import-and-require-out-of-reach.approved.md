@@ -2,14 +2,12 @@ Rule: `import()`, `require()` and `import x = require()` with a literal specifie
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     domain: { dir: src/domain, exposes: all }
     db: { dir: src/db, exposes: all }
     api: { dir: src/api, dependencies: [domain] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/domain/order.ts
@@ -48,9 +46,9 @@ warp check
 ```
 
 ```text stdout
-src/api/orders.ts:1 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/db/orders.ts (root.db src/db), which is outside api's reach. Add db to root.api.dependencies (warp.yaml:5), or move the code. (+1 more in reach)
-src/api/orders.ts:7 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/db/schema.ts (root.db src/db), which is outside api's reach. Add db to root.api.dependencies (warp.yaml:5), or move the code. (+1 more in reach)
-src/api/orders.ts:8 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/db/audit.ts (root.db src/db), which is outside api's reach. Add db to root.api.dependencies (warp.yaml:5), or move the code. (+1 more in reach)
+src/api/orders.ts:1 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/db/orders.ts (root.db src/db), which is outside api's reach. Add db to root.api.dependencies (warp.yaml:7), or move the code. (+1 more in reach)
+src/api/orders.ts:7 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/db/schema.ts (root.db src/db), which is outside api's reach. Add db to root.api.dependencies (warp.yaml:7), or move the code. (+1 more in reach)
+src/api/orders.ts:8 [dependency-direction] src/api/orders.ts (root.api src/api) imports src/db/audit.ts (root.db src/db), which is outside api's reach. Add db to root.api.dependencies (warp.yaml:7), or move the code. (+1 more in reach)
 
 By rule and module:
   dependency-direction  src/api  3
