@@ -52,23 +52,15 @@ export const unusedGrants = (context: Context): Finding[] => {
 const innerUsers = (context: Context, holders: readonly ModuleView[], ref: RefData, layer: Layer): string[] => {
   const users = new Set<string>();
   for (const holder of holders) {
-    const importsThrough = importer(context, holder, ref, layer);
+    const grant = context.verdicts.grants(holder, layer).find((candidate) => candidate.declared === ref);
     for (const file of context.project.files) {
       const module = context.model.moduleOf(file.path);
-      if (module && module !== holder && within(module, holder) && importsThrough(file)) {
+      if (grant && module && module !== holder && within(module, holder) && importsThrough(grant, file)) {
         users.add(childOf(holder, module).name ?? module.id);
       }
     }
   }
   return [...users].sort();
-};
-
-type Facts = Context['project']['files'][number];
-
-const importer = (context: Context, holder: ModuleView, ref: RefData, layer: Layer): ((file: Facts) => boolean) => {
-  if (ref.kind === 'package') return (file) => file.externals.some((external) => listsPackage(ref.pattern, external));
-  const targets = context.verdicts.files(holder.parent!, ref, layer);
-  return (file) => file.imports.some((edge) => targets.has(edge.via ?? edge.to));
 };
 
 const childOf = (holder: ModuleView, module: ModuleView): ModuleView => {
@@ -135,9 +127,8 @@ const usedRefs = ({ project, verdicts }: Context): Set<RefData> => {
   const used = new Set<RefData>();
   for (const file of project.files) {
     const reach = verdicts.reach(file.path) ?? [];
-    const targets = file.imports.map((edge) => edge.via ?? edge.to);
     for (const grant of reach) {
-      if (!grant.declared || !permits(grant, targets, file.externals)) continue;
+      if (!grant.declared || !importsThrough(grant, file)) continue;
       used.add(grant.declared);
       for (const bound of grant.via ?? []) used.add(bound);
     }
@@ -145,11 +136,7 @@ const usedRefs = ({ project, verdicts }: Context): Set<RefData> => {
   return used;
 };
 
-const permits = (
-  grant: Grant,
-  targets: readonly string[],
-  externals: Context['project']['files'][number]['externals'],
-) =>
+const importsThrough = (grant: Grant, file: Context['project']['files'][number]): boolean =>
   grant.package === undefined
-    ? targets.some((to) => grant.files.has(to))
-    : externals.some((external) => listsPackage(grant.package!, external));
+    ? file.imports.some((edge) => grant.files.has(edge.via ?? edge.to))
+    : file.externals.some((external) => listsPackage(grant.package!, external));

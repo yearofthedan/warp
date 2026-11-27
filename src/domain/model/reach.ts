@@ -25,6 +25,7 @@ export type Verdict = { allowed: true; grant: Grant } | ({ allowed: false } & Re
 
 export interface Verdicts {
   reach(file: string): readonly Grant[] | undefined;
+  grants(module: ModuleView, view?: View): readonly Grant[];
   exposes(module: ModuleView): ExposesData | undefined;
   surface(module: ModuleView, name?: string, view?: View): ReadonlySet<string>;
   verdict(from: string, to: string): Verdict | undefined;
@@ -51,6 +52,7 @@ export const verdicts = (config: ConfigData, model: Model): Verdicts => {
   const state: State = { config, model, surfaces: new Map(), reaches: new Map() };
   return {
     reach: (file) => reach(state, file),
+    grants: (module, view = 'production') => using(state, module, view),
     exposes: (module) => exposes(state, module),
     surface: (module, name, view = 'production') => surface(state, module, name, view),
     verdict: (from, to) => verdict(state, from, to),
