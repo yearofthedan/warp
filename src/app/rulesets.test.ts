@@ -69,23 +69,23 @@ archetypes:
     modules:
       src: { files: '*.ts', ruleset: { rules: off } }
 `);
-    assert.equal(config.archetypes.root!.ruleset!['module-cycle'], false);
-    assert.equal(config.archetypes.root!.ruleset!['no-cycle'], true);
-    assert.deepEqual(config.archetypes.root!.testRuleset, { 'function-cohesion': false });
-    assert.deepEqual(config.archetypes.root!.modules[0]!.ruleset, { 'no-cycle': false });
-    assert.deepEqual(config.archetypes.leaf!.ruleset, { 'file-cohesion': { maxLines: 300 } });
-    assert.deepEqual(config.archetypes.leaf!.modules[0]!.ruleset, { '*': false });
+    assert.deepEqual(config.archetypes.root!.ruleset!.at(-1), { 'module-cycle': false });
+    assert.equal(config.archetypes.root!.ruleset![0]!['no-cycle'], true);
+    assert.deepEqual(config.archetypes.root!.testRuleset, [{ 'function-cohesion': false }]);
+    assert.deepEqual(config.archetypes.root!.modules[0]!.ruleset, [{ 'no-cycle': false }]);
+    assert.deepEqual(config.archetypes.leaf!.ruleset, [{ 'file-cohesion': { maxLines: 300 } }]);
+    assert.deepEqual(config.archetypes.leaf!.modules[0]!.ruleset, [{ '*': false }]);
   });
 
   it('turn on every built-in rule with warp:recommended', () => {
     const config = load(`${structure.replace('root:\n', 'root:\n  ruleset: { extends: [warp:recommended] }\n')}`);
     assert.deepEqual(
-      Object.keys(config.archetypes.root!.ruleset!),
+      Object.keys(config.archetypes.root!.ruleset![0]!),
       warp.rules.map((rule) => rule.id),
     );
   });
 
-  it('merge extends in order, then their own rules: options into options, off off, on on with the options kept', () => {
+  it('lay extends in order, then their own rules', () => {
     const config = load(`
 root:
   ruleset:
@@ -96,20 +96,11 @@ rulesets:
   loose: { rules: { file-cohesion: { maxLines: 300 }, no-cycle: on, cognitive-complexity: { max: 20 } } }
   strict: { rules: { file-cohesion: { maxLines: 100 } } }
 `);
-    assert.deepEqual(config.archetypes.root!.ruleset, {
-      'file-cohesion': { maxLines: 100 },
-      'no-cycle': false,
-      'cognitive-complexity': { max: 12 },
-    });
-  });
-
-  it("start again from '*' or off, keeping only what is listed beside it", () => {
-    const config = load(`
-root:
-  ruleset: { extends: [warp:recommended], rules: { '*': off, no-cycle: on } }
-  modules: {}
-`);
-    assert.deepEqual(config.archetypes.root!.ruleset, { '*': false, 'no-cycle': true });
+    assert.deepEqual(config.archetypes.root!.ruleset, [
+      { 'file-cohesion': { maxLines: 300 }, 'no-cycle': true, 'cognitive-complexity': { max: 20 } },
+      { 'file-cohesion': { maxLines: 100 } },
+      { 'file-cohesion': true, 'no-cycle': false, 'cognitive-complexity': { max: 12 } },
+    ]);
   });
 
   it('refuse a named ruleset nothing extends, an unknown base, a loop, and what is not a ruleset', () => {
@@ -213,7 +204,9 @@ archetypes:
     const at = settingsAt(yaml, ['cart/x.ts', 'cart/x.test.ts'], 'function-cohesion');
     assert.deepEqual(at, { 'cart/x.ts': { maxLines: 10 }, 'cart/x.test.ts': { maxLines: 40 } });
     const withoutOwn = yaml.replace(', ruleset: { rules: { function-cohesion: { maxLines: 40 } } }', '');
-    assert.deepEqual(settingsAt(withoutOwn, ['cart/x.test.ts'], 'function-cohesion'), { 'cart/x.test.ts': {} });
+    assert.deepEqual(settingsAt(withoutOwn, ['cart/x.test.ts'], 'function-cohesion'), {
+      'cart/x.test.ts': { maxLines: 10 },
+    });
     const withoutLeaf = withoutOwn.replace('      ruleset: { rules: { function-cohesion: on } }\n', '');
     assert.deepEqual(settingsAt(withoutLeaf, ['cart/x.test.ts'], 'function-cohesion'), { 'cart/x.test.ts': 'off' });
   });

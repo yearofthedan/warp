@@ -21,6 +21,8 @@ export type RefData = ModuleRefData | RequiredRefData | PackageRefData;
 
 export type RuleSettingsData = Record<string, boolean | Record<string, unknown>>;
 
+export type RulesetData = readonly RuleSettingsData[];
+
 export type ExposesData =
   | { kind: 'all' }
   | { kind: 'files'; patterns: string[]; entry?: true }
@@ -32,8 +34,8 @@ export interface FilesModuleData {
   patterns: string[];
   using: RefData[];
   exposes?: Exclude<ExposesData, { kind: 'surfaces' }>;
-  ruleset?: RuleSettingsData;
-  testRuleset?: RuleSettingsData;
+  ruleset?: RulesetData;
+  testRuleset?: RulesetData;
   description?: string;
 }
 
@@ -46,8 +48,8 @@ export interface DirModuleData {
   using: RefData[];
   inputs?: Record<string, RefData>;
   testInputs?: Record<string, RefData>;
-  ruleset?: RuleSettingsData;
-  testRuleset?: RuleSettingsData;
+  ruleset?: RulesetData;
+  testRuleset?: RulesetData;
   description?: string;
 }
 
@@ -58,7 +60,7 @@ export interface TestModuleData {
   of?: string;
   using: RefData[];
   exposes?: Exclude<ExposesData, { kind: 'surfaces' }>;
-  ruleset?: RuleSettingsData;
+  ruleset?: RulesetData;
   description?: string;
 }
 
@@ -83,8 +85,8 @@ export interface ArchetypeData {
   exposes?: ExposesData;
   testExposes?: Record<string, RefData[]>;
   testUsing?: RefData[];
-  ruleset?: RuleSettingsData;
-  testRuleset?: RuleSettingsData;
+  ruleset?: RulesetData;
+  testRuleset?: RulesetData;
 }
 
 export interface ConfigData {

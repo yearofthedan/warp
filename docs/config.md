@@ -341,12 +341,30 @@ src/generated/api.ts      no rules
 - A ruleset takes `extends`, the rulesets it starts from in order, and `rules`, settings by rule id laid over them.
   `extends` names `warp:recommended`, a plugin's ruleset as `namespace:name`, or a ruleset under the top-level
   `rulesets:`. A named ruleset applies only through an `extends`; one that nothing extends fails to load.
-- Settings are `on`, `off` or options by rule id, and options turn the rule on. `rules: off` turns every rule off
-  there, and `'*': off` turns off every rule but the ones listed beside it. Plugin rules are `namespace/id`.
+- Settings are `on`, `off` or options by rule id, and options turn the rule on. `'*'` sets every rule the ruleset
+  doesn't name, and `rules: off` is `'*': off`. Plugin rules are `namespace/id`.
 - For a file, warp lays the rulesets from the root down to the file's module. At each module it takes the
   archetype's ruleset, then the one where the module is written, so a use of an archetype adds to the archetype. A
-  later setting merges into an earlier one: options into options, `off` off, and `on` on with the options kept.
-  `extends` adds to what a place inherits and never starts again; only `off` and `'*'` do.
+  later setting decides whether a rule is on, and its options merge into the ones inherited.
+- Nothing resets what a place inherits. `off` and `'*': off` are settings like any other, and a module further in
+  turns a rule back on with the options it had:
+
+```yaml
+root:
+  ruleset: { extends: [warp:recommended], rules: { file-cohesion: { maxLines: 200 } } }
+  modules:
+    legacy:
+      dir: src/legacy
+      ruleset: { rules: off }
+      modules:
+        billing: { dir: billing, ruleset: { rules: { file-cohesion: on } } }
+```
+
+```text
+src/legacy/old.ts           no rules
+src/legacy/billing/pay.ts   file-cohesion alone, maxLines 200
+```
+
 - A test file takes every production ruleset from the root down to the module it tests, then every test block's
   `ruleset` from the root down to that module, then its test module's own. So `function-cohesion` stays off for
   `db.test.ts` above even if `adapters` turned it on: the root's test ruleset comes after every production one.
