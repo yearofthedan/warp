@@ -7,6 +7,7 @@ import { exportSpread } from './export-spread/rule.ts';
 import { dependencyDirection } from './dependency-direction/rule.ts';
 import { fileCohesion } from './file-cohesion/rule.ts';
 import { functionCohesion } from './function-cohesion/rule.ts';
+import { moduleDependencies } from './module-dependencies/rule.ts';
 import { moduleCycle } from './module-cycle/rule.ts';
 import { moduleExternals } from './module-externals/rule.ts';
 import { noCrossModuleReexport } from './no-cross-module-reexport/rule.ts';
@@ -32,6 +33,7 @@ export const builtinRules: readonly Rule[] = [
   unusedDeclaration,
   exportConsumers,
   exportSpread,
+  moduleDependencies,
 ];
 
 const source = 'https://github.com/yearofthedan/warp/blob/main';

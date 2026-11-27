@@ -76,6 +76,10 @@ warp model --json
         "export-spread": {
           "max": 2,
           "ignore": []
+        },
+        "module-dependencies": {
+          "max": 4,
+          "ignore": []
         }
       }
     },
@@ -123,6 +127,10 @@ warp model --json
         "export-spread": {
           "max": 2,
           "ignore": []
+        },
+        "module-dependencies": {
+          "max": 4,
+          "ignore": []
         }
       }
     },
@@ -169,6 +177,10 @@ warp model --json
         },
         "export-spread": {
           "max": 2,
+          "ignore": []
+        },
+        "module-dependencies": {
+          "max": 4,
           "ignore": []
         }
       }

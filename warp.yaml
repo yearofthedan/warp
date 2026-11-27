@@ -121,6 +121,7 @@ archetypes:
       list:
         description: The built-in rules with their docs links
         files: index.ts
+        ruleset: { rules: { module-dependencies: off } }
         dependencies: [rule, rules, model]
         exposes: all
       helpers:
