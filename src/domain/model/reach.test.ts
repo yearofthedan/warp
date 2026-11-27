@@ -3,8 +3,6 @@ import { beforeEach, describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 import type { ExternalImport, ImportEdge, FileFacts } from '../facts/facts.ts';
 import { builtinRules } from '../../builtins/index.ts';
-import { noDoubleExport } from '../../builtins/no-double-export/noDoubleExport.ts';
-import { moduleExternals } from '../../builtins/module-externals/moduleExternals.ts';
 import { checkModel } from '../../app/checkModel.ts';
 import type { ConfigData } from './data.ts';
 import { loadConfigData } from '../../app/load.ts';
@@ -13,6 +11,9 @@ import { grantText, type Verdict, verdicts } from './reach.ts';
 import { type Folders, type Model, resolveModel } from './resolve.ts';
 
 const importRules = builtinRules.filter((rule) => rule.id !== 'unused-declaration');
+const builtin = (id: string) => builtinRules.find((rule) => rule.id === id)!;
+const noDoubleExport = builtin('no-double-export');
+const moduleExternals = builtin('module-externals');
 
 const folders = (paths: readonly string[]): Folders => {
   const dirs = new Set(

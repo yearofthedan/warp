@@ -1,16 +1,16 @@
 import { registry } from '../domain/rules/registry.ts';
 import type { Rule } from '../domain/rules/rule.ts';
-import { cognitiveComplexity } from './cognitive-complexity/cognitiveComplexity.ts';
-import { dependencyDirection } from './dependency-direction/dependencyDirection.ts';
-import { fileCohesion } from './file-cohesion/fileCohesion.ts';
-import { functionCohesion } from './function-cohesion/functionCohesion.ts';
-import { moduleCycle } from './module-cycle/moduleCycle.ts';
-import { moduleExternals } from './module-externals/moduleExternals.ts';
-import { noCrossModuleReexport } from './no-cross-module-reexport/noCrossModuleReexport.ts';
-import { noCycle } from './no-cycle/noCycle.ts';
-import { noDoubleExport } from './no-double-export/noDoubleExport.ts';
-import { unresolvedImport } from './unresolved-import/unresolvedImport.ts';
-import { unusedDeclaration } from './unused-declaration/unusedDeclaration.ts';
+import { cognitiveComplexity } from './cognitive-complexity/rule.ts';
+import { dependencyDirection } from './dependency-direction/rule.ts';
+import { fileCohesion } from './file-cohesion/rule.ts';
+import { functionCohesion } from './function-cohesion/rule.ts';
+import { moduleCycle } from './module-cycle/rule.ts';
+import { moduleExternals } from './module-externals/rule.ts';
+import { noCrossModuleReexport } from './no-cross-module-reexport/rule.ts';
+import { noCycle } from './no-cycle/rule.ts';
+import { noDoubleExport } from './no-double-export/rule.ts';
+import { unresolvedImport } from './unresolved-import/rule.ts';
+import { unusedDeclaration } from './unused-declaration/rule.ts';
 
 export const builtinRules: readonly Rule[] = [
   unresolvedImport,

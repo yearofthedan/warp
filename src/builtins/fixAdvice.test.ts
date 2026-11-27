@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
-import { fixSteps, sentence } from '../../builtins/advice.ts';
-import { loadConfigData } from '../../app/load.ts';
-import { fixesFor, sitesOf } from './fixes.ts';
-import { type Folders, resolveModel } from '../model/resolve.ts';
+import { fixSteps, sentence } from './advice.ts';
+import { loadConfigData } from '../app/load.ts';
+import { fixesFor, sitesOf } from '../domain/fixes/fixes.ts';
+import { type Folders, resolveModel } from '../domain/model/resolve.ts';
 
 const folders = (paths: readonly string[]): Folders => {
   const dirs = new Set(

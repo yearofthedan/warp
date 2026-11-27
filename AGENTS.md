@@ -42,7 +42,7 @@ commit against approved findings; CI runs it after `./do check`.
 
 ## Adding a rule
 
-A built-in rule is a folder in [src/builtins/](src/builtins): the rule module, its unit tests, its scenarios and its
+A built-in rule is a folder in [src/builtins/](src/builtins): the rule in `rule.ts`, its unit tests, its scenarios and its
 page as the folder's `README.md`. [src/builtins/index.ts](src/builtins/index.ts) lists it. A new rule's page has the
 same sections as the others, and gets a row in the rules table in [docs/rules.md](docs/rules.md).
 

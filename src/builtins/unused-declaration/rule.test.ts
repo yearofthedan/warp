@@ -5,7 +5,7 @@ import { checkModel } from '../../app/checkModel.ts';
 import { loadConfigData } from '../../app/load.ts';
 import { type Folders, resolveModel } from '../../domain/model/resolve.ts';
 import type { FileFacts } from '../../domain/facts/facts.ts';
-import { unusedDeclaration } from './unusedDeclaration.ts';
+import { unusedDeclaration } from './rule.ts';
 
 const rule = 'unused-declaration';
 

@@ -183,7 +183,7 @@ describe('warp diff from a linked checkout', () => {
     assert.deepEqual(JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout).added, []);
     const first = cached();
     assert.equal(first.length, 2);
-    const rule = join(tool, 'src/builtins/cognitive-complexity/cognitiveComplexity.ts');
+    const rule = join(tool, 'src/builtins/cognitive-complexity/rule.ts');
     writeFileSync(
       rule,
       readFileSync(rule, 'utf8').replace(
