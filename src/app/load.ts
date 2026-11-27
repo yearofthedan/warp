@@ -1,5 +1,5 @@
 import { compileConfig } from '../domain/language/compile.ts';
-import { ConfigError } from '../domain/model/configError.ts';
+import { ConfigError } from '../domain/errors/configError.ts';
 import type { ConfigData } from '../domain/model/data.ts';
 import { pluginRules, pluginRulesets, registry } from '../domain/rules/registry.ts';
 import { type Plugin, type Rule, noOptions } from '../domain/rules/rule.ts';

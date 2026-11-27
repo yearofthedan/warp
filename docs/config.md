@@ -301,7 +301,9 @@ e2e/checkout.test.ts               e2e                         reaches the journ
 A ruleset turns rules on or off and sets their options. No rule runs until a ruleset turns it on, and
 `warp:recommended` turns on every built-in rule with its defaults. A ruleset is written where it applies: `ruleset:`
 on the root, a module or an archetype, and `ruleset:` in a `test:` block for test code. It reaches everything inside
-that place, and each place inside adds its own on top, as nested ESLint configs do.
+that place, and each place inside adds its own on top, as nested ESLint configs do. `warp:utility` goes on a module
+meant to be used from everywhere, such as `strings` or a helpers folder: it turns off
+[`export-consumers`](../src/builtins/export-consumers/README.md) there.
 
 ```yaml
 root:

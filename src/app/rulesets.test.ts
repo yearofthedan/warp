@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 import { warp } from '../builtins/index.ts';
-import { ConfigError } from '../domain/model/configError.ts';
+import { ConfigError } from '../domain/errors/configError.ts';
 import { loadConfigData } from './load.ts';
 import { type Folders, resolveModel } from '../domain/model/resolve.ts';
 import { anyRuleOn, settings } from '../domain/model/settings.ts';
@@ -139,7 +139,7 @@ rulesets:
         "rulesets.x:y: a name has no ':', which marks a plugin's ruleset",
         'root.ruleset: unknown key only; a ruleset takes extends, rules',
         'rulesets.b.extends: a extends b extends a, a loop',
-        "root.ruleset.extends: 'missing' is no ruleset; extend warp:recommended, a, b, idle, plain",
+        "root.ruleset.extends: 'missing' is no ruleset; extend warp:recommended, warp:utility, a, b, idle, plain",
         "rulesets.idle: nothing extends it; a named ruleset applies through a ruleset's extends",
         "rulesets.plain: nothing extends it; a named ruleset applies through a ruleset's extends",
       ],
@@ -149,7 +149,7 @@ rulesets:
       'root.ruleset: expected a ruleset, off, [warp:recommended] or { extends: [warp:recommended], rules: {...} }',
     ]);
     assert.deepEqual(failures('root: { modules: {}, ruleset: [x] }'), [
-      "root.ruleset.extends: 'x' is no ruleset; extend warp:recommended",
+      "root.ruleset.extends: 'x' is no ruleset; extend warp:recommended, warp:utility",
     ]);
   });
 

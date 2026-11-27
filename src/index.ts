@@ -12,7 +12,7 @@ export type {
 } from './domain/facts/facts.ts';
 export type { Model, ModuleView } from './domain/model/resolve.ts';
 export type { Grant, Refusal, Verdict, Verdicts } from './domain/model/reach.ts';
-export { ConfigError } from './domain/model/configError.ts';
+export { ConfigError } from './domain/errors/configError.ts';
 export {
   type Finding,
   type FileContext,

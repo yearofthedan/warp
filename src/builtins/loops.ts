@@ -1,5 +1,5 @@
 import type { ImportEdge } from '../domain/facts/facts.ts';
-import { ConfigError } from '../domain/model/configError.ts';
+import { ConfigError } from '../domain/errors/configError.ts';
 
 export interface CycleOptions {
   types: 'count' | 'ignore';

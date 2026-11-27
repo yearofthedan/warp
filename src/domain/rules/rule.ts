@@ -1,4 +1,4 @@
-import { ConfigError } from '../model/configError.ts';
+import { ConfigError } from '../errors/configError.ts';
 import type { ConfigData } from '../model/data.ts';
 import type { Verdicts } from '../model/reach.ts';
 import type { Model, ModuleView } from '../model/resolve.ts';

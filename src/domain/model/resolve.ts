@@ -1,4 +1,4 @@
-import { ConfigError } from './configError.ts';
+import { ConfigError } from '../errors/configError.ts';
 import type { ArchetypeData, ConfigData, DirModuleData, ModuleData, TestModuleData } from './data.ts';
 
 export interface Folders {

@@ -69,7 +69,14 @@ warp model --json
         "cognitive-complexity": {
           "max": 15
         },
-        "unused-declaration": {}
+        "unused-declaration": {},
+        "export-consumers": {
+          "max": 3
+        },
+        "export-spread": {
+          "max": 2,
+          "ignore": []
+        }
       }
     },
     {
@@ -109,7 +116,14 @@ warp model --json
         "cognitive-complexity": {
           "max": 15
         },
-        "unused-declaration": {}
+        "unused-declaration": {},
+        "export-consumers": {
+          "max": 3
+        },
+        "export-spread": {
+          "max": 2,
+          "ignore": []
+        }
       }
     },
     {
@@ -149,7 +163,14 @@ warp model --json
         "cognitive-complexity": {
           "max": 15
         },
-        "unused-declaration": {}
+        "unused-declaration": {},
+        "export-consumers": {
+          "max": 3
+        },
+        "export-spread": {
+          "max": 2,
+          "ignore": []
+        }
       }
     }
   ]

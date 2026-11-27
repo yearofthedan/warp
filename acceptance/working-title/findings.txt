@@ -25,6 +25,8 @@ dependency-direction:src/ui/project/project.dom.ts->src/ui/header/header.dom.ts
 dependency-direction:src/ui/project/project.dsl.ts->src/ui/your-projects/your-projects.dsl.ts
 dependency-direction:src/ui/project/project.harness.ts->src/ui/header/header.dom.ts
 dependency-direction:src/ui/project/project.harness.ts->src/ui/your-projects/your-projects.test-page.ts
+export-consumers:src/ui/strings/strings.ts#strings
+export-spread:src/ui/project:src/ui/strings/strings.ts#strings
 file-cohesion:src/test-helpers/driver.ts
 file-cohesion:src/ui/project/graph/graph.dsl.ts
 function-cohesion:src/adapters/file-system-folders.component.test.ts:<callback to describe("a free name for a project in the projects folder")>

@@ -27,17 +27,23 @@ archetypes:
       domain:
         description: 'What warp knows, with no I/O: the model, its config language, fixes, facts and the rules API'
         dir: domain
-        exposes: [model, language, fixes, facts, rules]
+        exposes: [errors, model, language, fixes, facts, rules]
         modules:
+          errors:
+            description: 'ConfigError, which every layer raises or reports when a config is wrong'
+            dir: errors
+            exposes: all
+            ruleset: [warp:utility]
           model:
             description: 'ConfigData, resolving files to modules, reach, and rule settings by place'
             dir: model
+            dependencies: [errors]
             exposes: all
             test: { modules: { tests: { files: '*.test.ts', dependencies: [language, npm:yaml] } } }
           language:
             description: 'Compiling a parsed warp.yaml into ConfigData: shape, names, cross-checks and rulesets'
             dir: language
-            dependencies: [model]
+            dependencies: [errors, model]
             exposes: { files: [compile.ts] }
           fixes:
             description: The config edits that would allow a refused import
@@ -53,14 +59,15 @@ archetypes:
             dir: rules
             exposes: [rule, registry, findings]
             modules:
-              rule: { files: rule.ts, dependencies: [model, facts], exposes: all }
-              registry: { files: registry.ts, dependencies: [rule, model], exposes: all }
+              rule: { files: rule.ts, dependencies: [errors, model, facts], exposes: all }
+              registry: { files: registry.ts, dependencies: [errors, rule], exposes: all }
               findings: { files: diff.ts, dependencies: [rule], exposes: all }
             test: { modules: { tests: { files: '*.test.ts', dependencies: [facts] } } }
       builtins:
         dir: builtins
         archetype: builtins
-        dependencies: { model: domain.model, rules: domain.rules, fixes: domain.fixes, facts: domain.facts }
+        dependencies:
+          { errors: domain.errors, model: domain.model, rules: domain.rules, fixes: domain.fixes, facts: domain.facts }
         test: { dependencies: [app] }
       app:
         description: Loading a config, running the rules on a model, and diffing two commits, behind ports
@@ -107,8 +114,9 @@ archetypes:
 
   builtins:
     description: "warp's own rules: one folder per rule, the list of them, and the helpers rules share"
-    requires: [model, rules, fixes, facts]
+    requires: [errors, model, rules, fixes, facts]
     exposes: [list]
+    ruleset: { rules: { export-spread: { ignore: [src/domain/rules] } } }
     modules:
       list:
         description: The built-in rules with their docs links
@@ -118,8 +126,9 @@ archetypes:
       helpers:
         description: What more than one rule needs, such as advice text, loops and package names
         files: '*.ts'
-        dependencies: [model, fixes, facts]
+        dependencies: [errors, model, rules, fixes, facts]
         exposes: all
+        ruleset: [warp:utility]
       rule:
         dir: '*'
         archetype: rule

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
-import { ConfigError } from './configError.ts';
+import { ConfigError } from '../errors/configError.ts';
 import { compileConfig } from '../language/compile.ts';
 import { grantText, verdicts } from './reach.ts';
 import { type Folders, resolveModel } from './resolve.ts';

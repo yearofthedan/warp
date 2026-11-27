@@ -5,7 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { type Document, isAlias, type YAMLError, isMap, isNode, isPair, isScalar, parseDocument, visit } from 'yaml';
 import type { ConfigSource, ConfigText } from '../../app/ports.ts';
-import { ConfigError } from '../../domain/model/configError.ts';
+import { ConfigError } from '../../domain/errors/configError.ts';
 
 export const configName = 'warp.yaml';
 
