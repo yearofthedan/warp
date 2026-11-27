@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
-import { builtinRegistry } from '../../builtins/index.ts';
-import { ConfigError } from '../model/configError.ts';
-import { loadConfigData } from '../../app/load.ts';
-import { anyRuleOn } from '../model/settings.ts';
+import { builtinRegistry } from '../builtins/index.ts';
+import { ConfigError } from '../domain/model/configError.ts';
+import { loadConfigData } from './load.ts';
+import { anyRuleOn } from '../domain/model/settings.ts';
 
 const builtins = [...builtinRegistry.values()];
 
