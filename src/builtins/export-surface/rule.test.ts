@@ -26,13 +26,14 @@ const folders = (paths: readonly string[]): Folders => {
   };
 };
 
-const use = (to: string, names: string[], typeOnly = false): ImportEdge => ({
+const use = (to: string, names: string[], typeOnly = false, reExport = false): ImportEdge => ({
   from: '',
   to,
   specifier: to,
   names,
   typeOnly,
   line: 1,
+  ...(reExport ? { reExport } : {}),
 });
 
 const facts = (path: string, imports: ImportEdge[] = []): FileFacts => ({
@@ -57,19 +58,24 @@ root:
         model: { dir: model, exposes: all${model} }
         rules: { dir: rules, exposes: all, dependencies: [model] }
     app: { dir: app, dependencies: [domain] }
-  test: { modules: { tests: { files: '*.test.ts' } } }
+  test: { modules: { tests: { files: '**/*.test.ts' } } }
 `;
 
 const project = [
   facts('domain/model/order.ts'),
+  facts('domain/model/price.ts'),
+  facts('domain/model/order.test.ts'),
   facts('domain/rules/rule.ts', [
     use('domain/model/order.ts', ['Order', 'cancel']),
-    use('domain/model/order.ts', ['Price'], true),
+    use('domain/model/price.ts', ['Price', 'round'], true),
+    use('domain/model/price.ts', ['Currency'], false, true),
   ]),
   facts('app/main.ts', [
-    use('domain/model/order.ts', ['cancel']),
+    use('domain/model/order.ts', ['cancel', '*']),
     use('domain/model/order.ts', ['Order'], true),
+    use('domain/model/price.ts', ['Rate'], true),
     use('domain/rules/rule.ts', ['run']),
+    use('domain/model/order.test.ts', ['fixture']),
   ]),
   facts('e2e.test.ts', [use('domain/model/order.ts', ['refund'])]),
 ];
@@ -82,34 +88,60 @@ const run = (model = '') => {
 
 describe('export-surface', () => {
   it('counts the names, values and types, that modules outside each module import from it, parents included', () => {
-    assert.deepEqual(
-      run().map(({ key, file, value, limit, message }) => ({ key, file, value, limit, message })),
-      [
-        {
-          key: 'export-surface:domain',
-          file: 'domain/model/order.ts',
-          value: 3,
-          limit: 2,
-          message:
-            'domain offers 3 names that other modules use (2 values, 1 type). Its limit here is 2. ' +
-            'Split it, or give it a smaller front.',
+    assert.deepEqual(run(), [
+      {
+        rule: 'export-surface',
+        key: 'export-surface:domain',
+        file: 'domain/model/order.ts',
+        line: 1,
+        module: 'domain/model',
+        value: 4,
+        limit: 2,
+        message:
+          'domain offers 4 names that other modules use (2 values, 2 types). Its limit here is 2. ' +
+          'Split it, or give it a smaller front.',
+        details: {
+          module: 'domain',
+          values: 2,
+          types: 2,
+          files: [
+            { file: 'domain/model/order.ts', names: ['cancel', 'Order'] },
+            { file: 'domain/model/price.ts', names: ['Rate'] },
+            { file: 'domain/rules/rule.ts', names: ['run'] },
+          ],
         },
-        {
-          key: 'export-surface:domain/model',
-          file: 'domain/model/order.ts',
-          value: 3,
-          limit: 2,
-          message:
-            'domain/model offers 3 names that other modules use (2 values, 1 type). Its limit here is 2. ' +
-            'Split it, or give it a smaller front.',
+      },
+      {
+        rule: 'export-surface',
+        key: 'export-surface:domain/model',
+        file: 'domain/model/price.ts',
+        line: 1,
+        module: 'domain/model',
+        value: 5,
+        limit: 2,
+        message:
+          'domain/model offers 5 names that other modules use (2 values, 3 types). Its limit here is 2. ' +
+          'Split it, or give it a smaller front.',
+        details: {
+          module: 'domain/model',
+          values: 2,
+          types: 3,
+          files: [
+            { file: 'domain/model/order.ts', names: ['cancel', 'Order'] },
+            { file: 'domain/model/price.ts', names: ['Price', 'Rate', 'round'] },
+          ],
         },
-      ],
-    );
+      },
+    ]);
   });
 
   it('judges each module against its own ruleset', () => {
     assert.deepEqual(
-      run(', ruleset: { rules: { export-surface: { max: 3 } } }').map(({ key }) => key),
+      run(', ruleset: { rules: { export-surface: { max: 5 } } }').map(({ key }) => key),
+      ['export-surface:domain'],
+    );
+    assert.deepEqual(
+      run(', ruleset: { rules: { export-surface: off } }').map(({ key }) => key),
       ['export-surface:domain'],
     );
   });
