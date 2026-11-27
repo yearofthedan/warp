@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.1](https://github.com/yearofthedan/warp/compare/warp-v0.5.0...warp-v0.5.1) (2026-11-27)
+
+
+### Features
+
+* add class-cohesion, judging a class by how its methods share state ([25f72bf](https://github.com/yearofthedan/warp/commit/25f72bf8095aef030c553ec0651fa00b20b9c534))
+* add export-consumers and export-spread, with the warp:utility ruleset ([206bc9a](https://github.com/yearofthedan/warp/commit/206bc9ab895d0934149fb511dd3dc16f41930d98))
+* add export-surface, counting the names other modules import from a module ([afc12c7](https://github.com/yearofthedan/warp/commit/afc12c72479553c81a33b2a4891fbae70fabd36e))
+* add module-dependencies, counting the boundaries a module's imports cross ([2a04e2c](https://github.com/yearofthedan/warp/commit/2a04e2c33aab4515851de9bc6228fe691c646045))
+* add module-size, totalling the lines in a module's own files ([ca263ba](https://github.com/yearofthedan/warp/commit/ca263ba4e1481c071e55640d00841a41454376f9))
+* name modules in a rule option as dependencies do ([91ed4b7](https://github.com/yearofthedan/warp/commit/91ed4b7535c9e4b55fae547ec37041125d462682))
+* record imports by exported name, one edge for values and one for types ([261afd4](https://github.com/yearofthedan/warp/commit/261afd4012d7ae1a7674146b9ad36c474105e539))
+* record member chains, and count export-consumers per member ([fd17ed7](https://github.com/yearofthedan/warp/commit/fd17ed76d74c88033206062a6466db0dd51e64c0))
+
 ## [0.5.0](https://github.com/yearofthedan/warp/compare/warp-v0.4.1...warp-v0.5.0) (2026-11-27)
 
 
