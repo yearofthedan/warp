@@ -76,6 +76,9 @@ warp model --json
         "export-spread": {
           "max": 2,
           "ignore": []
+        },
+        "export-surface": {
+          "max": 20
         }
       }
     },
@@ -123,6 +126,9 @@ warp model --json
         "export-spread": {
           "max": 2,
           "ignore": []
+        },
+        "export-surface": {
+          "max": 20
         }
       }
     },
@@ -170,6 +176,9 @@ warp model --json
         "export-spread": {
           "max": 2,
           "ignore": []
+        },
+        "export-surface": {
+          "max": 20
         }
       }
     }
