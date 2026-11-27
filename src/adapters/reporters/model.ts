@@ -25,7 +25,7 @@ export const modelText = (model: Model, rules?: RulesOf): string => {
 
 const changedRules = (module: ModuleView, rules: RulesOf): string => {
   const resolved = rules.module(module);
-  const from: ResolvedRules = module.parent ? rules.module(module.parent) : rules.defaults;
+  const from: ResolvedRules = module.parent ? rules.inherited(module) : rules.defaults;
   return Object.entries(resolved)
     .filter(([id, setting]) => JSON.stringify(setting) !== JSON.stringify(from[id]))
     .map(([id, setting]) => (setting === false ? `${id} off` : `${id} ${JSON.stringify(setting)}`))

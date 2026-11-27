@@ -8,7 +8,7 @@ import { type Adapters, modelProject, type ProjectCheck, projectCheck } from './
 import { type ConfigLines, placeProblems } from './app/configLines.ts';
 import { factsStore } from './app/facts.ts';
 import { diffProject, parseRange } from './app/diff.ts';
-import { builtinRegistry, unclassifiedDocs } from './builtins/index.ts';
+import { builtinRegistry } from './builtins/index.ts';
 import { findConfig, yamlConfig } from './adapters/config/loadConfig.ts';
 import { toolDigest } from './adapters/config/toolDigest.ts';
 import { gitDirCache } from './adapters/git/cache.ts';
@@ -112,7 +112,7 @@ const resolveConfig = async (options: Omit<Options, 'reporter' | 'fail' | 'since
 };
 
 const checkOf = ({ root, config, rules, lines }: Resolved): ProjectCheck =>
-  projectCheck(adaptersAt(root), config, { rules, unclassifiedDocs, lines });
+  projectCheck(adaptersAt(root), config, { rules, lines });
 
 const run = async (options: Options, produce: Produce): Promise<number> => {
   const reporter = reporters.get(options.reporter);

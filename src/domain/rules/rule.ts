@@ -2,6 +2,7 @@ import { ConfigError } from '../model/configError.ts';
 import type { ConfigData } from '../model/data.ts';
 import type { Verdicts } from '../model/reach.ts';
 import type { Model, ModuleView } from '../model/resolve.ts';
+import type { DefaultOn } from '../model/settings.ts';
 import type { FileFacts, Project } from '../facts/facts.ts';
 
 export interface Site {
@@ -47,6 +48,7 @@ interface RuleBase<Options extends object> {
   id: string;
   docs?: string;
   defaults?: Options;
+  defaultOn?: DefaultOn;
   parseOptions?: (raw: Record<string, unknown>, at: string) => Partial<Options>;
 }
 

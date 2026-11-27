@@ -64,7 +64,9 @@ rulesets:
     on: { root.ui: { local/no-ports-through-application: on } }
 ```
 
-- The plugin's rules are on everywhere by default. This ruleset turns the rule off, then on for `ui` alone.
+- The plugin's rules are on everywhere by default. This ruleset turns the rule off, then on for `ui` alone. A rule
+  with `defaultOn: 'root'` is on at the root module and off below it until a ruleset turns it on, as
+  [`unclassified`](../src/builtins/unclassified/README.md) is.
 - Relative imports need their `.ts` extension, and an import of types alone must be `import type`, since Node strips
   types without resolving them.
 - Types in the editor come from the `@yearofthedan/warp` dev dependency.

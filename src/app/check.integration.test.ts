@@ -4,7 +4,7 @@ import { beforeAll, describe, it } from 'vite-plus/test';
 import { diskFolders } from '../adapters/analysis/folders.ts';
 import { typescriptAnalyzer } from '../adapters/analysis/typescript.ts';
 import { projectCheck } from '../app/check.ts';
-import { builtinRegistry, unclassifiedDocs } from '../builtins/index.ts';
+import { builtinRegistry } from '../builtins/index.ts';
 import { yamlConfig } from '../adapters/config/loadConfig.ts';
 import { loadConfig } from './load.ts';
 import type { Finding } from '../domain/rules/rule.ts';
@@ -17,7 +17,7 @@ beforeAll(async () => {
     builtins: [...builtinRegistry.values()],
   });
   const adapters = { analyzer: typescriptAnalyzer, foldersAt: diskFolders };
-  findings = projectCheck(adapters, config, { rules, unclassifiedDocs }).check(root);
+  findings = projectCheck(adapters, config, { rules }).check(root);
 });
 
 const byKey = (key: string) => findings.find((finding) => finding.key === key);

@@ -8,7 +8,7 @@ export default {
     'src/domain/**/*.ts',
     'src/builtins/**/*.ts',
     'src/adapters/reporters/**/*.ts',
-    'src/app/{checkModel,diff,facts,load,unclassified}.ts',
+    'src/app/{checkModel,diff,facts,load}.ts',
     '!src/**/*.test.ts',
   ],
   incremental: true,
