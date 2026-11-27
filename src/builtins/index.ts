@@ -4,6 +4,7 @@ import { classCohesion } from './class-cohesion/rule.ts';
 import { cognitiveComplexity } from './cognitive-complexity/rule.ts';
 import { exportConsumers } from './export-consumers/rule.ts';
 import { exportSpread } from './export-spread/rule.ts';
+import { exportSurface } from './export-surface/rule.ts';
 import { dependencyDirection } from './dependency-direction/rule.ts';
 import { fileCohesion } from './file-cohesion/rule.ts';
 import { functionCohesion } from './function-cohesion/rule.ts';
@@ -32,6 +33,7 @@ export const builtinRules: readonly Rule[] = [
   unusedDeclaration,
   exportConsumers,
   exportSpread,
+  exportSurface,
 ];
 
 const source = 'https://github.com/yearofthedan/warp/blob/main';
@@ -47,6 +49,6 @@ export const warp: Plugin = {
   rules: [...builtinRegistry.values()],
   rulesets: {
     recommended: { rules: Object.fromEntries(builtinRules.map((rule) => [rule.id, 'on'])) },
-    utility: { rules: { 'export-consumers': 'off' } },
+    utility: { rules: { 'export-consumers': 'off', 'export-surface': 'off' } },
   },
 };
