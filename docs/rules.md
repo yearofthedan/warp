@@ -24,6 +24,7 @@ rule's page shows a config, code it reports with the finding it prints, code it 
 | [`export-spread`](../src/builtins/export-spread/README.md) | A module more of whose children use one outside value than `max`. | `max`, `ignore` |
 | [`export-surface`](../src/builtins/export-surface/README.md) | A module from which other modules import more names than `max`. | `max` |
 | [`module-dependencies`](../src/builtins/module-dependencies/README.md) | A module whose imports cross more boundaries than `max`. | `max`, `ignore` |
+| [`module-size`](../src/builtins/module-size/README.md) | A module whose own files hold more lines than `max`. | `max` |
 | [`unused-declaration`](../src/builtins/unused-declaration/README.md) | A `dependencies` entry, a surface or a module the code doesn't use. | |
 
 A project adds its own rules as plugins: see [custom-rules.md](custom-rules.md).
