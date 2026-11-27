@@ -260,7 +260,7 @@ root:
   ruleset: { rules: { export-spread: { ignore: [shared] } } }
   modules:
     shared: { dir: shared, exposes: all }
-    icons: { dir: icons, exposes: all }
+    icons: { dir: icons, exposes: all, ruleset: { rules: { export-spread: { max: 3 } } } }
     ui:
       dir: ui
       ruleset: { rules: { export-spread: { ignore: [icons, kit] } } }
@@ -286,9 +286,10 @@ archetypes:
         ['ignore'],
       ).options.ignore;
     assert.deepEqual(
-      ['(root)', 'ui', 'pages'].map((module) => [module, ignore(module)]),
+      ['(root)', 'icons', 'ui', 'pages'].map((module) => [module, ignore(module)]),
       [
         ['(root)', ['shared']],
+        ['icons', ['shared']],
         ['ui', ['icons', 'ui:kit']],
         ['pages', ['shared']],
       ],

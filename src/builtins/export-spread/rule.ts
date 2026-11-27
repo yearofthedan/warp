@@ -21,7 +21,6 @@ export const exportSpread: ProjectRule<LimitOptions> = {
   check: ({ model, project, atModule }) => {
     const uses = valueUses(model, project.files);
     return model.modules.flatMap((module): Finding[] => {
-      if (module.test || module.children.length === 0) return [];
       const { on, options } = atModule(module);
       if (!on) return [];
       const skip = ignored(model, options.ignore);
@@ -51,9 +50,7 @@ const spreads = (model: Model, module: ModuleView, uses: readonly Use[], skip: r
 
 const finding = ({ file, name, children }: Spread, module: ModuleView, exporter: ModuleView, max: number): Finding => {
   const named = [...children.keys()].map((child) => child.id).sort();
-  const sites = [...children.values()]
-    .map(([first]) => first!)
-    .toSorted((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  const sites = [...children.values()].map(([first]) => first!).toSorted((a, b) => a.file.localeCompare(b.file));
   return {
     rule: id,
     key: `${id}:${module.id}:${file}#${name}`,

@@ -15,7 +15,7 @@ export interface Check {
   fail: Fail;
   ruleIds?: ReadonlySet<string> | undefined;
   options: Readonly<Record<string, (raw: Record<string, unknown>, at: string) => unknown>>;
-  moduleOptions?: Readonly<Record<string, readonly string[]>>;
+  moduleOptions: Readonly<Record<string, readonly string[]>>;
 }
 
 export const checkReferences = (
@@ -116,8 +116,8 @@ const checkOptions = (
     check.fail(error.message);
     return { ...options };
   }
-  const resolved = (check.moduleOptions?.[id] ?? [])
-    .filter((key) => Array.isArray(options[key]))
+  const resolved = (check.moduleOptions[id] ?? [])
+    .filter((key) => options[key] !== undefined)
     .map((key) => [key, modules(check, options[key] as string[], `${where}.${id}.${key}`, names)]);
   return { ...options, ...Object.fromEntries(resolved) };
 };

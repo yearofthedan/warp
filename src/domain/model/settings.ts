@@ -1,5 +1,5 @@
 import type { ArchetypeData, ConfigData, ModuleData, RefData, RuleSettingsData, RulesetData } from './data.ts';
-import { modulesNamed, type View } from './reach.ts';
+import { modulesNamed } from './reach.ts';
 import { declarationOf, type Model, type ModuleView } from './resolve.ts';
 import { isRecord } from './shared.ts';
 
@@ -16,42 +16,33 @@ export interface Settings {
 interface Layer {
   ruleset: RulesetData | undefined;
   holder: ModuleView;
-  view: View;
 }
 
 interface Settled {
   rules: RuleSettingsData;
   holder: ModuleView;
-  view: View;
 }
 
 const archetypeOf = (config: ConfigData, module: ModuleView): ArchetypeData | undefined =>
   module.archetype === undefined ? undefined : config.archetypes[module.archetype];
 
-const own = (config: ConfigData, module: ModuleView): Layer[] => [
-  { ruleset: archetypeOf(config, module)?.ruleset, holder: module, view: 'production' },
-  { ruleset: declarationOf(config, module)?.ruleset, holder: module.parent ?? module, view: 'production' },
-];
-
 type TestRulesetOf = { testRuleset?: RulesetData } | undefined;
 
-const ownTests = (config: ConfigData, module: ModuleView): Layer[] => [
-  { ruleset: archetypeOf(config, module)?.testRuleset, holder: module, view: 'test' },
-  {
-    ruleset: (declarationOf(config, module) as TestRulesetOf)?.testRuleset,
-    holder: module.parent ?? module,
-    view: 'test',
-  },
-];
+const layered = (config: ConfigData, module: ModuleView, test: boolean): Layer[] => {
+  const pick = (place: ArchetypeData | ModuleData | undefined) =>
+    test ? (place as TestRulesetOf)?.testRuleset : place?.ruleset;
+  const inside = { ruleset: pick(archetypeOf(config, module)), holder: module };
+  return module.parent ? [inside, { ruleset: pick(declarationOf(config, module)), holder: module.parent }] : [inside];
+};
 
 const production = (config: ConfigData, module: ModuleView): Layer[] => [
   ...(module.parent ? production(config, module.parent) : []),
-  ...own(config, module),
+  ...layered(config, module, false),
 ];
 
 const tests = (config: ConfigData, module: ModuleView): Layer[] => [
   ...(module.parent ? tests(config, module.parent) : []),
-  ...ownTests(config, module),
+  ...layered(config, module, true),
 ];
 
 const filesModuleOf = (config: ConfigData, holder: ModuleView, test: ModuleView): ModuleData | undefined => {
@@ -67,15 +58,15 @@ const layersOf = (config: ConfigData, module: ModuleView): Layer[] => {
   const files = filesModuleOf(config, holder, chain[0]!);
   return [
     ...production(config, holder),
-    { ruleset: files?.ruleset, holder, view: 'production' },
+    { ruleset: files?.ruleset, holder },
     ...tests(config, holder),
-    { ruleset: (files as TestRulesetOf)?.testRuleset, holder, view: 'test' },
-    ...chain.flatMap((test) => own(config, test)),
+    { ruleset: (files as TestRulesetOf)?.testRuleset, holder },
+    ...chain.flatMap((test) => layered(config, test, false)),
   ];
 };
 
-const named = (config: ConfigData, { holder, view }: Settled, refs: unknown): string[] =>
-  (refs as RefData[]).flatMap((ref) => modulesNamed(config, holder, ref, view).map((module) => module.id));
+const named = (config: ConfigData, { holder }: Settled, refs: unknown): string[] =>
+  (refs as RefData[]).flatMap((ref) => modulesNamed(config, holder, ref).map((module) => module.id));
 
 const ruleAt = (
   config: ConfigData,
@@ -108,8 +99,8 @@ export const settings = (config: ConfigData, model: Model): Settings => {
     if (!found)
       cache.set(
         module,
-        (found = layersOf(config, module).flatMap(({ ruleset, holder, view }) =>
-          (ruleset ?? []).map((rules) => ({ rules, holder, view })),
+        (found = layersOf(config, module).flatMap(({ ruleset, holder }) =>
+          (ruleset ?? []).map((rules) => ({ rules, holder })),
         )),
       );
     return found;

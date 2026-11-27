@@ -126,7 +126,7 @@ const archetype = (state: State, name: string, def: Record<string, unknown>, opt
     inputs: options.parent?.inputs ?? new Set(data.requires),
     testInputs: options.parent?.testInputs ?? new Set(data.testRequires),
   };
-  Object.assign(data, rulesetsAt(state, scope, where, def.ruleset, test.ruleset, options.test));
+  Object.assign(data, rulesetsAt(state, scope, where, def.ruleset, test.ruleset));
   state.archetypes[name] = data;
   const build = options.test ? testModule : productionModule;
   for (const [module, raw] of Object.entries(modules)) data.modules.push(...build(state, scope, module, raw));
@@ -166,11 +166,10 @@ const rulesetsAt = (
   where: string,
   ruleset: unknown,
   testRuleset: unknown,
-  test = false,
 ): Pick<ArchetypeData, 'ruleset' | 'testRuleset'> => {
-  const names = (tests: boolean) => (entry: string, at: string) => resolveName(state, scope, entry, tests, at);
-  const own = state.ruleset(ruleset, `${where}.ruleset`, names(test));
-  const tests = state.ruleset(testRuleset, `${where}.test.ruleset`, names(true));
+  const names = (entry: string, at: string) => resolveName(state, scope, entry, false, at);
+  const own = state.ruleset(ruleset, `${where}.ruleset`, names);
+  const tests = state.ruleset(testRuleset, `${where}.test.ruleset`, names);
   return { ...(own ? { ruleset: own } : {}), ...(tests ? { testRuleset: tests } : {}) };
 };
 
@@ -267,7 +266,7 @@ const testFiles = (
     ...(of === undefined ? {} : { of }),
     using: references(state, scope, `${where}.dependencies`, def.dependencies, true),
     ...(exposed && exposed.kind !== 'surfaces' ? { exposes: exposed } : {}),
-    ...rulesetsAt(state, scope, where, def.ruleset, undefined, true),
+    ...rulesetsAt(state, scope, where, def.ruleset, undefined),
     ...description(state, where, def.description),
   };
 };
@@ -315,7 +314,7 @@ const instance = (
     using: Object.values(own),
     ...(Object.keys(own).length > 0 ? { inputs: own } : {}),
     ...(Object.keys(tests).length > 0 ? { testInputs: tests } : {}),
-    ...rulesetsAt(state, scope, where, def.ruleset, testBlock.ruleset, test),
+    ...rulesetsAt(state, scope, where, def.ruleset, testBlock.ruleset),
     ...description(state, where, def.description),
   };
 };

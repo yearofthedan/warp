@@ -161,8 +161,8 @@ const concrete = (
   return found && { ...found, via: [bound, ...found.via] };
 };
 
-export const modulesNamed = (config: ConfigData, holder: ModuleView, ref: RefData, view: View): ModuleView[] => {
-  const found = concrete({ config }, holder, ref, view);
+export const modulesNamed = (config: ConfigData, holder: ModuleView, ref: RefData): ModuleView[] => {
+  const found = concrete({ config }, holder, ref, 'production');
   if (!found || found.ref.kind !== 'module') return [];
   const { module } = found.ref;
   return found.holder.children.filter((child) => child.name === module);
