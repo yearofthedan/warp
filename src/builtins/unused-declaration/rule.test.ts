@@ -133,6 +133,35 @@ describe(rule, () => {
     );
   });
 
+  it('names the modules inside that import through a dependency their parent names but never uses', () => {
+    const structure = `
+root:
+  modules:
+    domain: { dir: domain, exposes: all }
+    adapters:
+      dir: adapters
+      dependencies: [domain, 'node:*']
+      modules:
+        git: { dir: git, dependencies: ['node:*'] }
+        db: { dir: db, dependencies: [domain, 'node:*'] }
+`;
+    const files = ['domain/order.ts', 'adapters/index.ts', 'adapters/git/git.ts', 'adapters/db/db.ts'];
+    const analyzed = [
+      facts('adapters/git/git.ts', [], ['node:fs']),
+      facts('adapters/db/db.ts', ['domain/order.ts'], ['node:path']),
+    ];
+    assert.deepEqual(
+      check(structure, analyzed, { files }).map((finding) => finding.message),
+      [
+        'root.adapters.dependencies names domain, but only its modules db import through it. ' +
+          "A module's dependencies are its own: name it in root.adapters.db.dependencies, and remove it here.",
+        "root.adapters.dependencies names node:*, but only its modules db, git import through it. A module's " +
+          'dependencies are its own: name it in root.adapters.db.dependencies and root.adapters.git.dependencies, ' +
+          'and remove it here.',
+      ],
+    );
+  });
+
   it('counts a package using once any file it covers imports the package', () => {
     const main = facts('main.ts', ['ui/card/card.ts', 'ui/view.ts', 'ports/store.ts']);
     assert.deepEqual(keys(check(app(), [...without('main.ts'), main])), [
