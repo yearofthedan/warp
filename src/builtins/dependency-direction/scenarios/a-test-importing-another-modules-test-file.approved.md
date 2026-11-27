@@ -2,13 +2,11 @@ Rule: a test that imports another module's test file is told the file is kept fo
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     log: { dir: src/log, exposes: all, test: { modules: { tests: { files: '*.test.ts' } } } }
     ui: { dir: src/ui, test: { modules: { tests: { files: '*.test.ts', dependencies: [log] } } } }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/log/log.ts
@@ -36,9 +34,9 @@ warp check
 ```
 
 ```text stdout
-src/ui/ui.test.ts:1 [dependency-direction] src/ui/ui.test.ts (test module tests of root.ui src/ui) imports src/log/log.test.ts (test module tests of root.log src/log), which src/log keeps for its own tests. Add tests to root.log.test.exposes (warp.yaml:3), or move the code.
-warp.yaml:4 [unused-declaration] root.ui.tests.dependencies names log, but nothing in src/ui:tests imports through it. Remove it.
-warp.yaml:3 [unused-declaration] root.log exposes: all, but nothing outside src/log imports it. Remove it, or use the module where it is needed.
+src/ui/ui.test.ts:1 [dependency-direction] src/ui/ui.test.ts (test module tests of root.ui src/ui) imports src/log/log.test.ts (test module tests of root.log src/log), which src/log keeps for its own tests. Add tests to root.log.test.exposes (warp.yaml:5), or move the code.
+warp.yaml:6 [unused-declaration] root.ui.tests.dependencies names log, but nothing in src/ui:tests imports through it. Remove it.
+warp.yaml:5 [unused-declaration] root.log exposes: all, but nothing outside src/log imports it. Remove it, or use the module where it is needed.
 
 By rule and module:
   unused-declaration    warp.yaml     2

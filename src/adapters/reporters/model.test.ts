@@ -19,24 +19,18 @@ const resolved = () => {
   const config = compileConfig(
     parse(`
 root:
+  ruleset: { rules: { '*': on, max-lines: { max: 200 } } }
   modules:
     strings: { dir: src/strings }
     features: { dir: 'lib/orders/*' }
-    components: { dir: 'src/*', archetype: component }
+    components: { dir: 'src/*', archetype: component, ruleset: { rules: { max-lines: { max: 300 } } } }
     main: { files: src/main.ts }
 archetypes:
   component:
     marker: '{name}.dom.ts'
     modules:
       logic: { files: '*.ts' }
-      dom: { files: '{name}.dom.ts' }
-rulesets:
-  default:
-    extends: [warp:recommended]
-    rules: { max-lines: { max: 200 } }
-    on:
-      root.components: { max-lines: { max: 300 } }
-      component.dom: { no-cycle: off }
+      dom: { files: '{name}.dom.ts', ruleset: { rules: { no-cycle: off } } }
 `),
   );
   const model = resolveModel(

@@ -42,10 +42,7 @@ root:
     domain: { dir: src/domain, exposes: { files: [order.ts] } }
     db: { dir: src/db, exposes: all, dependencies: [domain] }
     api: { dir: src/api, dependencies: [domain] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
+  ruleset: { extends: [warp:recommended] }
 ```
 
 Incorrect code:

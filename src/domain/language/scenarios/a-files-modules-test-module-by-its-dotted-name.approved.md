@@ -1,17 +1,17 @@
-Rule: test code names a files module's test module by its dotted name, and a ruleset can target it.
+Rule: test code names a files module's test module by its dotted name, and the test module can carry a ruleset.
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
-    help: { files: 'src/help/*.ts', exposes: all, test: { modules: { t: { files: 'src/help/*.test.ts' } } } }
+    help:
+      files: 'src/help/*.ts'
+      exposes: all
+      test: { modules: { t: { files: 'src/help/*.test.ts', ruleset: { rules: { unused-declaration: off } } } } }
   test:
     modules:
       e2e: { dir: src/e2e, dependencies: [help.t] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
-    on: { root.help.t: { unused-declaration: off } }
 ```
 
 ```ts src/help/h.ts

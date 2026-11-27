@@ -2,12 +2,10 @@ Rule: {name} outside an archetype is refused at the pattern's line, since nothin
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     main: { files: 'src/{name}.ts' }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/a.ts
@@ -19,7 +17,7 @@ warp check
 ```
 
 ```text stderr
-warp config: warp.yaml:3: root.main.files: 'src/{name}.ts' names {name}, which (root) doesn't capture
+warp config: warp.yaml:5: root.main.files: 'src/{name}.ts' names {name}, which (root) doesn't capture
 ```
 
 ```text exit

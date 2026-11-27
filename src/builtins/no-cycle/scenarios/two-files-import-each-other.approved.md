@@ -2,12 +2,10 @@ Rule: each loop among files is reported once, at its first import.
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     src: { dir: src }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/order.ts

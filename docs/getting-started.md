@@ -36,10 +36,7 @@ root:
     utils: { dir: src/utils, exposes: all }
     db: { dir: src/db, exposes: all }
     api: { dir: src/api, dependencies: [db, utils, 'npm:*'], exposes: all }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
+  ruleset: { extends: [warp:recommended] }
 ```
 
 - `root` is the project's folder, and each key under its `modules` is a [module](concepts.md#module).
@@ -48,7 +45,8 @@ rulesets:
   [exposes](concepts.md#exposes-and-surface) nothing until it says so.
 - `dependencies` is what the module may import: `api` may import `db` and `utils`, and `'npm:*'` lets it import any
   package.
-- The `default` ruleset runs warp's recommended rules. With no ruleset, no rule runs, and `warp check` says so.
+- The root's `ruleset` runs warp's recommended rules here and in every module inside. With no ruleset, no rule runs,
+  and `warp check` says so.
 
 ## 3. See how warp reads it
 
@@ -176,11 +174,8 @@ root:
     provides: [npm:vitest]
     modules:
       tests: { files: 'src/**/*.test.ts' }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
-    test: { function-cohesion: off }
+    ruleset: { rules: { function-cohesion: off } }
+  ruleset: { extends: [warp:recommended] }
 ```
 
 - `test: { modules: { tests: ... } }` makes the test files a [test module](concepts.md#test-module) of the root. Its
@@ -189,10 +184,10 @@ rulesets:
   vitest. A module deeper down adds to it for its own tests: with
   `test: { provides: [npm:testcontainers], modules: { tests: { files: '*.test.ts' } } }` on `db`, the tests in
   `src/db` import vitest and testcontainers, and the tests in `src/api` import vitest alone.
-- The ruleset turns `function-cohesion` off for every test module, since a `describe` callback holds `it` calls that
-  share no locals, which that rule would report as a function to split. Production code keeps the rule. To quiet a
-  rule for one test module alone, name it under `on`, as `on: { root.tests: { function-cohesion: off } }`, and the
-  rule still judges the code it was made for.
+- The test block's `ruleset` turns `function-cohesion` off for every test module inside the root, since a `describe`
+  callback holds `it` calls that share no locals, which that rule would report as a function to split. Production
+  code keeps the rule. To quiet a rule for one test module alone, give that module the ruleset instead, as
+  `tests: { files: 'src/**/*.test.ts', ruleset: { rules: { function-cohesion: off } } }`.
 
 `warp check` reports no findings again, and `warp model` lists `orders.test.ts` under `(root):tests`.
 

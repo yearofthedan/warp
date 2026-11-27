@@ -2,15 +2,13 @@ Rule: a plugin path that names no file is refused at its line.
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     src: { dir: src }
 
 plugins:
   team: ./rules/team.ts
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/a.ts
@@ -22,7 +20,7 @@ warp check
 ```
 
 ```text stderr
-warp config: warp.yaml:6: plugins.team: no file at ./rules/team.ts
+warp config: warp.yaml:8: plugins.team: no file at ./rules/team.ts
 ```
 
 ```text exit

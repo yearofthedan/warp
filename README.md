@@ -34,11 +34,8 @@ root:
     provides: [npm:vitest]
     modules:
       tests: { files: 'src/**/*.test.ts' }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
-    test: { function-cohesion: off }
+    ruleset: { rules: { function-cohesion: off } }
+  ruleset: { extends: [warp:recommended] }
 ```
 
 Then check it, and after an edit, see what the edit broke:

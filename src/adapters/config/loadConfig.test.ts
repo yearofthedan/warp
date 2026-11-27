@@ -17,8 +17,8 @@ archetypes:
   card:
     requires: [log]
 rulesets:
-  default:
-    on: { root.adapters: off }
+  strict:
+    rules: { no-cycle: off }
 `;
 
 describe('parseConfig', () => {
@@ -38,7 +38,7 @@ describe('parseConfig', () => {
         'root.tests',
         'card',
         'card.requires',
-        'rulesets.default.on.root.adapters',
+        'rulesets.strict.rules',
       ].map((path) => lines.get(path)),
       [2, 3, 4, 5, 6, 6, 7, 8, 9, 10, 12, 13, 16],
     );

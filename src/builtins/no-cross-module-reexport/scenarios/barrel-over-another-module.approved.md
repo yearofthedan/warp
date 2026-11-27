@@ -2,14 +2,12 @@ Rule: a re-export of another module's file is reported.
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     domain: { dir: src/domain, exposes: all }
     application: { dir: src/application, exposes: all, dependencies: [domain] }
     ui: { dir: src/ui, dependencies: [application] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/domain/order.ts

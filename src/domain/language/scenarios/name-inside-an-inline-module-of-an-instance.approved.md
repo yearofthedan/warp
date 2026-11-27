@@ -2,6 +2,8 @@ Rule: {name} inside an inline module of an archetype is the instance's folder na
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     feats: { dir: 'src/*', archetype: feat }
 
@@ -13,10 +15,6 @@ archetypes:
         modules:
           entry: { files: '{name}.ts' }
           rest: { files: '*.ts' }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/cart/sub/cart.ts

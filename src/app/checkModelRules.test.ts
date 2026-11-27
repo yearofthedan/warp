@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 import type { ExternalImport, ImportEdge, FileFacts } from '../domain/facts/facts.ts';
-import { builtinRules } from '../builtins/index.ts';
+import { builtinRules, warp } from '../builtins/index.ts';
 import { checkModel } from './checkModel.ts';
 import type { ConfigData } from '../domain/model/data.ts';
 import { loadConfigData } from './load.ts';
 
 import { type Folders, type Model, resolveModel } from '../domain/model/resolve.ts';
 
-const importRules = builtinRules.filter((rule) => rule.id !== 'unused-declaration');
+const importRules = builtinRules.filter((rule) => rule.id !== 'unused-declaration' && rule.id !== 'unclassified');
 const builtin = (id: string) => builtinRules.find((rule) => rule.id === id)!;
 const noDoubleExport = builtin('no-double-export');
 const moduleExternals = builtin('module-externals');
@@ -57,13 +57,13 @@ const projectFiles = [
   'src/ui/d/d.dom.ts',
 ];
 
-const recommended = `
-rulesets:
-  default:
-    extends: [warp:recommended]
-`;
-
-const load = (yaml: string): ConfigData => loadConfigData(parse(`${yaml}${recommended}`)).config;
+const load = (yaml: string): ConfigData => {
+  const raw = parse(yaml);
+  return loadConfigData(
+    { ...raw, root: { ruleset: { extends: ['warp:recommended'] }, ...raw.root } },
+    { builtins: warp },
+  ).config;
+};
 
 const structure = `
 root:
@@ -259,62 +259,6 @@ describe('checkModel', () => {
     const imports = [facts('src/ui/a/a.ts', [edge('src/ui/a/a.ts', 'src/ui/a/a.dom.ts')])];
     assert.equal(check(imports, { 'dependency-direction': 'https://docs' })[0]?.docs, 'https://docs');
     assert.ok(!('docs' in check(imports)[0]!));
-  });
-
-  it('reports loose files on the root and where a ruleset turns unclassified on, and nowhere else', () => {
-    const yaml = `
-root:
-  modules:
-    quiet: { dir: quiet, archetype: quiet }
-    denied: { dir: denied, archetype: denied }
-archetypes:
-  quiet: { modules: { src: { files: '*.ts' } } }
-  denied: { modules: { src: { files: '*.ts' } } }
-${recommended}    on: { denied: { unclassified: on } }
-`;
-    const paths = ['stray.ts', 'quiet/a.css', 'denied/c.css', 'denied/d.ts'];
-    const data = loadConfigData(parse(yaml)).config;
-    const looseModel = resolveModel(data, folders(paths), paths);
-    assert.deepEqual(checkModel(data, looseModel, { files: [] }, [], 'https://docs'), [
-      {
-        rule: 'unclassified',
-        key: 'unclassified:stray.ts',
-        file: 'stray.ts',
-        line: 1,
-        module: '(root)',
-        value: 1,
-        message:
-          "stray.ts is in no module of the root, so nothing says what it may import. Add a files module to root that matches it, or move it into a module's folder.",
-        docs: 'https://docs',
-      },
-      {
-        rule: 'unclassified',
-        key: 'unclassified:denied/c.css',
-        file: 'denied/c.css',
-        line: 1,
-        module: 'denied',
-        value: 1,
-        message:
-          "denied/c.css is in no module of denied (denied), so nothing says what it may import. Add a files module to denied that matches it, or move it into a module's folder.",
-        docs: 'https://docs',
-      },
-    ]);
-    assert.ok(!('docs' in checkModel(data, looseModel, { files: [] })[0]!));
-  });
-
-  it("turns unclassified off for a module and the modules below it from the module's archetype", () => {
-    const yaml = `
-root:
-  modules:
-    leaf: { dir: leaf, archetype: leaf }
-archetypes:
-  leaf: { modules: { src: { files: '*.ts' } } }
-${recommended}    rules: { unclassified: on }
-    on: { root: { unclassified: off } }
-`;
-    const paths = ['stray.ts', 'leaf/a.css'];
-    const data = loadConfigData(parse(yaml)).config;
-    assert.deepEqual(checkModel(data, resolveModel(data, folders(paths), paths), { files: [] }), []);
   });
 });
 

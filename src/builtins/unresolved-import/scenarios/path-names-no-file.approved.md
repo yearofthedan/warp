@@ -2,12 +2,10 @@ Rule: a relative import that resolves to no file is reported.
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     ui: { dir: src/ui }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/ui/card.ts

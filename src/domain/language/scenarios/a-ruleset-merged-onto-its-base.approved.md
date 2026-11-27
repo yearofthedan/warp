@@ -1,24 +1,25 @@
-Rule: a ruleset that extends another is merged onto it: its rules and its per-module settings win.
+Rule: a module's ruleset extends a named ruleset and adds its own rules, merged onto what it inherits from the root.
 
 ```yaml warp.yaml
 root:
-  modules:
-    domain: { dir: src/domain, exposes: all }
-    app: { dir: src/app, dependencies: [domain], exposes: all }
-    adapters: { dir: src/adapters, dependencies: [domain, app], exposes: all }
-
-rulesets:
-  default:
+  ruleset:
     extends: [warp:recommended]
     rules:
       file-cohesion: { maxLines: 15 }
       function-cohesion: { maxLines: 6 }
       cognitive-complexity: { max: 4 }
-    on: { root.app: { cognitive-complexity: off } }
-  edit:
-    extends: [default]
-    rules: { file-cohesion: { maxLines: 10 } }
-    on: { root.app: { cognitive-complexity: on, function-cohesion: off } }
+  modules:
+    domain: { dir: src/domain, exposes: all }
+    app:
+      dir: src/app
+      dependencies: [domain]
+      exposes: all
+      ruleset: { extends: [strict], rules: { function-cohesion: off } }
+    adapters: { dir: src/adapters, dependencies: [domain, app], exposes: all }
+
+rulesets:
+  strict:
+    rules: { file-cohesion: { maxLines: 10 }, cognitive-complexity: { max: 2 } }
 ```
 
 ```json tsconfig.json
@@ -109,7 +110,7 @@ export const stray = 1;
 ```
 
 ```sh
-warp check --ruleset edit
+warp check
 ```
 
 ```text stdout
@@ -122,10 +123,10 @@ src/app/index.ts:2 [no-cross-module-reexport] src/app/index.ts (root.app src/app
 src/adapters/db/orderRepo.ts:1 [no-cycle] src/adapters/db/orderRepo.ts, src/adapters/index.ts and src/domain/order.ts import each other in a loop: src/adapters/db/orderRepo.ts:1 imports src/domain/order.ts, src/adapters/index.ts:1 imports src/adapters/db/orderRepo.ts, src/domain/order.ts:1 imports src/adapters/index.ts. Break it at one of these imports: move what both need into a file they both import, or invert one import.
 src/adapters/db/orderRepo.ts:1 [module-cycle] src/adapters and src/domain import each other in a loop: src/adapters -> src/domain (src/adapters/db/orderRepo.ts:1 imports src/domain/order.ts), src/domain -> src/adapters (src/domain/order.ts:1 imports src/adapters/index.ts, and 1 other import). Break it at one of these imports: move what both sides need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.
 src/app/handle.ts:1 [file-cohesion] src/app/handle.ts is 23 lines (tripwire 10) and its top-level code falls into 2 groups that share no calls, top-level state or types: [handle] (lines 3-10); [grade] (lines 12-23). Each group can move to its own file.
-src/domain/pricing.ts:1 [file-cohesion] src/domain/pricing.ts is 17 lines (tripwire 10) and its top-level code falls into 3 groups that share no calls, top-level state or types: [rate, tax, gross] (lines 3-7); [label] (lines 9-11); [shout, banner] (lines 13-17). Each group can move to its own file.
-src/app/handle.ts:12 [cognitive-complexity] Function grade in src/app/handle.ts:12 has cognitive complexity 10 (limit 4). The largest increments: if at line 15 (+3), for at line 14 (+2), if at line 13 (+1).
-warp.yaml:5 [unused-declaration] root.adapters.dependencies names app, but nothing in src/adapters imports through it. Remove it.
-warp.yaml:4 [unused-declaration] root.app exposes: all, but nothing outside src/app imports it. Remove it, or use the module where it is needed.
+src/domain/pricing.ts:1 [file-cohesion] src/domain/pricing.ts is 17 lines (tripwire 15) and its top-level code falls into 3 groups that share no calls, top-level state or types: [rate, tax, gross] (lines 3-7); [label] (lines 9-11); [shout, banner] (lines 13-17). Each group can move to its own file.
+src/app/handle.ts:12 [cognitive-complexity] Function grade in src/app/handle.ts:12 has cognitive complexity 10 (limit 2). The largest increments: if at line 15 (+3), for at line 14 (+2), if at line 13 (+1).
+warp.yaml:15 [unused-declaration] root.adapters.dependencies names app, but nothing in src/adapters imports through it. Remove it.
+warp.yaml:10 [unused-declaration] root.app exposes: all, but nothing outside src/app imports it. Remove it, or use the module where it is needed.
 
 By rule and module:
   dependency-direction      src/domain    2

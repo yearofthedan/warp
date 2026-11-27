@@ -4,6 +4,8 @@ Rule: findings inside archetypes name the module and the archetype, and advice n
 tsconfig: [tsconfig.json, tsconfig.test.json]
 
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     domain: { dir: src/domain, archetype: layer }
     ui: { dir: src/ui, archetype: ui, dependencies: [domain] }
@@ -35,10 +37,6 @@ archetypes:
     modules:
       strings: { dir: strings, exposes: all }
       components: { dir: '*', archetype: component, dependencies: [strings] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```json tsconfig.json
@@ -111,12 +109,12 @@ warp check --fail
 
 ```text stdout
 src/stray.ts:1 [unclassified] src/stray.ts is in no module of the root, so nothing says what it may import. Add a files module to root that matches it, or move it into a module's folder.
-src/ui/card/card.ts:2 [dependency-direction] src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes instead, once you add domain to component.requires (warp.yaml:23), bound in the dependencies of component.subcomponent and ui.components, add domain to ui.requires (warp.yaml:30), bound in the dependencies of root.ui and add domain to component.logic.dependencies (warp.yaml:27). Or, if src/domain/order.ts should be public, add src to layer.exposes (warp.yaml:13).
-src/ui/card/card.ts:1 [module-externals] src/ui/card/card.ts (logic of component src/ui/card) imports node:util, a package outside logic's reach. Add node:util to component.logic.dependencies (warp.yaml:27), or move the code.
+src/ui/card/card.ts:2 [dependency-direction] src/ui/card/card.ts (logic of component src/ui/card) imports src/domain/order.ts (src of layer src/domain), which src/domain keeps private (it exposes api). Import what src/domain exposes instead, once you add domain to component.requires (warp.yaml:25), bound in the dependencies of component.subcomponent and ui.components, add domain to ui.requires (warp.yaml:32), bound in the dependencies of root.ui and add domain to component.logic.dependencies (warp.yaml:29). Or, if src/domain/order.ts should be public, add src to layer.exposes (warp.yaml:15).
+src/ui/card/card.ts:1 [module-externals] src/ui/card/card.ts (logic of component src/ui/card) imports node:util, a package outside logic's reach. Add node:util to component.logic.dependencies (warp.yaml:29), or move the code.
 src/domain/index.ts:1 [no-cross-module-reexport] src/domain/index.ts (api of layer src/domain) re-exports order, Order from src/domain/order.ts (src of layer src/domain), so its importers reach src/domain:src through src/domain:api. src/main.ts may not use src/domain:src directly, so give src/domain:api its own type that hides it, or move it into src/domain:api if src/domain:api owns it.
-warp.yaml:28 [unused-declaration] component.render.dependencies names subcomponent.render, but nothing in src/ui/card:render imports through it. Remove it.
-warp.yaml:6 [unused-declaration] root.ui.dependencies names domain, but nothing in src/ui imports through it. Remove it.
-warp.yaml:26 [unused-declaration] component.subcomponent matches no files: dir: '*' finds nothing in src/ui/card. Fix the pattern, or remove the module.
+warp.yaml:30 [unused-declaration] component.render.dependencies names subcomponent.render, but nothing in src/ui/card:render imports through it. Remove it.
+warp.yaml:8 [unused-declaration] root.ui.dependencies names domain, but nothing in src/ui imports through it. Remove it.
+warp.yaml:28 [unused-declaration] component.subcomponent matches no files: dir: '*' finds nothing in src/ui/card. Fix the pattern, or remove the module.
 
 By rule and module:
   unused-declaration        warp.yaml          3

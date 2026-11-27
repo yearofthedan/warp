@@ -2,13 +2,11 @@ Rule: each loop between sibling modules is reported once, at its first import.
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     domain: { dir: src/domain, exposes: all, dependencies: [infra] }
     infra: { dir: src/infra, exposes: all, dependencies: [domain] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/domain/order.ts

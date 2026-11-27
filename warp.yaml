@@ -1,5 +1,8 @@
 root:
   description: 'warp: checks a TypeScript codebase against a declared model of its modules'
+  ruleset:
+    extends: [warp:recommended]
+    rules: { function-cohesion: { maxLines: 20 } }
   modules:
     package:
       dir: src
@@ -11,6 +14,7 @@ root:
       exposes: all
       test: { modules: { tests: { files: ['*.test.ts', 'scripts/*.test.ts'] } } }
   test:
+    ruleset: { rules: { function-cohesion: off } }
     provides: [npm:vite-plus/test, 'node:*']
     modules:
       e2e: { files: 'e2e/*.ts' }
@@ -141,9 +145,3 @@ archetypes:
       requires: [app]
       modules:
         tests: { files: '**/*.test.ts', dependencies: [app, npm:yaml] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
-    rules: { function-cohesion: { maxLines: 20 } }
-    test: { function-cohesion: off }

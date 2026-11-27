@@ -32,16 +32,12 @@ export const modelProject = (
 export const projectCheck = (
   adapters: Adapters,
   config: ConfigData,
-  {
-    rules = [],
-    unclassifiedDocs,
-    lines = new Map(),
-  }: { rules?: readonly Rule[]; unclassifiedDocs?: string; lines?: ConfigLines } = {},
+  { rules = [], lines = new Map() }: { rules?: readonly Rule[]; lines?: ConfigLines } = {},
 ): ProjectCheck => ({
   config,
   requiredFile: config.tsconfig[0]!,
   check: (root) => {
     const { model, project } = modelProject(adapters, root, config);
-    return placeFindings(lines, config.file, checkModel(config, model, project, rules, unclassifiedDocs));
+    return placeFindings(lines, config.file, checkModel(config, model, project, rules));
   },
 });

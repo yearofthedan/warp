@@ -2,14 +2,11 @@ Rule: a ruleset's rule ids and each rule's options are checked against the rules
 
 ```yaml warp.yaml
 root:
-  modules:
-    src: { files: '**' }
-
-rulesets:
-  default:
+  ruleset:
     extends: [warp:recommended]
     rules: { module-cycle: { types: always } }
-    on: { root.src: { no-such-rule: off } }
+  modules:
+    src: { files: '**', ruleset: { rules: { no-such-rule: off } } }
 ```
 
 ```ts src/a.ts
@@ -21,8 +18,8 @@ warp check
 ```
 
 ```text stderr
-warp config: warp.yaml:8: rulesets.default.rules.module-cycle.types: expected 'count' or 'ignore'
-warp.yaml:9: rulesets.default.on.root.src: no rule called no-such-rule
+warp config: warp.yaml:4: root.ruleset.rules.module-cycle.types: expected 'count' or 'ignore'
+warp.yaml:6: root.src.ruleset.rules: no rule called no-such-rule
 ```
 
 ```text exit

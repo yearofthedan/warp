@@ -271,30 +271,18 @@ describe('rulesets', () => {
   beforeAll(() => {
     dir = join(mkdtempSync(join(tmpdir(), 'warp-ruleset-')), 'app');
     cpSync(join(import.meta.dirname, '../fixtures/hexagonal-app'), dir, { recursive: true });
-    writeFileSync(
-      join(dir, 'warp.yaml'),
-      readFileSync(join(dir, 'warp.yaml'), 'utf8')
-        .replace(
-          '      cognitive-complexity: { max: 4 }\n',
-          '      cognitive-complexity: { max: 4 }\n    on: { root.app: { cognitive-complexity: off } }\n',
-        )
-        .concat(
-          '  edit:\n',
-          '    extends: [default]\n',
-          '    rules: { file-cohesion: { maxLines: 10 } }\n',
-          '    on: { root.app: { cognitive-complexity: on, function-cohesion: off } }\n',
-        ),
-    );
     writeFileSync(join(dir, 'package.json'), '{ "type": "module" }\n');
     commit('init', '--quiet');
     commit('add', '.');
     commit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base');
   });
 
-  it('diffs both sides with the same ruleset, so a rule it turns on adds no findings by itself', () => {
+  it('diffs both sides with the config of the working tree, so a rule it tightens adds no findings by itself', () => {
     const cachesTheBaseFirst = run('diff', 'HEAD', '--reporter', 'json');
     assert.deepEqual(JSON.parse(cachesTheBaseFirst.stdout).added, []);
-    const delta = JSON.parse(run('diff', 'HEAD', '--ruleset', 'edit', '--reporter', 'json').stdout);
+    const config = join(dir, 'warp.yaml');
+    writeFileSync(config, readFileSync(config, 'utf8').replace('maxLines: 15', 'maxLines: 10'));
+    const delta = JSON.parse(run('diff', 'HEAD', '--reporter', 'json').stdout);
     assert.deepEqual([delta.added, delta.worsened, delta.resolved], [[], [], []]);
   });
 });

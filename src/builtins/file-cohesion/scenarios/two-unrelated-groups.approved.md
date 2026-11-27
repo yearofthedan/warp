@@ -2,14 +2,12 @@ Rule: a file over the tripwire whose code falls into groups that share nothing i
 
 ```yaml warp.yaml
 root:
-  modules:
-    src: { dir: src }
-
-rulesets:
-  default:
+  ruleset:
     extends: [warp:recommended]
     rules:
       file-cohesion: { maxLines: 4 }
+  modules:
+    src: { dir: src }
 ```
 
 ```ts src/mixed.ts

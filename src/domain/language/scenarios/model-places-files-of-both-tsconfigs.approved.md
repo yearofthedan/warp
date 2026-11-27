@@ -4,6 +4,8 @@ Rule: model prints the modules archetypes find, with the files of every tsconfig
 tsconfig: [tsconfig.json, tsconfig.test.json]
 
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     domain: { dir: src/domain, archetype: layer }
     ui: { dir: src/ui, archetype: ui, dependencies: [domain] }
@@ -35,10 +37,6 @@ archetypes:
     modules:
       strings: { dir: strings, exposes: all }
       components: { dir: '*', archetype: component, dependencies: [strings] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```json tsconfig.json

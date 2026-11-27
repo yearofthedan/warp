@@ -4,12 +4,10 @@ Rule: a tsconfig the config names but the project lacks is refused at its line.
 tsconfig: [tsconfig.app.json]
 
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     src: { dir: src }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/a.ts

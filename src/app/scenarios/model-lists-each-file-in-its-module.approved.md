@@ -2,13 +2,11 @@ Rule: model prints the modules the config finds and the files in each.
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     domain: { dir: src/domain, exposes: all }
     ui: { dir: src/ui, dependencies: [domain] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/domain/order.ts

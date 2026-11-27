@@ -5,7 +5,7 @@ import { ConfigError } from '../domain/model/configError.ts';
 import { type FileRule, wholeNumberOptions } from '../domain/rules/rule.ts';
 import { type LoadOptions, loadConfig, loadConfigData } from './load.ts';
 import type { ConfigSource } from './ports.ts';
-import { builtinRegistry } from '../builtins/index.ts';
+import { builtinRegistry, warp } from '../builtins/index.ts';
 
 const load = (yaml: string, options?: LoadOptions) => loadConfigData(parse(yaml), options);
 
@@ -126,7 +126,6 @@ describe('loadConfigData', () => {
         'root.e2e': { name: 'root.e2e', inline: true, test: true, requires: [], modules: [] },
       },
       tsconfig: ['tsconfig.json'],
-      rules: 'off',
     });
   });
 
@@ -268,16 +267,16 @@ archetypes:
       [
         'layers: unknown key; a config takes root, archetypes, rulesets, plugins, tsconfig',
         'archetypes.root: root is the repository; name the archetype otherwise',
-        'card: unknown key usings; an archetype takes description, marker, requires, entry, exposes, modules, test',
+        'card: unknown key usings; an archetype takes description, marker, requires, entry, exposes, modules, test, ruleset',
         'card.test.requires: expected a name or a list of names',
         "card.marker: expected a file pattern, such as '{name}.dom.ts'",
         'card.exposes: expected all, a list of its modules, or { files: [...] }',
-        'root.test: unknown key kit; a test block takes requires, dependencies, provides, exposes, modules',
+        'root.test: unknown key kit; a test block takes requires, dependencies, provides, exposes, modules, ruleset',
         'root.description: expected a string',
         'root.both: a module has dir or files, not both',
         'root.none: expected dir, files or an archetype',
         'root.flat.modules: a files module has no modules; use dir for a folder of them',
-        'root.typo: unknown key dependecies; a module takes description, dir, files, entry, archetype, dependencies, exposes, modules, test',
+        'root.typo: unknown key dependecies; a module takes description, dir, files, entry, archetype, dependencies, exposes, modules, test, ruleset',
         'root.open.exposes: expected all, or { files: [...] }',
         'root.named: an archetype makes a folder module; give it a dir',
         'root.named.files: card defines what is inside; declare files there',
@@ -453,7 +452,7 @@ root:
     m: { dir: m, dependencies: 3 }
 `),
       [
-        'root: unknown key bogus; the root takes description, modules, test',
+        'root: unknown key bogus; the root takes description, modules, test, ruleset',
         'root.x: expected a mapping',
         'root.x: expected dir, files or an archetype',
         "root.a.b: a module's name has no dots, not 'a.b'",
@@ -493,7 +492,7 @@ archetypes:
 `),
       [
         'root.c.dependencies: two entries are named a; rename one with a map',
-        'root.fx: unknown key test; a module takes description, dir, files, archetype, dependencies, exposes, modules',
+        'root.fx: unknown key test; a module takes description, dir, files, archetype, dependencies, exposes, modules, ruleset',
         'root.fx.test.exposes: root.fx is test code; what it exposes is for tests already',
         'root.fx.test.provides: root.fx is test code; give its modules dependencies',
       ],
@@ -551,7 +550,7 @@ root:
     assert.deepEqual(
       failures(tests.replace('test: { modules: { u:', 'test: { provides: [g], modules: { t: { dir: d }, u:')),
       [
-        "root.f.test.provides: a files module's test block holds its test modules only",
+        "root.f.test.provides: a files module's test block holds its test modules and ruleset only",
         "root.f.test.modules.t: a files module's tests are files; use files",
         'root.f.t.files: expected a file pattern or a list of them',
       ],
@@ -628,43 +627,47 @@ archetypes:
     assert.throws(() => load('[root]'), /warp\.yaml: expected a mapping, root: \{ modules: \.\.\. \}/);
   });
 
-  it('checks rule ids against the registered rules and unclassified, and each rule options with its own check', () => {
-    const root = "root: { modules: { src: { files: '**' }, test: { files: '*.test.ts' } } }\n";
-    const builtins = [...builtinRegistry.values()];
+  it('checks rule ids against the registered rules, and each rule options with its own check', () => {
     assert.deepEqual(
       failures(
-        `${root}rulesets:
-  default:
+        `
+root:
+  ruleset:
+    extends: [shared]
+    rules: { no-cycle: { types: count, depth: 1, width: 2 }, module-cycle: { types: ignore } }
+  modules:
+    src: { files: '**', ruleset: { rules: { module-cycle: { types: sometimes } } } }
+    test: { files: '*.test.ts', ruleset: { rules: { '*': off, no-such-rule: off } } }
+rulesets:
+  shared:
     extends: [warp:recommended]
     rules: { dependency-direction: { strict: true }, file-cohesion: { maxLines: 0 }, unclassified: off }
-    on:
-      root: { no-cycle: { types: count, depth: 1, width: 2 }, module-cycle: { types: ignore } }
-      root.src: { module-cycle: { types: sometimes } }
-      root.test: { '*': off, no-such-rule: off }
 `,
-        { builtins },
+        { builtins: warp },
       ),
       [
-        'rulesets.default.rules.dependency-direction: unknown key strict',
-        'rulesets.default.rules.file-cohesion.maxLines: expected a whole number of at least 1',
-        'rulesets.default.on.root.no-cycle: unknown key depth, width',
-        "rulesets.default.on.root.src.module-cycle.types: expected 'count' or 'ignore'",
-        'rulesets.default.on.root.test: no rule called no-such-rule',
+        'rulesets.shared.rules.dependency-direction: unknown key strict',
+        'rulesets.shared.rules.file-cohesion.maxLines: expected a whole number of at least 1',
+        'root.ruleset.rules.no-cycle: unknown key depth, width',
+        "root.src.ruleset.rules.module-cycle.types: expected 'count' or 'ignore'",
+        'root.test.ruleset.rules: no rule called no-such-rule',
       ],
     );
     const thrower = {
-      builtins: [
-        {
-          id: 'no-cycle',
-          parseOptions: () => {
-            throw new TypeError('not a config problem');
+      builtins: {
+        rules: [
+          {
+            id: 'no-cycle',
+            parseOptions: () => {
+              throw new TypeError('not a config problem');
+            },
+            check: () => [],
           },
-          check: () => [],
-        },
-      ],
+        ],
+      },
     };
     assert.throws(
-      () => load(`${root}rulesets: { default: { rules: { no-cycle: { types: count } } } }\n`, thrower),
+      () => load('root: { modules: {}, ruleset: { rules: { no-cycle: { types: count } } } }\n', thrower),
       TypeError,
     );
   });
@@ -676,24 +679,21 @@ archetypes:
       parseOptions: wholeNumberOptions({ max: 5 }),
       check: () => [],
     };
-    const builtins = [builtinRegistry.get('file-cohesion')!];
+    const builtins = { rules: [builtinRegistry.get('file-cohesion')!] };
     const plugins = { mine: { rules: [limit] } };
     const yaml = `
 plugins: { mine: ./rules/mine.ts }
-root: { modules: { src: { files: '**' } } }
-rulesets:
-  default:
-    on: { root.src: { mine/max-imports: { max: 0 }, max-imports: off } }
+root: { modules: { src: { files: '**', ruleset: { rules: { mine/max-imports: { max: 0 }, max-imports: off } } } } }
 `;
     assert.deepEqual(failures(yaml, { builtins, plugins }), [
-      'rulesets.default.on.root.src.mine/max-imports.max: expected a whole number of at least 1',
-      'rulesets.default.on.root.src: no rule called max-imports',
+      'root.src.ruleset.rules.mine/max-imports.max: expected a whole number of at least 1',
+      'root.src.ruleset.rules: no rule called max-imports',
     ]);
     assert.deepEqual(
       load("root: { modules: { src: { files: '**' } } }", { builtins, plugins }).rules.map((rule) => rule.id),
       ['file-cohesion', 'mine/max-imports'],
     );
-    assert.deepEqual(failures(yaml.replace('mine/max-imports: { max: 0 }, ', ''), { builtins }), [
+    assert.deepEqual(failures(yaml.replace('mine/max-imports: { max: 0 }, max-imports: off', ''), { builtins }), [
       'plugins.mine: not loaded; warp loads each plugin from its path before reading the config',
     ]);
     assert.deepEqual(failures('plugins: [./x.ts]\nroot: {}\n'), [
@@ -701,21 +701,36 @@ rulesets:
     ]);
   });
 
+  it("offers a plugin's rulesets to extends under its namespace", () => {
+    const limit: FileRule = { id: 'max-imports', check: () => [] };
+    const plugins = { mine: { rules: [limit], rulesets: { strict: { rules: { 'mine/max-imports': 'on' } } } } };
+    const yaml = `
+plugins: { mine: ./rules/mine.ts }
+root: { modules: {}, ruleset: { extends: [mine:strict] } }
+`;
+    assert.deepEqual(load(yaml, { builtins: warp, plugins }).config.archetypes.root!.ruleset, {
+      'mine/max-imports': true,
+    });
+    for (const rulesets of [[], null, 'strict'])
+      assert.throws(
+        () => load(yaml, { plugins: { mine: { rules: [], rulesets } } }),
+        /plugins\.mine: expected rulesets by name/,
+      );
+    assert.throws(() => load('root: {}', { plugins: { warp: { rules: [] } } }), /plugins\.warp: warp is the namespace/);
+  });
+
   it('refuses rule settings of the wrong shape', () => {
     assert.deepEqual(
       failures(`
-root: { modules: { src: { files: '**' } } }
-rulesets:
-  default:
-    on:
-      root: { '*': {}, file-cohesion: 3, cognitive-complexity: [x] }
-      root.src: all
+root:
+  ruleset: { rules: { '*': {}, file-cohesion: 3, cognitive-complexity: [x] } }
+  modules: { src: { files: '**', ruleset: { rules: all } } }
 `),
       [
-        'rulesets.default.on.root.*: expected on, off',
-        'rulesets.default.on.root.file-cohesion: expected on, off or options',
-        'rulesets.default.on.root.cognitive-complexity: expected on, off or options',
-        'rulesets.default.on.root.src: expected off or rule settings by id',
+        'root.ruleset.rules.*: expected on, off',
+        'root.ruleset.rules.file-cohesion: expected on, off or options',
+        'root.ruleset.rules.cognitive-complexity: expected on, off or options',
+        'root.src.ruleset.rules: expected off or rule settings by id',
       ],
     );
   });

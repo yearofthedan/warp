@@ -3,15 +3,15 @@ import type { ArchetypeData, ConfigData } from '../model/data.ts';
 import { defined, type Fail, isName, isRecord } from '../model/shared.ts';
 import { type Check, checkReferences, toRules } from './references.ts';
 import { checkInputs, markTests } from './requirements.ts';
-import { withRuleset } from './rulesets.ts';
+import { rulesets as namedRulesets } from './rulesets.ts';
 import { parseStructure } from './structure.ts';
 
 export { recommended } from './rulesets.ts';
 
 export interface CompileOptions {
   file?: string;
-  ruleset?: string | undefined;
   plugins?: readonly string[];
+  rulesets?: Readonly<Record<string, unknown>>;
   ruleIds?: ReadonlySet<string> | undefined;
   options?: Check['options'];
 }
@@ -20,7 +20,7 @@ const keys = ['root', 'archetypes', 'rulesets', 'plugins', 'tsconfig'];
 
 export const compileConfig = (
   raw: unknown,
-  { file = 'warp.yaml', ruleset, plugins = [], ruleIds, options = {} }: CompileOptions = {},
+  { file = 'warp.yaml', plugins = [], rulesets = {}, ruleIds, options = {} }: CompileOptions = {},
 ): ConfigData => {
   const errors: string[] = [];
   const fail: Fail = (message) => {
@@ -33,13 +33,15 @@ export const compileConfig = (
   const unknownKeys = Object.keys(raw).filter((key) => !keys.includes(key));
   for (const key of unknownKeys) fail(`${key}: unknown key; a config takes ${keys.join(', ')}`);
   checkPlugins(raw.plugins, plugins, fail);
-  const structure = parseStructure(raw.root, raw.archetypes, fail);
+  const check: Check = { fail, ruleIds, options };
+  const named = namedRulesets(raw.rulesets, rulesets, (value, at) => toRules(check, value, at), fail);
+  const structure = parseStructure(raw.root, raw.archetypes, fail, named.parse);
+  named.checkUsed();
   failed();
   checkReferences(structure.archetypes, structure.pending, fail);
   markTests(structure.archetypes, fail);
   checkInputs(structure.archetypes, structure.pending, fail);
-  const check: Check = { fail, ruleIds, options };
-  const data: ConfigData = {
+  const config: ConfigData = {
     file,
     root: structure.root,
     archetypes: Object.fromEntries(
@@ -47,7 +49,6 @@ export const compileConfig = (
     ),
     tsconfig: tsconfigs(raw.tsconfig, fail),
   };
-  const config = withRuleset(data, raw.rulesets, ruleset, (value, at) => toRules(check, value, at), fail);
   failed();
   return config;
 };

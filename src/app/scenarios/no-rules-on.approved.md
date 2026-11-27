@@ -19,5 +19,5 @@ No findings.
 ```
 
 ```text stderr
-No rules are on, so nothing was checked. Turn some on in warp.yaml: rulesets: { default: { extends: [warp:recommended] } }
+No rules are on, so nothing was checked. Turn some on in warp.yaml: root: { ruleset: { extends: [warp:recommended] } }
 ```

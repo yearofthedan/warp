@@ -19,7 +19,7 @@ export interface PackageRefData {
 
 export type RefData = ModuleRefData | RequiredRefData | PackageRefData;
 
-export type RuleSettingsData = 'off' | Record<string, boolean | Record<string, unknown>>;
+export type RuleSettingsData = Record<string, boolean | Record<string, unknown>>;
 
 export type ExposesData =
   | { kind: 'all' }
@@ -32,7 +32,8 @@ export interface FilesModuleData {
   patterns: string[];
   using: RefData[];
   exposes?: Exclude<ExposesData, { kind: 'surfaces' }>;
-  rules?: RuleSettingsData;
+  ruleset?: RuleSettingsData;
+  testRuleset?: RuleSettingsData;
   description?: string;
 }
 
@@ -45,7 +46,8 @@ export interface DirModuleData {
   using: RefData[];
   inputs?: Record<string, RefData>;
   testInputs?: Record<string, RefData>;
-  rules?: RuleSettingsData;
+  ruleset?: RuleSettingsData;
+  testRuleset?: RuleSettingsData;
   description?: string;
 }
 
@@ -56,7 +58,7 @@ export interface TestModuleData {
   of?: string;
   using: RefData[];
   exposes?: Exclude<ExposesData, { kind: 'surfaces' }>;
-  rules?: RuleSettingsData;
+  ruleset?: RuleSettingsData;
   description?: string;
 }
 
@@ -81,7 +83,8 @@ export interface ArchetypeData {
   exposes?: ExposesData;
   testExposes?: Record<string, RefData[]>;
   testUsing?: RefData[];
-  rules?: RuleSettingsData;
+  ruleset?: RuleSettingsData;
+  testRuleset?: RuleSettingsData;
 }
 
 export interface ConfigData {
@@ -89,5 +92,4 @@ export interface ConfigData {
   root: string;
   archetypes: Record<string, ArchetypeData>;
   tsconfig: string[];
-  rules?: RuleSettingsData;
 }

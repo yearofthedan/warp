@@ -2,15 +2,13 @@ Rule: a plugin path is written ./x, and a package npm:x; a bare one is refused a
 
 ```yaml warp.yaml
 root:
+  ruleset:
+    extends: [warp:recommended]
   modules:
     src: { dir: src }
 
 plugins:
   team: rules/team.ts
-
-rulesets:
-  default:
-    extends: [warp:recommended]
 ```
 
 ```ts src/a.ts
@@ -22,7 +20,7 @@ warp check
 ```
 
 ```text stderr
-warp config: warp.yaml:6: plugins.team: 'rules/team.ts' is a path, ./rules/team.ts, or a package, npm:rules/team.ts
+warp config: warp.yaml:8: plugins.team: 'rules/team.ts' is a path, ./rules/team.ts, or a package, npm:rules/team.ts
 ```
 
 ```text exit

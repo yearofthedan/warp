@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 import type { ImportEdge, FileFacts } from '../domain/facts/facts.ts';
-import { builtinRules } from '../builtins/index.ts';
+import { builtinRules, warp } from '../builtins/index.ts';
 import { checkModel } from './checkModel.ts';
 import { loadConfigData } from './load.ts';
 import { grantText, verdicts } from '../domain/model/reach.ts';
@@ -68,14 +68,13 @@ const paths = [
   'src/a/b/b.fixture.ts',
 ];
 
-const recommended = (on = '') => `
-rulesets:
-  default:
-    extends: [warp:recommended]
-${on === '' ? '' : `    on: ${on}\n`}`;
-
-const load = (yaml: string, on = '') =>
-  loadConfigData(parse(`${yaml}${recommended(on)}`), { builtins: importRules }).config;
+const load = (yaml: string) => {
+  const raw = parse(yaml);
+  return loadConfigData(
+    { ...raw, root: { ruleset: { extends: ['warp:recommended'] }, ...raw.root } },
+    { builtins: warp },
+  ).config;
+};
 
 const shopYaml = `
 root:
@@ -108,8 +107,8 @@ archetypes:
         tests: { files: '*.test.ts', dependencies: [dsl, fixture, sub.dsl] }
 `;
 
-const shop = (on = '') => {
-  const config = load(shopYaml, on);
+const shop = () => {
+  const config = load(shopYaml);
   const model = resolveModel(config, folders(paths), paths);
   const judge = verdicts(config, model);
   const verdict = (from: string, to: string): string => {
@@ -179,7 +178,7 @@ describe('test modules with modules inside', () => {
     'e2e/checkout.test.ts',
   ];
 
-  const site = (on = '') => {
+  const site = () => {
     const config = load(
       `
 root:
@@ -201,7 +200,6 @@ archetypes:
         clock: { files: clock.ts }
         drivers: { dir: drivers, dependencies: [fixtures] }
 `,
-      on,
     );
     const model = resolveModel(config, folders(tree), tree);
     const judge = verdicts(config, model);

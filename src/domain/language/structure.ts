@@ -9,6 +9,7 @@ import type {
   TestModuleData,
 } from '../model/data.ts';
 import { type Fail, isName, isRecord, list } from '../model/shared.ts';
+import type { ParseRuleset } from './rulesets.ts';
 
 export interface PendingRef {
   ref: RefData;
@@ -38,25 +39,37 @@ interface State {
   archetypes: Record<string, ArchetypeData>;
   pending: PendingRef[];
   fail: Fail;
+  ruleset: ParseRuleset;
 }
 
 export const rootName = 'root';
 
-const moduleKeys = ['description', 'dir', 'files', 'entry', 'archetype', 'dependencies', 'exposes', 'modules', 'test'];
-const archetypeKeys = ['description', 'marker', 'requires', 'entry', 'exposes', 'modules', 'test'];
-const rootKeys = ['description', 'modules', 'test'];
-const testKeys = ['requires', 'dependencies', 'provides', 'exposes', 'modules'];
+const moduleKeys = [
+  'description',
+  'dir',
+  'files',
+  'entry',
+  'archetype',
+  'dependencies',
+  'exposes',
+  'modules',
+  'test',
+  'ruleset',
+];
+const archetypeKeys = ['description', 'marker', 'requires', 'entry', 'exposes', 'modules', 'test', 'ruleset'];
+const rootKeys = ['description', 'modules', 'test', 'ruleset'];
+const testKeys = ['requires', 'dependencies', 'provides', 'exposes', 'modules', 'ruleset'];
 const kindOf = new Map<readonly string[], string>([
   [archetypeKeys, 'an archetype'],
   [rootKeys, 'the root'],
   [testKeys, 'a test block'],
 ]);
-const testModuleKeys = ['description', 'dir', 'files', 'archetype', 'dependencies', 'exposes', 'modules'];
+const testModuleKeys = ['description', 'dir', 'files', 'archetype', 'dependencies', 'exposes', 'modules', 'ruleset'];
 
-export const parseStructure = (root: unknown, archetypes: unknown, fail: Fail): Structure => {
+export const parseStructure = (root: unknown, archetypes: unknown, fail: Fail, ruleset: ParseRuleset): Structure => {
   const defs = archetypes === undefined ? {} : isRecord(archetypes) ? archetypes : {};
   if (archetypes !== undefined && !isRecord(archetypes)) fail('archetypes: expected archetypes by name');
-  const state: State = { defs, archetypes: {}, pending: [], fail };
+  const state: State = { defs, archetypes: {}, pending: [], fail, ruleset };
   if (Object.hasOwn(defs, rootName))
     fail(`archetypes.${rootName}: root is the repository; name the archetype otherwise`);
   for (const [name, def] of Object.entries(defs)) {
@@ -106,6 +119,7 @@ const archetype = (state: State, name: string, def: Record<string, unknown>, opt
   const testModules = test.modules === undefined ? {} : record(state, `${where}.test.modules`, test.modules);
   const data = options.parent ? inlineData(state, name, where, test) : namedData(state, name, def, test);
   if (options.test) data.test = true;
+  Object.assign(data, rulesetsAt(state, where, def.ruleset, test.ruleset));
   const scope: Scope = {
     archetype: name,
     names: new Set([...Object.keys(modules), ...Object.keys(testModules), ...filesTestNames(modules)]),
@@ -144,6 +158,17 @@ const inlineData = (state: State, name: string, where: string, test: Record<stri
   if (test.requires !== undefined)
     state.fail(`${where}.test.requires: only an archetype requires; its modules see what it requires`);
   return { name, inline: true, requires: [], modules: [] };
+};
+
+const rulesetsAt = (
+  state: State,
+  where: string,
+  ruleset: unknown,
+  testRuleset: unknown,
+): Pick<ArchetypeData, 'ruleset' | 'testRuleset'> => {
+  const own = state.ruleset(ruleset, `${where}.ruleset`);
+  const tests = state.ruleset(testRuleset, `${where}.test.ruleset`);
+  return { ...(own ? { ruleset: own } : {}), ...(tests ? { testRuleset: tests } : {}) };
 };
 
 const testBlock = (state: State, where: string, value: unknown): Record<string, unknown> => {
@@ -239,6 +264,7 @@ const testFiles = (
     ...(of === undefined ? {} : { of }),
     using: references(state, scope, `${where}.dependencies`, def.dependencies, true),
     ...(exposed && exposed.kind !== 'surfaces' ? { exposes: exposed } : {}),
+    ...rulesetsAt(state, where, def.ruleset, undefined),
     ...description(state, where, def.description),
   };
 };
@@ -274,7 +300,7 @@ const instance = (
     state.fail(`${where}.${key}: ${named} defines what is inside; declare ${key} there`);
   const own = bindings(state, scope, `${where}.dependencies`, def.dependencies, test);
   const testBlock = isRecord(def.test) ? def.test : {};
-  for (const key of Object.keys(testBlock).filter((key) => key !== 'dependencies'))
+  for (const key of Object.keys(testBlock).filter((key) => key !== 'dependencies' && key !== 'ruleset'))
     state.fail(`${where}.test.${key}: ${named} defines its test code; declare ${key} there`);
   const tests = bindings(state, scope, `${where}.test.dependencies`, testBlock.dependencies, true);
   return {
@@ -286,6 +312,7 @@ const instance = (
     using: Object.values(own),
     ...(Object.keys(own).length > 0 ? { inputs: own } : {}),
     ...(Object.keys(tests).length > 0 ? { testInputs: tests } : {}),
+    ...rulesetsAt(state, where, def.ruleset, testBlock.ruleset),
     ...description(state, where, def.description),
   };
 };
@@ -318,17 +345,18 @@ const filesModule = (state: State, scope: Scope, name: string, def: Record<strin
   for (const key of ['modules', 'entry'].filter((key) => def[key] !== undefined))
     state.fail(`${where}.${key}: a files module has no modules; use dir for a folder of them`);
   const exposed = exposes(state, scope, `${where}.exposes`, def.exposes, undefined, false, false);
+  const test = isRecord(def.test) ? def.test : {};
   const module: FilesModuleData = {
     kind: 'files',
     name,
     patterns: patterns(state, `${where}.files`, def.files),
     using: references(state, scope, `${where}.dependencies`, def.dependencies, false),
     ...(exposed && exposed.kind !== 'surfaces' ? { exposes: exposed } : {}),
+    ...rulesetsAt(state, where, def.ruleset, test.ruleset),
     ...description(state, where, def.description),
   };
-  const test = isRecord(def.test) ? def.test : {};
-  for (const key of Object.keys(test).filter((key) => key !== 'modules'))
-    state.fail(`${where}.test.${key}: a files module's test block holds its test modules only`);
+  for (const key of Object.keys(test).filter((key) => key !== 'modules' && key !== 'ruleset'))
+    state.fail(`${where}.test.${key}: a files module's test block holds its test modules and ruleset only`);
   const tests = test.modules === undefined ? {} : record(state, `${where}.test.modules`, test.modules);
   const lifted = Object.entries(tests).map(([inner, raw]) => {
     const testDef = record(state, `${where}.test.modules.${inner}`, raw);

@@ -1,24 +1,25 @@
-Rule: model --rules shows each module's rule settings that differ from the defaults, under the ruleset named.
+Rule: warp model --rules shows what each module's ruleset changes from the module above it.
 
 ```yaml warp.yaml
 root:
-  modules:
-    domain: { dir: src/domain, exposes: all }
-    app: { dir: src/app, dependencies: [domain], exposes: all }
-    adapters: { dir: src/adapters, dependencies: [domain, app], exposes: all }
-
-rulesets:
-  default:
+  ruleset:
     extends: [warp:recommended]
     rules:
       file-cohesion: { maxLines: 15 }
       function-cohesion: { maxLines: 6 }
       cognitive-complexity: { max: 4 }
-    on: { root.app: { cognitive-complexity: off } }
-  edit:
-    extends: [default]
-    rules: { file-cohesion: { maxLines: 10 } }
-    on: { root.app: { cognitive-complexity: on, function-cohesion: off } }
+  modules:
+    domain: { dir: src/domain, exposes: all }
+    app:
+      dir: src/app
+      dependencies: [domain]
+      exposes: all
+      ruleset: { extends: [strict], rules: { function-cohesion: off } }
+    adapters: { dir: src/adapters, dependencies: [domain, app], exposes: all }
+
+rulesets:
+  strict:
+    rules: { file-cohesion: { maxLines: 10 }, cognitive-complexity: { max: 2 } }
 ```
 
 ```json tsconfig.json
@@ -109,16 +110,16 @@ export const stray = 1;
 ```
 
 ```sh
-warp model --ruleset edit --rules
+warp model --rules
 ```
 
 ```text stdout
 (root)  root: root
-  rules: file-cohesion {"maxLines":10}, function-cohesion {"maxLines":6}, cognitive-complexity {"max":4}
+  rules: file-cohesion {"maxLines":15}, function-cohesion {"maxLines":6}, cognitive-complexity {"max":4}
   loose: src/stray.ts
   src/domain  domain: root.domain, 2 files
   src/app  app: root.app, 2 files
-    rules: function-cohesion off
+    rules: file-cohesion {"maxLines":10}, function-cohesion off, cognitive-complexity {"max":2}
   src/adapters  adapters: root.adapters, 2 files
 
 4 modules, 7 files, 1 loose.

@@ -1,24 +1,17 @@
-Rule: the default ruleset turns a rule off for one module.
+Rule: a ruleset on a module changes the rules for that module and everything inside it.
 
 ```yaml warp.yaml
 root:
-  modules:
-    domain: { dir: src/domain, exposes: all }
-    app: { dir: src/app, dependencies: [domain], exposes: all }
-    adapters: { dir: src/adapters, dependencies: [domain, app], exposes: all }
-
-rulesets:
-  default:
+  ruleset:
     extends: [warp:recommended]
     rules:
       file-cohesion: { maxLines: 15 }
       function-cohesion: { maxLines: 6 }
       cognitive-complexity: { max: 4 }
-    on: { root.app: { cognitive-complexity: off } }
-  edit:
-    extends: [default]
-    rules: { file-cohesion: { maxLines: 10 } }
-    on: { root.app: { cognitive-complexity: on, function-cohesion: off } }
+  modules:
+    domain: { dir: src/domain, exposes: all }
+    app: { dir: src/app, dependencies: [domain], exposes: all, ruleset: { rules: { cognitive-complexity: off } } }
+    adapters: { dir: src/adapters, dependencies: [domain, app], exposes: all }
 ```
 
 ```json tsconfig.json
@@ -124,8 +117,8 @@ src/adapters/db/orderRepo.ts:1 [module-cycle] src/adapters and src/domain import
 src/app/handle.ts:1 [file-cohesion] src/app/handle.ts is 23 lines (tripwire 15) and its top-level code falls into 2 groups that share no calls, top-level state or types: [handle] (lines 3-10); [grade] (lines 12-23). Each group can move to its own file.
 src/domain/pricing.ts:1 [file-cohesion] src/domain/pricing.ts is 17 lines (tripwire 15) and its top-level code falls into 3 groups that share no calls, top-level state or types: [rate, tax, gross] (lines 3-7); [label] (lines 9-11); [shout, banner] (lines 13-17). Each group can move to its own file.
 src/app/handle.ts:3 [function-cohesion] Function handle in src/app/handle.ts:3 is 8 lines (tripwire 6) and its statements fall into 2 groups that share no locals: lines 4-6; lines 7-9. Each group can become its own function.
-warp.yaml:5 [unused-declaration] root.adapters.dependencies names app, but nothing in src/adapters imports through it. Remove it.
-warp.yaml:4 [unused-declaration] root.app exposes: all, but nothing outside src/app imports it. Remove it, or use the module where it is needed.
+warp.yaml:11 [unused-declaration] root.adapters.dependencies names app, but nothing in src/adapters imports through it. Remove it.
+warp.yaml:10 [unused-declaration] root.app exposes: all, but nothing outside src/app imports it. Remove it, or use the module where it is needed.
 
 By rule and module:
   dependency-direction      src/domain    2

@@ -38,10 +38,7 @@ root:
   modules:
     domain: { dir: src/domain, exposes: all }
     infra: { dir: src/infra, dependencies: [domain] }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
+  ruleset: { extends: [warp:recommended] }
 ```
 
 Incorrect code:

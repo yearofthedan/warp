@@ -106,7 +106,7 @@ describe('a module entry', () => {
       'root.x.entry: a files module has no modules; use dir for a folder of them',
     ]);
     assert.deepEqual(failures('root: { test: { modules: { x: { files: x.test.ts, entry: x.ts } } } }'), [
-      'root.x: unknown key entry; a module takes description, dir, files, archetype, dependencies, exposes, modules',
+      'root.x: unknown key entry; a module takes description, dir, files, archetype, dependencies, exposes, modules, ruleset',
     ]);
   });
 });

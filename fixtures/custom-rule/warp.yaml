@@ -1,17 +1,15 @@
 root:
+  ruleset: { extends: [warp:recommended] }
   modules:
     domain: { files: 'src/domain/**', exposes: all }
     application:
       files: 'src/application/**'
       dependencies: [domain]
       exposes: { files: src/application/index.ts }
-    ui: { files: 'src/ui/**', dependencies: [application] }
+    ui:
+      files: 'src/ui/**'
+      dependencies: [application]
+      ruleset: { rules: { wt/no-ports-through-application: on } }
 
 plugins:
   wt: ./rules/noPortsThroughApplication.ts
-
-rulesets:
-  default:
-    extends: [warp:recommended]
-    rules: { wt/no-ports-through-application: off }
-    on: { root.ui: { wt/no-ports-through-application: on } }

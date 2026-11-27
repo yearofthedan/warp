@@ -69,13 +69,17 @@ export const exposedProblem = (
 };
 
 export const toRules = (check: Check, value: unknown, where: string): RuleSettingsData | undefined => {
-  if (value === undefined || value === 'off') return value;
+  if (value === undefined) return undefined;
+  if (value === 'off') return { '*': false };
   if (!isRecord(value)) {
     check.fail(`${where}: expected off or rule settings by id`);
     return undefined;
   }
   return Object.fromEntries(
-    Object.entries(value).map(([id, setting]) => [id, toSetting(check, id, setting, where)]),
+    Object.entries(value).flatMap(([id, setting]) => {
+      const parsed = toSetting(check, id, setting, where);
+      return parsed === undefined ? [] : [[id, parsed]];
+    }),
   ) as RuleSettingsData;
 };
 

@@ -62,8 +62,16 @@ export interface ProjectRule<Options extends object = object> extends RuleBase<O
 
 export type Rule = FileRule<any> | ProjectRule<any>;
 
+export type RuleSetting = 'on' | 'off' | boolean | Record<string, unknown>;
+
+export interface RulesetDefinition {
+  extends?: readonly string[];
+  rules?: Readonly<Record<string, RuleSetting>>;
+}
+
 export interface Plugin {
   rules: readonly Rule[];
+  rulesets?: Readonly<Record<string, RulesetDefinition>>;
 }
 
 export const noOptions = (raw: Record<string, unknown>, at: string): Partial<object> => {

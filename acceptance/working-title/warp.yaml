@@ -1,4 +1,5 @@
 root:
+  ruleset: { extends: [warp:recommended] }
   modules:
     domain:
       dir: src/domain
@@ -81,7 +82,3 @@ archetypes:
         testPage: { files: '*.test-page.ts' }
         harness: { files: '*.harness.ts' }
         tests: { files: '*.test.ts' }
-
-rulesets:
-  default:
-    extends: [warp:recommended]
