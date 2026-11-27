@@ -34,7 +34,6 @@ export const exportSurface: ProjectRule<typeof defaults> = {
         : [],
     );
     return model.modules.flatMap((module): Finding[] => {
-      if (module.test || !module.parent) return [];
       const { on, options } = atModule(module);
       if (!on) return [];
       const names = surface(module, uses, (file) => model.moduleOf(file));
