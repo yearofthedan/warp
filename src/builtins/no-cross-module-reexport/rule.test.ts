@@ -89,7 +89,10 @@ archetypes:
 
 const check = (analyzed: FileFacts[], { child = 'ui', edit = (yaml: string) => yaml } = {}) => {
   const raw = parse(edit(structure(child)));
-  const { config } = loadConfigData({ ...raw, root: { ruleset: { rules: { '*': 'on' } }, ...raw.root } });
+  const { config } = loadConfigData({
+    ...raw,
+    root: { ruleset: { rules: { 'no-cross-module-reexport': 'on' } }, ...raw.root },
+  });
   const all = [
     ...analyzed,
     ...paths.filter((file) => !analyzed.some((m) => m.path === file)).map((file) => facts(file)),
