@@ -1,4 +1,4 @@
-import type { ArchetypeData, ConfigData, ModuleData, RuleSettingsData } from './data.ts';
+import type { ArchetypeData, ConfigData, ModuleData, RuleSettingsData, RulesetData } from './data.ts';
 import { declarationOf, type Model, type ModuleView } from './resolve.ts';
 import { isRecord } from './shared.ts';
 
@@ -12,7 +12,7 @@ export interface Settings {
   atModule(module: ModuleView, id: string, defaults?: object): RuleAt;
 }
 
-type Layers = readonly (RuleSettingsData | undefined)[];
+type Layers = readonly (RulesetData | undefined)[];
 
 const archetypeOf = (config: ConfigData, module: ModuleView): ArchetypeData | undefined =>
   module.archetype === undefined ? undefined : config.archetypes[module.archetype];
@@ -22,7 +22,7 @@ const own = (config: ConfigData, module: ModuleView): Layers => [
   declarationOf(config, module)?.ruleset,
 ];
 
-type TestRulesetOf = { testRuleset?: RuleSettingsData } | undefined;
+type TestRulesetOf = { testRuleset?: RulesetData } | undefined;
 
 const ownTests = (config: ConfigData, module: ModuleView): Layers => [
   archetypeOf(config, module)?.testRuleset,
@@ -59,31 +59,23 @@ const layersOf = (config: ConfigData, module: ModuleView): Layers => {
   ];
 };
 
-export const merged = (base: RuleSettingsData, layer: RuleSettingsData | undefined): RuleSettingsData => {
-  if (layer === undefined) return base;
-  const result: RuleSettingsData = Object.hasOwn(layer, '*') ? {} : { ...base };
-  for (const [id, setting] of Object.entries(layer)) {
-    const was = result[id];
-    if (setting === true && isRecord(was)) continue;
-    result[id] = isRecord(setting) && isRecord(was) ? { ...was, ...setting } : setting;
+const ruleAt = (layers: readonly RuleSettingsData[], id: string, defaults: object = {}): RuleAt => {
+  const at: RuleAt = { on: false, options: { ...defaults } };
+  for (const layer of layers) {
+    const setting = Object.hasOwn(layer, id) ? layer[id] : layer['*'];
+    if (setting === undefined) continue;
+    at.on = setting !== false;
+    if (isRecord(setting)) Object.assign(at.options, setting);
   }
-  return result;
-};
-
-const ruleAt = (settings: RuleSettingsData, id: string, defaults: object = {}): RuleAt => {
-  const setting = Object.hasOwn(settings, id) ? settings[id] : settings['*'];
-  return {
-    on: setting !== undefined && setting !== false,
-    options: { ...defaults, ...(isRecord(setting) ? setting : {}) },
-  };
+  return at;
 };
 
 export const settings = (config: ConfigData, model: Model): Settings => {
-  const cache = new Map<ModuleView, RuleSettingsData>();
-  const at = (module: ModuleView | undefined): RuleSettingsData => {
-    if (!module) return {};
+  const cache = new Map<ModuleView, readonly RuleSettingsData[]>();
+  const at = (module: ModuleView | undefined): readonly RuleSettingsData[] => {
+    if (!module) return [];
     let found = cache.get(module);
-    if (!found) cache.set(module, (found = layersOf(config, module).reduce(merged, {})));
+    if (!found) cache.set(module, (found = layersOf(config, module).flatMap((ruleset) => ruleset ?? [])));
     return found;
   };
   return {
@@ -117,8 +109,8 @@ export const rulesOf = (
   };
 };
 
-const turnsOn = (ruleset: RuleSettingsData | undefined): boolean =>
-  ruleset !== undefined && Object.values(ruleset).some((setting) => setting !== false);
+const turnsOn = (ruleset: RulesetData | undefined): boolean =>
+  ruleset !== undefined && ruleset.some((layer) => Object.values(layer).some((setting) => setting !== false));
 
 const rulesetsOf = (place: ArchetypeData | ModuleData) => [
   place.ruleset,

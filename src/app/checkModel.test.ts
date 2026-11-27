@@ -101,11 +101,14 @@ archetypes:
     return { config, model, rules, module };
   };
 
-  it("turns every rule off in a files module with 'off', and '*': off starts again from the rules listed beside it", () => {
+  it("turns every rule off in a files module with 'off', and '*': off turns off every rule not listed beside it", () => {
     const { rules } = ruleTree();
     assert.equal(rules.atFile('mid/a/quiet.ts', 'no-cycle').on, false);
     assert.equal(rules.atFile('mid/a/quiet.ts', 'dependency-direction').on, false);
-    assert.deepEqual(rules.atFile('mid/a/loud.ts', 'no-cycle'), { on: true, options: { types: 'count' } });
+    assert.deepEqual(rules.atFile('mid/a/loud.ts', 'no-cycle'), {
+      on: true,
+      options: { types: 'count', z: 3, depth: 2 },
+    });
     assert.equal(rules.atFile('mid/a/loud.ts', 'dependency-direction').on, false);
   });
 
@@ -115,6 +118,28 @@ archetypes:
     assert.deepEqual(rules.atFile('mid/a/rest.ts', 'dependency-direction'), { on: true, options: { x: 1, y: 2 } });
     assert.equal(rules.atFile('mid/plain/p.ts', 'dependency-direction').on, false);
     assert.equal(rules.atFile('mid/own.ts', 'dependency-direction').on, true);
+  });
+
+  it("resets nothing: off and '*': off are settings, and a module below turns a rule back on with its options", () => {
+    const { config, model } = modelOf(
+      `
+root:
+  ruleset: { rules: { no-cycle: { types: count }, file-cohesion: { maxLines: 50 } } }
+  modules:
+    legacy:
+      dir: legacy
+      ruleset: { rules: { '*': off } }
+      modules:
+        kept: { dir: kept, ruleset: { rules: { no-cycle: on } } }
+    paused: { dir: paused, ruleset: { rules: { no-cycle: off } }, modules: { back: { dir: back, ruleset: { rules: { no-cycle: on } } } } }
+`,
+      { 'legacy/a.ts': [], 'legacy/kept/a.ts': [], 'paused/back/a.ts': [] },
+    );
+    const rules = settings(config, model);
+    assert.equal(rules.atFile('legacy/a.ts', 'no-cycle').on, false);
+    assert.deepEqual(rules.atFile('legacy/kept/a.ts', 'no-cycle'), { on: true, options: { types: 'count' } });
+    assert.equal(rules.atFile('legacy/kept/a.ts', 'file-cohesion').on, false);
+    assert.deepEqual(rules.atFile('paused/back/a.ts', 'no-cycle'), { on: true, options: { types: 'count' } });
   });
 
   it('settles a module the same way as its files', () => {
@@ -145,7 +170,10 @@ archetypes:
     ]);
     assert.deepEqual(resolved.defaults, { 'no-cycle': { types: 'ignore' }, 'module-cycle': {} });
     assert.deepEqual(resolved.module(module('mid/a')), { 'no-cycle': false, 'module-cycle': {} });
-    assert.deepEqual(resolved.module(module('mid/a:loud')), { 'no-cycle': { types: 'count' }, 'module-cycle': false });
+    assert.deepEqual(resolved.module(module('mid/a:loud')), {
+      'no-cycle': { types: 'count', z: 3, depth: 2 },
+      'module-cycle': false,
+    });
     assert.deepEqual(rules.atModule(module('mid/a:quiet'), 'no-cycle').on, false);
   });
 

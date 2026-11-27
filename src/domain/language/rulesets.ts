@@ -1,10 +1,9 @@
-import type { RuleSettingsData } from '../model/data.ts';
-import { merged } from '../model/settings.ts';
+import type { RuleSettingsData, RulesetData } from '../model/data.ts';
 import { type Fail, isRecord, list } from '../model/shared.ts';
 
 export type ParseRules = (value: unknown, at: string) => RuleSettingsData | undefined;
 
-export type ParseRuleset = (value: unknown, at: string) => RuleSettingsData | undefined;
+export type ParseRuleset = (value: unknown, at: string) => RulesetData | undefined;
 
 export interface Rulesets {
   parse: ParseRuleset;
@@ -56,34 +55,34 @@ const localRulesets = (value: unknown, fail: Fail): Map<string, unknown> => {
   return new Map(Object.entries(value).filter(([name]) => !name.includes(':')));
 };
 
-const flatten = (state: Named, def: unknown, at: string, seen: readonly string[]): RuleSettingsData => {
+const flatten = (state: Named, def: unknown, at: string, seen: readonly string[]): RulesetData => {
   if (!isRecord(def)) {
     state.fail(`${at}: expected a ruleset, { extends: [${recommended}], rules: {...} }`);
-    return {};
+    return [];
   }
   for (const key of Object.keys(def).filter((key) => !rulesetKeys.includes(key)))
     state.fail(`${at}: unknown key ${key}; a ruleset takes ${rulesetKeys.join(', ')}`);
-  const bases = [def.extends ?? []].flat().map((base) => baseOf(state, base, `${at}.extends`, seen));
+  const bases = [def.extends ?? []].flat().flatMap((base) => baseOf(state, base, `${at}.extends`, seen));
   const own = state.parseRules(def.rules, `${at}.rules`);
-  return [...bases, own].reduce(merged, {});
+  return own ? [...bases, own] : bases;
 };
 
-const baseOf = (state: Named, base: unknown, at: string, seen: readonly string[]): RuleSettingsData | undefined => {
+const baseOf = (state: Named, base: unknown, at: string, seen: readonly string[]): RulesetData => {
   const local = typeof base === 'string' && state.local.has(base);
   if (typeof base !== 'string' || !(local || Object.hasOwn(state.shared, base))) {
     const known = [...Object.keys(state.shared), ...state.local.keys()];
     state.fail(`${at}: '${String(base)}' is no ruleset; extend ${list(known, 'nothing')}`);
-    return undefined;
+    return [];
   }
   if (seen.includes(base)) {
     state.fail(`${at}: ${[...seen, base].join(' extends ')}, a loop`);
-    return undefined;
+    return [];
   }
   state.extended.add(base);
   return resolveNamed(state, base, local, seen);
 };
 
-const resolveNamed = (state: Named, name: string, local: boolean, seen: readonly string[]): RuleSettingsData => {
+const resolveNamed = (state: Named, name: string, local: boolean, seen: readonly string[]): RulesetData => {
   const def = local ? state.local.get(name) : state.shared[name];
   return flatten(state, def, local ? `rulesets.${name}` : name, [...seen, name]);
 };

@@ -708,9 +708,9 @@ root: { modules: { src: { files: '**', ruleset: { rules: { mine/max-imports: { m
 plugins: { mine: ./rules/mine.ts }
 root: { modules: {}, ruleset: { extends: [mine:strict] } }
 `;
-    assert.deepEqual(load(yaml, { builtins: warp, plugins }).config.archetypes.root!.ruleset, {
-      'mine/max-imports': true,
-    });
+    assert.deepEqual(load(yaml, { builtins: warp, plugins }).config.archetypes.root!.ruleset, [
+      { 'mine/max-imports': true },
+    ]);
     for (const rulesets of [[], null, 'strict'])
       assert.throws(
         () => load(yaml, { plugins: { mine: { rules: [], rulesets } } }),
