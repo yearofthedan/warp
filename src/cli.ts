@@ -147,7 +147,7 @@ const placed = <T>({ lines, config }: Resolved, run: () => T): T => {
 };
 
 const nothingOn = (file: string) =>
-  `No rules are on, so nothing was checked. Turn some on in ${file}: root: { ruleset: { extends: [${recommended}] } }`;
+  `No rules are on, so nothing was checked. Turn some on in ${file}: root: { ruleset: [${recommended}] }`;
 
 const failureCache = () => {
   try {

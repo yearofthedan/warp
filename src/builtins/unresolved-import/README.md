@@ -25,7 +25,7 @@ value is 1.
 root:
   modules:
     ui: { dir: src/ui }
-  ruleset: { extends: [warp:recommended] }
+  ruleset: [warp:recommended]
 ```
 
 Incorrect code, with no `src/ui/crad.ts` in the project:

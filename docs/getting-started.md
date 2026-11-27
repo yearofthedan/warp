@@ -36,7 +36,7 @@ root:
     utils: { dir: src/utils, exposes: all }
     db: { dir: src/db, exposes: all }
     api: { dir: src/api, dependencies: [db, utils, 'npm:*'], exposes: all }
-  ruleset: { extends: [warp:recommended] }
+  ruleset: [warp:recommended]
 ```
 
 - `root` is the project's folder, and each key under its `modules` is a [module](concepts.md#module).
@@ -175,7 +175,7 @@ root:
     modules:
       tests: { files: 'src/**/*.test.ts' }
     ruleset: { rules: { function-cohesion: off } }
-  ruleset: { extends: [warp:recommended] }
+  ruleset: [warp:recommended]
 ```
 
 - `test: { modules: { tests: ... } }` makes the test files a [test module](concepts.md#test-module) of the root. Its

@@ -103,6 +103,20 @@ rulesets:
     ]);
   });
 
+  it('take a list as the rulesets to extend, with no rules of their own', () => {
+    const config = load(`
+root:
+  ruleset: [lint]
+  modules: {}
+  test: { ruleset: [warp:recommended] }
+rulesets:
+  lint: [warp:recommended]
+`);
+    const recommendedRules = Object.fromEntries(warp.rules.map((rule) => [rule.id, true]));
+    assert.deepEqual(config.archetypes.root!.ruleset, [recommendedRules]);
+    assert.deepEqual(config.archetypes.root!.testRuleset, [recommendedRules]);
+  });
+
   it('refuse a named ruleset nothing extends, an unknown base, a loop, and what is not a ruleset', () => {
     assert.deepEqual(
       failures(`
@@ -125,9 +139,12 @@ rulesets:
         "rulesets.plain: nothing extends it; a named ruleset applies through a ruleset's extends",
       ],
     );
-    assert.deepEqual(failures('root: { modules: {}, ruleset: [x] }\nrulesets: [x]\n'), [
+    assert.deepEqual(failures('root: { modules: {}, ruleset: on }\nrulesets: [x]\n'), [
       'rulesets: expected rulesets by name, { strict: { rules: {...} } }',
-      'root.ruleset: expected a ruleset, { extends: [warp:recommended], rules: {...} }',
+      'root.ruleset: expected a ruleset, [warp:recommended] or { extends: [warp:recommended], rules: {...} }',
+    ]);
+    assert.deepEqual(failures('root: { modules: {}, ruleset: [x] }'), [
+      "root.ruleset.extends: 'x' is no ruleset; extend warp:recommended",
     ]);
   });
 

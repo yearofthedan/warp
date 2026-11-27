@@ -22,7 +22,7 @@ root:
   modules:
     domain: { files: 'src/domain/**' }
     ui: { files: 'src/ui/**' }
-  ruleset: { extends: [warp:recommended] }
+  ruleset: [warp:recommended]
 ```
 
 With `src/stray.ts` in the project:

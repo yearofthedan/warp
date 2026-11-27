@@ -1,5 +1,5 @@
 root:
-  ruleset: { extends: [warp:recommended] }
+  ruleset: [warp:recommended]
   modules:
     domain: { files: 'src/domain/**', exposes: all }
     application:
