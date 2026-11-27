@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.0](https://github.com/yearofthedan/warp/compare/warp-v0.4.1...warp-v0.5.0) (2026-11-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* `rulesets.default`, a ruleset's `on:` and `test:` keys, and the `--ruleset` flag are removed. A plugin's rules no longer run until a ruleset turns them on.
+
+### Features
+
+* bind rulesets where they apply in the module tree ([e18e9b6](https://github.com/yearofthedan/warp/commit/e18e9b6365d060b27a65deb91b6bd2f885d5b6ef))
+* follow import(), require() and import = require() with literal specifiers ([b872215](https://github.com/yearofthedan/warp/commit/b87221557583c179c9f52382d9c0f4e684d99f8d))
+* name the inner modules that use a dependency their parent never does ([b4b17c5](https://github.com/yearofthedan/warp/commit/b4b17c507542c4aa2ae39bd751eb83bbd8829fb9))
+* refuse '*': on, so a rule comes on only where it is named ([f1d6749](https://github.com/yearofthedan/warp/commit/f1d674962308ee2694a8a77317a8bb4c9079db30))
+* take a list as a ruleset that only extends ([7f46132](https://github.com/yearofthedan/warp/commit/7f46132464f475f0fe8ac84ae2e650de5adcedc6))
+* take off as a ruleset that turns every rule off ([7bbbca6](https://github.com/yearofthedan/warp/commit/7bbbca642772ab8d4c2f48dc757db1ea85695bcc))
+
+
+### Bug Fixes
+
+* let off and '*': off be settings that reset nothing ([8f4d86f](https://github.com/yearofthedan/warp/commit/8f4d86f3281c9d92e33a19e9c911afcb9e711868))
+
 ## [0.4.1](https://github.com/yearofthedan/warp/compare/warp-v0.4.0...warp-v0.4.1) (2026-11-26)
 
 
