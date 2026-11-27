@@ -3,6 +3,8 @@ import type {
   ExportDeclaration,
   Identifier,
   ImportDeclaration,
+  ImportEqualsDeclaration,
+  Node,
   SourceFile,
   Statement,
   StringLiteralLikeNode,
@@ -12,6 +14,7 @@ import {
   isExportDeclaration,
   isIdentifier,
   isImportDeclaration,
+  isImportEqualsDeclaration,
   isNamedExports,
   isNamedImports,
   isNamespaceImport,
@@ -22,12 +25,14 @@ import { isBuiltin } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import type { ExternalImport, ImportEdge, UnresolvedImport } from '../../domain/facts/facts.ts';
 import type { Source } from './source.ts';
+import { inlineReferences, statementSpecifier } from './specifiers.ts';
 
 export interface Resolver {
   checker: Checker;
   program: Program;
   relative: (pathOrFileName: string) => string | undefined;
   exists: (fileName: string) => boolean;
+  requireTarget: (specifier: string, directory: string) => string | undefined;
 }
 
 interface Binding {
@@ -43,22 +48,28 @@ export interface FileEdges {
 }
 
 export const fileEdges = (source: Source, resolver: Resolver): FileEdges => {
-  const exported = locallyExportedNames(source.sourceFile);
   const edges: FileEdges = { imports: [], externals: [], unresolved: [] };
-  for (const statement of source.sourceFile.statements) {
-    const declaration = moduleDeclaration(statement, exported);
-    if (!declaration) continue;
-    const resolved = resolver.program.getResolvedModuleFromModuleSpecifier(
-      declaration.specifier,
-      source.sourceFile.fileName,
-    );
-    const via = resolved?.resolvedFileName ? resolver.relative(resolved.resolvedFileName) : undefined;
-    if (via) edges.imports.push(...statementEdges(statement, declaration, via, source, resolver));
-    else if (isBare(declaration.specifier.text)) edges.externals.push(externalImport(statement, declaration, source));
-    else if (!resolved?.resolvedFileName && !namesFileOnDisk(declaration.specifier.text, source, resolver))
-      edges.unresolved.push({ from: source.file, specifier: declaration.specifier.text, line: source.line(statement) });
+  for (const reference of moduleReferences(source.sourceFile)) {
+    const { specifier } = reference;
+    const resolvedFileName = resolvedTarget(reference, source, resolver);
+    const via = resolvedFileName ? resolver.relative(resolvedFileName) : undefined;
+    if (via) edges.imports.push(...referenceEdges(reference, via, source, resolver));
+    else if (isBare(specifier.text)) edges.externals.push(externalImport(reference, source));
+    else if (!resolvedFileName && !namesFileOnDisk(specifier.text, source, resolver))
+      edges.unresolved.push({ from: source.file, specifier: specifier.text, line: source.line(reference.node) });
   }
   return edges;
+};
+
+const resolvedTarget = (reference: ModuleReference, source: Source, resolver: Resolver): string | undefined => {
+  const { fileName } = source.sourceFile;
+  const resolved = resolver.program.getResolvedModuleFromModuleSpecifier(
+    reference.specifier,
+    fileName,
+  )?.resolvedFileName;
+  return (
+    resolved ?? (reference.require ? resolver.requireTarget(reference.specifier.text, dirname(fileName)) : undefined)
+  );
 };
 
 const namesFileOnDisk = (specifier: string, source: Source, resolver: Resolver): boolean =>
@@ -73,7 +84,7 @@ const packageOf = (specifier: string): string => {
   return !name.includes(':') && isBuiltin(name) ? `node:${name}` : name;
 };
 
-const externalImport = (statement: Statement, declaration: ModuleStatement, source: Source): ExternalImport => {
+const externalImport = (declaration: ModuleReference, source: Source): ExternalImport => {
   const reExport = declaration.reExport || declaration.bindings.some((binding) => binding.reExport);
   return {
     from: source.file,
@@ -84,13 +95,12 @@ const externalImport = (statement: Statement, declaration: ModuleStatement, sour
       declaration.typeOnly ||
       (declaration.bindings.length > 0 && declaration.bindings.every((binding) => binding.typeOnly)),
     ...(reExport ? { reExport } : {}),
-    line: source.line(statement),
+    line: source.line(declaration.node),
   };
 };
 
-const statementEdges = (
-  statement: Statement,
-  declaration: ModuleStatement,
+const referenceEdges = (
+  declaration: ModuleReference,
   via: string,
   source: Source,
   resolver: Resolver,
@@ -103,7 +113,7 @@ const statementEdges = (
     names,
     typeOnly,
     ...(reExport ? { reExport } : {}),
-    line: source.line(statement),
+    line: source.line(declaration.node),
   });
   if (declaration.bindings.length === 0) return [edge(via, [], declaration.typeOnly, declaration.reExport)];
 
@@ -126,12 +136,36 @@ interface ModuleStatement {
   bindings: Binding[];
 }
 
+interface ModuleReference extends ModuleStatement {
+  node: Node;
+  require: boolean;
+}
+
+const moduleReferences = (sourceFile: SourceFile): ModuleReference[] => {
+  const exported = locallyExportedNames(sourceFile);
+  const statements = sourceFile.statements.flatMap((statement) => {
+    const declaration = moduleDeclaration(statement, exported);
+    return declaration ? [{ ...declaration, node: statement, require: false }] : [];
+  });
+  const inline = inlineReferences(sourceFile).map(({ node, specifier, typeOnly, require }) => ({
+    node,
+    specifier,
+    typeOnly,
+    require,
+    reExport: false,
+    bindings: [],
+  }));
+  return [...statements, ...inline];
+};
+
 const moduleDeclaration = (statement: Statement, exported: Set<string>): ModuleStatement | undefined =>
   isImportDeclaration(statement)
     ? importStatement(statement, exported)
     : isExportDeclaration(statement)
       ? reExportStatement(statement)
-      : undefined;
+      : isImportEqualsDeclaration(statement)
+        ? importEqualsStatement(statement, exported)
+        : undefined;
 
 const locallyExportedNames = (sourceFile: SourceFile): Set<string> => {
   const names = new Set<string>();
@@ -174,6 +208,23 @@ const importStatement = (statement: ImportDeclaration, exported: Set<string>): M
     typeOnly: clause?.phaseModifier === SyntaxKind.TypeKeyword,
     reExport: false,
     bindings,
+  };
+};
+
+const importEqualsStatement = (
+  statement: ImportEqualsDeclaration,
+  exported: Set<string>,
+): ModuleStatement | undefined => {
+  const specifier = statementSpecifier(statement);
+  if (!specifier || !isIdentifier(statement.name)) return undefined;
+  const reExport =
+    exported.has(statement.name.text) ||
+    (statement.modifiers?.some((modifier) => modifier.kind === SyntaxKind.ExportKeyword) ?? false);
+  return {
+    specifier,
+    typeOnly: statement.isTypeOnly,
+    reExport: false,
+    bindings: [{ identifier: statement.name, typeOnly: false, reExport }],
   };
 };
 
