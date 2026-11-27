@@ -77,6 +77,9 @@ warp model --json
           "max": 2,
           "ignore": []
         },
+        "export-surface": {
+          "max": 20
+        },
         "module-dependencies": {
           "max": 4,
           "ignore": []
@@ -128,6 +131,9 @@ warp model --json
           "max": 2,
           "ignore": []
         },
+        "export-surface": {
+          "max": 20
+        },
         "module-dependencies": {
           "max": 4,
           "ignore": []
@@ -178,6 +184,9 @@ warp model --json
         "export-spread": {
           "max": 2,
           "ignore": []
+        },
+        "export-surface": {
+          "max": 20
         },
         "module-dependencies": {
           "max": 4,

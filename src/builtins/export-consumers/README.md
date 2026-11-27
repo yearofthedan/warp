@@ -35,7 +35,7 @@ use it is [`export-spread`](../export-spread/README.md)'s question.
 - Production files count. Tests and re-exports don't.
 - An import is counted by the name its declaring file exports, through any barrel.
 - Settings are read at the exporter's module. [`warp:utility`](../../../docs/config.md#rulesets) turns the rule off
-  there.
+  there, with [`export-surface`](../export-surface/README.md).
 
 The finding sits on the export's declaration. Its value is the number of boundaries, its `parts` name them, and its
 `details` give the exporter's module, the name, and the files behind each boundary.
