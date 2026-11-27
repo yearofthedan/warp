@@ -21,7 +21,6 @@ export const moduleDependencies: ProjectRule<LimitOptions> = {
   check: ({ model, project, atModule }) => {
     const imports = productionImports(model, project.files);
     return model.modules.flatMap((module): Finding[] => {
-      if (module.test || !module.parent) return [];
       const { on, options } = atModule(module);
       if (!on) return [];
       const boundaries = crossings(model, module, imports, ignored(model, options.ignore));
@@ -44,13 +43,13 @@ const crossings = (model: Model, module: ModuleView, imports: readonly Import[],
 
 const productionImports = (model: Model, files: readonly FileFacts[]): Import[] => {
   const production = new Set(files.map((file) => file.path).filter((path) => !model.isTest(path)));
-  return files.flatMap(({ path, imports }) =>
-    production.has(path)
-      ? imports
-          .map((edge) => ({ file: path, to: edge.via ?? edge.to, line: edge.line }))
-          .filter(({ to }) => production.has(to))
-      : [],
-  );
+  return files
+    .filter(({ path }) => production.has(path))
+    .flatMap(({ path, imports }) =>
+      imports
+        .map((edge) => ({ file: path, to: edge.via ?? edge.to, line: edge.line }))
+        .filter(({ to }) => production.has(to)),
+    );
 };
 
 const finding = (module: ModuleView, boundaries: Map<ModuleView, Site[]>, max: number): Finding => {

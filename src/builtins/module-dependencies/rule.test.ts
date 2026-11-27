@@ -26,13 +26,14 @@ const folders = (paths: readonly string[]): Folders => {
   };
 };
 
-const use = (to: string, names: string[], typeOnly = false): ImportEdge => ({
+const use = (to: string, names: string[], line = 1, via?: string): ImportEdge => ({
   from: '',
   to,
-  specifier: to,
+  specifier: via ?? to,
   names,
-  typeOnly,
-  line: 1,
+  typeOnly: false,
+  line,
+  ...(via ? { via } : {}),
 });
 
 const facts = (path: string, imports: ImportEdge[] = []): FileFacts => ({
@@ -52,26 +53,39 @@ root:
   modules:
     domain: { dir: domain, exposes: all }
     icons: { dir: icons, exposes: all }
-    strings: { dir: strings, exposes: all }
+    strings: { dir: strings, exposes: all, dependencies: [icons] }
+    shell:
+      dir: shell
+      dependencies: [domain, strings]
+      ruleset: { rules: { module-dependencies: { max: 1 } } }
     ui:
       dir: ui
       dependencies: [domain, icons, strings]${ui}
       modules:
-        card: { dir: card, exposes: all }
+        card: { dir: card, exposes: all, dependencies: [theme] }
+        theme: { dir: theme, exposes: all }
   test: { modules: { tests: { files: '*.test.ts' } } }
 `;
 
 const project = [
   facts('domain/order.ts'),
-  facts('domain/rules.ts', [use('domain/order.ts', ['Order'], true)]),
+  facts('domain/rules.ts', [use('domain/order.ts', ['Order'])]),
   facts('icons/icons.ts'),
-  facts('strings/strings.ts'),
-  facts('ui/card/card.ts', [
-    use('domain/order.ts', ['Order'], true),
-    use('icons/icons.ts', ['icon']),
-    use('strings/strings.ts', ['strings']),
+  facts('strings/strings.ts', [use('icons/icons.ts', ['icon'])]),
+  facts('shell/main.ts', [
+    use('icons/icons.ts', ['icon'], 7, 'strings/strings.ts'),
+    use('domain/order.ts', ['Order'], 8),
   ]),
-  facts('ui/page.ts', [use('ui/card/card.ts', ['card'])]),
+  facts('ui/card/card.ts', [
+    use('domain/order.ts', ['Order'], 3),
+    use('icons/icons.ts', ['icon'], 2),
+    use('strings/strings.ts', ['strings'], 5),
+    use('ui/theme/theme.ts', ['theme'], 9),
+    use('fixture.test.ts', ['fixture'], 6),
+  ]),
+  facts('ui/theme/theme.ts'),
+  facts('ui/page.ts', [use('ui/card/card.ts', ['card']), use('domain/order.ts', ['cancel'], 1)]),
+  facts('fixture.test.ts', [use('icons/icons.ts', ['icon'])]),
   facts('e2e.test.ts', [use('ui/page.ts', ['page']), use('domain/order.ts', ['cancel'])]),
 ];
 
@@ -82,47 +96,151 @@ const run = (ui = '') => {
 };
 
 describe('module-dependencies', () => {
-  it('counts the boundaries a module imports across, types included, judging parents too', () => {
+  it('counts the boundaries a module imports across, through the barrel it names, judging parents too', () => {
+    assert.deepEqual(run(), [
+      {
+        rule: 'module-dependencies',
+        key: 'module-dependencies:shell',
+        file: 'shell/main.ts',
+        line: 7,
+        value: 2,
+        limit: 1,
+        message:
+          'shell imports across 2 boundaries: domain and strings. Its limit here is 1. Split it along what each part depends on, or reach some of them through one module. A module meant to wire everything together, such as a composition root, turns module-dependencies off or raises its max.',
+        sites: [
+          {
+            file: 'shell/main.ts',
+            line: 7,
+          },
+          {
+            file: 'shell/main.ts',
+            line: 8,
+          },
+        ],
+        parts: ['domain', 'strings'],
+        details: {
+          module: 'shell',
+          boundaries: [
+            {
+              module: 'strings',
+              files: ['shell/main.ts'],
+            },
+            {
+              module: 'domain',
+              files: ['shell/main.ts'],
+            },
+          ],
+        },
+        module: 'shell',
+      },
+      {
+        rule: 'module-dependencies',
+        key: 'module-dependencies:ui',
+        file: 'ui/card/card.ts',
+        line: 2,
+        value: 3,
+        limit: 2,
+        message:
+          'ui imports across 3 boundaries: domain, icons and strings. Its limit here is 2. Split it along what each part depends on, or reach some of them through one module. A module meant to wire everything together, such as a composition root, turns module-dependencies off or raises its max.',
+        sites: [
+          {
+            file: 'ui/card/card.ts',
+            line: 2,
+          },
+          {
+            file: 'ui/card/card.ts',
+            line: 3,
+          },
+          {
+            file: 'ui/card/card.ts',
+            line: 5,
+          },
+        ],
+        parts: ['domain', 'icons', 'strings'],
+        details: {
+          module: 'ui',
+          boundaries: [
+            {
+              module: 'domain',
+              files: ['ui/card/card.ts', 'ui/page.ts'],
+            },
+            {
+              module: 'icons',
+              files: ['ui/card/card.ts'],
+            },
+            {
+              module: 'strings',
+              files: ['ui/card/card.ts'],
+            },
+          ],
+        },
+        module: 'ui/card',
+      },
+      {
+        rule: 'module-dependencies',
+        key: 'module-dependencies:ui/card',
+        file: 'ui/card/card.ts',
+        line: 2,
+        value: 4,
+        limit: 2,
+        message:
+          'ui/card imports across 4 boundaries: domain, icons, strings and ui/theme. Its limit here is 2. Split it along what each part depends on, or reach some of them through one module. A module meant to wire everything together, such as a composition root, turns module-dependencies off or raises its max.',
+        sites: [
+          {
+            file: 'ui/card/card.ts',
+            line: 2,
+          },
+          {
+            file: 'ui/card/card.ts',
+            line: 3,
+          },
+          {
+            file: 'ui/card/card.ts',
+            line: 5,
+          },
+          {
+            file: 'ui/card/card.ts',
+            line: 9,
+          },
+        ],
+        parts: ['domain', 'icons', 'strings', 'ui/theme'],
+        details: {
+          module: 'ui/card',
+          boundaries: [
+            {
+              module: 'domain',
+              files: ['ui/card/card.ts'],
+            },
+            {
+              module: 'icons',
+              files: ['ui/card/card.ts'],
+            },
+            {
+              module: 'strings',
+              files: ['ui/card/card.ts'],
+            },
+            {
+              module: 'ui/theme',
+              files: ['ui/card/card.ts'],
+            },
+          ],
+        },
+        module: 'ui/card',
+      },
+    ]);
+  });
+
+  it('leaves out what the ruleset where it is judged ignores, named from where that ruleset is written', () => {
     assert.deepEqual(
-      run().map(({ key, file, line, value, limit, parts, message }) => ({
-        key,
-        file,
-        line,
-        value,
-        limit,
-        parts,
-        message,
-      })),
-      [
-        {
-          key: 'module-dependencies:ui',
-          file: 'ui/card/card.ts',
-          line: 1,
-          value: 3,
-          limit: 2,
-          parts: ['domain', 'icons', 'strings'],
-          message:
-            'ui imports across 3 boundaries: domain, icons and strings. Its limit here is 2. Split it along what each ' +
-            'part depends on, or reach some of them through one module. A module meant to wire everything together, ' +
-            'such as a composition root, turns module-dependencies off or raises its max.',
-        },
-        {
-          key: 'module-dependencies:ui/card',
-          file: 'ui/card/card.ts',
-          line: 1,
-          value: 3,
-          limit: 2,
-          parts: ['domain', 'icons', 'strings'],
-          message:
-            'ui/card imports across 3 boundaries: domain, icons and strings. Its limit here is 2. Split it along what ' +
-            'each part depends on, or reach some of them through one module. A module meant to wire everything ' +
-            'together, such as a composition root, turns module-dependencies off or raises its max.',
-        },
-      ],
+      run('\n      ruleset: { rules: { module-dependencies: { ignore: [icons, theme] } } }').map(({ key }) => key),
+      ['module-dependencies:shell'],
     );
   });
 
-  it('leaves out what the ruleset where it is judged ignores, inherited from above', () => {
-    assert.deepEqual(run('\n      ruleset: { rules: { module-dependencies: { ignore: [icons] } } }'), []);
+  it('skips modules where it is off', () => {
+    assert.deepEqual(
+      run('\n      ruleset: { rules: { module-dependencies: off } }').map(({ key }) => key),
+      ['module-dependencies:shell'],
+    );
   });
 });
