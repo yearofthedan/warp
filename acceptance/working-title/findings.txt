@@ -62,6 +62,10 @@ function-cohesion:src/ui/project/project.component.test.ts:<callback to describe
 function-cohesion:src/ui/project/project.component.test.ts:<callback to describe("what the app keeps")>
 function-cohesion:src/ui/project/project.dsl.test.ts:<callback to describe("the app language")>
 function-cohesion:src/ui/your-projects/project-list/start-a-project/start-a-project.component.test.ts:<callback to describe("starting a project")>
+module-dependencies:(root):app
+module-dependencies:src/ui/project
+module-dependencies:src/ui/project/graph/card:dom
+module-dependencies:src/ui/project:dom
 no-cross-module-reexport:src/application/project.ts->src/ports/projects-folder.ts
 no-double-export:src/test-helpers/driver.ts->src/test-helpers/narrowing.ts
 unused-declaration:empty:root.shell

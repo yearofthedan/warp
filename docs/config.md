@@ -367,7 +367,8 @@ root:
 - Settings are `on`, `off` or options by rule id, and options turn the rule on. `'*': off` turns off every rule the
   ruleset doesn't name, and `rules: off` is `'*': off`. A rule comes on only where it is named or a ruleset that
   names it is extended, so the config shows what runs. Plugin rules are `namespace/id`.
-- An option that lists modules, such as [`export-spread`](../src/builtins/export-spread/README.md)'s `ignore`, names
+- An option that lists modules, such as `ignore` on [`export-spread`](../src/builtins/export-spread/README.md) and
+  [`module-dependencies`](../src/builtins/module-dependencies/README.md), names
   them as `dependencies` do, from inside the place the ruleset is written: on a module with `modules:` or an
   archetype, its own modules and inputs first, then the names above; on any other module, its siblings and the
   names above. A named ruleset holds no module names, since it is written nowhere in the tree.
