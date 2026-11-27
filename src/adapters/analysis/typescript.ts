@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { API } from 'typescript/sync';
+import { API, ModuleKind } from 'typescript/sync';
 import { freshFacts } from './freshFacts.ts';
 import type { Analyzer, CachedFile } from '../../app/ports.ts';
 import type { FileFacts } from '../../domain/facts/facts.ts';
@@ -31,7 +31,7 @@ export const typescriptAnalyzer: Analyzer = {
       const fresh = freshFacts(store?.read(), { digest, hashes });
       const cached = new Map<string, Omit<CachedFile, 'hash'>>();
       for (const { project, files } of projects)
-        for (const [file, entry] of analyzeProgram(project, files, fresh, cached)) cached.set(file, entry);
+        for (const [file, entry] of analyzeProgram(api, project, files, fresh, cached)) cached.set(file, entry);
       const facts = [...cached.values()].flatMap(({ facts }) => (facts ? [facts] : []));
       if (facts.length === 0) throw new Error(`${tsconfigs.join(', ')} include no files to check`);
       const files = [...hashes].map(([file, hash]) => [file, { ...cached.get(file), hash }]);
@@ -73,6 +73,7 @@ const digestOf = (root: string, projects: readonly { project: Configured; files:
 };
 
 const analyzeProgram = (
+  api: API,
   { program, checker }: Configured,
   files: ReadonlyMap<string, string>,
   fresh: ReadonlyMap<string, Omit<CachedFile, 'hash'>>,
@@ -84,11 +85,17 @@ const analyzeProgram = (
       [fileName.toLowerCase(), file],
     ]),
   );
+  let moduleResolver: ReturnType<API['createModuleResolver']> | undefined;
   const resolver: Resolver = {
     program,
     checker,
     relative: (path) => byPath.get(path) ?? byPath.get(path.toLowerCase()),
     exists: existsSync,
+    requireTarget: (specifier, directory) => {
+      moduleResolver ??= api.createModuleResolver(program.getCompilerOptions());
+      return moduleResolver.resolveModuleName(specifier, directory, ModuleKind.CommonJS).resolvedModule
+        ?.resolvedFileName;
+    },
   };
   const analyzed = new Map<string, Omit<CachedFile, 'hash'>>();
   for (const [fileName, file] of files) {

@@ -94,6 +94,25 @@ describe('import graph', () => {
     );
   });
 
+  it('follows import(), require(), import = require() and import types whose specifier is a literal', () => {
+    const file = files.get('src/inline.ts')!;
+    assert.deepEqual(
+      file.imports.map((edge) => [edge.line, edge.to, edge.names, edge.typeOnly]),
+      [
+        [1, 'src/lib/shapes.ts', ['shapes'], false],
+        [5, 'src/lib/index.ts', [], false],
+        [6, 'src/lib/shapes.ts', [], false],
+        [7, 'src/lib/shapes.ts', [], false],
+        [11, 'src/lib/shapes.ts', [], true],
+      ],
+    );
+    assert.deepEqual(
+      file.externals.map((external) => [external.line, external.package]),
+      [[9, 'left-pad']],
+    );
+    assert.deepEqual(file.unresolved, [{ from: 'src/inline.ts', specifier: './lib/gone.ts', line: 10 }]);
+  });
+
   it('marks an import type-only when every name declares only a type', () => {
     const hexagonalApp = join(import.meta.dirname, '../../../fixtures/hexagonal-app');
     const order = typescriptAnalyzer
