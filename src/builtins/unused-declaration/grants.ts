@@ -10,7 +10,7 @@ import { show } from '../../domain/model/text.ts';
 import type { ModuleView } from '../../domain/model/resolve.ts';
 import type { Finding } from '../../domain/rules/rule.ts';
 import { listsPackage } from '../packages.ts';
-import { childrenNamed, type Context, instancesOf, type Layer, named, unused } from './declarations.ts';
+import { childrenNamed, type Context, instancesOf, type Layer, named, unused, within } from './declarations.ts';
 
 interface Declared {
   ref: RefData;
@@ -19,24 +19,62 @@ interface Declared {
   holders: ModuleView[];
   ending: string;
   kit?: true;
+  inner?: true;
 }
 
 export const unusedGrants = (context: Context): Finding[] => {
   const used = usedRefs(context);
   return declared(context, used)
     .filter(({ ref, holders }) => !used.has(ref) && holders.some((holder) => context.atModule(holder).on))
-    .map(({ ref, declaredIn, layer, holders, ending, kit }) => {
+    .map(({ ref, declaredIn, layer, holders, ending, kit, inner }) => {
       const using = show(ref);
       const modules = holders.map((holder) => holder.id);
       const names = holders.map(named).join(', ');
       const files = kit ? `the tests of ${names}` : names;
-      return unused(
-        context.config,
-        `${declaredIn}->${using}`,
-        `${declaredIn} names ${using}, but nothing in ${files} imports through it. ${ending}`,
-        { kind: 'grant', declaredIn, layer, using, modules },
-      );
+      const users = inner ? innerUsers(context, holders, ref, layer) : [];
+      const owner = declaredIn.slice(0, -'.dependencies'.length);
+      const sites = users.map((name) => `${owner}.${name}.dependencies`);
+      const message =
+        users.length === 0
+          ? `${declaredIn} names ${using}, but nothing in ${files} imports through it. ${ending}`
+          : `${declaredIn} names ${using}, but only its modules ${users.join(', ')} import through it. ` +
+            `A module's dependencies are its own: name it in ${sites.join(' and ')}, and remove it here.`;
+      return unused(context.config, `${declaredIn}->${using}`, message, {
+        kind: 'grant',
+        declaredIn,
+        layer,
+        using,
+        modules,
+      });
     });
+};
+
+const innerUsers = (context: Context, holders: readonly ModuleView[], ref: RefData, layer: Layer): string[] => {
+  const users = new Set<string>();
+  for (const holder of holders) {
+    const importsThrough = importer(context, holder, ref, layer);
+    for (const file of context.project.files) {
+      const module = context.model.moduleOf(file.path);
+      if (module && module !== holder && within(module, holder) && importsThrough(file)) {
+        users.add(childOf(holder, module).name ?? module.id);
+      }
+    }
+  }
+  return [...users].sort();
+};
+
+type Facts = Context['project']['files'][number];
+
+const importer = (context: Context, holder: ModuleView, ref: RefData, layer: Layer): ((file: Facts) => boolean) => {
+  if (ref.kind === 'package') return (file) => file.externals.some((external) => listsPackage(ref.pattern, external));
+  const targets = context.verdicts.files(holder.parent!, ref, layer);
+  return (file) => file.imports.some((edge) => targets.has(edge.via ?? edge.to));
+};
+
+const childOf = (holder: ModuleView, module: ModuleView): ModuleView => {
+  let at = module;
+  while (at.parent !== holder) at = at.parent!;
+  return at;
 };
 
 const declared = (context: Context, used: ReadonlySet<RefData>): Declared[] =>
@@ -64,6 +102,7 @@ const declared = (context: Context, used: ReadonlySet<RefData>): Declared[] =>
           layer,
           holders,
           ending: 'Remove it.',
+          inner: true as const,
         }));
     });
     const kit = (archetype.testUsing ?? []).map((ref) => ({
