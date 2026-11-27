@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { SyntaxKind } from 'typescript/ast';
 import { createScanner } from 'typescript/ast/scanner';
 
@@ -270,9 +272,7 @@ export const report = (file: string, text: string | undefined) => {
   };
 };
 
-const main = async () => {
-  const { execFileSync } = await import('node:child_process');
-  const { existsSync, readFileSync } = await import('node:fs');
+const main = () => {
   const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {
     encoding: 'utf8',
   })
@@ -288,4 +288,4 @@ const main = async () => {
   process.exitCode = failures.length > 0 ? 1 : 0;
 };
 
-if (import.meta.main) await main();
+if (import.meta.main) main();
