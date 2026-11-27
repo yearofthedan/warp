@@ -1,4 +1,4 @@
-Rule: a ruleset written as a list extends the rulesets it names, with no rules of its own, at a module or under `rulesets:`.
+Rule: a ruleset written as a list extends the rulesets it names, with no rules of its own, at a module or under `rulesets:`; `ruleset: off` turns every rule off.
 
 ```yaml warp.yaml
 root:
@@ -6,6 +6,7 @@ root:
   modules:
     domain: { dir: src/domain, exposes: all }
     adapters: { dir: src/adapters, dependencies: [domain], exposes: all }
+    generated: { dir: src/generated, ruleset: off }
 
 rulesets:
   lint: [warp:recommended]
@@ -32,6 +33,12 @@ export interface Order {
 }
 
 export const place = (order: Order) => save(order);
+```
+
+```ts src/generated/api.ts
+import { save } from '../adapters/db.ts';
+
+export const api = save;
 ```
 
 ```sh

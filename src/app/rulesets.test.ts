@@ -117,6 +117,11 @@ rulesets:
     assert.deepEqual(config.archetypes.root!.testRuleset, [recommendedRules]);
   });
 
+  it('take off as a ruleset that turns every rule off', () => {
+    const config = load('root: { modules: { gen: { files: gen.ts, ruleset: off } }, ruleset: [warp:recommended] }');
+    assert.deepEqual(config.archetypes.root!.modules[0]!.ruleset, [{ '*': false }]);
+  });
+
   it('refuse a named ruleset nothing extends, an unknown base, a loop, and what is not a ruleset', () => {
     assert.deepEqual(
       failures(`
@@ -141,7 +146,7 @@ rulesets:
     );
     assert.deepEqual(failures('root: { modules: {}, ruleset: on }\nrulesets: [x]\n'), [
       'rulesets: expected rulesets by name, { strict: { rules: {...} } }',
-      'root.ruleset: expected a ruleset, [warp:recommended] or { extends: [warp:recommended], rules: {...} }',
+      'root.ruleset: expected a ruleset, off, [warp:recommended] or { extends: [warp:recommended], rules: {...} }',
     ]);
     assert.deepEqual(failures('root: { modules: {}, ruleset: [x] }'), [
       "root.ruleset.extends: 'x' is no ruleset; extend warp:recommended",
