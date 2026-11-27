@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { API } from 'typescript/sync';
-import { freshFacts } from '../../app/facts.ts';
+import { freshFacts } from './freshFacts.ts';
 import type { Analyzer, CachedFile } from '../../app/ports.ts';
 import type { FileFacts } from '../../domain/facts/facts.ts';
 import { fileEdges, type Resolver } from './imports.ts';

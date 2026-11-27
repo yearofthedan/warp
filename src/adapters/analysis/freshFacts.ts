@@ -1,20 +1,9 @@
-import type { Cache, CachedFacts, CachedFile, FactsStore } from './ports.ts';
+import type { CachedFacts, CachedFile } from '../../app/ports.ts';
 
 export interface CurrentFiles {
   digest: string;
   hashes: ReadonlyMap<string, string>;
 }
-
-export const factsStore = (cache: Cache<CachedFacts>, toolDigest: string, projectPath: string): FactsStore => {
-  const key = `${toolDigest}-facts-${projectPath.replaceAll('/', '_')}`;
-  return {
-    read: () => cache.get(key),
-    write(facts) {
-      cache.set(key, facts);
-      cache.prune((other) => other.startsWith(`${toolDigest}-`));
-    },
-  };
-};
 
 export const freshFacts = (cached: CachedFacts | undefined, current: CurrentFiles): Map<string, CachedFile> => {
   if (!cached || cached.digest !== current.digest) return new Map();

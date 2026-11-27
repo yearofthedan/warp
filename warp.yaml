@@ -59,7 +59,7 @@ archetypes:
       app:
         description: Loading a config, running the rules on a model, and diffing two commits, behind ports
         dir: app
-        dependencies: [domain, 'node:*']
+        dependencies: [domain, 'node:crypto']
         exposes: all
       adapters:
         description: 'What app reaches through its ports, and the formats findings are printed in'
@@ -77,7 +77,7 @@ archetypes:
             dependencies: [app, domain, 'node:*', npm:yaml]
             exposes: all
           git:
-            description: 'Git: the facts cache and the files at a commit'
+            description: 'Git: the caches under .git, keyed by the digest of warp itself, and the files at a commit'
             dir: git
             dependencies: [app, 'node:*']
             exposes: all
