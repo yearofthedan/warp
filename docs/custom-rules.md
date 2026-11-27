@@ -124,6 +124,7 @@ A `FileRule` reads one file at a time, with the options that resolve for that fi
 | `members` | The top-level declarations, such as `cartTotal`, and the links between those that use each other. The cohesion rules read it. |
 | `functions` | Each function's statements and complexity. |
 | `classes` | Each class's methods and fields, and the links between those that share state or call each other. |
+| `chains` | Each use of a value through a chain such as `order.items.length`: its `line`, whether it ends in a call, the imported value it starts from as `root` when it starts from one, and each `hop` onto a member that another project file declares. A root or hop is a `Declared`: the `file` and the top-level `name` it is declared under, plus `member` for a member below it, so `order.cancel()` on an `Order` gives `{ name: 'Order', member: 'cancel' }`. A namespace import's root is `*`. |
 
 A `ProjectRule`, with `scope: 'project'`, reads the whole project once. Its context holds:
 

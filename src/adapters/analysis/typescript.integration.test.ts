@@ -224,3 +224,25 @@ describe('class members', () => {
     assert.deepEqual(bump?.statements.links, [[0, 1]]);
   });
 });
+
+describe('member chains', () => {
+  it('records each use of an imported value, and each hop onto a member another project file declares', () => {
+    const orders = 'src/lib/orders.ts';
+    assert.deepEqual(files.get('src/chains.ts')?.chains, [
+      { line: 5, hops: [{ file: orders, name: 'Order', member: 'cancel' }], call: true },
+      {
+        line: 7,
+        root: { file: orders, name: 'strings' },
+        hops: [
+          { file: orders, name: 'strings', member: 'header' },
+          { file: orders, name: 'strings', member: 'title' },
+        ],
+        call: false,
+      },
+      { line: 9, root: { file: orders, name: 'total' }, hops: [], call: true },
+      { line: 9, hops: [{ file: orders, name: 'Shipment', member: 'order' }], call: false },
+      { line: 11, root: { file: orders, name: '*' }, hops: [{ file: orders, name: 'total' }], call: true },
+      { line: 13, root: { file: orders, name: 'strings' }, hops: [], call: false },
+    ]);
+  });
+});

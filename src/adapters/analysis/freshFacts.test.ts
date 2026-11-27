@@ -13,6 +13,7 @@ const facts = (file: string, imports: Partial<ImportEdge>[] = []): FileFacts => 
   members: { members: [], links: [] },
   functions: [],
   classes: [],
+  chains: [],
 });
 
 const cachedFile = (file: string, specifiers: string[], imports: Partial<ImportEdge>[] = []): [string, CachedFile] => [

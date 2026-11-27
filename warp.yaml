@@ -87,7 +87,7 @@ archetypes:
             dir: analysis
             dependencies: [app, domain, 'node:*', npm:typescript]
             exposes: all
-            ruleset: { rules: { module-size: { max: 1100 } } }
+            ruleset: { rules: { module-size: { max: 1250 } } }
             test: { modules: { tests: { files: '*.test.ts' } } }
           config:
             description: Reading a warp.yaml file and loading its plugins

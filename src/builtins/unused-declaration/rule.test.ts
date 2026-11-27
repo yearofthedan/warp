@@ -50,6 +50,7 @@ const facts = (path: string, imports: string[] = [], packages: string[] = []): F
   members: { members: [], links: [] },
   functions: [],
   classes: [],
+  chains: [],
 });
 
 const ui = `

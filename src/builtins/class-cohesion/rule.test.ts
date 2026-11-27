@@ -43,6 +43,7 @@ const facts = (...classes: ClassFacts[]): FileFacts => ({
   members: { members: [], links: [] },
   functions: [],
   classes,
+  chains: [],
 });
 
 const check = (file: FileFacts, maxLines: number) => classCohesion.check({ file, options: { maxLines } });
