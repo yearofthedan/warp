@@ -5,7 +5,7 @@ import { checkModel } from '../../app/checkModel.ts';
 import { loadConfigData } from '../../app/load.ts';
 import { type Folders, resolveModel } from '../../domain/model/resolve.ts';
 import type { ImportEdge, FileFacts } from '../../domain/facts/facts.ts';
-import { noCrossModuleReexport } from './noCrossModuleReexport.ts';
+import { noCrossModuleReexport } from './rule.ts';
 
 const rule = 'no-cross-module-reexport';
 

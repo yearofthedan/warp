@@ -95,14 +95,40 @@ archetypes:
         tests: { files: '**/*.test.ts', dependencies: [npm:yaml] }
 
   builtins:
-    description: "warp's own rules: one folder per rule, holding its rule, its tests and its page"
+    description: "warp's own rules: one folder per rule, the list of them, and the helpers rules share"
     requires: [model, rules, fixes, facts]
-    exposes: all
+    exposes: [list]
     modules:
-      code:
-        description: Each rule, the list of built-ins with their docs links, and the helpers rules share
+      list:
+        description: The built-in rules with their docs links
+        files: index.ts
+        dependencies: [rule, rules, model]
+        exposes: all
+      helpers:
+        description: What more than one rule needs, such as advice text, loops and package names
+        files: '*.ts'
+        dependencies: [model, fixes, facts]
+        exposes: all
+      rule:
+        dir: '*'
+        archetype: rule
+        dependencies: [helpers, rules, model, fixes, facts]
+        test: { dependencies: [app] }
+    test:
+      requires: [app]
+      modules:
+        tests: { files: '*.test.ts', dependencies: [app, model, fixes, npm:yaml] }
+
+  rule:
+    description: 'One built-in rule: its rule, its tests, its scenarios and its page'
+    marker: README.md
+    entry: rule.ts
+    requires: [helpers, rules, model]
+    modules:
+      parts:
+        description: What a rule splits out of rule.ts
         files: '**'
-        dependencies: [rules, model, fixes, facts]
+        dependencies: [helpers, rules, model]
         exposes: all
     test:
       requires: [app]
