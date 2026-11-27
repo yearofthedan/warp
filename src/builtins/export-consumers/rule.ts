@@ -31,7 +31,7 @@ export const exportConsumers: ProjectRule<typeof defaults> = {
       const module = model.moduleOf(found.file)!;
       const { on, options } = atModule(module);
       if (!on || found.consumers.size <= options.max) return [];
-      const line = lines.get(found.file)?.find((member) => member.name === found.name)?.line ?? 1;
+      const line = lines.get(found.file)!.find((member) => member.name === found.name)?.line ?? 1;
       return [finding(found, module, line, options.max)];
     });
   },
@@ -50,9 +50,7 @@ const finding = ({ file, name, consumers }: Export, module: ModuleView, line: nu
       `${name}, exported by ${module.id}, is used across ${consumers.size} boundaries: ${listed(boundaries)}. ` +
       `Its limit here is ${max}. Give its consumers one way in, or move it to a module meant to be shared and ` +
       `turn ${id} off there.`,
-    sites: [...consumers.values()]
-      .map(([first]) => first!)
-      .toSorted((a, b) => a.file.localeCompare(b.file) || a.line - b.line),
+    sites: [...consumers.values()].map(([first]) => first!).toSorted((a, b) => a.file.localeCompare(b.file)),
     parts: boundaries,
     details: {
       module: module.id,
