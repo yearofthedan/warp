@@ -8,6 +8,10 @@ owns, what each may import and what each offers, and its rulesets say which rule
 strictly. [concepts.md](concepts.md) defines its terms, and [`warp.yaml`](../warp.yaml) is the config warp checks
 itself with.
 
+Every permission is written down: a module may import only what its config names, and offers only what it exposes.
+When describing a project takes exceptions, long allow lists or path tricks, the structure being described is usually
+tangled too, and the fix is usually in the code rather than the config.
+
 ```yaml
 root:
   modules:
