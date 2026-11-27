@@ -83,6 +83,9 @@ warp model --json
         "module-dependencies": {
           "max": 4,
           "ignore": []
+        },
+        "module-size": {
+          "max": 1000
         }
       }
     },
@@ -137,6 +140,9 @@ warp model --json
         "module-dependencies": {
           "max": 4,
           "ignore": []
+        },
+        "module-size": {
+          "max": 1000
         }
       }
     },
@@ -191,6 +197,9 @@ warp model --json
         "module-dependencies": {
           "max": 4,
           "ignore": []
+        },
+        "module-size": {
+          "max": 1000
         }
       }
     }
