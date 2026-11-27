@@ -15,14 +15,13 @@ export const moduleSize: ProjectRule<typeof defaults> = {
   defaults,
   parseOptions: wholeNumberOptions(defaults),
   check: ({ model, project, atModule }) => {
-    const lines = new Map(project.files.map((file) => [file.path, file.lines]));
     return model.modules.flatMap((module): Finding[] => {
       if (module.test) return [];
       const { on, options } = atModule(module);
       if (!on) return [];
-      const files = module.files
-        .filter((file) => lines.has(file))
-        .map((file) => ({ file, lines: lines.get(file)! }))
+      const files = project.files
+        .filter(({ path }) => model.moduleOf(path) === module)
+        .map(({ path, lines }) => ({ file: path, lines }))
         .toSorted((a, b) => b.lines - a.lines || a.file.localeCompare(b.file));
       const total = files.reduce((sum, file) => sum + file.lines, 0);
       return total > options.max ? [finding(module, files, total, options.max)] : [];
