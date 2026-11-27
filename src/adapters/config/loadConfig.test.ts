@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
-import { ConfigError } from '../../domain/model/configError.ts';
+import { ConfigError } from '../../domain/errors/configError.ts';
 import { findConfig, parseConfig } from './loadConfig.ts';
 
 const text = `root:

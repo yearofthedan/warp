@@ -18,7 +18,7 @@ import type { ConfigData } from './domain/model/data.ts';
 import { anyRuleOn, rulesOf } from './domain/model/settings.ts';
 import { recommended } from './domain/language/compile.ts';
 import { loadConfig } from './app/load.ts';
-import { ConfigError } from './domain/model/configError.ts';
+import { ConfigError } from './domain/errors/configError.ts';
 import type { Rule } from './domain/rules/rule.ts';
 import { reporters } from './adapters/reporters/index.ts';
 import { modelJson, modelText } from './adapters/reporters/model.ts';

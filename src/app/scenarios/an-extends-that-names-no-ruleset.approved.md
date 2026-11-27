@@ -21,7 +21,7 @@ warp check
 ```
 
 ```text stderr
-warp config: warp.yaml:3: root.ruleset.extends: 'strict' is no ruleset; extend warp:recommended, strickt
+warp config: warp.yaml:3: root.ruleset.extends: 'strict' is no ruleset; extend warp:recommended, warp:utility, strickt
 warp.yaml:8: rulesets.strickt: nothing extends it; a named ruleset applies through a ruleset's extends
 ```
 

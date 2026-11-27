@@ -1,4 +1,4 @@
-import { ConfigError } from '../model/configError.ts';
+import { ConfigError } from '../errors/configError.ts';
 import type { Rule, Finding, FileContext, ProjectContext } from './rule.ts';
 
 export const registry = <R extends { id: string }>(rules: readonly R[]): ReadonlyMap<string, R> => {

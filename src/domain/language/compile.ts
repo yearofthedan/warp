@@ -1,4 +1,4 @@
-import { ConfigError } from '../model/configError.ts';
+import { ConfigError } from '../errors/configError.ts';
 import type { ArchetypeData, ConfigData } from '../model/data.ts';
 import { defined, type Fail, isName, isRecord } from '../model/shared.ts';
 import { type Check, checkReferences, toRules } from './references.ts';

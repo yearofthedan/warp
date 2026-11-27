@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
-import { ConfigError } from '../domain/model/configError.ts';
+import { ConfigError } from '../domain/errors/configError.ts';
 import { type FileRule, wholeNumberOptions } from '../domain/rules/rule.ts';
 import { type LoadOptions, loadConfig, loadConfigData } from './load.ts';
 import type { ConfigSource } from './ports.ts';

@@ -1,4 +1,4 @@
-import { ConfigError } from '../model/configError.ts';
+import { ConfigError } from '../errors/configError.ts';
 import { type ArchetypeData, type ExposesData, isTestData, type RuleSettingsData } from '../model/data.ts';
 import type { PendingRef } from './structure.ts';
 import { type Fail, isRecord, list } from '../model/shared.ts';
