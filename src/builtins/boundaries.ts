@@ -39,14 +39,26 @@ export interface LimitOptions {
   ignore: string[];
 }
 
+interface IgnoreEntries {
+  valid: (entry: string) => boolean;
+  expected: string;
+}
+
+const moduleNames: IgnoreEntries = { valid: () => true, expected: 'a list of module names' };
+
+export const npmPackages: IgnoreEntries = {
+  valid: (entry) => entry.startsWith('npm:'),
+  expected: 'a list of npm packages, as dependencies names them: [npm:zod]',
+};
+
 export const limitOptions =
-  (defaults: LimitOptions) =>
+  (defaults: LimitOptions, entries = moduleNames) =>
   (raw: Record<string, unknown>, at: string): Partial<LimitOptions> => {
     const { ignore, ...rest } = raw;
     const max = wholeNumberOptions({ max: defaults.max })(rest, at);
     if (ignore === undefined) return max;
-    if (!Array.isArray(ignore) || ignore.some((entry) => typeof entry !== 'string'))
-      throw new ConfigError(`${at}.ignore: expected a list of module names`);
+    if (!Array.isArray(ignore) || ignore.some((entry) => typeof entry !== 'string' || !entries.valid(entry)))
+      throw new ConfigError(`${at}.ignore: expected ${entries.expected}`);
     return { ...max, ignore: ignore as string[] };
   };
 
