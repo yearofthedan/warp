@@ -4,7 +4,7 @@ import { parse } from 'yaml';
 import { checkModel } from '../../app/checkModel.ts';
 import { loadConfigData } from '../../app/load.ts';
 import { type Folders, resolveModel } from '../../domain/model/resolve.ts';
-import type { FileFacts, ImportEdge } from '../../domain/facts/facts.ts';
+import type { Chain, FileFacts, ImportEdge } from '../../domain/facts/facts.ts';
 import { exportSurface } from './rule.ts';
 
 const folders = (paths: readonly string[]): Folders => {
@@ -36,7 +36,14 @@ const use = (to: string, names: string[], typeOnly = false, reExport = false): I
   ...(reExport ? { reExport } : {}),
 });
 
-const facts = (path: string, imports: ImportEdge[] = []): FileFacts => ({
+const throughNamespace = (file: string, name: string, root = file): Chain => ({
+  line: 1,
+  root: { file: root, name: '*' },
+  hops: [{ file, name }],
+  call: true,
+});
+
+const facts = (path: string, imports: ImportEdge[] = [], chains: Chain[] = []): FileFacts => ({
   path,
   lines: 1,
   imports: imports.map((edge) => ({ ...edge, from: path })),
@@ -45,7 +52,7 @@ const facts = (path: string, imports: ImportEdge[] = []): FileFacts => ({
   members: { members: [{ name: 'cancel', kind: 'function', line: 4, endLine: 6 }], links: [] },
   functions: [],
   classes: [],
-  chains: [],
+  chains,
 });
 
 const yaml = (model: string) => `
@@ -81,10 +88,13 @@ const project = [
   facts('e2e.test.ts', [use('domain/model/order.ts', ['refund'])]),
 ];
 
-const run = (model = '') => {
+const withChains = (chains: Record<string, Chain[]>) =>
+  project.map((file) => (chains[file.path] ? { ...file, chains: chains[file.path]! } : file));
+
+const run = (model = '', files = project) => {
   const config = loadConfigData(parse(yaml(model))).config;
   const paths = project.map((file) => file.path);
-  return checkModel(config, resolveModel(config, folders(paths), paths), { files: project }, [exportSurface]);
+  return checkModel(config, resolveModel(config, folders(paths), paths), { files }, [exportSurface]);
 };
 
 describe('export-surface', () => {
@@ -144,6 +154,51 @@ describe('export-surface', () => {
     assert.deepEqual(
       run(', ruleset: { rules: { export-surface: off } }').map(({ key }) => key),
       ['export-surface:domain'],
+    );
+  });
+
+  it('counts the first member used through a namespace import as a value, by its declaring file', () => {
+    const price = 'domain/model/price.ts';
+    const order = 'domain/model/order.ts';
+    const files = withChains({
+      'app/main.ts': [
+        throughNamespace(price, 'convert'),
+        throughNamespace(order, 'cancel'),
+        {
+          line: 2,
+          root: { file: price, name: 'Rate' },
+          hops: [{ file: price, name: 'Rate', member: 'x' }],
+          call: false,
+        },
+        { line: 3, hops: [{ file: price, name: 'Price', member: 'add' }], call: true },
+        { line: 4, root: { file: order, name: '*' }, hops: [], call: false },
+      ],
+      'domain/rules/rule.ts': [throughNamespace(price, 'format', 'domain/model/index.ts')],
+      'e2e.test.ts': [throughNamespace(price, 'refundAll')],
+    });
+    assert.deepEqual(
+      run('', files).map(({ details }) => details),
+      [
+        {
+          module: 'domain',
+          values: 3,
+          types: 2,
+          files: [
+            { file: order, names: ['cancel', 'Order'] },
+            { file: price, names: ['convert', 'Rate'] },
+            { file: 'domain/rules/rule.ts', names: ['run'] },
+          ],
+        },
+        {
+          module: 'domain/model',
+          values: 4,
+          types: 3,
+          files: [
+            { file: order, names: ['cancel', 'Order'] },
+            { file: price, names: ['convert', 'format', 'Price', 'Rate', 'round'] },
+          ],
+        },
+      ],
     );
   });
 });
