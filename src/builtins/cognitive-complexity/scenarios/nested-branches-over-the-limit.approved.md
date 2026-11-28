@@ -3,7 +3,7 @@ Rule: a function over the limit is reported with its largest increments.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:cohesion]
     rules:
       cognitive-complexity: { max: 4 }
   modules:

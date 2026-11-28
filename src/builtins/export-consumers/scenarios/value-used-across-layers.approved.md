@@ -3,11 +3,11 @@ Rule: an exported value is reported once more boundaries use it than the exporte
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:coupling]
     rules: { export-consumers: { max: 2 } }
   modules:
     domain: { dir: src/domain, exposes: all }
-    strings: { dir: src/strings, exposes: all, ruleset: [warp:utility] }
+    strings: { dir: src/strings, exposes: all, ruleset: [warp:toolkit] }
     ui: { dir: src/ui, dependencies: [domain, strings] }
     jobs: { dir: src/jobs, dependencies: [domain, strings] }
     app: { dir: src/app, dependencies: [domain, strings] }

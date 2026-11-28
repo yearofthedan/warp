@@ -3,7 +3,7 @@ Rule: with --fail, check exits 1 when there are findings.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     domain: { dir: src/domain }
 ```

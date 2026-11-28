@@ -3,7 +3,7 @@ Rule: a module is reported once its own files hold more lines than its limit.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:cohesion]
     rules: { module-size: { max: 6 } }
   modules:
     pricing: { dir: src/pricing, exposes: all }

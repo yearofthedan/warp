@@ -59,7 +59,7 @@ describe('rulesets', () => {
   it('bind where they are written: the root, a module, an archetype, a test block', () => {
     const config = load(`
 root:
-  ruleset: { extends: [warp:recommended], rules: { module-cycle: off } }
+  ruleset: { extends: [warp:boundaries, warp:cohesion, warp:coupling], rules: { module-cycle: off } }
   modules:
     leaves: { dir: '*', archetype: leaf, ruleset: { rules: { no-cycle: off } } }
   test: { ruleset: { rules: { function-cohesion: off } } }
@@ -77,12 +77,12 @@ archetypes:
     assert.deepEqual(config.archetypes.leaf!.modules[0]!.ruleset, [{ '*': false }]);
   });
 
-  it('turn on every built-in rule with warp:recommended', () => {
-    const config = load(`${structure.replace('root:\n', 'root:\n  ruleset: { extends: [warp:recommended] }\n')}`);
-    assert.deepEqual(
-      Object.keys(config.archetypes.root!.ruleset![0]!),
-      warp.rules.map((rule) => rule.id),
-    );
+  it('turn on each built-in rule in exactly one of warp:boundaries, warp:cohesion and warp:coupling', () => {
+    const on = (ruleset: string) =>
+      Object.keys(load(structure.replace('root:\n', `root:\n  ruleset: [${ruleset}]\n`)).archetypes.root!.ruleset![0]!);
+    const classes = ['warp:boundaries', 'warp:cohesion', 'warp:coupling'].map(on);
+    assert.ok(classes.every((ids) => ids.length > 0));
+    assert.deepEqual(classes.flat().toSorted(), warp.rules.map((rule) => rule.id).toSorted());
   });
 
   it('lay extends in order, then their own rules', () => {
@@ -108,17 +108,19 @@ rulesets:
 root:
   ruleset: [lint]
   modules: {}
-  test: { ruleset: [warp:recommended] }
+  test: { ruleset: [warp:boundaries, warp:cohesion, warp:coupling] }
 rulesets:
-  lint: [warp:recommended]
+  lint: [warp:boundaries, warp:cohesion, warp:coupling]
 `);
-    const recommendedRules = Object.fromEntries(warp.rules.map((rule) => [rule.id, true]));
-    assert.deepEqual(config.archetypes.root!.ruleset, [recommendedRules]);
-    assert.deepEqual(config.archetypes.root!.testRuleset, [recommendedRules]);
+    const layers = config.archetypes.root!.ruleset!;
+    assert.equal(layers.length, 3);
+    assert.deepEqual(config.archetypes.root!.testRuleset, layers);
   });
 
   it('take off as a ruleset that turns every rule off', () => {
-    const config = load('root: { modules: { gen: { files: gen.ts, ruleset: off } }, ruleset: [warp:recommended] }');
+    const config = load(
+      'root: { modules: { gen: { files: gen.ts, ruleset: off } }, ruleset: [warp:boundaries, warp:cohesion, warp:coupling] }',
+    );
     assert.deepEqual(config.archetypes.root!.modules[0]!.ruleset, [{ '*': false }]);
   });
 
@@ -139,17 +141,17 @@ rulesets:
         "rulesets.x:y: a name has no ':', which marks a plugin's ruleset",
         'root.ruleset: unknown key only; a ruleset takes extends, rules',
         'rulesets.b.extends: a extends b extends a, a loop',
-        "root.ruleset.extends: 'missing' is no ruleset; extend warp:recommended, warp:utility, a, b, idle, plain",
+        "root.ruleset.extends: 'missing' is no ruleset; extend warp:boundaries, warp:cohesion, warp:coupling, warp:toolkit, warp:wiring, warp:test, a, b, idle, plain",
         "rulesets.idle: nothing extends it; a named ruleset applies through a ruleset's extends",
         "rulesets.plain: nothing extends it; a named ruleset applies through a ruleset's extends",
       ],
     );
     assert.deepEqual(failures('root: { modules: {}, ruleset: on }\nrulesets: [x]\n'), [
       'rulesets: expected rulesets by name, { strict: { rules: {...} } }',
-      'root.ruleset: expected a ruleset, off, [warp:recommended] or { extends: [warp:recommended], rules: {...} }',
+      'root.ruleset: expected a ruleset, off, [warp:boundaries] or { extends: [warp:boundaries], rules: {...} }',
     ]);
     assert.deepEqual(failures('root: { modules: {}, ruleset: [x] }'), [
-      "root.ruleset.extends: 'x' is no ruleset; extend warp:recommended, warp:utility",
+      "root.ruleset.extends: 'x' is no ruleset; extend warp:boundaries, warp:cohesion, warp:coupling, warp:toolkit, warp:wiring, warp:test",
     ]);
   });
 
@@ -167,7 +169,7 @@ rulesets:
     assert.equal(at('{ rules: { module-cycle: off } }'), false);
     assert.equal(at('{ rules: { module-cycle: on } }'), true);
     assert.equal(at('{ rules: { module-cycle: off, no-cycle: on } }'), true);
-    assert.equal(at('{ extends: [warp:recommended] }'), true);
+    assert.equal(at('{ extends: [warp:boundaries, warp:cohesion, warp:coupling] }'), true);
   });
 });
 

@@ -3,7 +3,7 @@ Rule: a class over the tripwire whose stateful methods fall into groups that sha
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:cohesion]
     rules:
       class-cohesion: { maxLines: 4 }
   modules:

@@ -1,6 +1,6 @@
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
     rules:
       file-cohesion: { maxLines: 15 }
       function-cohesion: { maxLines: 6 }

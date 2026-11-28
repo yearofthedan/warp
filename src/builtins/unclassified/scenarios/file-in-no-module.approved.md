@@ -3,7 +3,7 @@ Rule: a file no module claims is reported.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
   modules:
     domain: { dir: src/domain }
 ```

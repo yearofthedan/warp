@@ -3,7 +3,7 @@ Rule: model --json prints each module with its files, its loose files and its re
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     domain: { dir: src/domain, exposes: all }
     ui: { dir: src/ui, dependencies: [domain] }
@@ -57,19 +57,22 @@ warp model --json
         "module-cycle": {
           "types": "count"
         },
-        "file-cohesion": {
-          "maxLines": 200
-        },
-        "class-cohesion": {
-          "maxLines": 100
-        },
+        "unused-declaration": {},
         "function-cohesion": {
           "maxLines": 40
         },
         "cognitive-complexity": {
           "max": 15
         },
-        "unused-declaration": {},
+        "class-cohesion": {
+          "maxLines": 100
+        },
+        "file-cohesion": {
+          "maxLines": 200
+        },
+        "module-size": {
+          "max": 1000
+        },
         "export-consumers": {
           "max": 3
         },
@@ -83,9 +86,6 @@ warp model --json
         "module-dependencies": {
           "max": 4,
           "ignore": []
-        },
-        "module-size": {
-          "max": 1000
         }
       }
     },
@@ -114,19 +114,22 @@ warp model --json
         "module-cycle": {
           "types": "count"
         },
-        "file-cohesion": {
-          "maxLines": 200
-        },
-        "class-cohesion": {
-          "maxLines": 100
-        },
+        "unused-declaration": {},
         "function-cohesion": {
           "maxLines": 40
         },
         "cognitive-complexity": {
           "max": 15
         },
-        "unused-declaration": {},
+        "class-cohesion": {
+          "maxLines": 100
+        },
+        "file-cohesion": {
+          "maxLines": 200
+        },
+        "module-size": {
+          "max": 1000
+        },
         "export-consumers": {
           "max": 3
         },
@@ -140,9 +143,6 @@ warp model --json
         "module-dependencies": {
           "max": 4,
           "ignore": []
-        },
-        "module-size": {
-          "max": 1000
         }
       }
     },
@@ -171,19 +171,22 @@ warp model --json
         "module-cycle": {
           "types": "count"
         },
-        "file-cohesion": {
-          "maxLines": 200
-        },
-        "class-cohesion": {
-          "maxLines": 100
-        },
+        "unused-declaration": {},
         "function-cohesion": {
           "maxLines": 40
         },
         "cognitive-complexity": {
           "max": 15
         },
-        "unused-declaration": {},
+        "class-cohesion": {
+          "maxLines": 100
+        },
+        "file-cohesion": {
+          "maxLines": 200
+        },
+        "module-size": {
+          "max": 1000
+        },
         "export-consumers": {
           "max": 3
         },
@@ -197,9 +200,6 @@ warp model --json
         "module-dependencies": {
           "max": 4,
           "ignore": []
-        },
-        "module-size": {
-          "max": 1000
         }
       }
     }

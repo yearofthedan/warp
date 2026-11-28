@@ -1,5 +1,5 @@
 import { registry } from '../domain/rules/registry.ts';
-import type { Plugin, Rule } from '../domain/rules/rule.ts';
+import type { Plugin, Rule, RulesetDefinition } from '../domain/rules/rule.ts';
 import { classCohesion } from './class-cohesion/rule.ts';
 import { cognitiveComplexity } from './cognitive-complexity/rule.ts';
 import { exportConsumers } from './export-consumers/rule.ts';
@@ -19,26 +19,27 @@ import { unclassified } from './unclassified/rule.ts';
 import { unresolvedImport } from './unresolved-import/rule.ts';
 import { unusedDeclaration } from './unused-declaration/rule.ts';
 
-export const builtinRules: readonly Rule[] = [
-  unclassified,
-  unresolvedImport,
-  dependencyDirection,
-  moduleExternals,
-  noDoubleExport,
-  noCrossModuleReexport,
-  noCycle,
-  moduleCycle,
-  fileCohesion,
-  classCohesion,
-  functionCohesion,
-  cognitiveComplexity,
-  unusedDeclaration,
-  exportConsumers,
-  exportSpread,
-  exportSurface,
-  moduleDependencies,
-  moduleSize,
-];
+const ruleClasses = {
+  boundaries: [
+    unclassified,
+    unresolvedImport,
+    dependencyDirection,
+    moduleExternals,
+    noDoubleExport,
+    noCrossModuleReexport,
+    noCycle,
+    moduleCycle,
+    unusedDeclaration,
+  ],
+  cohesion: [functionCohesion, cognitiveComplexity, classCohesion, fileCohesion, moduleSize],
+  coupling: [exportConsumers, exportSpread, exportSurface, moduleDependencies],
+};
+
+export const builtinRules: readonly Rule[] = Object.values(ruleClasses).flat();
+
+const on = (rules: readonly Rule[]): RulesetDefinition => ({
+  rules: Object.fromEntries(rules.map((rule) => [rule.id, 'on' as const])),
+});
 
 const source = 'https://github.com/yearofthedan/warp/blob/main';
 
@@ -52,7 +53,11 @@ export const builtinRegistry = registry(builtinRules.map(documented));
 export const warp: Plugin = {
   rules: [...builtinRegistry.values()],
   rulesets: {
-    recommended: { rules: Object.fromEntries(builtinRules.map((rule) => [rule.id, 'on'])) },
-    utility: { rules: { 'export-consumers': 'off', 'export-surface': 'off' } },
+    boundaries: on(ruleClasses.boundaries),
+    cohesion: on(ruleClasses.cohesion),
+    coupling: on(ruleClasses.coupling),
+    toolkit: { rules: { 'export-consumers': 'off', 'export-surface': 'off', 'file-cohesion': 'off' } },
+    wiring: { rules: { 'module-dependencies': 'off', 'export-spread': 'off' } },
+    test: { rules: { 'function-cohesion': 'off', 'cognitive-complexity': 'off' } },
   },
 };

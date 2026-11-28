@@ -5,7 +5,7 @@ tsconfig: [tsconfig.json, tsconfig.test.json]
 
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     domain: { dir: src/domain, archetype: layer }
     ui: { dir: src/ui, archetype: ui, dependencies: [domain] }

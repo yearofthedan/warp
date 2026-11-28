@@ -3,7 +3,7 @@ Rule: a function over the tripwire whose statements fall into groups that share 
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:cohesion]
     rules:
       function-cohesion: { maxLines: 4 }
   modules:

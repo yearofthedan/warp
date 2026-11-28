@@ -3,7 +3,7 @@ Rule: a test that imports another module's test file is told the file is kept fo
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
   modules:
     log: { dir: src/log, exposes: all, test: { modules: { tests: { files: '*.test.ts' } } } }
     ui: { dir: src/ui, test: { modules: { tests: { files: '*.test.ts', dependencies: [log] } } } }

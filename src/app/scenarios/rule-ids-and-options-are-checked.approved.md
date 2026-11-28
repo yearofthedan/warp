@@ -3,7 +3,7 @@ Rule: a ruleset's rule ids and each rule's options are checked against the rules
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
     rules: { module-cycle: { types: always } }
   modules:
     src: { files: '**', ruleset: { rules: { no-such-rule: off } } }

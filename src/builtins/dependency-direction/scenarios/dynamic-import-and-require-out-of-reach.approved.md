@@ -3,7 +3,7 @@ Rule: `import()`, `require()` and `import x = require()` with a literal specifie
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
   modules:
     domain: { dir: src/domain, exposes: all }
     db: { dir: src/db, exposes: all }

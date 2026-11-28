@@ -1,5 +1,5 @@
 root:
-  ruleset: [warp:recommended]
+  ruleset: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     domain: { files: 'src/domain/**', exposes: all }
     application:

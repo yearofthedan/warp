@@ -34,8 +34,8 @@ root:
     provides: [npm:vitest]
     modules:
       tests: { files: 'src/**/*.test.ts' }
-    ruleset: { rules: { function-cohesion: off } }
-  ruleset: [warp:recommended]
+    ruleset: [warp:test]
+  ruleset: [warp:boundaries, warp:cohesion, warp:coupling]
 ```
 
 Then check it, and after an edit, see what the edit broke:

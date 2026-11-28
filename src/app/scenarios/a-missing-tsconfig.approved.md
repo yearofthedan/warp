@@ -5,7 +5,7 @@ tsconfig: [tsconfig.app.json]
 
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     src: { dir: src }
 ```

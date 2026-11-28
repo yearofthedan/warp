@@ -3,7 +3,7 @@ Rule: modules written as a list is refused at the modules line.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     - src: { dir: src }
 ```

@@ -3,7 +3,7 @@ Rule: an input no instance imports through is reported once, on the archetype's 
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
   modules:
     log: { dir: src/log, exposes: all }
     main: { files: src/main.ts, dependencies: [cards, log] }

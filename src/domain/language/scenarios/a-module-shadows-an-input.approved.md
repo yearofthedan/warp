@@ -3,7 +3,7 @@ Rule: a module named like one of its archetype's inputs shadows it, and is refus
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     log: { dir: src/log, exposes: all }
     cards: { dir: 'src/cards/*', archetype: card, dependencies: [log] }

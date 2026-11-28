@@ -3,7 +3,7 @@ Rule: a type-only import closes a loop, unless the rule is set to ignore types.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
   modules:
     src: { dir: src }
 ```

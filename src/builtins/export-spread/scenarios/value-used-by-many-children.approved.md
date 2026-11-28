@@ -2,10 +2,10 @@ Rule: a module is reported once more of its children use one outside value than 
 
 ```yaml warp.yaml
 root:
-  ruleset: [warp:recommended]
+  ruleset: [warp:coupling]
   modules:
     domain: { dir: src/domain, exposes: all }
-    strings: { dir: src/strings, exposes: all, ruleset: [warp:utility] }
+    strings: { dir: src/strings, exposes: all, ruleset: [warp:toolkit] }
     ui:
       dir: src/ui
       ruleset: { rules: { export-spread: { ignore: [strings] } } }

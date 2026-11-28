@@ -3,7 +3,7 @@ Rule: an extends that names no ruleset is refused, listing the rulesets there ar
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended, strict]
+    extends: [warp:boundaries, strict]
   modules:
     src: { dir: src }
 
@@ -21,7 +21,7 @@ warp check
 ```
 
 ```text stderr
-warp config: warp.yaml:3: root.ruleset.extends: 'strict' is no ruleset; extend warp:recommended, warp:utility, strickt
+warp config: warp.yaml:3: root.ruleset.extends: 'strict' is no ruleset; extend warp:boundaries, warp:cohesion, warp:coupling, warp:toolkit, warp:wiring, warp:test, strickt
 warp.yaml:8: rulesets.strickt: nothing extends it; a named ruleset applies through a ruleset's extends
 ```
 

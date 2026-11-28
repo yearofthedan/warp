@@ -3,7 +3,7 @@ Rule: test code names a files module's test module by its dotted name, and the t
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     help:
       files: 'src/help/*.ts'

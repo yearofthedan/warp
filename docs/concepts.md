@@ -30,8 +30,8 @@ root:
     provides: [npm:vitest]
     modules:
       tests: { files: 'src/**/*.test.ts' }
-    ruleset: { rules: { function-cohesion: off } }
-  ruleset: [warp:recommended]
+    ruleset: [warp:test]
+  ruleset: [warp:boundaries, warp:cohesion, warp:coupling]
 ```
 
 `warp model` reads it as:

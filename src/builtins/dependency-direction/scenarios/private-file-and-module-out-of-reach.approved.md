@@ -3,7 +3,7 @@ Rule: an import of a file its module keeps private, or of a module outside reach
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
   modules:
     domain: { dir: src/domain, exposes: { files: [order.ts] } }
     db: { dir: src/db, exposes: all, dependencies: [domain] }

@@ -3,7 +3,7 @@ Rule: warp model --rules shows what each module's ruleset changes from the modul
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
     rules:
       file-cohesion: { maxLines: 15 }
       function-cohesion: { maxLines: 6 }
@@ -115,11 +115,11 @@ warp model --rules
 
 ```text stdout
 (root)  root: root
-  rules: file-cohesion {"maxLines":15}, function-cohesion {"maxLines":6}, cognitive-complexity {"max":4}
+  rules: function-cohesion {"maxLines":6}, cognitive-complexity {"max":4}, file-cohesion {"maxLines":15}
   loose: src/stray.ts
   src/domain  domain: root.domain, 2 files
   src/app  app: root.app, 2 files
-    rules: file-cohesion {"maxLines":10}, function-cohesion off, cognitive-complexity {"max":2}
+    rules: function-cohesion off, cognitive-complexity {"max":2}, file-cohesion {"maxLines":10}
   src/adapters  adapters: root.adapters, 2 files
 
 4 modules, 7 files, 1 loose.

@@ -3,37 +3,57 @@ import { describe, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 import { loadConfigData } from '../app/load.ts';
 import { type Folders, resolveModel } from '../domain/model/resolve.ts';
-import { rulesOf } from '../domain/model/settings.ts';
+import { settings } from '../domain/model/settings.ts';
 import { builtinRules, warp } from './index.ts';
 
 const folders: Folders = { folders: () => ['strings', 'domain'], exists: () => true };
 
-describe('warp:utility', () => {
-  it('turns off, on the module that takes it, the rules that judge how widely its exports are used', () => {
-    const { config } = loadConfigData(
-      parse(`
+const rulesOffUnder = (preset: string, place: 'module' | 'test') => {
+  const ruleset = `ruleset: [${preset}]`;
+  const { config } = loadConfigData(
+    parse(`
 root:
-  ruleset: [warp:recommended]
+  ruleset: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
-    strings: { dir: strings, exposes: all, ruleset: [warp:utility] }
+    strings: { dir: strings, exposes: all${place === 'module' ? `, ${ruleset}` : ''} }
     domain: { dir: domain, exposes: all }
+  test:
+    ${place === 'test' ? ruleset : ''}
+    modules: { tests: { files: 'strings/*.test.ts' }, domainTests: { files: 'domain/*.test.ts' } }
 `),
-      { builtins: warp },
-    );
-    const paths = ['strings/a.ts', 'domain/a.ts'];
-    const model = resolveModel(config, folders, paths);
-    const rules = rulesOf(config, model, builtinRules);
-    const off = (id: string) =>
-      model.modules.filter((module) => rules.module(module)[id] === false).map(({ id }) => id);
-    assert.deepEqual(
-      builtinRules
-        .map(({ id }) => id)
-        .filter((id) => off(id).length > 0)
-        .map((id) => [id, off(id)]),
-      [
-        ['export-consumers', ['strings']],
-        ['export-surface', ['strings']],
-      ],
-    );
+    { builtins: warp },
+  );
+  const paths = ['strings/a.ts', 'strings/a.test.ts', 'domain/a.ts', 'domain/a.test.ts'];
+  const model = resolveModel(config, folders, paths);
+  const settled = settings(config, model);
+  const offAt = (id: string) => paths.filter((path) => !settled.atFile(path, id).on);
+  return builtinRules.flatMap(({ id }) => (offAt(id).length > 0 ? [[id, offAt(id)]] : []));
+};
+
+describe('warp:toolkit', () => {
+  it('turns off how widely exports are used and file cohesion, on the module that takes it', () => {
+    assert.deepEqual(rulesOffUnder('warp:toolkit', 'module'), [
+      ['file-cohesion', ['strings/a.ts']],
+      ['export-consumers', ['strings/a.ts']],
+      ['export-surface', ['strings/a.ts']],
+    ]);
+  });
+});
+
+describe('warp:wiring', () => {
+  it('turns off the counts of what a module reaches into, on the module that takes it', () => {
+    assert.deepEqual(rulesOffUnder('warp:wiring', 'module'), [
+      ['export-spread', ['strings/a.ts']],
+      ['module-dependencies', ['strings/a.ts']],
+    ]);
+  });
+});
+
+describe('warp:test', () => {
+  it('turns off the function measures that describe and it callbacks trip, on test code', () => {
+    assert.deepEqual(rulesOffUnder('warp:test', 'test'), [
+      ['function-cohesion', ['strings/a.test.ts', 'domain/a.test.ts']],
+      ['cognitive-complexity', ['strings/a.test.ts', 'domain/a.test.ts']],
+    ]);
   });
 });

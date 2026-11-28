@@ -3,7 +3,7 @@ Rule: a name missing inside an archetype points at the archetype's requires.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     domain: { dir: src/domain, exposes: all }
     cards: { dir: 'src/cards/*', archetype: card }

@@ -38,7 +38,7 @@ root:
   modules:
     domain: { dir: src/domain, exposes: all }
     infra: { dir: src/infra, dependencies: [domain] }
-  ruleset: [warp:recommended]
+  ruleset: [warp:boundaries]
 ```
 
 Incorrect code:

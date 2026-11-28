@@ -12,8 +12,6 @@ export interface Rulesets {
   checkUsed(): void;
 }
 
-export const recommended = 'warp:recommended';
-
 const rulesetKeys = ['extends', 'rules'];
 
 interface Named {
@@ -60,7 +58,7 @@ const localRulesets = (value: unknown, fail: Fail): Map<string, unknown> => {
 const flatten = (state: Named, value: unknown, at: string, seen: readonly string[], names?: Names): RulesetData => {
   const def = Array.isArray(value) ? { extends: value } : value === 'off' ? { rules: 'off' } : value;
   if (!isRecord(def)) {
-    state.fail(`${at}: expected a ruleset, off, [${recommended}] or { extends: [${recommended}], rules: {...} }`);
+    state.fail(`${at}: expected a ruleset, off, [warp:boundaries] or { extends: [warp:boundaries], rules: {...} }`);
     return [];
   }
   for (const key of Object.keys(def).filter((key) => !rulesetKeys.includes(key)))

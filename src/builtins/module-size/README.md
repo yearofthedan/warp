@@ -33,7 +33,7 @@ lines, largest first.
 
 ```yaml
 root:
-  ruleset: { extends: [warp:recommended], rules: { module-size: { max: 6 } } }
+  ruleset: { extends: [warp:cohesion], rules: { module-size: { max: 6 } } }
   modules:
     pricing: { dir: src/pricing, exposes: all }
     orders: { dir: src/orders, dependencies: [pricing] }

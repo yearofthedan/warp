@@ -3,7 +3,7 @@ Rule: a plugin path that names no file is refused at its line.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     src: { dir: src }
 

@@ -3,7 +3,7 @@ Rule: an import of a package the module's dependencies do not name is reported.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
   modules:
     domain: { dir: src/domain, exposes: all }
     adapters: { dir: src/adapters, dependencies: [domain, npm:pg] }

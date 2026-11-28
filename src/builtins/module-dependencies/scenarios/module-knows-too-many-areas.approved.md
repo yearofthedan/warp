@@ -3,12 +3,12 @@ Rule: a module is reported once its imports cross more boundaries than its limit
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:coupling]
     rules: { module-dependencies: { max: 2 } }
   modules:
     domain: { dir: src/domain, exposes: all }
-    icons: { dir: src/icons, exposes: all, ruleset: [warp:utility] }
-    strings: { dir: src/strings, exposes: all, ruleset: [warp:utility] }
+    icons: { dir: src/icons, exposes: all, ruleset: [warp:toolkit] }
+    strings: { dir: src/strings, exposes: all, ruleset: [warp:toolkit] }
     ui: { dir: src/ui, dependencies: [domain, icons, strings], exposes: all }
     app:
       dir: src/app

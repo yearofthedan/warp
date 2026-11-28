@@ -15,7 +15,7 @@ tangled too, and the fix is usually in the code rather than the config.
 ```yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
     rules: { cognitive-complexity: { max: 15 } }
   modules:
     domain: { dir: src/domain, exposes: all }
@@ -298,21 +298,37 @@ e2e/checkout.test.ts               e2e                         reaches the journ
 
 ## Rulesets
 
-A ruleset turns rules on or off and sets their options. No rule runs until a ruleset turns it on, and
-`warp:recommended` turns on every built-in rule with its defaults. A ruleset is written where it applies: `ruleset:`
-on the root, a module or an archetype, and `ruleset:` in a `test:` block for test code. It reaches everything inside
-that place, and each place inside adds its own on top, as nested ESLint configs do. `warp:utility` goes on a module
-meant to be used from everywhere, such as `strings` or a helpers folder: it turns off
-[`export-consumers`](../src/builtins/export-consumers/README.md) and
-[`export-surface`](../src/builtins/export-surface/README.md) there.
+A ruleset turns rules on or off and sets their options. No rule runs until a ruleset turns it on. A ruleset is
+written where it applies: `ruleset:` on the root, a module or an archetype, and `ruleset:` in a `test:` block for test
+code. It reaches everything inside that place, and each place inside adds its own on top, as nested ESLint configs do.
+
+warp's own rulesets come in two kinds. Three turn on each class of built-in rule with its defaults, as
+[rules.md](rules.md) groups them, and a project usually starts from all three on the root:
+
+| Ruleset | Turns on the rules that check |
+| --- | --- |
+| `warp:boundaries` | that the module graph is the declared one: reach, cycles, loose files, unused declarations. |
+| `warp:cohesion` | that each function, class, file and module holds one idea. |
+| `warp:coupling` | how many connections each module makes to and from others. |
+
+The other three go on a place whose job makes some of those rules misfire, and turn them off there:
+
+| Ruleset | Goes on | Turns off |
+| --- | --- | --- |
+| `warp:toolkit` | A module of independent helpers meant to be used everywhere, such as `strings`. | `export-consumers`, `export-surface`, `file-cohesion` |
+| `warp:wiring` | A composition root, which imports from every area to put them together. | `module-dependencies`, `export-spread` |
+| `warp:test` | A `test:` block. | `function-cohesion`, `cognitive-complexity` |
+
+`warp:test` turns off the function measures because `describe` and `it` callbacks nest every test of a file inside
+one outer function. `module-size` still bounds a module that takes `warp:toolkit`.
 
 ```yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
     rules: { cognitive-complexity: { max: 15 } }
   test:
-    ruleset: { rules: { function-cohesion: off } }
+    ruleset: [warp:test]
   modules:
     domain: { dir: src/domain, archetype: layer }
     adapters: { dir: src/adapters, archetype: layer, ruleset: [legacy] }
@@ -337,15 +353,16 @@ rulesets:
 ```text
 src/domain/order.ts       every built-in rule, cognitive-complexity max 15, file-cohesion maxLines 200
 src/adapters/db.ts        the same, then legacy: cognitive-complexity max 25, file-cohesion maxLines 500
-src/adapters/db.test.ts   as db.ts, then function-cohesion off, then file-cohesion maxLines 400
+src/adapters/db.test.ts   as db.ts, then warp:test, then file-cohesion maxLines 400
 src/generated/api.ts      no rules
 ```
 
 - A ruleset takes `extends`, the rulesets it starts from in order, and `rules`, settings by rule id laid over them.
-  `extends` names `warp:recommended`, a plugin's ruleset as `namespace:name`, or a ruleset under the top-level
-  `rulesets:`. A named ruleset applies only through an `extends`; one that nothing extends fails to load.
-- A ruleset with no rules of its own is the list it extends: `ruleset: [warp:recommended]` is
-  `ruleset: { extends: [warp:recommended] }`, here or under `rulesets:`. `ruleset: off` is `ruleset: { rules: off }`.
+  `extends` names one of warp's rulesets, such as `warp:boundaries`, a plugin's ruleset as `namespace:name`, or a
+  ruleset under the top-level `rulesets:`. A named ruleset applies only through an `extends`; one that nothing extends fails to load.
+- A ruleset with no rules of its own is the list it extends: `ruleset: [warp:boundaries, warp:cohesion]` is
+  `ruleset: { extends: [warp:boundaries, warp:cohesion] }`, here or under `rulesets:`. `ruleset: off` is
+  `ruleset: { rules: off }`.
 - Name a ruleset to give a set of presets one name, or to use the same settings in several places that don't
   share them through the tree:
 
@@ -354,7 +371,7 @@ plugins:
   shared: npm:@acme/warp-rules
 
 rulesets:
-  lint-rules: [warp:recommended, shared:recommended]
+  lint-rules: [warp:boundaries, warp:cohesion, warp:coupling, shared:recommended]
   strict: { rules: { cognitive-complexity: { max: 8 }, file-cohesion: { maxLines: 150 } } }
 
 root:
@@ -381,7 +398,7 @@ root:
 
 ```yaml
 root:
-  ruleset: { extends: [warp:recommended], rules: { file-cohesion: { maxLines: 200 } } }
+  ruleset: { extends: [warp:boundaries, warp:cohesion, warp:coupling], rules: { file-cohesion: { maxLines: 200 } } }
   modules:
     legacy:
       dir: src/legacy
@@ -409,7 +426,7 @@ plugins:
   shared: npm:@acme/warp-rules
 
 root:
-  ruleset: [warp:recommended, shared:recommended]
+  ruleset: [warp:boundaries, warp:cohesion, warp:coupling, shared:recommended]
   modules:
     src: { files: '**', ruleset: { rules: { wt/no-ports-through-application: on } } }
 ```

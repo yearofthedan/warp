@@ -43,10 +43,10 @@ give the judged module, the exporter's module, the export, and the files in each
 
 ```yaml
 root:
-  ruleset: [warp:recommended]
+  ruleset: [warp:coupling]
   modules:
     domain: { dir: src/domain, exposes: all }
-    strings: { dir: src/strings, exposes: all, ruleset: [warp:utility] }
+    strings: { dir: src/strings, exposes: all, ruleset: [warp:toolkit] }
     ui:
       dir: src/ui
       ruleset: { rules: { export-spread: { ignore: [strings] } } }

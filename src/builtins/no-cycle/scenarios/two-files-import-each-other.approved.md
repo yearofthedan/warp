@@ -3,7 +3,7 @@ Rule: each loop among files is reported once, at its first import.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
   modules:
     src: { dir: src }
 ```

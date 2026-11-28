@@ -3,7 +3,7 @@ Rule: a ruleset on a module changes the rules for that module and everything ins
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
     rules:
       file-cohesion: { maxLines: 15 }
       function-cohesion: { maxLines: 6 }
@@ -114,11 +114,11 @@ src/app/index.ts:1 [no-double-export] src/app/index.ts (root.app src/app) re-exp
 src/app/index.ts:2 [no-cross-module-reexport] src/app/index.ts (root.app src/app) re-exports Order from src/domain/order.ts (root.domain src/domain), so its importers reach src/domain through src/app. Have importers that need it use src/domain directly, give src/app its own type that hides it, or move it into src/app if src/app owns it.
 src/adapters/db/orderRepo.ts:1 [no-cycle] src/adapters/db/orderRepo.ts, src/adapters/index.ts and src/domain/order.ts import each other in a loop: src/adapters/db/orderRepo.ts:1 imports src/domain/order.ts, src/adapters/index.ts:1 imports src/adapters/db/orderRepo.ts, src/domain/order.ts:1 imports src/adapters/index.ts. Break it at one of these imports: move what both need into a file they both import, or invert one import.
 src/adapters/db/orderRepo.ts:1 [module-cycle] src/adapters and src/domain import each other in a loop: src/adapters -> src/domain (src/adapters/db/orderRepo.ts:1 imports src/domain/order.ts), src/domain -> src/adapters (src/domain/order.ts:1 imports src/adapters/index.ts, and 1 other import). Break it at one of these imports: move what both sides need into a module they both use, or turn module-cycle off on the module that holds them if they are meant to use each other.
-src/app/handle.ts:1 [file-cohesion] src/app/handle.ts is 23 lines (tripwire 15) and its top-level code falls into 2 groups that share no calls, top-level state or types: [handle] (lines 3-10); [grade] (lines 12-23). Each group can move to its own file.
-src/domain/pricing.ts:1 [file-cohesion] src/domain/pricing.ts is 17 lines (tripwire 15) and its top-level code falls into 3 groups that share no calls, top-level state or types: [rate, tax, gross] (lines 3-7); [label] (lines 9-11); [shout, banner] (lines 13-17). Each group can move to its own file.
-src/app/handle.ts:3 [function-cohesion] Function handle in src/app/handle.ts:3 is 8 lines (tripwire 6) and its statements fall into 2 groups that share no locals: lines 4-6; lines 7-9. Each group can become its own function.
 warp.yaml:11 [unused-declaration] root.adapters.dependencies names app, but nothing in src/adapters imports through it. Remove it.
 warp.yaml:10 [unused-declaration] root.app exposes: all, but nothing outside src/app imports it. Remove it, or use the module where it is needed.
+src/app/handle.ts:3 [function-cohesion] Function handle in src/app/handle.ts:3 is 8 lines (tripwire 6) and its statements fall into 2 groups that share no locals: lines 4-6; lines 7-9. Each group can become its own function.
+src/app/handle.ts:1 [file-cohesion] src/app/handle.ts is 23 lines (tripwire 15) and its top-level code falls into 2 groups that share no calls, top-level state or types: [handle] (lines 3-10); [grade] (lines 12-23). Each group can move to its own file.
+src/domain/pricing.ts:1 [file-cohesion] src/domain/pricing.ts is 17 lines (tripwire 15) and its top-level code falls into 3 groups that share no calls, top-level state or types: [rate, tax, gross] (lines 3-7); [label] (lines 9-11); [shout, banner] (lines 13-17). Each group can move to its own file.
 
 By rule and module:
   dependency-direction      src/domain    2
