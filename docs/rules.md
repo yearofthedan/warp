@@ -46,6 +46,7 @@ plugins: see [custom-rules.md](custom-rules.md).
 | [`export-spread`](../src/builtins/export-spread/README.md) | A module more of whose children use one outside value than `max`. | `max`, `ignore` |
 | [`export-surface`](../src/builtins/export-surface/README.md) | A module from which other modules import more names than `max`. | `max` |
 | [`module-dependencies`](../src/builtins/module-dependencies/README.md) | A module whose imports cross more boundaries than `max`. | `max`, `ignore` |
+| [`package-spread`](../src/builtins/package-spread/README.md) | A module more of whose children import one npm package than `max`. | `max`, `ignore` |
 
 ## Findings
 

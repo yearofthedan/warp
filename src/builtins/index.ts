@@ -15,6 +15,7 @@ import { moduleExternals } from './module-externals/rule.ts';
 import { noCrossModuleReexport } from './no-cross-module-reexport/rule.ts';
 import { noCycle } from './no-cycle/rule.ts';
 import { noDoubleExport } from './no-double-export/rule.ts';
+import { packageSpread } from './package-spread/rule.ts';
 import { unclassified } from './unclassified/rule.ts';
 import { unresolvedImport } from './unresolved-import/rule.ts';
 import { unusedDeclaration } from './unused-declaration/rule.ts';
@@ -32,7 +33,7 @@ const ruleClasses = {
     unusedDeclaration,
   ],
   cohesion: [functionCohesion, cognitiveComplexity, classCohesion, fileCohesion, moduleSize],
-  coupling: [exportConsumers, exportSpread, exportSurface, moduleDependencies],
+  coupling: [exportConsumers, exportSpread, exportSurface, moduleDependencies, packageSpread],
 };
 
 export const builtinRules: readonly Rule[] = Object.values(ruleClasses).flat();
