@@ -3,18 +3,19 @@
 **Audience:** anyone reading a `package-spread` finding, or setting the rule.
 **Purpose:** what `package-spread` reports, why, and how to fix it.
 
-Report a module more of whose children import one npm package than its limit.
+Report a module more of whose children import one package than its limit.
 
 ## Why
 
 When `billing`, `checkout` and `refunds` each import `stripe`, three modules hold the vendor directly. A change of
 vendor, or of how it is called, is three changes, and each module carries its own idea of how to use it. The fix is
 one module that wraps the package, which the others go through. `dependencies` can say the same by listing the
-package on one module only, but `'npm:*'` lets every module import it, and this rule still counts.
+package on one module only, but `'npm:*'` lets every module import it, and this rule still counts. The same holds
+for `node:fs` read from every feature instead of through one adapter.
 
 ## Rule details
 
-For each module with children, the rule counts, for each npm package, the children whose files import it. A child's
+For each module with children, the rule counts, for each package, the children whose files import it. A child's
 own children count as the child.
 
 ```text
@@ -28,12 +29,12 @@ src/
 
 `features` spreads `stripe` across 3 children.
 
-- npm packages count, by the package name, so `stripe` and `stripe/types` are one package. `node:` and `virtual:`
-  imports don't count: who may use them is for `dependencies`.
+- Packages count by name, so `stripe` and `stripe/types` are one package. `node:` built-ins and `virtual:` modules
+  count too.
 - Value imports count. Type-only imports, tests and re-exports don't.
 - Settings, the `ignore` list included, are read at the judged module. A list set high in the tree, or on an
   archetype's ruleset, reaches every module inside, and a lower setting replaces it.
-- `ignore` names packages as `dependencies` does, `npm:` and globs included: `ignore: [npm:zod, 'npm:@acme/*']`.
+- `ignore` names packages as `dependencies` does, globs included: `ignore: [npm:zod, 'node:*']`.
 
 The finding sits at the first import. Its value is the number of children, its `parts` name them, and its `details`
 give the judged module, the package, and the files in each child.
@@ -94,4 +95,5 @@ a module above it.
 
 ## When not to use it
 
-For a module whose children are adapters of one vendor, each meant to use it. List the package in `ignore`.
+For a layer of adapters, whose children each wrap the outside world and so import the same packages, such as
+`node:fs`. Turn the rule off on that layer: `adapters: { dir: src/adapters, ruleset: { rules: { package-spread: off } } }`.

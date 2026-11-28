@@ -46,9 +46,9 @@ interface IgnoreEntries {
 
 const moduleNames: IgnoreEntries = { valid: () => true, expected: 'a list of module names' };
 
-export const npmPackages: IgnoreEntries = {
-  valid: (entry) => entry.startsWith('npm:'),
-  expected: 'a list of npm packages, as dependencies names them: [npm:zod]',
+export const packages: IgnoreEntries = {
+  valid: (entry) => ['npm:', 'node:', 'virtual:'].some((prefix) => entry.startsWith(prefix)),
+  expected: "a list of packages, as dependencies names them: [npm:zod, 'node:*']",
 };
 
 export const limitOptions =

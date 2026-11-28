@@ -81,6 +81,7 @@ archetypes:
         description: 'What app reaches through its ports, and the formats findings are printed in'
         dir: adapters
         exposes: [analysis, config, git, reporters]
+        ruleset: { rules: { package-spread: off } }
         modules:
           analysis:
             description: Reading TypeScript into facts, and the project folders
