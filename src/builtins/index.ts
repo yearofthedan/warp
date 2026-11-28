@@ -19,6 +19,7 @@ import { packageSpread } from './package-spread/rule.ts';
 import { unclassified } from './unclassified/rule.ts';
 import { unresolvedImport } from './unresolved-import/rule.ts';
 import { unusedDeclaration } from './unused-declaration/rule.ts';
+import { unusedExport } from './unused-export/rule.ts';
 
 const ruleClasses = {
   boundaries: [
@@ -31,6 +32,7 @@ const ruleClasses = {
     noCycle,
     moduleCycle,
     unusedDeclaration,
+    unusedExport,
   ],
   cohesion: [functionCohesion, cognitiveComplexity, classCohesion, fileCohesion, moduleSize],
   coupling: [exportConsumers, exportSpread, exportSurface, moduleDependencies, packageSpread],

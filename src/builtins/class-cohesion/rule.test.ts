@@ -44,6 +44,7 @@ const facts = (...classes: ClassFacts[]): FileFacts => ({
   functions: [],
   classes,
   chains: [],
+  exports: [],
 });
 
 const check = (file: FileFacts, maxLines: number) => classCohesion.check({ file, options: { maxLines } });

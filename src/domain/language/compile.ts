@@ -6,7 +6,7 @@ import { checkInputs, markTests } from './requirements.ts';
 import { rulesets as namedRulesets } from './rulesets.ts';
 import { parseStructure } from './structure.ts';
 
-export interface CompileOptions {
+interface CompileOptions {
   file?: string;
   plugins?: readonly string[];
   rulesets?: Readonly<Record<string, unknown>>;

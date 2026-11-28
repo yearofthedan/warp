@@ -53,6 +53,7 @@ const facts = (path: string, imports: ImportEdge[] = [], chains: Chain[] = []): 
   functions: [],
   classes: [],
   chains,
+  exports: [],
 });
 
 const yaml = (model: string) => `

@@ -9,6 +9,7 @@ import { moduleSpecifiers } from './imports/specifiers.ts';
 import { countLines, readSource, type Resolver } from './source/source.ts';
 import { fileChains } from './declarations/chains.ts';
 import { classFacts } from './declarations/classes.ts';
+import { fileExports } from './declarations/exports.ts';
 import { functionFacts, fileMembers } from './declarations/members.ts';
 
 type Snapshot = ReturnType<API['createSnapshot']>;
@@ -117,6 +118,7 @@ const analyzeProgram = (
       functions: functionFacts(source),
       classes: classFacts(source),
       chains: fileChains(source, resolver),
+      exports: fileExports(source, resolver),
     };
     analyzed.set(file, { specifiers: moduleSpecifiers(sourceFile), facts });
   }

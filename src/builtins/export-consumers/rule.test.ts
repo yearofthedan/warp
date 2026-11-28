@@ -55,6 +55,7 @@ const facts = (path: string, chains: Chain[] = []): FileFacts => ({
   functions: [],
   classes: [],
   chains,
+  exports: [],
 });
 
 const yaml = (domain: string) => `

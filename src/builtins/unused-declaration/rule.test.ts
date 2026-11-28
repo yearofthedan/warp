@@ -51,6 +51,7 @@ const facts = (path: string, imports: string[] = [], packages: string[] = []): F
   functions: [],
   classes: [],
   chains: [],
+  exports: [],
 });
 
 const ui = `

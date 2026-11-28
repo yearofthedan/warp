@@ -23,6 +23,7 @@ plugins: see [custom-rules.md](custom-rules.md).
 | [`no-cycle`](../src/builtins/no-cycle/README.md) | A loop among files. | `types` |
 | [`no-cross-module-reexport`](../src/builtins/no-cross-module-reexport/README.md) | A re-export of another module's file, other than one nested in the re-exporting module. | |
 | [`unused-declaration`](../src/builtins/unused-declaration/README.md) | A `dependencies` entry, a surface or a module the code doesn't use. | |
+| [`unused-export`](../src/builtins/unused-export/README.md) | A name on a module's entry or exposed files that no other module imports. | |
 
 ## Cohesion
 
