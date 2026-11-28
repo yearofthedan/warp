@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.0](https://github.com/yearofthedan/warp/compare/warp-v0.5.1...warp-v0.6.0) (2026-11-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* warp:recommended and warp:utility are gone. Extend
+
+### Features
+
+* add package-spread, counting the children of a module that import one npm package ([6fae841](https://github.com/yearofthedan/warp/commit/6fae84103c5fc2be10178bdc41848611693d8d60))
+* count node: built-ins in package-spread, and turn it off on warp's adapters ([4bb6e50](https://github.com/yearofthedan/warp/commit/4bb6e50cbc373ae26e335a4d0be09afdda22c329))
+* split the built-in rulesets by rule class ([2143ac3](https://github.com/yearofthedan/warp/commit/2143ac3d7bae0ecaef1126fa490df1140f0e1ff7))
+
+
+### Bug Fixes
+
+* count the members used through a namespace import in export-surface ([57fafcb](https://github.com/yearofthedan/warp/commit/57fafcb10b6a27116e66d36ee9b6c0d83961f6f7))
+* link a guard clause to the statement it guards in function-cohesion ([4fc5c31](https://github.com/yearofthedan/warp/commit/4fc5c3191641c64f1b8b3d134b8f0ffd1c748b12))
+
 ## [0.5.1](https://github.com/yearofthedan/warp/compare/warp-v0.5.0...warp-v0.5.1) (2026-11-27)
 
 
