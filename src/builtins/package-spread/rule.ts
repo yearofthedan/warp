@@ -1,4 +1,4 @@
-import { limitOptions, type LimitOptions, listed, npmPackages, within } from '../boundaries.ts';
+import { limitOptions, type LimitOptions, listed, packages, within } from '../boundaries.ts';
 import { listsPackage } from '../packages.ts';
 import type { ExternalImport, FileFacts } from '../../domain/facts/facts.ts';
 import { packageText } from '../../domain/model/text.ts';
@@ -18,13 +18,13 @@ export const packageSpread: ProjectRule<LimitOptions> = {
   id,
   scope: 'project',
   defaults,
-  parseOptions: limitOptions(defaults, npmPackages),
+  parseOptions: limitOptions(defaults, packages),
   check: ({ model, project, atModule }) => {
     const uses = packageUses(model, project.files);
     return model.modules.flatMap((module): Finding[] => {
       const { on, options } = atModule(module);
       if (!on) return [];
-      const patterns = options.ignore.map((entry) => entry.slice('npm:'.length));
+      const patterns = options.ignore.map((entry) => (entry.startsWith('npm:') ? entry.slice('npm:'.length) : entry));
       const counted = uses.filter(({ external }) => !patterns.some((pattern) => listsPackage(pattern, external)));
       return [...spreads(model, module, counted)]
         .filter(([, children]) => children.size > options.max)
@@ -33,8 +33,7 @@ export const packageSpread: ProjectRule<LimitOptions> = {
   },
 };
 
-const counts = (external: ExternalImport): boolean =>
-  !external.typeOnly && !external.reExport && packageText(external.package).startsWith('npm:');
+const counts = (external: ExternalImport): boolean => !external.typeOnly && !external.reExport;
 
 const packageUses = (model: Model, files: readonly FileFacts[]): Use[] =>
   files.flatMap(({ path, externals }) =>
@@ -66,7 +65,7 @@ const finding = (name: string, children: Map<ModuleView, Site[]>, module: Module
     message:
       `${children.size} of ${module.id}'s modules import ${name}: ${listed(named)}. Its limit here is ${max}. ` +
       `Wrap ${name} in the one module that should own it and let the others go through that module, or name ` +
-      `npm:${name} in ${id}'s ignore on ${module.id} if it is meant to be used everywhere.`,
+      `${packageText(name)} in ${id}'s ignore on ${module.id} if it is meant to be used everywhere.`,
     sites,
     parts: named,
     details: {

@@ -112,12 +112,13 @@ describe('package-spread', () => {
     ]);
   });
 
-  it('counts a files module as a child, npm packages alone, and judges only modules with children where the rule is on', () => {
+  it('counts a files module as a child, node: built-ins too, and judges only modules with children where the rule is on', () => {
     assert.deepEqual(
       run('\n      ruleset: { rules: { package-spread: { max: 1 } } }').map(({ key, value }) => [key, value]),
       [
         ['package-spread:features:stripe', 3],
         ['package-spread:features:zod', 2],
+        ['package-spread:features:node:fs', 2],
       ],
     );
     assert.deepEqual(run('\n      ruleset: { rules: { package-spread: off } }'), []);
@@ -126,16 +127,16 @@ describe('package-spread', () => {
   it('leaves out the packages the judged module ignores, written as dependencies writes them', () => {
     const at = (ignore: string) =>
       run(`\n      ruleset: { rules: { package-spread: { max: 1, ignore: ${ignore} } } }`).map(({ key }) => key);
-    assert.deepEqual(at('[npm:stripe]'), ['package-spread:features:zod']);
-    assert.deepEqual(at("['npm:*']"), []);
+    assert.deepEqual(at('[npm:stripe, node:fs]'), ['package-spread:features:zod']);
+    assert.deepEqual(at("['npm:*', 'node:*']"), []);
   });
 
   it('refuses an ignore that is not a list of packages', () => {
-    for (const ignore of ['[stripe]', 'npm:stripe', '[3]', "['node:*']"])
+    for (const ignore of ['[stripe]', 'npm:stripe', '[3]'])
       assert.throws(() => run(`\n      ruleset: { rules: { package-spread: { ignore: ${ignore} } } }`), {
         name: 'ConfigError',
         message:
-          /^root\.features\.ruleset\.rules\.package-spread\.ignore: expected a list of npm packages, as dependencies names them: \[npm:zod\]$/,
+          /^root\.features\.ruleset\.rules\.package-spread\.ignore: expected a list of packages, as dependencies names them: \[npm:zod, 'node:\*'\]$/,
       });
   });
 });
