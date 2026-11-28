@@ -20,20 +20,12 @@ import {
   isNamespaceImport,
   isStringLiteralLikeNode,
 } from 'typescript/ast/is';
-import { type Checker, type Program, SymbolFlags } from 'typescript/sync';
+import { SymbolFlags } from 'typescript/sync';
 import { isBuiltin } from 'node:module';
 import { dirname, resolve } from 'node:path';
-import type { ExternalImport, ImportEdge, UnresolvedImport } from '../../domain/facts/facts.ts';
-import type { Source } from './source.ts';
+import type { ExternalImport, ImportEdge, UnresolvedImport } from '../../../domain/facts/facts.ts';
+import type { Resolver, Source } from '../source/source.ts';
 import { inlineReferences, statementSpecifier } from './specifiers.ts';
-
-export interface Resolver {
-  checker: Checker;
-  program: Program;
-  relative: (pathOrFileName: string) => string | undefined;
-  exists: (fileName: string) => boolean;
-  requireTarget: (specifier: string, directory: string) => string | undefined;
-}
 
 interface Binding {
   identifier: Identifier;

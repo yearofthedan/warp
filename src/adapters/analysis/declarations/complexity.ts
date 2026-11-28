@@ -17,8 +17,8 @@ import {
   isSwitchStatement,
   isWhileStatement,
 } from 'typescript/ast/is';
-import type { Complexity } from '../../domain/facts/facts.ts';
-import { type Source, symbolKey } from './source.ts';
+import type { Complexity } from '../../../domain/facts/facts.ts';
+import { type Source, symbolKey } from '../source/source.ts';
 
 export const cognitiveComplexity = (fn: Node, self: string | undefined, source: Source): Complexity => {
   const walker: Walker = { fn, self, source, increments: [] };

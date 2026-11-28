@@ -11,7 +11,7 @@ import {
   isLiteralTypeNode,
   isStringLiteralLikeNode,
 } from 'typescript/ast/is';
-import { walk } from './source.ts';
+import { walk } from '../source/source.ts';
 
 export interface InlineReference {
   node: Node;

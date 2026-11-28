@@ -27,8 +27,8 @@ import {
 } from 'typescript/ast/is';
 import { getCombinedModifierFlags } from 'typescript/ast/utils';
 import { ModifierFlags, type Symbol, SymbolFlags } from 'typescript/sync';
-import type { ClassFacts, Member, MemberGraph } from '../../domain/facts/facts.ts';
-import { type Source, symbolKey, walk } from './source.ts';
+import type { ClassFacts, Member, MemberGraph } from '../../../domain/facts/facts.ts';
+import { type Source, symbolKey, walk } from '../source/source.ts';
 
 interface Part {
   member: Member;

@@ -85,9 +85,33 @@ archetypes:
           analysis:
             description: Reading TypeScript into facts, and the project folders
             dir: analysis
-            dependencies: [app, domain, 'node:*', npm:typescript]
             exposes: all
-            ruleset: { rules: { module-size: { max: 1250 } } }
+            modules:
+              program:
+                description: Running the checker over a project, with its facts cache
+                files: [typescript.ts, freshFacts.ts]
+                dependencies: [source, imports, declarations, app, 'node:*', npm:typescript]
+                exposes: all
+              folders:
+                description: The project's folders on disk
+                files: folders.ts
+                dependencies: [domain, 'node:*']
+                exposes: all
+              source:
+                description: One file as the checker sees it, and the program it is read from
+                dir: source
+                dependencies: [npm:typescript]
+                exposes: all
+              imports:
+                description: A file's imports of project files and packages
+                dir: imports
+                dependencies: [source, domain, 'node:*', npm:typescript]
+                exposes: all
+              declarations:
+                description: "A file's declarations: members, functions, classes and the chains that use them"
+                dir: declarations
+                dependencies: [source, domain, npm:typescript]
+                exposes: all
             test: { modules: { tests: { files: '*.test.ts' } } }
           config:
             description: Reading a warp.yaml file and loading its plugins

@@ -10,9 +10,8 @@ import {
   isShorthandPropertyAssignment,
 } from 'typescript/ast/is';
 import { type Symbol, SymbolFlags } from 'typescript/sync';
-import type { Chain, Declared } from '../../domain/facts/facts.ts';
-import type { Resolver } from './imports.ts';
-import { type Source, walk } from './source.ts';
+import type { Chain, Declared } from '../../../domain/facts/facts.ts';
+import { type Resolver, type Source, walk } from '../source/source.ts';
 
 export const fileChains = (source: Source, resolver: Resolver): Chain[] => {
   const declared = declaredIn(source, resolver);

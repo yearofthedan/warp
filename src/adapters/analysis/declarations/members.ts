@@ -27,9 +27,9 @@ import {
   isVariableDeclaration,
   isVariableStatement,
 } from 'typescript/ast/is';
-import type { FunctionFacts, Member, MemberGraph, MemberKind } from '../../domain/facts/facts.ts';
+import type { FunctionFacts, Member, MemberGraph, MemberKind } from '../../../domain/facts/facts.ts';
 import { cognitiveComplexity } from './complexity.ts';
-import { type Source, symbolKey, walk } from './source.ts';
+import { type Source, symbolKey, walk } from '../source/source.ts';
 
 interface Declared {
   member: Member;

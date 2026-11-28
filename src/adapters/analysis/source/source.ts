@@ -1,6 +1,14 @@
 import type { Identifier, Node, PrivateIdentifier, SourceFile } from 'typescript/ast';
 import { isIdentifier, isPrivateIdentifier } from 'typescript/ast/is';
-import type { Checker, Symbol } from 'typescript/sync';
+import type { Checker, Program, Symbol } from 'typescript/sync';
+
+export interface Resolver {
+  checker: Checker;
+  program: Program;
+  relative: (pathOrFileName: string) => string | undefined;
+  exists: (fileName: string) => boolean;
+  requireTarget: (specifier: string, directory: string) => string | undefined;
+}
 
 export interface Source {
   file: string;
