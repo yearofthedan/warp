@@ -29,6 +29,7 @@ import {
 } from 'typescript/ast/is';
 import type { FunctionFacts, Member, MemberGraph, MemberKind } from '../../../domain/facts/facts.ts';
 import { cognitiveComplexity } from './complexity.ts';
+import { isGuard } from './guards.ts';
 import { type Source, symbolKey, walk } from '../source/source.ts';
 
 interface Declared {
@@ -173,11 +174,14 @@ const statementGraph = (fn: Node, statements: readonly Statement[], source: Sour
   const members: Member[] = [];
   const firstUser = new Map<string, number>();
   const links: [number, number][] = [];
+  let guard: number | undefined;
   for (const statement of statements) {
     const touched = [...references(statement, source)].filter((key) => locals.has(key) || key.startsWith('this.'));
     if (touched.length === 0) continue;
     const line = source.line(statement);
     const index = members.push({ name: `line ${line}`, kind: 'code', line, endLine: source.endLine(statement) }) - 1;
+    if (guard !== undefined) links.push([guard, index]);
+    guard = isGuard(statement) ? index : undefined;
     for (const key of touched) {
       const first = firstUser.get(key);
       if (first === undefined) firstUser.set(key, index);

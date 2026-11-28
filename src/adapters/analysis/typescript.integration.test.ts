@@ -246,3 +246,24 @@ describe('member chains', () => {
     ]);
   });
 });
+
+describe('guard clauses', () => {
+  const links = (name: string) => files.get('src/guard.ts')?.functions.find((fn) => fn.name === name)?.statements.links;
+
+  it('links an if that returns or throws, with no else, to the statement after it', () => {
+    assert.deepEqual(links('sync'), [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+    ]);
+    assert.deepEqual(links('split'), [
+      [0, 1],
+      [1, 2],
+      [3, 4],
+    ]);
+  });
+
+  it('leaves an if that carries on as a statement of its own', () => {
+    assert.deepEqual(links('branch'), [[1, 2]]);
+  });
+});

@@ -14,8 +14,9 @@ seam, so this rule reports where it is.
 ## Rule details
 
 The same LCOM4 measure as [`file-cohesion`](../file-cohesion/README.md), inside a function. It groups the body's
-statements, linking two when they share a parameter, a local or a `this.<member>`. Parameters count as shared, so
-guard clauses stay attached to the code they guard. Statements that touch none of these are left out. A function is
+statements, linking two when they share a parameter, a local or a `this.<member>`. A guard clause, an `if` with no
+`else` that returns or throws, such as `if (!config.enabled) return;`, is also linked to the statement after it, the
+code it guards. Statements that touch none of these are left out. A function is
 checked once it is over `maxLines`.
 
 The finding's value is the number of groups. Its `details` lists their line ranges.
