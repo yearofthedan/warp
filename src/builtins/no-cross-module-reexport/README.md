@@ -33,7 +33,7 @@ root:
     domain: { dir: src/domain, exposes: all }
     ports: { dir: src/ports, exposes: all, dependencies: [domain] }
     application: { dir: src/application, dependencies: [domain, ports] }
-  ruleset: [warp:recommended]
+  ruleset: [warp:boundaries]
 ```
 
 Incorrect code:

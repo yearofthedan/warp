@@ -1,7 +1,7 @@
 root:
   description: 'warp: checks a TypeScript codebase against a declared model of its modules'
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
     rules: { function-cohesion: { maxLines: 20 } }
   modules:
     package:
@@ -14,7 +14,7 @@ root:
       exposes: all
       test: { modules: { tests: { files: ['*.test.ts', 'scripts/*.test.ts'] } } }
   test:
-    ruleset: { rules: { function-cohesion: off } }
+    ruleset: [warp:test]
     provides: [npm:vite-plus/test, 'node:*']
     modules:
       e2e: { files: 'e2e/*.ts' }
@@ -34,7 +34,7 @@ archetypes:
             description: 'ConfigError, which every layer raises or reports when a config is wrong'
             dir: errors
             exposes: all
-            ruleset: [warp:utility]
+            ruleset: { rules: { export-consumers: off } }
           model:
             description: 'ConfigData, resolving files to modules, reach, and rule settings by place'
             dir: model
@@ -148,7 +148,7 @@ archetypes:
       list:
         description: The built-in rules with their docs links
         files: index.ts
-        ruleset: { rules: { module-dependencies: off } }
+        ruleset: [warp:wiring]
         dependencies: [rule, rules, model]
         exposes: all
       helpers:
@@ -156,7 +156,7 @@ archetypes:
         files: '*.ts'
         dependencies: [errors, model, rules, fixes, facts]
         exposes: all
-        ruleset: [warp:utility]
+        ruleset: [warp:toolkit]
       rule:
         dir: '*'
         archetype: rule

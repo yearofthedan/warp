@@ -9,7 +9,7 @@ root:
     generated: { dir: src/generated, ruleset: off }
 
 rulesets:
-  lint: [warp:recommended]
+  lint: [warp:boundaries, warp:cohesion, warp:coupling]
 ```
 
 ```json tsconfig.json

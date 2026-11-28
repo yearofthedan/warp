@@ -3,7 +3,7 @@ Rule: with types: ignore, a loop closed only by type-only imports is not reporte
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
     rules:
       no-cycle: { types: ignore }
   modules:

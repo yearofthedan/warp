@@ -3,7 +3,7 @@ Rule: a plugin path is written ./x, and a package npm:x; a bare one is refused a
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     src: { dir: src }
 

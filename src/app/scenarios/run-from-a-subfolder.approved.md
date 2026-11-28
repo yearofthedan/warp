@@ -3,7 +3,7 @@ Rule: run from a subfolder, warp takes the nearest warp.yaml above it and checks
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     ui: { dir: src/ui }
     domain: { dir: src/domain, exposes: all }

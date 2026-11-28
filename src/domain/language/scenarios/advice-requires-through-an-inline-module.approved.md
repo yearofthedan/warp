@@ -3,7 +3,7 @@ Rule: an archetype used inside an inline module is told to require what sits abo
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     domain: { dir: src/domain, exposes: all }
     area:

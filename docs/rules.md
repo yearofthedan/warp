@@ -3,8 +3,14 @@
 **Audience:** anyone choosing, setting or reading warp's rules.
 **Purpose:** every built-in rule, and the fields of a finding.
 
-A [ruleset](config.md#rulesets) on a module turns rules on or off and sets their options there and inside it. Each
-rule's page shows a config, code it reports with the finding it prints, code it passes, and its options.
+A [ruleset](config.md#rulesets) on a module turns rules on or off and sets their options there and inside it. The
+built-in rules fall into three classes, each with a ruleset that turns on all of its rules. Each rule's page shows a
+config, code it reports with the finding it prints, code it passes, and its options. A project adds its own rules as
+plugins: see [custom-rules.md](custom-rules.md).
+
+## Boundaries
+
+`warp:boundaries` checks that the module graph is the declared one.
 
 | Rule | Reports | Options |
 | --- | --- | --- |
@@ -16,18 +22,30 @@ rule's page shows a config, code it reports with the finding it prints, code it 
 | [`module-cycle`](../src/builtins/module-cycle/README.md) | A loop among sibling modules. | `types` |
 | [`no-cycle`](../src/builtins/no-cycle/README.md) | A loop among files. | `types` |
 | [`no-cross-module-reexport`](../src/builtins/no-cross-module-reexport/README.md) | A re-export of another module's file, other than one nested in the re-exporting module. | |
-| [`file-cohesion`](../src/builtins/file-cohesion/README.md) | A file over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
-| [`class-cohesion`](../src/builtins/class-cohesion/README.md) | A class over a size tripwire whose stateful methods fall into groups that share no fields or calls (LCOM4). | `maxLines` |
+| [`unused-declaration`](../src/builtins/unused-declaration/README.md) | A `dependencies` entry, a surface or a module the code doesn't use. | |
+
+## Cohesion
+
+`warp:cohesion` checks that each function, class, file and module holds one idea.
+
+| Rule | Reports | Options |
+| --- | --- | --- |
 | [`function-cohesion`](../src/builtins/function-cohesion/README.md) | A function over a size tripwire whose statements fall into unrelated groups. | `maxLines` |
 | [`cognitive-complexity`](../src/builtins/cognitive-complexity/README.md) | A function harder to follow than `max`, by SonarSource's measure. | `max` |
+| [`class-cohesion`](../src/builtins/class-cohesion/README.md) | A class over a size tripwire whose stateful methods fall into groups that share no fields or calls (LCOM4). | `maxLines` |
+| [`file-cohesion`](../src/builtins/file-cohesion/README.md) | A file over a size tripwire whose top-level code falls into unrelated groups (LCOM4). | `maxLines` |
+| [`module-size`](../src/builtins/module-size/README.md) | A module whose own files hold more lines than `max`. | `max` |
+
+## Coupling
+
+`warp:coupling` checks how many connections each module makes to and from others.
+
+| Rule | Reports | Options |
+| --- | --- | --- |
 | [`export-consumers`](../src/builtins/export-consumers/README.md) | An exported value used across more boundaries than `max`. | `max` |
 | [`export-spread`](../src/builtins/export-spread/README.md) | A module more of whose children use one outside value than `max`. | `max`, `ignore` |
 | [`export-surface`](../src/builtins/export-surface/README.md) | A module from which other modules import more names than `max`. | `max` |
 | [`module-dependencies`](../src/builtins/module-dependencies/README.md) | A module whose imports cross more boundaries than `max`. | `max`, `ignore` |
-| [`module-size`](../src/builtins/module-size/README.md) | A module whose own files hold more lines than `max`. | `max` |
-| [`unused-declaration`](../src/builtins/unused-declaration/README.md) | A `dependencies` entry, a surface or a module the code doesn't use. | |
-
-A project adds its own rules as plugins: see [custom-rules.md](custom-rules.md).
 
 ## Findings
 

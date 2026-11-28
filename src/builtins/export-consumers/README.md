@@ -38,7 +38,7 @@ use it is [`export-spread`](../export-spread/README.md)'s question.
   of a widely used class or table is judged on its own. A namespace import's `orders.total()` counts against
   `total`.
 - A use is counted by the name its declaring file exports, through any barrel.
-- Settings are read at the exporter's module. [`warp:utility`](../../../docs/config.md#rulesets) turns the rule off
+- Settings are read at the exporter's module. [`warp:toolkit`](../../../docs/config.md#rulesets) turns the rule off
   there, with [`export-surface`](../export-surface/README.md).
 
 The finding sits on the export's declaration. Its value is the number of boundaries, its `parts` name them, and its
@@ -48,7 +48,7 @@ The finding sits on the export's declaration. Its value is the number of boundar
 
 ```yaml
 root:
-  ruleset: { extends: [warp:recommended], rules: { export-consumers: { max: 2 } } }
+  ruleset: { extends: [warp:coupling], rules: { export-consumers: { max: 2 } } }
   modules:
     domain: { dir: src/domain, exposes: all }
     ui: { dir: src/ui, dependencies: [domain] }
@@ -83,7 +83,7 @@ export const cancel = (id: string) => cancelOrder(load(id));
 ## How to fix
 
 Give the consumers one way in, such as an application use case, and narrow who reaches the exporter. If the module
-is meant to be shared, put `ruleset: [warp:utility]` on it.
+is a set of helpers meant to be used everywhere, put `ruleset: [warp:toolkit]` on it.
 
 ## Options
 
@@ -93,5 +93,5 @@ is meant to be shared, put `ruleset: [warp:utility]` on it.
 
 ## When not to use it
 
-For a module whose exports are meant to be used everywhere, such as a strings table or shared helpers. Put
-`ruleset: [warp:utility]` on that module.
+For a module whose exports are meant to be used everywhere. Put `ruleset: [warp:toolkit]` on a set of helpers such as
+a strings table, or turn the rule off on any other such module, such as one that holds the project's error types.

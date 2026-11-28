@@ -6,8 +6,6 @@ import { checkInputs, markTests } from './requirements.ts';
 import { rulesets as namedRulesets } from './rulesets.ts';
 import { parseStructure } from './structure.ts';
 
-export { recommended } from './rulesets.ts';
-
 export interface CompileOptions {
   file?: string;
   plugins?: readonly string[];

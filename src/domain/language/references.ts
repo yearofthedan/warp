@@ -94,7 +94,7 @@ export const toRules = (check: Check, value: unknown, where: string, names?: Nam
 const toSetting = (check: Check, id: string, setting: unknown, where: string, names: Names | undefined) => {
   if (id !== '*' && check.ruleIds && !check.ruleIds.has(id)) check.fail(`${where}: no rule called ${id}`);
   else if (id === '*' && setting !== 'off' && setting !== false)
-    check.fail(`${where}.*: expected off; turn rules on by name, or extend a ruleset such as warp:recommended`);
+    check.fail(`${where}.*: expected off; turn rules on by name, or extend a ruleset such as warp:boundaries`);
   else if (setting === 'on' || setting === 'off') return setting === 'on';
   else if (typeof setting === 'boolean') return setting;
   else if (isRecord(setting)) return checkOptions(check, id, setting, where, names);

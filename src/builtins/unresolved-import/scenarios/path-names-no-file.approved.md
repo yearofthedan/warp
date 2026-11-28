@@ -3,7 +3,7 @@ Rule: a relative import that resolves to no file is reported.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
   modules:
     ui: { dir: src/ui }
 ```

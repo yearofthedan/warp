@@ -3,7 +3,7 @@ Rule: a file over the tripwire whose code falls into groups that share nothing i
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:cohesion]
     rules:
       file-cohesion: { maxLines: 4 }
   modules:

@@ -16,7 +16,6 @@ import { gitDirCache } from './adapters/git/cache.ts';
 import { gitRepository, projectPathOf } from './adapters/git/repository.ts';
 import type { ConfigData } from './domain/model/data.ts';
 import { anyRuleOn, rulesOf } from './domain/model/settings.ts';
-import { recommended } from './domain/language/compile.ts';
 import { loadConfig } from './app/load.ts';
 import { ConfigError } from './domain/errors/configError.ts';
 import type { Rule } from './domain/rules/rule.ts';
@@ -147,7 +146,7 @@ const placed = <T>({ lines, config }: Resolved, run: () => T): T => {
 };
 
 const nothingOn = (file: string) =>
-  `No rules are on, so nothing was checked. Turn some on in ${file}: root: { ruleset: [${recommended}] }`;
+  `No rules are on, so nothing was checked. Turn some on in ${file}: root: { ruleset: [warp:boundaries, warp:cohesion, warp:coupling] }`;
 
 const failureCache = () => {
   try {

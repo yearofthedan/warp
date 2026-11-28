@@ -3,11 +3,11 @@ Rule: a module is reported once more names, values and types, are imported from 
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:coupling]
     rules: { export-surface: { max: 2 } }
   modules:
     orders: { dir: src/orders, exposes: all }
-    strings: { dir: src/strings, exposes: all, ruleset: [warp:utility] }
+    strings: { dir: src/strings, exposes: all, ruleset: [warp:toolkit] }
     app: { dir: src/app, dependencies: [orders, strings] }
 ```
 

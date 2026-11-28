@@ -3,7 +3,7 @@ Rule: a repeated key is named, and an unquoted * is told to be quoted, each at i
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     src: { dir: src }
     src: { dir: lib }

@@ -3,7 +3,7 @@ Rule: a plugin file whose default export is not a plugin is refused at its line.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     src: { dir: src }
 

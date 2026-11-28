@@ -3,7 +3,7 @@ Rule: when a nearer module shares a name, the advice names the outer one with to
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     core: { dir: src/core, exposes: all }
     feat:

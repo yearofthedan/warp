@@ -3,7 +3,7 @@ Rule: a dependency that names no module in scope is refused, listing what is, at
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     domain: { dir: src/domain }
     ui: { dir: src/ui, dependencies: [domian] }

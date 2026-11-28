@@ -73,7 +73,7 @@ const paths = [
 const load = (yaml: string) => {
   const raw = parse(yaml);
   return loadConfigData(
-    { ...raw, root: { ruleset: { extends: ['warp:recommended'] }, ...raw.root } },
+    { ...raw, root: { ruleset: { extends: ['warp:boundaries', 'warp:cohesion', 'warp:coupling'] }, ...raw.root } },
     { builtins: warp },
   ).config;
 };

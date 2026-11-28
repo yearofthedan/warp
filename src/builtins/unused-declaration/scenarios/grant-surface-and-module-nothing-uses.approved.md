@@ -3,7 +3,7 @@ Rule: a dependency, a surface or a module that nothing uses is reported against 
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
   modules:
     domain: { dir: src/domain, exposes: all }
     ports: { dir: src/ports, exposes: all, dependencies: [domain, npm:zod] }

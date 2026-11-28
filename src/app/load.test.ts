@@ -640,7 +640,7 @@ root:
     test: { files: '*.test.ts', ruleset: { rules: { '*': off, no-such-rule: off } } }
 rulesets:
   shared:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
     rules: { dependency-direction: { strict: true }, file-cohesion: { maxLines: 0 }, unclassified: off }
 `,
         { builtins: warp },
@@ -728,10 +728,10 @@ root:
   test: { ruleset: { rules: { '*': on } } }
 `),
       [
-        'root.ruleset.rules.*: expected off; turn rules on by name, or extend a ruleset such as warp:recommended',
+        'root.ruleset.rules.*: expected off; turn rules on by name, or extend a ruleset such as warp:boundaries',
         'root.ruleset.rules.file-cohesion: expected on, off or options',
         'root.ruleset.rules.cognitive-complexity: expected on, off or options',
-        'root.test.ruleset.rules.*: expected off; turn rules on by name, or extend a ruleset such as warp:recommended',
+        'root.test.ruleset.rules.*: expected off; turn rules on by name, or extend a ruleset such as warp:boundaries',
         'root.src.ruleset.rules: expected off or rule settings by id',
       ],
     );

@@ -56,13 +56,13 @@ const project = (imports: Record<string, readonly Import[]>): Project => ({
   })),
 });
 
-const recommended = { extends: ['warp:recommended'] };
+const everyRule = { extends: ['warp:boundaries', 'warp:cohesion', 'warp:coupling'] };
 
 const anyOptions = { ...warp, rules: warp.rules.map((rule) => ({ ...rule, parseOptions: () => ({}) })) };
 
 const modelOf = (structure: string, imports: Record<string, readonly Import[]>) => {
   const raw = parse(structure);
-  const { config } = loadConfigData({ ...raw, root: { ruleset: recommended, ...raw.root } }, { builtins: anyOptions });
+  const { config } = loadConfigData({ ...raw, root: { ruleset: everyRule, ...raw.root } }, { builtins: anyOptions });
   const paths = Object.keys(imports);
   return { config, model: resolveModel(config, folders(paths), paths), project: project(imports) };
 };
@@ -78,7 +78,7 @@ describe('rule settings', () => {
   const ruleTree = () => {
     const root = `
 root:
-  ruleset: { extends: [warp:recommended], rules: { no-cycle: { types: count, z: 3 }, module-cycle: off } }
+  ruleset: { extends: [warp:boundaries, warp:cohesion, warp:coupling], rules: { no-cycle: { types: count, z: 3 }, module-cycle: off } }
   modules:
     mid: { dir: mid, archetype: mid, ruleset: { rules: { dependency-direction: { y: 2 } } } }
     top: { files: '*.ts' }
@@ -210,7 +210,7 @@ root:
   modules:
     domain: { dir: domain, exposes: all, test: { modules: { tests: { files: '*.test.ts' } } } }
     infra: { dir: infra, dependencies: [domain] }
-  ruleset: { extends: [warp:recommended] }
+  ruleset: { extends: [warp:boundaries, warp:cohesion, warp:coupling] }
 `),
       { builtins: warp },
     );
@@ -259,7 +259,7 @@ describe('code measures', () => {
   const measuredApp = () => {
     const app = `
 root:
-  ruleset: { extends: [warp:recommended], rules: { cognitive-complexity: { max: 20 } } }
+  ruleset: { extends: [warp:boundaries, warp:cohesion, warp:coupling], rules: { cognitive-complexity: { max: 20 } } }
   modules:
     scripts: { files: 'scripts/*.ts', ruleset: { rules: { cognitive-complexity: off } } }
     specs: { files: '*.test.ts', ruleset: { rules: { cognitive-complexity: { max: 30 } } } }
@@ -333,7 +333,7 @@ archetypes:
   } satisfies Record<string, Import[]>;
   const cycles = (rules = '') => {
     const { app } = loopingApp();
-    const ruleset = `\n  ruleset: { extends: [warp:recommended], rules: { ${rules} } }`;
+    const ruleset = `\n  ruleset: { extends: [warp:boundaries, warp:cohesion, warp:coupling], rules: { ${rules} } }`;
     return check(app.replace('root:', `root:${ruleset}`), imports).filter(
       (finding) => finding.rule !== 'dependency-direction',
     );
@@ -465,7 +465,12 @@ root:
     const [loop] = moduleCycles(app(`, ${off}`));
     assert.deepEqual([loop!.file, loop!.value, loop!.sites], ['b/b.ts', 1, [{ file: 'b/b.ts', line: 2 }]]);
     assert.deepEqual(
-      moduleCycles(app('', `ruleset: { extends: [warp:recommended], rules: { module-cycle: off } }, `)),
+      moduleCycles(
+        app(
+          '',
+          `ruleset: { extends: [warp:boundaries, warp:cohesion, warp:coupling], rules: { module-cycle: off } }, `,
+        ),
+      ),
       [],
     );
   });

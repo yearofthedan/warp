@@ -3,7 +3,7 @@ Rule: a named ruleset applies only through an extends, so one that nothing exten
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     src: { dir: src }
 

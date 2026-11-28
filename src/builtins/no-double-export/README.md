@@ -30,7 +30,7 @@ root:
   modules:
     domain: { dir: src/domain, exposes: { files: [index.ts, order.ts] } }
     ui: { dir: src/ui, dependencies: [domain] }
-  ruleset: [warp:recommended]
+  ruleset: [warp:boundaries]
 ```
 
 Incorrect code:

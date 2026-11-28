@@ -3,7 +3,7 @@ Rule: a module name with a dot is refused at its own line.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     src: { dir: src }
     main.ts: { files: main.ts }

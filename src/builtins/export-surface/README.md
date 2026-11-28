@@ -31,7 +31,7 @@ names `app` imports from it, `Order`, `cancel` and `run`, also 3. What `rules` t
 - Every module is judged at its own boundary, parents included, against the limit in its own ruleset. A layer's
   count says the layer is wide, a different fix from one wide module inside it.
 - Production files count. Tests and re-exports don't, and a namespace import isn't counted by name.
-- [`warp:utility`](../../../docs/config.md#rulesets) turns the rule off on a module meant to be shared, where
+- [`warp:toolkit`](../../../docs/config.md#rulesets) turns the rule off on a module meant to be shared, where
   offering many small helpers is the point.
 
 The finding sits on the file with the most of those names. Its value is the number of names, and its `details` give
@@ -41,7 +41,7 @@ the module, the value and type counts, and the names by file.
 
 ```yaml
 root:
-  ruleset: { extends: [warp:recommended], rules: { export-surface: { max: 2 } } }
+  ruleset: { extends: [warp:coupling], rules: { export-surface: { max: 2 } } }
   modules:
     orders: { dir: src/orders, exposes: all }
     app: { dir: src/app, dependencies: [orders] }
@@ -78,4 +78,4 @@ split it into modules each caller needs less of.
 
 ## When not to use it
 
-For a module meant to be shared, such as strings or helpers. Put `ruleset: [warp:utility]` on it.
+For a module meant to be shared, such as strings or helpers. Put `ruleset: [warp:toolkit]` on it.

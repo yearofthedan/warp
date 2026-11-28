@@ -40,7 +40,7 @@ root:
     domain: { dir: src/domain, exposes: all }
     ports: { dir: src/ports, exposes: all, dependencies: [domain, npm:zod] }
     styles: { files: 'src/*.css', exposes: all }
-  ruleset: [warp:recommended]
+  ruleset: [warp:boundaries]
 ```
 
 and these files:

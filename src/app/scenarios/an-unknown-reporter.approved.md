@@ -3,7 +3,7 @@ Rule: a reporter warp does not have is refused, listing the ones it has.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     src: { dir: src }
 ```

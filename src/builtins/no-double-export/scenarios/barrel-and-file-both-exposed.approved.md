@@ -3,7 +3,7 @@ Rule: a module that exposes both a barrel and a file it re-exports is reported.
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries]
   modules:
     domain: { dir: src/domain, exposes: { files: [index.ts, order.ts] } }
     ui: { dir: src/ui, dependencies: [domain] }

@@ -3,7 +3,7 @@ Rule: {name} outside an archetype is refused at the pattern's line, since nothin
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     main: { files: 'src/{name}.ts' }
 ```

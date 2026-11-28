@@ -44,7 +44,7 @@ The finding sits at the first import by path. Its value is the number of boundar
 
 ```yaml
 root:
-  ruleset: { extends: [warp:recommended], rules: { module-dependencies: { max: 2 } } }
+  ruleset: { extends: [warp:coupling], rules: { module-dependencies: { max: 2 } } }
   modules:
     domain: { dir: src/domain, exposes: all }
     icons: { dir: src/icons, exposes: all }

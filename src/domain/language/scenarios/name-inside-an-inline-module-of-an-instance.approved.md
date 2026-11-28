@@ -3,7 +3,7 @@ Rule: {name} inside an inline module of an archetype is the instance's folder na
 ```yaml warp.yaml
 root:
   ruleset:
-    extends: [warp:recommended]
+    extends: [warp:boundaries, warp:cohesion, warp:coupling]
   modules:
     feats: { dir: 'src/*', archetype: feat }
 
