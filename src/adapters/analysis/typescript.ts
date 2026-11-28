@@ -4,13 +4,12 @@ import { join, relative, sep } from 'node:path';
 import { API, ModuleKind } from 'typescript/sync';
 import { freshFacts } from './freshFacts.ts';
 import type { Analyzer, CachedFile } from '../../app/ports.ts';
-import type { FileFacts } from '../../domain/facts/facts.ts';
-import { fileEdges, type Resolver } from './imports.ts';
-import { moduleSpecifiers } from './specifiers.ts';
-import { countLines, readSource } from './source.ts';
-import { fileChains } from './chains.ts';
-import { classFacts } from './classes.ts';
-import { functionFacts, fileMembers } from './members.ts';
+import { fileEdges } from './imports/imports.ts';
+import { moduleSpecifiers } from './imports/specifiers.ts';
+import { countLines, readSource, type Resolver } from './source/source.ts';
+import { fileChains } from './declarations/chains.ts';
+import { classFacts } from './declarations/classes.ts';
+import { functionFacts, fileMembers } from './declarations/members.ts';
 
 type Snapshot = ReturnType<API['createSnapshot']>;
 type Configured = NonNullable<ReturnType<Snapshot['getConfiguredProject']>>;
@@ -110,7 +109,7 @@ const analyzeProgram = (
     const sourceFile = program.getSourceFile(fileName);
     if (!sourceFile) continue;
     const source = readSource(checker, sourceFile, file);
-    const facts: FileFacts = {
+    const facts = {
       path: file,
       lines: countLines(sourceFile.text),
       ...fileEdges(source, resolver),
