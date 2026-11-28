@@ -58,6 +58,7 @@ warp model --json
           "types": "count"
         },
         "unused-declaration": {},
+        "unused-export": {},
         "function-cohesion": {
           "maxLines": 40
         },
@@ -119,6 +120,7 @@ warp model --json
           "types": "count"
         },
         "unused-declaration": {},
+        "unused-export": {},
         "function-cohesion": {
           "maxLines": 40
         },
@@ -180,6 +182,7 @@ warp model --json
           "types": "count"
         },
         "unused-declaration": {},
+        "unused-export": {},
         "function-cohesion": {
           "maxLines": 40
         },

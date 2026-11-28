@@ -307,7 +307,7 @@ warp's own rulesets come in two kinds. Three turn on each class of built-in rule
 
 | Ruleset | Turns on the rules that check |
 | --- | --- |
-| `warp:boundaries` | that the module graph is the declared one: reach, cycles, loose files, unused declarations. |
+| `warp:boundaries` | that the module graph is the declared one: reach, cycles, loose files, unused declarations and exports. |
 | `warp:cohesion` | that each function, class, file and module holds one idea. |
 | `warp:coupling` | how many connections each module makes to and from others. |
 

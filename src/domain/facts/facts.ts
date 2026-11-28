@@ -12,6 +12,7 @@ export interface FileFacts {
   functions: FunctionFacts[];
   classes: ClassFacts[];
   chains: Chain[];
+  exports: Export[];
 }
 
 export interface ImportEdge {
@@ -82,6 +83,12 @@ export interface Chain {
   root?: Declared;
   hops: Declared[];
   call: boolean;
+}
+
+export interface Export {
+  name: string;
+  line: number;
+  declared: Declared;
 }
 
 export interface Declared {

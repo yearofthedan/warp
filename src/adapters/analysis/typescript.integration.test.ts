@@ -267,3 +267,27 @@ describe('guard clauses', () => {
     assert.deepEqual(links('branch'), [[1, 2]]);
   });
 });
+
+describe('exports', () => {
+  it('records each name a file exports, at the line that exports it, with the declaration it resolves to', () => {
+    const local = 'src/exports/local.ts';
+    assert.deepEqual(files.get(local)?.exports, [
+      { name: 'one', line: 3, declared: { file: local, name: 'one' } },
+      { name: 'two', line: 4, declared: { file: local, name: 'two' } },
+      { name: 'three', line: 8, declared: { file: local, name: 'three' } },
+      { name: 'tres', line: 8, declared: { file: local, name: 'three' } },
+      { name: 'Four', line: 9, declared: { file: local, name: 'Four' } },
+      { name: 'default', line: 10, declared: { file: local, name: 'default' } },
+    ]);
+  });
+
+  it('resolves a re-export to its declaration, a namespace as *, and leaves export * unnamed', () => {
+    const local = 'src/exports/local.ts';
+    assert.deepEqual(files.get('src/exports/barrel.ts')?.exports, [
+      { name: 'one', line: 1, declared: { file: local, name: 'one' } },
+      { name: 'trois', line: 1, declared: { file: local, name: 'three' } },
+      { name: 'five', line: 2, declared: { file: local, name: 'default' } },
+      { name: 'orders', line: 4, declared: { file: 'src/lib/orders.ts', name: '*' } },
+    ]);
+  });
+});

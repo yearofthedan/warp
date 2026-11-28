@@ -46,6 +46,7 @@ const facts = (path: string, imports: ImportEdge[] = []): FileFacts => ({
   functions: [],
   classes: [],
   chains: [],
+  exports: [],
 });
 
 const yaml = (ui: string) => `

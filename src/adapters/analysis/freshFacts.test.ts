@@ -14,6 +14,7 @@ const facts = (file: string, imports: Partial<ImportEdge>[] = []): FileFacts => 
   functions: [],
   classes: [],
   chains: [],
+  exports: [],
 });
 
 const cachedFile = (file: string, specifiers: string[], imports: Partial<ImportEdge>[] = []): [string, CachedFile] => [

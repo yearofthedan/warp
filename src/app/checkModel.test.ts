@@ -53,6 +53,7 @@ const project = (imports: Record<string, readonly Import[]>): Project => ({
     functions: [],
     classes: [],
     chains: [],
+    exports: [],
   })),
 });
 
@@ -245,6 +246,7 @@ describe('code measures', () => {
     members: { members: [], links: [] },
     classes: [],
     chains: [],
+    exports: [],
     functions: [
       {
         name: 'run',

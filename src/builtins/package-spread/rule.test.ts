@@ -46,6 +46,7 @@ const facts = (path: string, externals: ExternalImport[] = []): FileFacts => ({
   functions: [],
   classes: [],
   chains: [],
+  exports: [],
 });
 
 const yaml = (features: string) => `

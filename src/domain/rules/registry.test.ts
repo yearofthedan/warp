@@ -14,6 +14,7 @@ const file = {
   functions: [],
   classes: [],
   chains: [],
+  exports: [],
 };
 
 const finding = (rule: string, file: string): Finding => ({

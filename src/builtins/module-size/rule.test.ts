@@ -36,6 +36,7 @@ const facts = (path: string, lines: number): FileFacts => ({
   functions: [],
   classes: [],
   chains: [],
+  exports: [],
 });
 
 const yaml = `
