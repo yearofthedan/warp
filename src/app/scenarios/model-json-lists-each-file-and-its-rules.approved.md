@@ -86,6 +86,10 @@ warp model --json
         "module-dependencies": {
           "max": 4,
           "ignore": []
+        },
+        "package-spread": {
+          "max": 2,
+          "ignore": []
         }
       }
     },
@@ -143,6 +147,10 @@ warp model --json
         "module-dependencies": {
           "max": 4,
           "ignore": []
+        },
+        "package-spread": {
+          "max": 2,
+          "ignore": []
         }
       }
     },
@@ -199,6 +207,10 @@ warp model --json
         },
         "module-dependencies": {
           "max": 4,
+          "ignore": []
+        },
+        "package-spread": {
+          "max": 2,
           "ignore": []
         }
       }
